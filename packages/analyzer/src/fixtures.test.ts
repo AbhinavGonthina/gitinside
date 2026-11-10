@@ -40,6 +40,7 @@ const NAMES = [
   "fetch-template-literal",
   "fetch-event-source",
   "class-field-base",
+  "static-member-base",
   "axios-baseurl-instance",
   "env-base-heuristic",
   "env-fallback",
@@ -386,6 +387,21 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     ]);
     expect(links(g, "external_call")).toEqual([
       `${llm}#RouterLLM.complete -> external:ext/openrouter.ai heuristic`,
+    ]);
+  });
+
+  it("static-member-base: static members, #private methods, and an object's own property are bases (M9.1a7b)", async () => {
+    const g = await run("static-member-base");
+    const engine = "symbol:server/utils/engine.js";
+    const remote = "symbol:server/utils/remote.js";
+    expect(links(g, "http")).toEqual([
+      `${engine}#Engine.isRunning -> route:engine/GET /api/v1/health heuristic`,
+      `${engine}#EngineLLM.load -> route:engine/POST /api/v1/load heuristic`,
+    ]);
+    expect(links(g, "external_call")).toEqual([
+      `${remote}#Catalog.models -> external:ext/catalog.example.com heuristic`,
+      `${remote}#Hub.explore -> external:ext/hub.example.com heuristic`,
+      `${remote}#Mailer.send -> external:ext/script.google.com heuristic`,
     ]);
   });
 

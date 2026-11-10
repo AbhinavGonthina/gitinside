@@ -1,5 +1,7 @@
 /**
- * Instance fields written once (M9.1a7a, ADR-0253): what `this.<name>` holds when it's read
+ * Class and object members holding a URL base (M9.1a7a, ADR-0253; M9.1a7b, ADR-0254).
+ *
+ * Instance fields written once (M9.1a7a): what `this.<name>` holds when it's read
  * in a class's instance member, for the URL normalizer. anything-llm's `CollectorApi` sets
  * `this.endpoint = \`http://127.0.0.1:${…}\`` in its constructor and every request reads
  * `${this.endpoint}/process`; a provider sets `this.basePath = "https://apipie.ai/v1"` and
@@ -36,9 +38,39 @@
  *
  * The answer assumes no write the scan can't see, so the normalizer reads it at `heuristic`.
  *
+ * Static and object members (M9.1a7b): anything-llm's `FoundryCatalog.CATALOG_URL` (a static
+ * field), `EmbeddedLemonadeEngine.baseUrl` (a static getter returning
+ * `\`http://127.0.0.1:${port()}\``), `EmbeddedLemonadeLLM.openaiBasePath()` (a static method),
+ * Gmail's `this.#getBaseUrl()` (a private method), and `CommunityHub`'s `this.apiBase` (an
+ * object literal's own property). `classMember` names the member a read reaches:
+ * - The read is `<Class>.<name>` with `<Class>` naming a class declaration, or `this.<name>`
+ *   in a static member (the class itself) or, for a `#private` name, in any member.
+ * - The class declares exactly one member of that name and kind (static or not), with no
+ *   computed member of that kind beside it that could be it: a static field with an
+ *   initializer (its value), or a method or getter (the normalizer reads its body as a string
+ *   builder). A getter with a setter is two members, so it's left alone, as is a public
+ *   instance method or getter, which a subclass may override.
+ * - `this` in a static member may be a subclass, whose own static member wins, so a public
+ *   static member read through `this` needs no class in the program to extend its class.
+ * - Nothing in the program writes a property of that name on a value that may be the class
+ *   itself (named writes: set aside only when the checker types the receiver as a primitive,
+ *   an object literal, an instance, or another class; an `any` receiver counts), and no
+ *   unnamed write targets a value typed as the class or `object`. A `#private` method or
+ *   getter can't be assigned, so it isn't looked for.
+ *
+ * `objectMember` reads `this.<name>` in a method or `function` property of an object literal
+ * that is a variable's initializer (`const Hub = { apiBase: "…", explore() { … } }`): the
+ * literal's own property (`objectProperty`: a spread or computed key that could supply it
+ * leaves it unread), when no named write may land on that object (its own type, `object`, or
+ * `any`) and no unnamed write on one typed as it. `this` is the object only when the method
+ * is called on it (`Hub.explore()`), which the scan assumes; hence `heuristic` too.
+ *
  * Not handled (the read stays a hole):
- * - Static fields and getters, `#private` methods, methods returning a value, and an object
- *   literal's properties read through `this` (M9.1a7b).
+ * - Public instance methods and getters (`this.url()`), and static members of a class some
+ *   class in the program extends when read through `this`; a static member inherited from a
+ *   base class (`Sub.base` declared on `Base`); a class held in a variable (`const C = class
+ *   {…}`); and an object literal that isn't a variable's initializer (returned, nested, or
+ *   passed), or whose method is an arrow function (its `this` is the enclosing one).
  * - A field set through something the scan doesn't name (`Reflect.set`, a prototype), by an
  *   unnamed write on a value not typed as the class (`anyObject[key] = …` in JS, an interface
  *   the class implements; see above), or by code in another service's program. Such writes
@@ -49,6 +81,19 @@
 import ts from "typescript";
 import type { ServiceProgram } from "./program.js";
 import { propertyName, unwrap } from "./symbols.js";
+import { objectProperty } from "./values.js";
+
+/** Types no property write can land on an object through. */
+const PRIMITIVE =
+  ts.TypeFlags.StringLike |
+  ts.TypeFlags.NumberLike |
+  ts.TypeFlags.BigIntLike |
+  ts.TypeFlags.BooleanLike |
+  ts.TypeFlags.ESSymbolLike |
+  ts.TypeFlags.Null |
+  ts.TypeFlags.Undefined |
+  ts.TypeFlags.Void |
+  ts.TypeFlags.Never;
 
 /** The writes found in one program, indexed by property name. */
 interface WriteIndex {
@@ -61,6 +106,25 @@ interface WriteIndex {
   unnamed: readonly { receiver: ts.Expression; key?: ts.Expression }[];
 }
 
+/**
+ * A read of a class member (M9.1a7b): `this.<name>` in one of the class's members, or
+ * `<Class>.<name>` naming the class itself.
+ */
+export interface MemberAccess {
+  cls: ts.ClassLikeDeclaration;
+  /** The member's name as written, `#x` for a private one. */
+  name: string;
+  /** True when the read is of the class itself (a static member). */
+  isStatic: boolean;
+  /** True when the receiver is `this`, which a subclass may be. */
+  viaThis: boolean;
+}
+
+/** What a class member holds: a static field's initializer, or a getter or method. */
+export type ClassMember =
+  | { value: ts.Expression }
+  | { fn: ts.MethodDeclaration | ts.GetAccessorDeclaration };
+
 /** Reads the value an instance field holds; see the module comment. */
 export interface FieldReader {
   /**
@@ -68,6 +132,25 @@ export interface FieldReader {
    * read isn't one of the forms above.
    */
   instanceField(sp: ServiceProgram, read: ts.Expression): ts.Expression | undefined;
+  /**
+   * The static field, static getter or method, or `#private` method or getter a read names
+   * (M9.1a7b), when nothing may replace it; see the module comment.
+   */
+  classMember(sp: ServiceProgram, access: MemberAccess): ClassMember | undefined;
+  /**
+   * The value of the property a `this.<name>` read names in a method of a variable's object
+   * literal (M9.1a7b), when nothing may write it; see the module comment.
+   */
+  objectMember(sp: ServiceProgram, read: ts.Expression): ts.Expression | undefined;
+}
+
+/** The {@link MemberAccess} a `this.<name>` read in a class member is, if it is one. */
+export function thisAccess(read: ts.Expression): MemberAccess | undefined {
+  const name = thisProperty(read);
+  const member = name === undefined ? undefined : thisMember(read);
+  if (name === undefined || !member) return undefined;
+  const cls = member.parent as ts.ClassLikeDeclaration;
+  return { cls, name, isStatic: isStatic(member), viaThis: true };
 }
 
 /** The member whose `this` a node sees: the nearest non-arrow function or class member. */
@@ -230,16 +313,6 @@ export function createFieldReader(checkerOf: (sp: ServiceProgram) => ts.TypeChec
     cls: ts.ClassLikeDeclaration,
   ): boolean => {
     const type = checker.getTypeAtLocation(receiver);
-    const PRIMITIVE =
-      ts.TypeFlags.StringLike |
-      ts.TypeFlags.NumberLike |
-      ts.TypeFlags.BigIntLike |
-      ts.TypeFlags.BooleanLike |
-      ts.TypeFlags.ESSymbolLike |
-      ts.TypeFlags.Null |
-      ts.TypeFlags.Undefined |
-      ts.TypeFlags.Void |
-      ts.TypeFlags.Never;
     return (type.isUnion() ? type.types : [type]).every((t) => {
       if (t.flags & PRIMITIVE) return true;
       if (t.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown)) return false;
@@ -342,5 +415,173 @@ export function createFieldReader(checkerOf: (sp: ServiceProgram) => ts.TypeChec
     return value;
   };
 
-  return { instanceField };
+  /** True when the checker says a named write's receiver can't be the class itself. */
+  const notTheClass = (
+    checker: ts.TypeChecker,
+    receiver: ts.Expression,
+    cls: ts.ClassLikeDeclaration,
+  ): boolean => {
+    const type = checker.getTypeAtLocation(receiver);
+    return (type.isUnion() ? type.types : [type]).every((t) => {
+      if (t.flags & PRIMITIVE) return true;
+      if (t.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown)) return false;
+      const symbol = t.getSymbol();
+      if (!symbol) return false;
+      if (symbol.flags & ts.SymbolFlags.ObjectLiteral) return true;
+      const d = symbol.valueDeclaration;
+      if (d && ts.isVariableDeclaration(d) && d.initializer) {
+        if (ts.isObjectLiteralExpression(unwrap(d.initializer))) return true;
+      }
+      if (!(symbol.flags & ts.SymbolFlags.Class)) return false;
+      // An instance, or another class: a static write to a subclass is the subclass's own.
+      if (checker.getTypeOfSymbol(symbol) !== t) return true;
+      return !symbol.declarations?.includes(cls);
+    });
+  };
+
+  /** True when an unnamed write's receiver is typed as `object` or as the class itself. */
+  const typedAsClass = (
+    checker: ts.TypeChecker,
+    receiver: ts.Expression,
+    cls: ts.ClassLikeDeclaration,
+  ): boolean => {
+    const type = checker.getTypeAtLocation(receiver);
+    const parts = type.isUnion() || type.isIntersection() ? type.types : [type];
+    return parts.some((t) => {
+      if (t.flags & ts.TypeFlags.NonPrimitive) return true;
+      const symbol = t.getSymbol();
+      if (!symbol || !(symbol.flags & ts.SymbolFlags.Class)) return false;
+      return checker.getTypeOfSymbol(symbol) === t && (symbol.declarations?.includes(cls) ?? false);
+    });
+  };
+
+  const subclassed = new WeakMap<ts.Program, Set<ts.Declaration>>();
+  /** Every class declaration some class in the program `extends`, as the checker resolves it. */
+  const extendedIn = (sp: ServiceProgram): Set<ts.Declaration> => {
+    let found = subclassed.get(sp.program);
+    if (found) return found;
+    found = new Set();
+    const checker = checkerOf(sp);
+    const visit = (node: ts.Node): void => {
+      if (ts.isHeritageClause(node) && node.token === ts.SyntaxKind.ExtendsKeyword) {
+        for (const type of node.types) {
+          let symbol = checker.getSymbolAtLocation(type.expression);
+          if (symbol && symbol.flags & ts.SymbolFlags.Alias) {
+            symbol = checker.getAliasedSymbol(symbol);
+          }
+          for (const d of symbol?.declarations ?? []) found.add(d);
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    for (const file of sp.program.getSourceFiles()) {
+      if (!file.isDeclarationFile) visit(file);
+    }
+    subclassed.set(sp.program, found);
+    return found;
+  };
+
+  const classMember = (sp: ServiceProgram, access: MemberAccess): ClassMember | undefined => {
+    const { cls, name } = access;
+    const isPrivate = name.startsWith("#");
+    // A public instance method or getter may be a subclass's override; fields are
+    // `instanceField`'s.
+    if (!access.isStatic && !isPrivate) return undefined;
+    const named: ts.ClassElement[] = [];
+    for (const m of cls.members) {
+      if (ts.isConstructorDeclaration(m) || ts.isClassStaticBlockDeclaration(m) || !m.name)
+        continue;
+      const n = memberName(m.name);
+      if (n === undefined) {
+        if (access.isStatic === isStatic(m)) return undefined; // a computed member could be it
+        continue;
+      }
+      if (n === name && isStatic(m) === access.isStatic) named.push(m);
+    }
+    const [only, ...more] = named;
+    if (!only || more.length > 0) return undefined;
+    // `this` in a static member may be a subclass, whose own static member of that name wins.
+    if (access.isStatic && access.viaThis && !isPrivate && extendedIn(sp).has(cls)) {
+      return undefined;
+    }
+    let found: ClassMember;
+    if (ts.isPropertyDeclaration(only) && access.isStatic && only.initializer) {
+      found = { value: only.initializer };
+    } else if (ts.isMethodDeclaration(only) || ts.isGetAccessorDeclaration(only)) {
+      found = { fn: only };
+    } else {
+      return undefined;
+    }
+    // A `#private` method or getter can't be assigned; anything static can be.
+    if (!isPrivate || "value" in found) {
+      const checker = checkerOf(sp);
+      const index = writesOf(sp.program);
+      for (const target of index.named.get(name) ?? []) {
+        const receiver = unwrap(
+          (target as ts.PropertyAccessExpression | ts.ElementAccessExpression).expression,
+        );
+        if (!notTheClass(checker, receiver, cls)) return undefined;
+      }
+      const mayWrite = ({ receiver, key }: { receiver: ts.Expression; key?: ts.Expression }) =>
+        !(key && keyIsNot(checker, key, name)) && typedAsClass(checker, unwrap(receiver), cls);
+      if (index.unnamed.some(mayWrite)) return undefined;
+    }
+    return found;
+  };
+
+  const objectMember = (sp: ServiceProgram, read: ts.Expression): ts.Expression | undefined => {
+    const name = thisProperty(read);
+    if (name === undefined) return undefined;
+    // The nearest function with its own `this` (arrow functions see their parent's).
+    let fn: ts.Node | undefined = read.parent;
+    while (
+      fn &&
+      (ts.isArrowFunction(fn) ||
+        !(ts.isFunctionLike(fn) || ts.isSourceFile(fn) || ts.isClassLike(fn)))
+    ) {
+      fn = fn.parent as ts.Node | undefined;
+    }
+    if (!fn) return undefined;
+    // The object literal whose method (or function-valued property) `this` is read in.
+    let object: ts.Node | undefined;
+    if (ts.isMethodDeclaration(fn) || ts.isGetAccessorDeclaration(fn)) object = fn.parent;
+    else if (ts.isFunctionExpression(fn) && ts.isPropertyAssignment(fn.parent)) {
+      object = fn.parent.parent;
+    }
+    if (!object || !ts.isObjectLiteralExpression(object)) return undefined;
+    const declaration = object.parent;
+    if (!ts.isVariableDeclaration(declaration) || declaration.initializer !== object) {
+      return undefined;
+    }
+    const value = objectProperty(sp, object, name);
+    if (!value) return undefined;
+
+    const checker = checkerOf(sp);
+    const objectSymbol = checker.getTypeAtLocation(object).getSymbol();
+    /** True when a receiver may be this object (`any` too, for named writes). */
+    const mayBe = (receiver: ts.Expression, anyCounts: boolean): boolean => {
+      const type = checker.getTypeAtLocation(receiver);
+      const parts = type.isUnion() || type.isIntersection() ? type.types : [type];
+      return parts.some((t) => {
+        if (t.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown)) return anyCounts;
+        if (t.flags & ts.TypeFlags.NonPrimitive) return true;
+        const symbol = t.getSymbol();
+        if (!symbol) return false;
+        return symbol === objectSymbol || symbol.valueDeclaration === declaration;
+      });
+    };
+    const index = writesOf(sp.program);
+    for (const target of index.named.get(name) ?? []) {
+      const receiver = unwrap(
+        (target as ts.PropertyAccessExpression | ts.ElementAccessExpression).expression,
+      );
+      if (mayBe(receiver, true)) return undefined;
+    }
+    const mayWrite = ({ receiver, key }: { receiver: ts.Expression; key?: ts.Expression }) =>
+      !(key && keyIsNot(checker, key, name)) && mayBe(unwrap(receiver), false);
+    if (index.unnamed.some(mayWrite)) return undefined;
+    return value.expression;
+  };
+
+  return { instanceField, classMember, objectMember };
 }

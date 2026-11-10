@@ -60,6 +60,13 @@
  *   initializer or a top-level constructor statement, and nothing else may (`fields.ts`,
  *   M9.1a7a, ADR-0253): the value written, read at `heuristic` (`this.endpoint =
  *   \`http://127.0.0.1:${port()}\`` ⇒ `http://127.0.0.1:{}`).
+ * - Static and object members (`fields.ts`, M9.1a7b, ADR-0254), at `heuristic`: a static
+ *   field's initializer (`this.CATALOG_URL`, `Finder.remoteUrl`); a static getter's or a
+ *   `#private` getter's body read as a string builder (`EmbeddedLemonadeEngine.baseUrl`); a
+ *   call of a static or `#private` method read as a builder call (`Engine.openaiBasePath()`,
+ *   `this.#getBaseUrl()`), whose calls before its `return` (`this.#log(…);`) are passed over;
+ *   and `this.<name>` in a method of a variable's object literal, read as that literal's own
+ *   property (`CommunityHub`'s `this.apiBase`).
  *
  * URL rules (DESIGN.md §7.2):
  * - A literal origin (`https://api.example.com`) becomes a `host` base; scheme and host are
@@ -95,9 +102,9 @@
  * read in the caller's scope. Only the property named `queryKey` is followed through a pattern.
  *
  * Not handled (each becomes a hole, so usually `DYNAMIC_URL`):
- * - Other class and object members: static fields and getters, methods returning a URL
- *   (`#getBaseUrl()`), an object literal's property read through `this`, and an instance
- *   field `fields.ts` can't prove written once (M9.1a7b).
+ * - Class and object members `fields.ts` can't prove hold one value: an instance field not
+ *   written once, public instance methods and getters (a subclass may override them), and
+ *   the other forms its comment lists.
  * - A `+=` that may change the path (`url += "/" + id`, `url += suffix()` before any `?`),
  *   though `url = url + "/" + id` is read (ADR-0166).
  * - `var` variables, `let`s `lets.ts` can't follow, destructured parameters other than a
@@ -106,7 +113,7 @@
  * - Results of functions that aren't string builders: a body doing anything before its
  *   `return` (`const p = …; return p;`), returning something else (`base.replace(…)`, a
  *   ternary, another call), async or generator functions, rest or destructured parameters,
- *   `let`/`var` functions, class methods, functions from packages, and a call with a spread
+ *   `let`/`var` functions, public instance methods, functions from packages, and a call with a spread
  *   argument. A builder from a hook-like function that isn't React's (`useCallback` imported
  *   from elsewhere) isn't followed either.
  * - Mutating a `URL` after creation (`u.pathname = …`) and relative `new URL()` URLs whose
@@ -126,7 +133,7 @@ import type { Confidence, UrlSegment } from "@gitinside/schema";
 import type { SymbolResolver } from "./calls.js";
 import type { HttpCallSite } from "./http.js";
 import type { ServiceProgram } from "./program.js";
-import { createFieldReader } from "./fields.js";
+import { createFieldReader, thisAccess, type MemberAccess } from "./fields.js";
 import { letValues } from "./lets.js";
 import { isJsExpando, propertyName, unwrap } from "./symbols.js";
 import {
@@ -313,15 +320,31 @@ function returnedExpression(fn: ts.FunctionLikeDeclaration): ts.Expression | und
 }
 
 /**
+ * What a class method or getter returns (M9.1a7b): {@link returnedExpression}, or a block
+ * whose statements before its last, a `return`, are only calls (`this.#log(…);`), which can't
+ * rebind anything the returned expression reads.
+ */
+function memberReturn(fn: ts.FunctionLikeDeclaration): ts.Expression | undefined {
+  const body = fn.body;
+  if (!body || !ts.isBlock(body)) return returnedExpression(fn);
+  const last = body.statements.at(-1);
+  const calls = body.statements
+    .slice(0, -1)
+    .every((s) => ts.isExpressionStatement(s) && ts.isCallExpression(unwrap(s.expression)));
+  return last && ts.isReturnStatement(last) && calls ? last.expression : undefined;
+}
+
+/**
  * What a string builder returns (M5C.7d): a function, not async or a generator, with only
  * plain identifier parameters, whose body returns one template, string, or `+` concatenation.
+ * A class method or getter may make calls first ({@link memberReturn}).
  */
 function builderBody(fn: ts.FunctionLikeDeclaration): ts.Expression | undefined {
   if (fn.asteriskToken || (ts.getCombinedModifierFlags(fn) & ts.ModifierFlags.Async) !== 0) {
     return undefined;
   }
   if (fn.parameters.some((p) => p.dotDotDotToken || !ts.isIdentifier(p.name))) return undefined;
-  const value = returnedExpression(fn);
+  const value = ts.isClassLike(fn.parent) ? memberReturn(fn) : returnedExpression(fn);
   const e = value && unwrap(value);
   if (!e) return undefined;
   const builds =
@@ -1355,6 +1378,13 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     else if (ts.isElementAccessExpression(e) && ts.isStringLiteralLike(e.argumentExpression)) {
       name = e.argumentExpression.text;
     } else return undefined;
+    // A static or `#private` method (M9.1a7b): `Engine.basePath()`, `this.#getBaseUrl()`.
+    const access = memberAccess(sp, e, hops);
+    const member = access && fields.classMember(access.sp, access.access);
+    if (access && member) {
+      if (!("fn" in member) || !ts.isMethodDeclaration(member.fn)) return undefined;
+      return { sp: access.sp, fn: member.fn, confidence: weaker(access.confidence, "heuristic") };
+    }
     const object = reader.constObject(sp, e.expression, hops + 1);
     if (!object) return undefined;
     // The last member naming it wins, as at runtime; a spread or computed key could be it.
@@ -1415,7 +1445,50 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     hops: number,
   ): UrlPart[] | undefined => {
     const value = fields.instanceField(sp, e);
-    if (!value) return undefined;
+    if (value) return classScopeParts(sp, value, hops);
+    const own = fields.objectMember(sp, e);
+    if (own) return classScopeParts(sp, own, hops);
+    const found = memberAccess(sp, e, hops);
+    const member = found && fields.classMember(found.sp, found.access);
+    if (!found || !member) return undefined;
+    if ("value" in member) {
+      note(found.confidence);
+      return classScopeParts(found.sp, member.value, hops);
+    }
+    const body = ts.isGetAccessorDeclaration(member.fn) ? builderBody(member.fn) : undefined;
+    if (!body) return undefined;
+    note(found.confidence);
+    return classScopeParts(found.sp, body, hops);
+  };
+
+  /**
+   * The class member a `this.<name>` read in a class, or a `<Class>.<name>` read, names
+   * (M9.1a7b), with the program that holds the class and how surely it was reached.
+   */
+  const memberAccess = (
+    sp: ServiceProgram,
+    e: ts.Expression,
+    hops: number,
+  ): { sp: ServiceProgram; access: MemberAccess; confidence: Confidence } | undefined => {
+    const own = thisAccess(e);
+    if (own) return { sp, access: own, confidence: "exact" };
+    if (!ts.isPropertyAccessExpression(e)) return undefined;
+    const object = unwrap(e.expression);
+    if (!ts.isIdentifier(object)) return undefined;
+    const symbol = reader.symbolAt(sp, object);
+    const found = symbol && reader.resolveDeclaration(sp, symbol, hops + 1);
+    const d = found?.declaration;
+    if (!found || !d || !ts.isClassDeclaration(d)) return undefined;
+    const access = { cls: d, name: e.name.text, isStatic: true, viaThis: false };
+    return { sp: found.sp, access, confidence: found.confidence };
+  };
+
+  /**
+   * A value a class or object member holds, at `heuristic` (no write the scan can't see).
+   * It is read in the member's own scope, where no wrapper's or builder's parameter is bound,
+   * and a constructor parameter in it is a plain hole: no caller of the method supplies it.
+   */
+  const classScopeParts = (sp: ServiceProgram, value: ts.Expression, hops: number): UrlPart[] => {
     note("heuristic");
     const outer = { bindings, frame };
     const usedBefore = new Set(used);
