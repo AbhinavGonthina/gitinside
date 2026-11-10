@@ -1,0 +1,5 @@
+{
+  "name": "class-field-base-root",
+  "private": true,
+  "workspaces": ["server", "collector"]
+}
