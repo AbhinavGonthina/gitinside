@@ -1,0 +1,285 @@
+{
+  "repo": "KEX-03/taskflow",
+  "sha": "d56cce93a36d343bb939c945b0089ede5786c524",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "client/src/context/AuthContext.jsx", "line": 19 },
+      "method": "GET",
+      "target": { "file": "server/src/routes/profile.js", "line": 7, "route": "GET /api/v1/me" },
+      "notes": "restoreSession(): api.get(\"/me\"). api = axios.create({ baseURL: import.meta.env.VITE_API_URL }) in client/src/utils/api.js, no in-code fallback; client/.env.example sets VITE_API_URL=http://localhost:5000/api/v1 = server/src/server.js's PORT || 5000 (server/.env.example PORT=5000). server/src/app.js mounts profileRoutes at /api/v1/me; router.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "client/src/context/AuthContext.jsx", "line": 38 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/auth.js",
+        "line": 25,
+        "route": "POST /api/v1/auth/signup"
+      },
+      "notes": "signup(): api.post(\"/auth/signup\") on base http://localhost:5000/api/v1 (client/.env.example). authRoutes mounted at /api/v1/auth; router.post(\"/signup\", signupLimiter, …)"
+    },
+    {
+      "callSite": { "file": "client/src/context/AuthContext.jsx", "line": 47 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/routes/auth.js",
+        "line": 26,
+        "route": "POST /api/v1/auth/login"
+      },
+      "notes": "login(): api.post(\"/auth/login\") on base http://localhost:5000/api/v1. authRoutes mounted at /api/v1/auth; router.post(\"/login\", loginLimiter, …)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Dashboard.jsx", "line": 44 },
+      "method": "GET",
+      "target": { "file": "server/src/routes/tasks.js", "line": 14, "route": "GET /api/v1/tasks" },
+      "notes": "api.get(\"/tasks?limit=50\") on base http://localhost:5000/api/v1; query dropped. taskRoutes mounted at /api/v1/tasks; router.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Profile.jsx", "line": 44 },
+      "method": "PUT",
+      "target": { "file": "server/src/routes/profile.js", "line": 8, "route": "PUT /api/v1/me" },
+      "notes": "profile save: api.put(\"/me\", { name, bio, avatar }) on base http://localhost:5000/api/v1. profileRoutes mounted at /api/v1/me; router.put(\"/\")"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Profile.jsx", "line": 73 },
+      "method": "PUT",
+      "target": { "file": "server/src/routes/profile.js", "line": 8, "route": "PUT /api/v1/me" },
+      "notes": "password change: api.put(\"/me\", { currentPassword, newPassword }) on base http://localhost:5000/api/v1; same router.put(\"/\") under /api/v1/me"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Tasks.jsx", "line": 279 },
+      "method": "GET",
+      "target": { "file": "server/src/routes/tasks.js", "line": 14, "route": "GET /api/v1/tasks" },
+      "notes": "fetchTasks(): api.get(`/tasks?${params}`, { signal }) on base http://localhost:5000/api/v1; the hole is the query string only. taskRoutes mounted at /api/v1/tasks; router.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Tasks.jsx", "line": 325 },
+      "method": "POST",
+      "target": { "file": "server/src/routes/tasks.js", "line": 13, "route": "POST /api/v1/tasks" },
+      "notes": "handleCreate(): api.post(\"/tasks\", form) on base http://localhost:5000/api/v1; router.post(\"/\") under /api/v1/tasks"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Tasks.jsx", "line": 332 },
+      "method": "PUT",
+      "target": {
+        "file": "server/src/routes/tasks.js",
+        "line": 16,
+        "route": "PUT /api/v1/tasks/:id"
+      },
+      "notes": "handleUpdate(): api.put(`/tasks/${editTask._id}`, form) on base http://localhost:5000/api/v1; router.put(\"/:id\") under /api/v1/tasks"
+    },
+    {
+      "callSite": { "file": "client/src/pages/Tasks.jsx", "line": 339 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/routes/tasks.js",
+        "line": 17,
+        "route": "DELETE /api/v1/tasks/:id"
+      },
+      "notes": "handleDelete(): api.delete(`/tasks/${deleteId}`) on base http://localhost:5000/api/v1; router.delete(\"/:id\") under /api/v1/tasks"
+    },
+    {
+      "callSite": { "file": "server/test/cors.test.js", "line": 78 },
+      "method": "GET",
+      "target": { "file": "server/test/cors.test.js", "line": 73, "route": "GET /" },
+      "notes": "allowedOrigin(origin): fetch(url, { headers: { Origin } }), url = `http://localhost:${server.address().port}/` of the express() app the test builds and listen(0)s itself (lines 71-75); its only route is app.get(\"/\") at line 73, behind the cors middleware. Path fixed in the helper, so labeled at the fetch, not at its three calls"
+    },
+    {
+      "callSite": { "file": "server/test/tasks.test.js", "line": 74 },
+      "method": "GET",
+      "target": { "file": "server/src/routes/tasks.js", "line": 14, "route": "GET /api/v1/tasks" },
+      "notes": "fetch(`${baseUrl}/api/v1/tasks`) with no method, so GET. baseUrl = `http://localhost:${server.address().port}` of require(\"../src/app\").listen(0) started in before() (lines 55-60), this repo's server; taskRoutes mounted at /api/v1/tasks, router.get(\"/\") (answered 401 by protect, but the path is the route's)"
+    },
+    {
+      "callSite": { "file": "server/test/tasks.test.js", "line": 81 },
+      "method": "POST",
+      "target": { "file": "server/src/routes/tasks.js", "line": 13, "route": "POST /api/v1/tasks" },
+      "notes": "fetch(`${baseUrl}/api/v1/tasks`, { method: \"POST\" }) against the test's app.listen(0) server; router.post(\"/\") under /api/v1/tasks"
+    },
+    {
+      "callSite": { "file": "server/test/tasks.test.js", "line": 101 },
+      "method": "POST",
+      "target": { "file": "server/src/routes/tasks.js", "line": 13, "route": "POST /api/v1/tasks" },
+      "notes": "fetch(`${baseUrl}/api/v1/tasks`, { method: \"POST\" }) against the test's app.listen(0) server; router.post(\"/\") under /api/v1/tasks"
+    },
+    {
+      "callSite": { "file": "server/test/tasks.test.js", "line": 124 },
+      "method": "POST",
+      "target": { "file": "server/src/routes/tasks.js", "line": 13, "route": "POST /api/v1/tasks" },
+      "notes": "fetch(`${baseUrl}/api/v1/tasks`, { method: \"POST\" }) inside a loop over invalid due dates (one call site, one route); router.post(\"/\") under /api/v1/tasks"
+    },
+    {
+      "callSite": { "file": "server/test/tasks.test.js", "line": 156 },
+      "method": "PUT",
+      "target": {
+        "file": "server/src/routes/tasks.js",
+        "line": 16,
+        "route": "PUT /api/v1/tasks/:id"
+      },
+      "notes": "fetch(`${baseUrl}/api/v1/tasks/${task._id}`, { method: \"PUT\" }) against the test's app.listen(0) server; router.put(\"/:id\") under /api/v1/tasks"
+    },
+    {
+      "callSite": { "file": "server/test/tasks.test.js", "line": 167 },
+      "method": "PUT",
+      "target": {
+        "file": "server/src/routes/tasks.js",
+        "line": 16,
+        "route": "PUT /api/v1/tasks/:id"
+      },
+      "notes": "fetch(`${baseUrl}/api/v1/tasks/${task._id}`, { method: \"PUT\" }); router.put(\"/:id\") under /api/v1/tasks"
+    },
+    {
+      "callSite": { "file": "server/test/tasks.test.js", "line": 178 },
+      "method": "PUT",
+      "target": {
+        "file": "server/src/routes/tasks.js",
+        "line": 16,
+        "route": "PUT /api/v1/tasks/:id"
+      },
+      "notes": "fetch(`${baseUrl}/api/v1/tasks/${task._id}`, { method: \"PUT\" }); router.put(\"/:id\") under /api/v1/tasks"
+    },
+    {
+      "callSite": { "file": "server/test/tasks.test.js", "line": 197 },
+      "method": "PUT",
+      "target": {
+        "file": "server/src/routes/tasks.js",
+        "line": 16,
+        "route": "PUT /api/v1/tasks/:id"
+      },
+      "notes": "fetch(`${baseUrl}/api/v1/tasks/${task._id}`, { method: \"PUT\" }) inside a loop over invalid due dates; router.put(\"/:id\") under /api/v1/tasks"
+    },
+    {
+      "callSite": { "file": "server/test/tasks.test.js", "line": 214 },
+      "method": "POST",
+      "target": { "file": "server/src/routes/tasks.js", "line": 13, "route": "POST /api/v1/tasks" },
+      "notes": "fetch(`${baseUrl}/api/v1/tasks`, { method: \"POST\" }); router.post(\"/\") under /api/v1/tasks"
+    },
+    {
+      "callSite": { "file": "server/test/tasks.test.js", "line": 235 },
+      "method": "GET",
+      "target": { "file": "server/src/routes/tasks.js", "line": 14, "route": "GET /api/v1/tasks" },
+      "notes": "fetch(`${baseUrl}/api/v1/tasks`, { headers }) with no method, so GET; router.get(\"/\") under /api/v1/tasks"
+    },
+    {
+      "callSite": { "file": "server/test/tasks.test.js", "line": 243 },
+      "method": "GET",
+      "target": { "file": "server/src/routes/tasks.js", "line": 14, "route": "GET /api/v1/tasks" },
+      "notes": "fetch(`${baseUrl}/api/v1/tasks`, { headers }), GET; router.get(\"/\") under /api/v1/tasks"
+    },
+    {
+      "callSite": { "file": "server/test/tasks.test.js", "line": 261 },
+      "method": "GET",
+      "target": { "file": "server/src/routes/tasks.js", "line": 14, "route": "GET /api/v1/tasks" },
+      "notes": "fetch(`${baseUrl}/api/v1/tasks?status=in-progress`), GET; query dropped; router.get(\"/\") under /api/v1/tasks"
+    },
+    {
+      "callSite": { "file": "server/test/tasks.test.js", "line": 269 },
+      "method": "GET",
+      "target": { "file": "server/src/routes/tasks.js", "line": 14, "route": "GET /api/v1/tasks" },
+      "notes": "fetch(`${baseUrl}/api/v1/tasks?search=documentation`), GET; query dropped; router.get(\"/\") under /api/v1/tasks"
+    },
+    {
+      "callSite": { "file": "server/test/tasks.test.js", "line": 281 },
+      "method": "PUT",
+      "target": {
+        "file": "server/src/routes/tasks.js",
+        "line": 16,
+        "route": "PUT /api/v1/tasks/:id"
+      },
+      "notes": "fetch(`${baseUrl}/api/v1/tasks/${task._id}`, { method: \"PUT\" }); router.put(\"/:id\") under /api/v1/tasks"
+    },
+    {
+      "callSite": { "file": "server/test/tasks.test.js", "line": 294 },
+      "method": "PUT",
+      "target": {
+        "file": "server/src/routes/tasks.js",
+        "line": 16,
+        "route": "PUT /api/v1/tasks/:id"
+      },
+      "notes": "fetch(`${baseUrl}/api/v1/tasks/${task._id}`, { method: \"PUT\" }); router.put(\"/:id\") under /api/v1/tasks"
+    },
+    {
+      "callSite": { "file": "server/test/tasks.test.js", "line": 313 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/tasks.js",
+        "line": 15,
+        "route": "GET /api/v1/tasks/:id"
+      },
+      "notes": "fetch(`${baseUrl}/api/v1/tasks/${badId}`), GET; badId = \"not-an-id\" still matches router.get(\"/:id\") under /api/v1/tasks (the controller answers 404)"
+    },
+    {
+      "callSite": { "file": "server/test/tasks.test.js", "line": 321 },
+      "method": "PUT",
+      "target": {
+        "file": "server/src/routes/tasks.js",
+        "line": 16,
+        "route": "PUT /api/v1/tasks/:id"
+      },
+      "notes": "fetch(`${baseUrl}/api/v1/tasks/${badId}`, { method: \"PUT\" }); router.put(\"/:id\") under /api/v1/tasks"
+    },
+    {
+      "callSite": { "file": "server/test/tasks.test.js", "line": 334 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/routes/tasks.js",
+        "line": 17,
+        "route": "DELETE /api/v1/tasks/:id"
+      },
+      "notes": "fetch(`${baseUrl}/api/v1/tasks/${badId}`, { method: \"DELETE\" }); router.delete(\"/:id\") under /api/v1/tasks"
+    },
+    {
+      "callSite": { "file": "server/test/tasks.test.js", "line": 347 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/tasks.js",
+        "line": 15,
+        "route": "GET /api/v1/tasks/:id"
+      },
+      "notes": "fetch(`${baseUrl}/api/v1/tasks/${user2Task._id}`), GET; router.get(\"/:id\") under /api/v1/tasks"
+    },
+    {
+      "callSite": { "file": "server/test/tasks.test.js", "line": 355 },
+      "method": "PUT",
+      "target": {
+        "file": "server/src/routes/tasks.js",
+        "line": 16,
+        "route": "PUT /api/v1/tasks/:id"
+      },
+      "notes": "fetch(`${baseUrl}/api/v1/tasks/${user2Task._id}`, { method: \"PUT\" }); router.put(\"/:id\") under /api/v1/tasks"
+    },
+    {
+      "callSite": { "file": "server/test/tasks.test.js", "line": 368 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/routes/tasks.js",
+        "line": 17,
+        "route": "DELETE /api/v1/tasks/:id"
+      },
+      "notes": "fetch(`${baseUrl}/api/v1/tasks/${user2Task._id}`, { method: \"DELETE\" }); router.delete(\"/:id\") under /api/v1/tasks"
+    },
+    {
+      "callSite": { "file": "server/test/tasks.test.js", "line": 381 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/routes/tasks.js",
+        "line": 17,
+        "route": "DELETE /api/v1/tasks/:id"
+      },
+      "notes": "fetch(`${baseUrl}/api/v1/tasks/${task._id}`, { method: \"DELETE\" }); router.delete(\"/:id\") under /api/v1/tasks"
+    },
+    {
+      "callSite": { "file": "server/test/tasks.test.js", "line": 390 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/routes/tasks.js",
+        "line": 15,
+        "route": "GET /api/v1/tasks/:id"
+      },
+      "notes": "fetch(`${baseUrl}/api/v1/tasks/${task._id}`), GET; router.get(\"/:id\") under /api/v1/tasks"
+    }
+  ]
+}

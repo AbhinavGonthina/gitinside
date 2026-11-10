@@ -1,0 +1,131 @@
+{
+  "repo": "swarooppatilx/bit-by-query",
+  "sha": "7af29699cbdbc65bf3240ef1373da30e343a59e5",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["client", "server"],
+  "edges": [
+    {
+      "callSite": { "file": "client/src/ForgotPassword.jsx", "line": 30 },
+      "method": "POST",
+      "target": null,
+      "notes": "plain axios.post(\"/api/forgot-password\", { email }), root-relative; client/vite.config.js proxies /api to http://localhost:5000 (server/server.js PORT || 5000), and in production the same server serves client/dist. No router registers /forgot-password (authRoutes has only login, register, logout), and app.get(\"*\") answers GET only, so a POST reaches no route"
+    },
+    {
+      "callSite": { "file": "client/src/Home.jsx", "line": 75 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/userRoutes.js",
+        "line": 7,
+        "route": "GET /api/userinfo"
+      },
+      "notes": "apiClient (line 75) .get('/api/userinfo') chained on line 76. apiClient = axios.create({ baseURL: \"/\" }) in client/src/apiClient.js, so the URL stays /api/userinfo; Vite proxy /api -> http://localhost:5000. server/server.js mounts userRoutes at /api; router.get(\"/userinfo\")"
+    },
+    {
+      "callSite": { "file": "client/src/Home.jsx", "line": 81 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/problemRoutes.js",
+        "line": 7,
+        "route": "GET /api/problems"
+      },
+      "notes": "apiClient.get('/api/problems') in Promise.all after userinfo; base \"/\", proxied to :5000. problemRoutes mounted at /api; router.get(\"/problems\")"
+    },
+    {
+      "callSite": { "file": "client/src/Home.jsx", "line": 82 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/submissionRoutes.js",
+        "line": 7,
+        "route": "GET /api/submissions"
+      },
+      "notes": "apiClient.get('/api/submissions') in the same Promise.all; submissionRoutes mounted at /api; router.get(\"/submissions\")"
+    },
+    {
+      "callSite": { "file": "client/src/Home.jsx", "line": 137 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/problemRoutes.js",
+        "line": 8,
+        "route": "GET /api/problems/:id"
+      },
+      "notes": "apiClient (line 137) .get(`/api/problems/${problemId}`) chained on line 138; base \"/\". problemRoutes mounted at /api; router.get(\"/problems/:id\")"
+    },
+    {
+      "callSite": { "file": "client/src/Home.jsx", "line": 162 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/submissionRoutes.js",
+        "line": 8,
+        "route": "POST /api/problems/:id/evaluate"
+      },
+      "notes": "handleEvaluate: apiClient (line 162) .post(`/api/problems/${problemId}/evaluate`, { userQuery }) chained on line 163; problemRoutes (mounted first) has no POST, so it reaches submissionRoutes' router.post(\"/problems/:id/evaluate\") under /api"
+    },
+    {
+      "callSite": { "file": "client/src/Home.jsx", "line": 171 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/submissionRoutes.js",
+        "line": 7,
+        "route": "GET /api/submissions"
+      },
+      "notes": "refresh after a correct answer: apiClient (line 171) .get('/api/submissions') chained on line 172; router.get(\"/submissions\") under /api"
+    },
+    {
+      "callSite": { "file": "client/src/LandingPage.jsx", "line": 15 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/userRoutes.js",
+        "line": 7,
+        "route": "GET /api/userinfo"
+      },
+      "notes": "fetch(\"/api/userinfo\", { credentials: \"include\" }), root-relative, no method so GET; Vite proxy /api -> http://localhost:5000. userRoutes mounted at /api; router.get(\"/userinfo\")"
+    },
+    {
+      "callSite": { "file": "client/src/LeaderBoard.jsx", "line": 17 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/leaderboardRoutes.js",
+        "line": 5,
+        "route": "GET /api/leaderboard"
+      },
+      "notes": "plain axios.get('/api/leaderboard'), root-relative, proxied to :5000. server/server.js mounts leaderboardRoutes at /api (after apiRateLimiter); router.get(\"/leaderboard\")"
+    },
+    {
+      "callSite": { "file": "client/src/Login.jsx", "line": 28 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/authRoutes.js",
+        "line": 5,
+        "route": "POST /api/login"
+      },
+      "notes": "apiClient.post(\"/api/login\", …); base \"/\", proxied to :5000. server/server.js mounts authRoutes at /api (after authRateLimiter); router.post(\"/login\")"
+    },
+    {
+      "callSite": { "file": "client/src/Register.jsx", "line": 72 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/authRoutes.js",
+        "line": 6,
+        "route": "POST /api/register"
+      },
+      "notes": "plain axios.post(\"/api/register\", …), root-relative, proxied to :5000; authRoutes mounted at /api; router.post(\"/register\")"
+    },
+    {
+      "callSite": { "file": "client/src/auth.js", "line": 5 },
+      "method": "POST",
+      "target": null,
+      "notes": "checkAuthStatus: apiClient.post('/api/status'). The file imports '../apiClient' (client/apiClient, which doesn't exist; the instance is client/src/apiClient.js) and nothing imports auth.js, but either way the root-relative /api/status reaches no route: authController exports status, but authRoutes never registers it, and app.get(\"*\") answers GET only"
+    },
+    {
+      "callSite": { "file": "client/src/components/Header.jsx", "line": 17 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/authRoutes.js",
+        "line": 7,
+        "route": "POST /api/logout"
+      },
+      "notes": "confirmLogout: apiClient.post(\"/api/logout\", {}, { withCredentials: true }); apiClient from ../apiClient (client/src/apiClient.js, base \"/\"). authRoutes mounted at /api; router.post(\"/logout\")"
+    }
+  ]
+}
