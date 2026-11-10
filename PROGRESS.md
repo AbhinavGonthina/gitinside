@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M9.2a2 The draw: snapshot both pools and commit them before reading any candidate, then walk each stratum in `draw status 6` order
+M9.2b1 Label batch 6's first 4 pins in draw order, `vijethph/PlacementCell`, `KEX-03/taskflow`, `swarooppatilx/bit-by-query`, `vicharanashala/cp1`
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -507,11 +507,11 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [x] M9.1b3 Landing gallery linking each pin's permalink (thumbnail from the diagram image at the pin), tests, screenshots dark/light {model: opus}
 - M9.2 Final eval + benchmarks; README numbers with links, split like M5C.8 (the final eval includes the next blind batch, #18 option 2):
 - [x] M9.2a1 Batch 6's rule, committed before any candidate list is fetched: `eval/draws/batch-6.json` (batch 5's strata and queries, seed `2026-11-10`, 454 exclusions: batch 5's list, its pins and rejections, the 2026-11-06 usage files, the PR backtest's candidates), `drawCrossCheck` requiring every earlier draw's exclusions, ADR-0208 amendment, EVALUATION.md §1 {model: opus}
-- [ ] M9.2a2 The draw: snapshot both pools and commit them before reading any candidate, then walk each stratum in `draw status 6` order recording every pin or rejection until 8 pins per stratum (each base checked against the routes' full paths, as M5C.8b2 learned); no labels yet {model: opus}
-- [ ] M9.2b1 Label batch 6's first 4 pins in draw order (each committed with its `repos.json` entry, `"heldOut": 6`; batch 6 declared `"seen": null`; no `pnpm eval` until M9.2c) {model: opus}
-- [ ] M9.2b2 Label batch 6's pins 5–8 {model: opus}
-- [ ] M9.2b3 Label batch 6's pins 9–12 {model: opus}
-- [ ] M9.2b4 Label batch 6's pins 13–16; EVALUATION.md's batch 6 table {model: opus}
+- [x] M9.2a2 The draw: snapshot both pools and commit them before reading any candidate, then walk each stratum in `draw status 6` order recording every pin or rejection until 8 pins per stratum (each base checked against the routes' full paths, as M5C.8b2 learned); no labels yet {model: opus}
+- [ ] M9.2b1 Label batch 6's first 4 pins in draw order, `vijethph/PlacementCell`, `KEX-03/taskflow`, `swarooppatilx/bit-by-query`, `vicharanashala/cp1` (each committed with its `repos.json` entry, `"heldOut": 6`; batch 6 declared `"seen": null`; no `pnpm eval` until M9.2c) {model: opus}
+- [ ] M9.2b2 Label batch 6's pins 5–8: `MohammedMusharraf11/Alumni-Connect`, `Misyuk-T/worklog-hub`, `Tushyent/TakeUForward`, `kalczugag/Employee-Leave-Management` {model: opus}
+- [ ] M9.2b3 Label batch 6's pins 9–12: `abjt14/agamjeet`, `Gribadan/RentTools.io`, `ivanrods/balancefy`, `RicardoGEsteves/SpreadIt` {model: opus}
+- [ ] M9.2b4 Label batch 6's pins 13–16: `2Revol2/DreamingEnglish`, `digitalocean/sea-notes-saas-starter-kit`, `issam-seghir/discord-clone`, `TheArcus02/Better-GPT`; EVALUATION.md's batch 6 table {model: opus}
 - [ ] M9.2c Score batch 6 once, blind: precision (≥ 95% the hard number), recall, share mapped completely, every miss's cause in a diagnosis; README/EVALUATION quote it as measured {model: opus}
 - [ ] M9.2d Final benchmarks at the launch analyzer: full analysis (`pnpm bench`, cal.com), incremental (`pnpm bench:incremental`, edits and commits), and render (`pnpm bench:render`), each report recording repo, SHA, and machine; observations written from the numbers {model: opus}
 - [ ] M9.2e README "Results" rewritten around the final numbers (blind batch 6 first, earlier batches and the backtest summarized, benchmarks), each linking its committed report {model: opus}
@@ -526,6 +526,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 
 (Newest first. 2–4 lines per task.)
 
+- 2026-11-10 M9.2a2: batch 6's walk (`94af5d7`; pools snapshotted in `43315af` by an earlier run that ended before the walk). `react-express` pinned 8 of 25 read (rule 3 ×6: tRPC-only Express ×2, Fastify, Flutter, static page, CLI template; rule 4 ×11), `nextjs-prisma` 8 of 13 (rule 3 ×3, rule 4 ×2). Parallel readers in waves no larger than the pins still missing, so nothing past either quota; every base joined with a request path against the mounted routes and the server's port. One reader's "RTK Query is a library request" corrected (this eval labels RTK endpoints). A scratch `eval/dist/m92a2-check.mjs` re-read every pin's SHA, MIT license, and file count (30–376); `validate` and `draw status 6` pass. Report re-recorded at `94af5d7` (commit line only). No eval delta.
 - 2026-11-10 M9.2a1 (ADR-0208's M9.2a1 amendment): M9.2 split into a1–a2 (rule, draw), b1–b4 (labels), c (blind score), d (benchmarks), e (README results), since the final eval includes the next blind batch (#18). `eval/draws/batch-6.json`: batch 5's strata and queries, seed `2026-11-10`, only the totals read (291, 307); 454 exclusions (batch 5's 278, its 16 pins and 18 rejections, 80 names from the 2026-11-06 usage files, the backtest's 7 pins and 55 rejections), built by scratch `eval/dist/m92a1-exclude.mjs`, which re-derived batch 5's 224 usage names with none missing. `drawCrossCheck` now fails a list dropping an earlier draw's exclusion (red first; a dropped batch-5 usage name mutation-checked red in `validate`). No eval delta (draw records aren't eval inputs).
 
 - 2026-11-10 M9.1b3 (ADR-0259): the landing page's "See it on real repos" gallery, under the field: one card per pin (`DEMO_GALLERY`, lib/gallery.ts) linking its permalink, with the pin's own image from a new commit image route, `/api/diagram/<owner>/<repo>/<sha>.svg` (`viewRepo` with the SHA, as the permalink: no GitHub, nothing queued but a pin lacking this version's graph). A dark and a light image per card, the page's `data-theme` hiding one (`lazy`: 3 requests a page, checked in a browser). Counts tested against each `docs/demos/*.json` record. Red per guard (SHA check, SHA's use); web suite, unconfigured + seeded + signed-in E2E green; the visual test serves the fixture's image for thumbnails, so `landing--*` baselines are re-captured. Screens in `docs/milestones/M9/gallery/`.
