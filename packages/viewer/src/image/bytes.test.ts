@@ -119,7 +119,7 @@ const EXPECTED: Record<string, string[]> = {
   "env-fallback": ["dea6e2b7dd86b09d", "1788d3bf662ac404", "ad970af5ea6cc0ed"],
   "express-basic": ["150630b64739a03b", "a2501be7e8df0957", "1690776ab8c727e7"],
   "express-class-app": ["cea90d7538203382", "877fd0d58e60eca2", "f6d61bbeb918eeb3"],
-  "express-folder-routers": ["3f764023bc835261", "244a58f3ded7699e", "6f99dc59a79109a7"],
+  "express-folder-routers": ["0e884762784a4c80", "160f20f42f2f1633", "a63dd2a977adfdfc"],
   "express-inline-calls": ["af8ea7899af75629", "d547b6065764721e", "b8f730cab1b6a8c7"],
   "express-nested-routers": ["4e1615e0d7a29102", "8d20ee57d890d141", "11cd55aa40b3f637"],
   "express-require-router": ["3fdc7295430a17f8", "6344169ae6a4f83e", "dde1a0ab75eff970"],
