@@ -1,0 +1,146 @@
+{
+  "repo": "2Revol2/DreamingEnglish",
+  "sha": "ec9ac0a2c7d5a9ce93375071b91ca657933ffab4",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "src/entities/User/api/getUserData.ts", "line": 5 },
+      "method": "GET",
+      "target": { "file": "app/api/me/route.ts", "line": 7, "route": "GET /api/me" },
+      "notes": "api('/me') wrapper (src/shared/api/api.ts fetch(BASE_URL + path)); BASE_URL = NEXT_PUBLIC_API_URL, no fallback, .env.example http://localhost:3000/api (next dev default port, no basePath). app/api/me/route.ts export async function GET"
+    },
+    {
+      "callSite": { "file": "src/entities/User/api/getUserWatchedTime.ts", "line": 5 },
+      "method": "GET",
+      "target": {
+        "file": "app/api/watch-time/route.ts",
+        "line": 6,
+        "route": "GET /api/watch-time"
+      },
+      "notes": "api('/watch-time') wrapper on NEXT_PUBLIC_API_URL (.env.example http://localhost:3000/api). app/api/watch-time/route.ts export async function GET"
+    },
+    {
+      "callSite": { "file": "src/entities/User/api/updateUserData.ts", "line": 5 },
+      "method": "PUT",
+      "target": { "file": "app/api/me/route.ts", "line": 41, "route": "PUT /api/me" },
+      "notes": "api('/me', { method: 'PUT' }) wrapper on NEXT_PUBLIC_API_URL (.env.example http://localhost:3000/api). app/api/me/route.ts export async function PUT"
+    },
+    {
+      "callSite": { "file": "src/entities/Video/api/getUserVideosHistory.ts", "line": 11 },
+      "method": "GET",
+      "target": { "file": "app/api/history/route.ts", "line": 7, "route": "GET /api/history" },
+      "notes": "serverApi('/history?limit=..&page=..') ('use server' wrapper adding the cookie) -> api() on the absolute NEXT_PUBLIC_API_URL base (.env.example http://localhost:3000/api), so the server-side fetch reaches the app; query dropped. app/api/history/route.ts export async function GET"
+    },
+    {
+      "callSite": { "file": "src/entities/Video/api/getUserWatchLater.ts", "line": 11 },
+      "method": "GET",
+      "target": {
+        "file": "app/api/watch-later/route.ts",
+        "line": 6,
+        "route": "GET /api/watch-later"
+      },
+      "notes": "serverApi('/watch-later?limit=..&page=..') -> api() on absolute NEXT_PUBLIC_API_URL (.env.example http://localhost:3000/api); query dropped. app/api/watch-later/route.ts export async function GET"
+    },
+    {
+      "callSite": { "file": "src/features/AddOutsideTime/api/addOutsideTime.ts", "line": 4 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/watch-time/manual/route.ts",
+        "line": 6,
+        "route": "POST /api/watch-time/manual"
+      },
+      "notes": "api('/watch-time/manual', { method: 'POST' }) wrapper on NEXT_PUBLIC_API_URL (.env.example http://localhost:3000/api). app/api/watch-time/manual/route.ts export async function POST"
+    },
+    {
+      "callSite": { "file": "src/features/DailyGoalProgress/api/getTodayWatchTime.ts", "line": 5 },
+      "method": "GET",
+      "target": {
+        "file": "app/api/watch-time/daily/route.ts",
+        "line": 7,
+        "route": "GET /api/watch-time/daily"
+      },
+      "notes": "api('/watch-time/daily?timeZone=..') wrapper on NEXT_PUBLIC_API_URL (.env.example http://localhost:3000/api); query dropped. app/api/watch-time/daily/route.ts export async function GET"
+    },
+    {
+      "callSite": { "file": "src/features/VideoActions/api/addVideoToWatchLater.ts", "line": 4 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/watch-later/route.ts",
+        "line": 49,
+        "route": "POST /api/watch-later"
+      },
+      "notes": "api('/watch-later', { method: 'POST' }) wrapper on NEXT_PUBLIC_API_URL (.env.example http://localhost:3000/api). app/api/watch-later/route.ts export async function POST"
+    },
+    {
+      "callSite": {
+        "file": "src/features/VideoActions/api/removeVideoFromWatchLater.ts",
+        "line": 4
+      },
+      "method": "DELETE",
+      "target": {
+        "file": "app/api/watch-later/route.ts",
+        "line": 84,
+        "route": "DELETE /api/watch-later"
+      },
+      "notes": "api('/watch-later', { method: 'DELETE' }) wrapper on NEXT_PUBLIC_API_URL (.env.example http://localhost:3000/api). app/api/watch-later/route.ts export async function DELETE"
+    },
+    {
+      "callSite": { "file": "src/features/VideoPlayer/api/updateUserWatchTime.ts", "line": 7 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/watch-time/daily/route.ts",
+        "line": 44,
+        "route": "POST /api/watch-time/daily"
+      },
+      "notes": "api('/watch-time/daily', { method: 'POST' }) wrapper on NEXT_PUBLIC_API_URL (.env.example http://localhost:3000/api). app/api/watch-time/daily/route.ts export async function POST"
+    },
+    {
+      "callSite": { "file": "src/pages/AdminPage/api/postVideo.ts", "line": 5 },
+      "method": "POST",
+      "target": { "file": "app/api/videos/route.ts", "line": 48, "route": "POST /api/videos" },
+      "notes": "api('/videos', { method: 'POST' }) wrapper on NEXT_PUBLIC_API_URL (.env.example http://localhost:3000/api). app/api/videos/route.ts export async function POST"
+    },
+    {
+      "callSite": { "file": "src/pages/AdminPage/ui/AdminForm/AdminForm.tsx", "line": 35 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch('https://www.youtube.com/oembed?...'): external host (YouTube oEmbed)"
+    },
+    {
+      "callSite": { "file": "src/pages/BrowsePage/api/getVideos.ts", "line": 18 },
+      "method": "GET",
+      "target": { "file": "app/api/videos/route.ts", "line": 10, "route": "GET /api/videos" },
+      "notes": "api('/videos' + query) wrapper on NEXT_PUBLIC_API_URL (.env.example http://localhost:3000/api); query always starts with '?', dropped. app/api/videos/route.ts export async function GET"
+    },
+    {
+      "callSite": { "file": "src/pages/VideoPage/api/getVideoById.ts", "line": 6 },
+      "method": "GET",
+      "target": {
+        "file": "app/api/videos/[id]/route.ts",
+        "line": 5,
+        "route": "GET /api/videos/:id"
+      },
+      "notes": "api('/videos/' + id) wrapper on NEXT_PUBLIC_API_URL (.env.example http://localhost:3000/api). app/api/videos/[id]/route.ts export async function GET"
+    },
+    {
+      "callSite": { "file": "src/pages/VideoPage/api/updateUserVideosHistory.ts", "line": 11 },
+      "method": "POST",
+      "target": { "file": "app/api/history/route.ts", "line": 62, "route": "POST /api/history" },
+      "notes": "serverApi('/history', { method: 'POST' }) -> api() on absolute NEXT_PUBLIC_API_URL (.env.example http://localhost:3000/api). app/api/history/route.ts export async function POST"
+    },
+    {
+      "callSite": { "file": "src/widgets/ActivityTracker/api/getUserStats.ts", "line": 4 },
+      "method": "GET",
+      "target": { "file": "app/api/stats/route.ts", "line": 6, "route": "GET /api/stats" },
+      "notes": "api('/stats?timeZone=..') wrapper on NEXT_PUBLIC_API_URL (.env.example http://localhost:3000/api); query dropped. app/api/stats/route.ts export async function GET"
+    },
+    {
+      "callSite": { "file": "src/widgets/ChatWindow/api/sendMessageToAI.ts", "line": 5 },
+      "method": "POST",
+      "target": { "file": "app/api/chat/route.ts", "line": 13, "route": "POST /api/chat" },
+      "notes": "api('/chat', { method: 'POST' }) wrapper on NEXT_PUBLIC_API_URL (.env.example http://localhost:3000/api). app/api/chat/route.ts export async function POST"
+    }
+  ]
+}

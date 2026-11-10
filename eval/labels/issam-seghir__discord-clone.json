@@ -1,0 +1,243 @@
+{
+  "repo": "issam-seghir/discord-clone",
+  "sha": "665bea4a0f770e5e5885a67739b91fe3847954c4",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "src/app/(main)/rome/page.tsx", "line": 27 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/get-participant-token/route.ts",
+        "line": 4,
+        "route": "GET /api/get-participant-token"
+      },
+      "notes": "Client page: fetch(`/api/get-participant-token?room=...&username=...`), relative, same origin; the query is dropped. No basePath or rewrites; src/proxy.ts (Clerk) only protects routes. route.ts exports GET"
+    },
+    {
+      "callSite": {
+        "file": "src/app/(main)/servers/[serverId]/channels/[channelId]/page.tsx",
+        "line": 43
+      },
+      "method": "DELETE",
+      "target": {
+        "file": "src/pages/api/socket/messages/[messageId].ts",
+        "line": 9,
+        "route": "DELETE /api/socket/messages/:messageId"
+      },
+      "notes": "<ChatMessages socketUrl=\"/api/socket/messages\"> passes socketUrl to each <ChatItem>, whose trash icon calls onOpen(\"deleteMessage\", { apiUrl: `${socketUrl}/${id}` }) on the modal store; DeleteMessageModal (delete-message-modal.tsx:34) sends axios.delete(qs.stringifyUrl({ url: data.apiUrl, query })). The page element is the outermost code supplying the path. Pages-router handler admits only DELETE and PATCH (405 otherwise), so labeled with the method; route line is the default export"
+    },
+    {
+      "callSite": {
+        "file": "src/app/(main)/servers/[serverId]/channels/[channelId]/page.tsx",
+        "line": 43
+      },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/messages/route.ts",
+        "line": 9,
+        "route": "GET /api/messages"
+      },
+      "notes": "<ChatMessages apiUrl=\"/api/messages\"> hands apiUrl to useChatQuery (use-chat-query.ts:28), the useInfiniteQuery queryFn's fetch(qs.stringifyUrl({ url: apiUrl, query: { channelId, cursor } })); query dropped. route.ts exports GET"
+    },
+    {
+      "callSite": {
+        "file": "src/app/(main)/servers/[serverId]/channels/[channelId]/page.tsx",
+        "line": 43
+      },
+      "method": "PATCH",
+      "target": {
+        "file": "src/pages/api/socket/messages/[messageId].ts",
+        "line": 9,
+        "route": "PATCH /api/socket/messages/:messageId"
+      },
+      "notes": "<ChatMessages socketUrl=\"/api/socket/messages\"> passes socketUrl to <ChatItem>, whose edit form sends axios.patch(qs.stringifyUrl({ url: `${socketUrl}/${id}`, query: socketQuery })) (chat-item.tsx:101). Pages-router handler admits only DELETE and PATCH, so labeled with the method; default export line"
+    },
+    {
+      "callSite": {
+        "file": "src/app/(main)/servers/[serverId]/channels/[channelId]/page.tsx",
+        "line": 57
+      },
+      "method": "POST",
+      "target": {
+        "file": "src/pages/api/socket/messages/index.ts",
+        "line": 8,
+        "route": "POST /api/socket/messages"
+      },
+      "notes": "<ChatInput apiUrl=\"/api/socket/messages\">: ChatInput's axios.post(qs.stringifyUrl({ url: apiUrl, query })) (chat-input.tsx:41), and its attach button's onOpen(\"messageFile\", { apiUrl, query }) whose MessageFileModal sends axios.post(data.apiUrl...) (message-file-modal.tsx:53). Both requests are POST to the same route from this one element, so one label. index.ts refuses all but POST (405), default export line"
+    },
+    {
+      "callSite": {
+        "file": "src/app/(main)/servers/[serverId]/conversations/[memberId]/page.tsx",
+        "line": 62
+      },
+      "method": "DELETE",
+      "target": {
+        "file": "src/pages/api/socket/direct-messages/[directMessageId].ts",
+        "line": 9,
+        "route": "DELETE /api/socket/direct-messages/:directMessageId"
+      },
+      "notes": "<ChatMessages socketUrl=\"/api/socket/direct-messages\"> -> <ChatItem> -> onOpen(\"deleteMessage\", { apiUrl: `${socketUrl}/${id}` }) -> DeleteMessageModal's axios.delete (delete-message-modal.tsx:34). Handler admits only DELETE and PATCH (405 otherwise); default export line"
+    },
+    {
+      "callSite": {
+        "file": "src/app/(main)/servers/[serverId]/conversations/[memberId]/page.tsx",
+        "line": 62
+      },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/direct-messages/route.ts",
+        "line": 8,
+        "route": "GET /api/direct-messages"
+      },
+      "notes": "<ChatMessages apiUrl=\"/api/direct-messages\"> -> useChatQuery's queryFn fetch(qs.stringifyUrl({ url: apiUrl, query: { conversationId, cursor } })) (use-chat-query.ts:28); query dropped. route.ts exports GET"
+    },
+    {
+      "callSite": {
+        "file": "src/app/(main)/servers/[serverId]/conversations/[memberId]/page.tsx",
+        "line": 62
+      },
+      "method": "PATCH",
+      "target": {
+        "file": "src/pages/api/socket/direct-messages/[directMessageId].ts",
+        "line": 9,
+        "route": "PATCH /api/socket/direct-messages/:directMessageId"
+      },
+      "notes": "<ChatMessages socketUrl=\"/api/socket/direct-messages\"> -> <ChatItem>'s axios.patch(`${socketUrl}/${id}`...) (chat-item.tsx:101). Handler admits only DELETE and PATCH; default export line"
+    },
+    {
+      "callSite": {
+        "file": "src/app/(main)/servers/[serverId]/conversations/[memberId]/page.tsx",
+        "line": 75
+      },
+      "method": "POST",
+      "target": {
+        "file": "src/pages/api/socket/direct-messages/index.ts",
+        "line": 5,
+        "route": "POST /api/socket/direct-messages"
+      },
+      "notes": "<ChatInput apiUrl=\"/api/socket/direct-messages\">: ChatInput's axios.post (chat-input.tsx:41) and MessageFileModal's axios.post via onOpen(\"messageFile\", { apiUrl, query }) (message-file-modal.tsx:53), same method and route, so one label. index.ts refuses all but POST; default export line"
+    },
+    {
+      "callSite": { "file": "src/components/media-room.tsx", "line": 41 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/get-participant-token/route.ts",
+        "line": 4,
+        "route": "GET /api/get-participant-token"
+      },
+      "notes": "fetch(`/api/get-participant-token?room=${chatId}&username=${name}`), relative, same origin; query dropped. route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/modals/create-channel-modal.tsx", "line": 75 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/channels/route.ts",
+        "line": 7,
+        "route": "POST /api/channels"
+      },
+      "notes": "axios.post(url) with url = qs.stringifyUrl({ url: `/api/channels`, query: { serverId } }); query dropped. route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/modals/create-server-modal.tsx", "line": 51 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/servers/route.ts",
+        "line": 7,
+        "route": "POST /api/servers"
+      },
+      "notes": "axios.post(\"/api/servers\", values), same origin. route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/modals/delete-channel-modal.tsx", "line": 35 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/channels/[channelId]/route.ts",
+        "line": 69,
+        "route": "DELETE /api/channels/:channelId"
+      },
+      "notes": "axios.delete(qs.stringifyUrl({ url: `/api/channels/${data?.channel?.id}`, query: { serverId } })); query dropped. [channelId]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/components/modals/delete-server-modal.tsx", "line": 34 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/servers/[serverId]/route.ts",
+        "line": 38,
+        "route": "DELETE /api/servers/:serverId"
+      },
+      "notes": "axios.delete(`/api/servers/${data?.server?.id}`). [serverId]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/components/modals/edit-channel-modal.tsx", "line": 73 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/channels/[channelId]/route.ts",
+        "line": 8,
+        "route": "PATCH /api/channels/:channelId"
+      },
+      "notes": "axios.patch(qs.stringifyUrl({ url: `/api/channels/${data?.channel?.id}`, query: { serverId } })); query dropped. [channelId]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/modals/edit-server-modal.tsx", "line": 65 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/servers/[serverId]/route.ts",
+        "line": 7,
+        "route": "PATCH /api/servers/:serverId"
+      },
+      "notes": "axios.patch(`/api/servers/${data?.server?.id}`, values). [serverId]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/modals/initial-model.tsx", "line": 45 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/servers/route.ts",
+        "line": 7,
+        "route": "POST /api/servers"
+      },
+      "notes": "axios.post(\"/api/servers\", values), same origin. route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/modals/invite-modal.tsx", "line": 36 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/servers/[serverId]/invite-code/route.ts",
+        "line": 7,
+        "route": "PATCH /api/servers/:serverId/invite-code"
+      },
+      "notes": "axios.patch(`/api/servers/${data?.server?.id}/invite-code`); the static invite-code segment's route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/modals/leave-server-modal.tsx", "line": 26 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/servers/[serverId]/leave/route.ts",
+        "line": 7,
+        "route": "PATCH /api/servers/:serverId/leave"
+      },
+      "notes": "axios.patch(`/api/servers/${data?.server?.id}/leave`); leave/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/modals/manage-members-modal.tsx", "line": 50 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/members/[memberId]/route.ts",
+        "line": 8,
+        "route": "PATCH /api/members/:memberId"
+      },
+      "notes": "onRoleChange: axios.patch(qs.stringifyUrl({ url: `/api/members/${memberId}`, query: { serverId } }), { role }); query dropped. [memberId]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/modals/manage-members-modal.tsx", "line": 69 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/members/[memberId]/route.ts",
+        "line": 63,
+        "route": "DELETE /api/members/:memberId"
+      },
+      "notes": "onKick: axios.delete(qs.stringifyUrl({ url: `/api/members/${memberId}`, query: { serverId } })); query dropped. [memberId]/route.ts exports DELETE"
+    }
+  ]
+}
