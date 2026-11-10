@@ -12,7 +12,7 @@ is **zero wrong edges** (D13.4).
 
 | Repo | Commit | Stars | Inferred edges | Checked | Wrong |
 | --- | --- | ---: | ---: | --- | ---: |
-| [Mintplex-Labs/anything-llm](https://github.com/Mintplex-Labs/anything-llm) | `308b276` | 68,095 | 869 | [all 869](Mintplex-Labs__anything-llm.json) | 0 (244 + 11 + 117 fixed) |
+| [Mintplex-Labs/anything-llm](https://github.com/Mintplex-Labs/anything-llm) | `308b276` | 68,095 | 873 | [all 873](Mintplex-Labs__anything-llm.json) | 0 (244 + 11 + 117 fixed) |
 | [shadcn-ui/taxonomy](https://github.com/shadcn-ui/taxonomy) | `298a885` | 19,289 | 29 | [all 29](shadcn-ui__taxonomy.json) | 0 |
 | [getmaxun/maxun](https://github.com/getmaxun/maxun) | `99c6bd0` | 18,183 | 142 | [all 142](getmaxun__maxun.json) | 0 |
 
@@ -83,9 +83,9 @@ test and its eval delta) and the check is rerun, or another repo replaces it.
     no request reaches those routes.
   - Missing: the database (Sequelize; v1 reads Prisma only), MinIO, the Airtable SDK's
     record calls, Google's token exchange, and socket.io traffic.
-- **Mintplex-Labs/anything-llm** (`308b276`, checked 2026-11-09): 869 inferred edges, checked
-  one service pair at a time (M9.1a3a–f).
-  - 651 correct, 0 wrong, 218 unresolved. 372 wrong edges were found along the way and fixed
+- **Mintplex-Labs/anything-llm** (`308b276`, checked 2026-11-09): 873 inferred edges, checked
+  one service pair at a time (M9.1a3a–f), and each later fix's changed edges by hand.
+  - 659 correct, 0 wrong, 214 unresolved. 372 wrong edges were found along the way and fixed
     in the analyzer (below), and the check was rerun at each fix.
   - Before any verdict, the first read of the edges found 244 wrong ones. Literal-path
     frontend requests (`${API_BASE}/admin/users`, …) went to both services' `app.all("*")` 404
@@ -135,6 +135,15 @@ test and its eval delta) and the check is rerun, or another repo replaces it.
     reads as unknown. Deepgram's request reaches api.deepgram.com. Re-dumped at that fix, 869
     edges: 18 replaced, 13 reasons changed, nothing else. The other 23 overstated reasons
     (static fields and getters, `CommunityHub.apiBase`, `#getBaseUrl()`) are M9.1a7b's.
+  - Since M9.1a7b (ADR-0254, static members, `#private` methods, and an object's own property
+    read through `this`), all 23 are resolved, checked by hand. Foundry's catalog, the
+    context-window map, Gmail's and Calendar's Apps Script, and `CommunityHub`'s 4 requests
+    are external calls to their hosts: all correct. `CommunityHub.apiBase` is a `NODE_ENV`
+    ternary, so each hub request also draws its development branch (`127.0.0.1:5001`, the
+    hub's local emulator) unresolved. Lemond's 15 requests read `http://127.0.0.1:{}/api/v1/…`,
+    a binary the server downloads and runs, not a service in the repo: only the `ALL /*` 404
+    handlers take those paths, so they're unresolved naming them. Re-dumped at that fix,
+    869 → 873 edges: 5 removed, 9 added, 20 reasons changed, nothing else.
   - Sweep: every `fetch(`, `axios`, `http(s).get/request(`, `got(`, and `request(` call in
     `server/`, `collector/`, and `extras/` is on an edge, or is a wrapper body drawn at its
     callers, or isn't an HTTP request (a WebSocket in an example page, an MSSQL request, an
@@ -171,6 +180,9 @@ test and its eval delta) and the check is rerun, or another repo replaces it.
     own hosts (apipie.ai, api.cometapi.com, api.novita.ai, openrouter.ai, api.ppinfra.com),
     checked by hand: all correct. 11 calls on a `this.basePath` read from an env var now name
     the variable. Lemond's 2 stay for M9.1a7b.
+  - Since M9.1a7b (ADR-0254): lemond's 2 SDK calls read `http://127.0.0.1:{}/api/v1/chat/completions`
+    through its static method and getter, unresolved naming the `ALL /*` handlers, the only
+    routes taking it. No overstated reason is left among the SDK edges.
   - Missing, not wrong: 83 SDK calls on clients the detector doesn't trace (the agent
     providers' `this.client`, helpers taking `client` as a parameter, the image generators,
     Mistral's wrapped client).
