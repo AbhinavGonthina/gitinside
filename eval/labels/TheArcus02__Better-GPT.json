@@ -1,0 +1,185 @@
+{
+  "repo": "TheArcus02/Better-GPT",
+  "sha": "7716aa291ec6e63ee6740e3a627ce58c4ab7c4b8",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "app/api/translation/detect/route.ts", "line": 38 },
+      "method": "POST",
+      "target": null,
+      "notes": "Server-side axios.request(options) in the detect route: options.url is the literal external host https://microsoft-translator-text-api3.p.rapidapi.com/detectlanguage (RapidAPI), not this repo"
+    },
+    {
+      "callSite": { "file": "components/assistants/assistant-files-layout.tsx", "line": 26 },
+      "method": "DELETE",
+      "target": {
+        "file": "app/api/assistants/[assistantId]/files/[fileId]/route.ts",
+        "line": 11,
+        "route": "DELETE /api/assistants/:assistantId/files/:fileId"
+      },
+      "notes": "axios.delete(`/api/assistants/${assistantId}/files/${fileId}`) in handleFileDelete; root-relative, same origin, no basePath. files/[fileId]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "components/assistants/assistant-files-upload.tsx", "line": 30 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/assistants/[assistantId]/files/route.ts",
+        "line": 11,
+        "route": "POST /api/assistants/:assistantId/files"
+      },
+      "notes": "axios.post(`/api/assistants/${assistantId}/files`, formData) in handleUpload; root-relative, same origin. [assistantId]/files/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "components/assistants/assistant-form.tsx", "line": 86 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/assistants/route.ts",
+        "line": 15,
+        "route": "POST /api/assistants"
+      },
+      "notes": "axios.post('/api/assistants', values) in onSubmit's create branch; root-relative, same origin. app/api/assistants/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "components/assistants/assistant-form.tsx", "line": 95 },
+      "method": "PATCH",
+      "target": {
+        "file": "app/api/assistants/[assistantId]/route.ts",
+        "line": 59,
+        "route": "PATCH /api/assistants/:assistantId"
+      },
+      "notes": "axios.patch(`/api/assistants/${data.id}`, values) in onSubmit's update branch; root-relative, same origin. [assistantId]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "components/assistants/assistant-form.tsx", "line": 121 },
+      "method": "DELETE",
+      "target": {
+        "file": "app/api/assistants/[assistantId]/route.ts",
+        "line": 150,
+        "route": "DELETE /api/assistants/:assistantId"
+      },
+      "notes": "axios.delete(`/api/assistants/${data.id}`) in onDelete; root-relative, same origin. [assistantId]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "components/chat/chat-file.tsx", "line": 54 },
+      "method": "PATCH",
+      "target": {
+        "file": "app/api/chat/[chatId]/route.ts",
+        "line": 259,
+        "route": "PATCH /api/chat/:chatId"
+      },
+      "notes": "axios.patch(`/api/chat/${id}`, { name }) when renaming a chat; root-relative, same origin. chat/[chatId]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "components/chat/chat-file.tsx", "line": 110 },
+      "method": "DELETE",
+      "target": {
+        "file": "app/api/chat/[chatId]/route.ts",
+        "line": 309,
+        "route": "DELETE /api/chat/:chatId"
+      },
+      "notes": "axios.delete(`/api/chat/${id}`) when deleting a chat; root-relative, same origin. chat/[chatId]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "components/chat/chat-folder.tsx", "line": 76 },
+      "method": "DELETE",
+      "target": {
+        "file": "app/api/chat/folder/[folderId]/route.ts",
+        "line": 39,
+        "route": "DELETE /api/chat/folder/:folderId"
+      },
+      "notes": "axios.delete(`/api/chat/folder/${id}`); the static folder segment wins over chat/[chatId], so it lands in chat/folder/[folderId]/route.ts, which exports DELETE"
+    },
+    {
+      "callSite": { "file": "components/chat/chat-folder.tsx", "line": 98 },
+      "method": "PATCH",
+      "target": {
+        "file": "app/api/chat/folder/[folderId]/route.ts",
+        "line": 5,
+        "route": "PATCH /api/chat/folder/:folderId"
+      },
+      "notes": "axios.patch(`/api/chat/folder/${id}`, { name }) when renaming a folder; static folder segment wins over chat/[chatId]. chat/folder/[folderId]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "components/chat/new-chat-dialog.tsx", "line": 82 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/chat/route.ts",
+        "line": 8,
+        "route": "POST /api/chat"
+      },
+      "notes": "axios.post('/api/chat', { name, ... }) in the new-chat dialog; root-relative, same origin. app/api/chat/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "components/chat/new-folder-dialog.tsx", "line": 60 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/chat/folder/route.ts",
+        "line": 8,
+        "route": "POST /api/chat/folder"
+      },
+      "notes": "axios.post('/api/chat/folder', data); the static folder route wins over chat/[chatId] (which also exports POST). chat/folder/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "components/get-premium-modal.tsx", "line": 27 },
+      "method": "GET",
+      "target": {
+        "file": "app/api/stripe/route.ts",
+        "line": 10,
+        "route": "GET /api/stripe"
+      },
+      "notes": "axios.get('/api/stripe') for the checkout URL; root-relative, same origin. app/api/stripe/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "components/images/generate-form.tsx", "line": 76 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/images/generate/route.ts",
+        "line": 13,
+        "route": "POST /api/images/generate"
+      },
+      "notes": "axios.post('/api/images/generate', data); the static generate segment wins over images/[imageId] (which exports only PATCH). images/generate/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "components/images/generate-form.tsx", "line": 113 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/images/route.ts",
+        "line": 16,
+        "route": "POST /api/images"
+      },
+      "notes": "axios.post('/api/images', { photo, ... }) to save a generated image; root-relative, same origin. app/api/images/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "components/images/generate-form.tsx", "line": 158 },
+      "method": "PATCH",
+      "target": {
+        "file": "app/api/images/[imageId]/route.ts",
+        "line": 6,
+        "route": "PATCH /api/images/:imageId"
+      },
+      "notes": "axios.patch(`/api/images/${photo.id}`, { shared: true }); root-relative, same origin. images/[imageId]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "components/settings/subscription-button.tsx", "line": 22 },
+      "method": "GET",
+      "target": {
+        "file": "app/api/stripe/route.ts",
+        "line": 10,
+        "route": "GET /api/stripe"
+      },
+      "notes": "axios.get('/api/stripe') for the billing portal URL (then a window.location navigation, not labeled); root-relative, same origin. app/api/stripe/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "components/translation/translator.tsx", "line": 62 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/translation/detect/route.ts",
+        "line": 5,
+        "route": "POST /api/translation/detect"
+      },
+      "notes": "axios.post('/api/translation/detect', { prompt }) in a debounced effect; root-relative, same origin. translation/detect/route.ts exports POST"
+    }
+  ]
+}
