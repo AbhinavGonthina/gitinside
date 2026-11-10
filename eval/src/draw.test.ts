@@ -305,6 +305,20 @@ describe("drawCrossCheck", () => {
     // Without a list (batch 4), rule 1 was checked by reading, so nothing is required.
     expect(drawCrossCheck({ ...draw(), batch: 5 }, repos.slice(0, 2), [earlier])).toEqual([]);
   });
+
+  it("requires an exclusion list to carry every earlier draw's exclusions", () => {
+    const earlier = { ...excluding(["U/Usage", "v/demo"]), batch: 5 };
+    const later = { ...excluding(["u/usage"]), batch: 6 };
+    expect(drawCrossCheck(later, [], [earlier, later])).toEqual([
+      "v/demo is excluded from batch 5, but not excluded",
+    ]);
+    const carried = { ...excluding(["u/usage", "V/DEMO"]), batch: 6 };
+    expect(drawCrossCheck(carried, [], [earlier, carried])).toEqual([]);
+    // A later draw's list doesn't bind an earlier one.
+    expect(drawCrossCheck(earlier, [], [earlier, { ...excluding(["w/new"]), batch: 6 }])).toEqual(
+      [],
+    );
+  });
 });
 
 describe("the committed draw records", () => {

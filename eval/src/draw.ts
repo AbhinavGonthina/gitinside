@@ -300,8 +300,8 @@ export function loadDrawFiles(root: string): { file: string; draw: DrawFile }[] 
  * Problems between a draw, `repos.json`, and the other draw records: a repo in the draw's
  * batch that the walk didn't pin, or pinned at another SHA. A pin not yet in `repos.json` is
  * fine (it is added with its labels). When the draw has an exclusion list, it must also name
- * every repo of the original set and of earlier batches, and every candidate an earlier
- * draw read.
+ * every repo of the original set and of earlier batches, every candidate an earlier draw
+ * read, and every repo an earlier draw excluded (a repo once read for a fix stays read).
  */
 export function drawCrossCheck(
   draw: DrawFile,
@@ -328,6 +328,8 @@ export function drawCrossCheck(
       for (const stratum of earlier.strata) {
         for (const e of stratum.examined) missing(e.repo, `read for batch ${earlier.batch}`);
       }
+      for (const e of earlier.exclude ?? [])
+        missing(e.repo, `excluded from batch ${earlier.batch}`);
     }
   }
   for (const repo of repos) {
