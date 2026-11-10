@@ -725,6 +725,10 @@ const ROUTES: Readonly<Record<string, { guard: string; tests: string }>> = {
   "auth/signout/route.ts": { guard: "this site's Origin", tests: "authRoute.test.ts" },
   "badge/[owner]/[repo]/route.ts": { guard: "public repos only", tests: "imageRoute.test.ts" },
   "diagram/[owner]/[repo]/route.ts": { guard: "public repos only", tests: "imageRoute.test.ts" },
+  "diagram/[owner]/[repo]/[sha]/route.ts": {
+    guard: "public repos only",
+    tests: "imageRoute.test.ts",
+  },
   "diff/[owner]/[repo]/[base]/[head]/route.ts": {
     guard: "access check",
     tests: "security.test.ts",

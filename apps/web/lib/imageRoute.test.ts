@@ -338,6 +338,81 @@ describe("handleImageRequest", () => {
   });
 });
 
+describe("handleImageRequest for a commit (M9.1b3)", () => {
+  const commit = (sha: string, theme?: string, repo = "shop") =>
+    handleImageRequest("diagram", { owner: "acme", repo, sha }, { theme }, deps);
+  const EMPTY = {
+    ...shopDemo,
+    nodes: shopDemo.nodes.filter((n) => n.kind === "system"),
+    edges: [],
+  };
+
+  it("draws that commit's diagram in the theme asked for, never asking GitHub", async () => {
+    await publish();
+    await publish(NEW);
+    shop.sha = NEW;
+    objects.set(key(NEW), JSON.stringify(EMPTY));
+    for (const theme of ["dark", "light"] as const) {
+      const response = await commit(`${OLD}.svg`, theme);
+      expectImage(response, IMAGE_CACHE_CONTROL);
+      expect(await response.text(), theme).toBe(renderDiagram(GRAPH, { theme }));
+    }
+    expect(graphPaths).toEqual(Array(2).fill(`/api/graph/Acme/Shop/${OLD}?v=${VERSION}`));
+    expect(gh.requests).toEqual([]);
+    expect(enqueued).toEqual([]);
+  });
+
+  it("is the link-only badge for a commit nobody analyzed, a private one, or not a full SHA", async () => {
+    await publish(OLD, "private");
+    const answers: string[] = [];
+    for (const sha of [OLD, NEW, OLD.toUpperCase(), OLD.slice(0, 7), "..", `${OLD}0`]) {
+      const response = await commit(`${sha}.svg`);
+      expectImage(response, IMAGE_CACHE_CONTROL);
+      answers.push(await response.text());
+    }
+    answers.push(await (await commit(`${OLD}.svg`, undefined, "..")).text());
+    expect(answers).toEqual(Array(7).fill(LINK_ONLY));
+    expect(reads).toEqual([]);
+    expect(gh.requests).toEqual([]);
+    expect(enqueued).toEqual([]);
+  });
+
+  it("never looks up anything but a full lowercase SHA", async () => {
+    const lookups: string[] = [];
+    deps.view.db = new Proxy(deps.view.db, {
+      get(target, property, receiver): unknown {
+        lookups.push(String(property));
+        return Reflect.get(target, property, receiver) as unknown;
+      },
+    });
+    for (const sha of [OLD.toUpperCase(), OLD.slice(0, 7), "..", `${OLD}0`, `${OLD}/x`]) {
+      expect(await (await commit(`${sha}.svg`)).text(), sha).toBe(LINK_ONLY);
+    }
+    expect(lookups).toEqual([]);
+    await commit(`${OLD}.svg`);
+    expect(lookups).not.toEqual([]);
+  });
+
+  it("is a 404 for a path that isn't an image URL", async () => {
+    await publish();
+    for (const sha of [OLD, `${OLD}.png`]) {
+      const response = await commit(sha);
+      expect(response.status, sha).toBe(404);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+    }
+  });
+
+  it("queues a demo pin nobody analyzed, as its permalink does, showing the link-only badge meanwhile", async () => {
+    shop.sha = NEW;
+    deps.view.demos = [{ providerRepoId: ID, owner: "Acme", name: "Shop", sha: OLD }];
+    const response = await commit(`${OLD}.svg`, "dark");
+    expectImage(response, IMAGE_CACHE_CONTROL);
+    expect(await response.text()).toBe(LINK_ONLY);
+    expect(enqueued).toEqual([{ owner: "Acme", repo: "Shop", sha: OLD }]);
+    expect(reads).toEqual([]);
+  });
+});
+
 describe("cdnGraphReader", () => {
   it("asks the image's own origin for the graph, with a timeout", async () => {
     const calls: { url: string; init: RequestInit | undefined }[] = [];
