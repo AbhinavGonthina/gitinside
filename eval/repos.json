@@ -159,6 +159,16 @@
       "heldOut": 4
     },
     {
+      "owner": "KEX-03",
+      "name": "taskflow",
+      "url": "https://github.com/KEX-03/taskflow",
+      "sha": "d56cce93a36d343bb939c945b0089ede5786c524",
+      "license": "MIT",
+      "shape": "spa-plus-express",
+      "why": "Held out, batch 6 (M9.2b1, drawn in stratum react-express). A Vite React SPA (client/) beside an Express 4 server (server/), plus node:test tests (server/test/) and GitHub Actions helper scripts (.github/scripts/). The client sends all 10 requests through one axios instance in client/src/utils/api.js, axios.create({ baseURL: import.meta.env.VITE_API_URL }) with no in-code fallback, called with root-relative literals and templates (/me, /auth/login, /tasks?${params}, /tasks/${id}); the committed client/.env.example sets VITE_API_URL=http://localhost:5000/api/v1, which matches server/src/server.js's PORT || 5000 (server/.env.example PORT=5000). There's no dev proxy (vite.config.js only pins the dev port 3000), and client/vercel.json only rewrites every path to index.html. server/src/app.js registers /api/v1/health inline and mounts three routers at /api/v1/auth, /api/v1/me and /api/v1/tasks (router.<method> per line, / and /:id). Traps: the base, not the paths, carries the /api/v1 prefix; tasks.test.js fetches the repo's own app on a random port (app.listen(0), baseUrl from server.address().port) 23 times, including inside loops and with query strings; cors.test.js fetches a throwaway express() app it builds itself, whose only route is its own app.get(\"/\"). Not labeled: the dicebear avatar URL (an <img src>), axios.isCancel, and the .github scripts, which send no requests. 53 TS/JS source files (6 tests, 4 .github scripts).",
+      "heldOut": 6
+    },
+    {
       "owner": "krishnaacharyaa",
       "name": "wanderlust",
       "url": "https://github.com/krishnaacharyaa/wanderlust",
@@ -376,6 +386,16 @@
       "heldOut": 4
     },
     {
+      "owner": "swarooppatilx",
+      "name": "bit-by-query",
+      "url": "https://github.com/swarooppatilx/bit-by-query",
+      "sha": "7af29699cbdbc65bf3240ef1373da30e343a59e5",
+      "license": "MIT",
+      "shape": "spa-plus-express",
+      "why": "Held out, batch 6 (M9.2b1, drawn in stratum react-express). A Vite React SPA (React Router, Redux Toolkit for auth state, a SQL query editor) in client/ beside an Express server in server/ (MySQL pools, JWT cookies, rate-limiter-flexible). The client sends 13 requests on root-relative /api/... literals and templates: 8 through a shared axios instance (client/src/apiClient.js, axios.create({ baseURL: \"/\" , withCredentials: true }), so paths stay as written), 4 through plain axios, and one fetch(\"/api/userinfo\"). client/vite.config.js's server.proxy sends /api to http://localhost:5000 = server/server.js's PORT || 5000 (server/.env.example sets no PORT), and in production the same server serves client/dist with express.static and an app.get(\"*\") index.html fallback. server/server.js mounts five routers at /api (authRoutes behind authRateLimiter, leaderboardRoutes behind apiRateLimiter, userRoutes, problemRoutes, submissionRoutes); POST /api/problems/:id/evaluate lives in submissionRoutes, not problemRoutes, and four Home.jsx calls are written as `apiClient` with `.get(…)`/`.post(…)` chained on the next line. Traps: POST /api/forgot-password has no route (a placeholder endpoint), and client/src/auth.js POSTs /api/status, which authController exports but no router registers; it also imports '../apiClient' (a path that doesn't exist) and nothing imports it, yet the request is in the source, so both are null (the \"*\" fallback answers GET only). Not labeled: no request is left out; the server's SQL-parser unit test and hashPassword script send none, and navigations go through useNavigate. 53 TS/JS source files.",
+      "heldOut": 6
+    },
+    {
       "owner": "Tanaka0127939",
       "name": "Shopify-Nextjs-Prisma-app",
       "url": "https://github.com/Tanaka0127939/Shopify-Nextjs-Prisma-app",
@@ -386,6 +406,16 @@
       "heldOut": 4
     },
     {
+      "owner": "vicharanashala",
+      "name": "cp1",
+      "url": "https://github.com/vicharanashala/cp1",
+      "sha": "eb7cb40048d1135964b437e754038c63a9aa9655",
+      "license": "MIT",
+      "shape": "spa-plus-express",
+      "why": "Held out, batch 6 (M9.2b1, drawn in stratum react-express). A Vite React SPA in client/ beside an Express server in server/ (no workspaces). Every request is a one-line wrapper in client/src/api/{admin,answers,auth,chatbot,faq,notifications,queries,taxonomy,users}.js that calls api.get/post/patch/delete with a literal or template path of its own, so each is labeled at that call. api is axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api' }) in client/src/api/client.js. The '/api' fallback reaches Express through client/vite.config.js's server.proxy '/api' → http://localhost:5000, which is server/config/env.js's PORT ?? 5000. The root .env.example's VITE_API_BASE_URL=http://localhost:5000/api names the same server. client.js's 401 interceptor also sends a plain axios.post(`${BASE_URL}/auth/refresh`). server/app.js mounts routes/index.js at /api. That file registers GET /health itself and mounts /auth, /queries, /answers, /notifications, /users, /admin (router.use(auth, admin)), /faq, /chatbot, /jobs, and /taxonomy. Traps: queryRoutes registers literal GETs (/bookmarks, /categories, /search) before /:id. The nested answer routes live on queryRoutes as /:queryId/answers. Taxonomy writes go to /admin/taxonomy, not to the /taxonomy router. users.js duplicates admin.js's ban and unban wrappers, so the same two routes are reached from two call sites each. None of the 79 requests is shadowed. Not labeled: the interceptor's `api(original)` replay (it re-sends a caller's request), the server's Gemini calls through the @google/genai SDK, and the 13 test files' supertest request(app) calls. 143 TS/JS source files.",
+      "heldOut": 6
+    },
+    {
       "owner": "vijayshikhare",
       "name": "community-resource-board",
       "url": "https://github.com/vijayshikhare/community-resource-board",
@@ -394,6 +424,16 @@
       "shape": "axios-baseurl",
       "why": "Held out, batch 4 (M5C.5b2, drawn in stratum react-express). A CRA client sends every request through one axios instance (frontend/src/services/api.jsx) whose baseURL is normalizeBaseUrl(REACT_APP_API_URL || (NODE_ENV === 'production' ? an onrender.com host : 'http://localhost:5000')); the helper trims trailing slashes and strips a trailing /api, so the base is the host root (localhost:5000 in development, matching .env.example and the server's PORT fallback) and every path carries its full /api/... prefix. About 20 apiHelpers methods fix their paths inside the helper module, while pages and the auth context call api.get/post/put/patch/delete inline on template paths. backend/src/server.js mounts four JS routers with app.use('/api/<name>', require(...)) after /api rate limiters and registers GET /health on app. Traps: two route files are never mounted, an uploadFile(endpoint) helper has no callers, the applications router uses regex-constrained params ('/:id([0-9a-fA-F]{24})'), literal routes (/my, /admin/all, /featured) are registered before /:id, and several components build /uploads image URLs from the same env var without requesting them. ~50 TS/JS source files.",
       "heldOut": 4
+    },
+    {
+      "owner": "vijethph",
+      "name": "PlacementCell",
+      "url": "https://github.com/vijethph/PlacementCell",
+      "sha": "1831a7de312ad0e1ac69137f9e29434526b1cbe9",
+      "license": "MIT",
+      "shape": "spa-plus-express",
+      "why": "Held out, batch 6 (M9.2b1, drawn in stratum react-express). A Vite React TS SPA in client/ beside an Express TS server in src/ (Mongoose, JWT, a HackerEarth code-evaluation proxy). Every client request is a fetch in client/src/services/UserFunctions.tsx on routePrefix = `${window.location.origin}/v1`: 10 direct calls in exported helpers (register, login, discussion and comment POST/PUT/DELETE, code submit, code status by ID) and a getData(url) wrapper that fetches `${routePrefix}/${url}`, called with 4 literal paths (companies, discussions, quiz, videos) from components, where those calls are labeled. The base is same-origin: the committed Dockerfile builds client/dist and copies it into ./public beside the compiled server.js (tsconfig outDir \".\"), src/server.ts serves it with express.static, and render.yaml deploys that image, so window.location.origin is the Express server itself; vite.config.ts has no proxy. src/server.ts mounts /v1/users, /v1/companies, /v1/videos, /v1/quiz (questionsRouter), /v1/discussions, and /v1/codes, and ends with a 404 app.get(\"*\") that no labeled request reaches. Traps: the router path files don't match their mounts (questions.ts serves /v1/quiz); discussion and comment PUT/DELETE send their IDs in the body to the bare collection paths; codes.ts registers get(\"/events\") before get(\"/:id\"), and the status request reaches /:id. Server-side, two axios calls to the literal host api.hackerearth.com are null, as is the webhook listener's axios.get of a URL taken from the webhook body. Not labeled: getData's own fetch (its callers supply the path), five commented-out getData exports and a commented call in Profile.tsx, ui-avatars and Unsplash image URLs, audio src assets, <a href> links. 37 TS/JS source files.",
+      "heldOut": 6
     },
     {
       "owner": "Vishwajit1610",
@@ -456,6 +496,10 @@
     {
       "batch": 5,
       "seen": "Its blind result was 93.5% precision and 63.0% recall (6 of 16 mapped completely). Its misses were diagnosed in eval/results/2026-11-batch5-diagnosis.md, and M5C.10's fixes were chosen from them (#18 option 2), each written from a library's or the language's contract with its own fixture, starting with M5C.10a (a parameter that only picks a ternary's branch doesn't make a wrapper, and a wrapper's argument settles a ternary on it, ADR-0164)."
+    },
+    {
+      "batch": 6,
+      "seen": null
     }
   ]
 }

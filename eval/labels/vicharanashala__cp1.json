@@ -1,0 +1,799 @@
+{
+  "repo": "vicharanashala/cp1",
+  "sha": "eb7cb40048d1135964b437e754038c63a9aa9655",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["client", "server"],
+  "edges": [
+    {
+      "callSite": { "file": "client/src/api/admin.js", "line": 4 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 9,
+        "route": "GET /api/admin/metrics"
+      },
+      "notes": "getMetrics(): api.get('/admin/metrics'). api = axios.create({ baseURL: VITE_API_BASE_URL ?? '/api' }) (client/src/api/client.js); the '/api' fallback goes through client/vite.config.js's proxy to http://localhost:5000 = server PORT ?? 5000 (root .env.example's http://localhost:5000/api names the same server). server/app.js mounts routes at /api; routes/index.js mounts adminRoutes at /admin (router.use(auth, admin)); router.get('/metrics')"
+    },
+    {
+      "callSite": { "file": "client/src/api/admin.js", "line": 9 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/index.js",
+        "line": 18,
+        "route": "GET /api/health"
+      },
+      "notes": "getHealth(): api.get('/health'), base '/api' (proxied to :5000). routes/index.js router.get('/health') under app.js's /api mount"
+    },
+    {
+      "callSite": { "file": "client/src/api/admin.js", "line": 14 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 12,
+        "route": "GET /api/admin/users"
+      },
+      "notes": "listUsers(): api.get('/admin/users', { params }), base '/api'. adminRoutes at /api/admin; router.get('/users')"
+    },
+    {
+      "callSite": { "file": "client/src/api/admin.js", "line": 19 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 13,
+        "route": "GET /api/admin/moderators"
+      },
+      "notes": "listModerators(): api.get('/admin/moderators'), base '/api'. adminRoutes router.get('/moderators')"
+    },
+    {
+      "callSite": { "file": "client/src/api/admin.js", "line": 24 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 20,
+        "route": "POST /api/admin/users/:id/role"
+      },
+      "notes": "setRole(id): api.post(`/admin/users/${id}/role`), base '/api'. adminRoutes router.post('/users/:id/role')"
+    },
+    {
+      "callSite": { "file": "client/src/api/admin.js", "line": 29 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 21,
+        "route": "POST /api/admin/users/:id/moderator"
+      },
+      "notes": "setModerator(id): api.post(`/admin/users/${id}/moderator`), base '/api'. adminRoutes router.post('/users/:id/moderator')"
+    },
+    {
+      "callSite": { "file": "client/src/api/admin.js", "line": 34 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 14,
+        "route": "POST /api/admin/users/:id/ban"
+      },
+      "notes": "banUser(id) (admin.js): api.post(`/admin/users/${id}/ban`), base '/api'. adminRoutes router.post('/users/:id/ban')"
+    },
+    {
+      "callSite": { "file": "client/src/api/admin.js", "line": 39 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 15,
+        "route": "POST /api/admin/users/:id/unban"
+      },
+      "notes": "unbanUser(id) (admin.js): api.post(`/admin/users/${id}/unban`), base '/api'. adminRoutes router.post('/users/:id/unban')"
+    },
+    {
+      "callSite": { "file": "client/src/api/admin.js", "line": 44 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 24,
+        "route": "GET /api/admin/moderation"
+      },
+      "notes": "listModeration(): api.get('/admin/moderation', { params }), base '/api'. adminRoutes router.get('/moderation')"
+    },
+    {
+      "callSite": { "file": "client/src/api/admin.js", "line": 49 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 25,
+        "route": "POST /api/admin/moderation/:id/resolve"
+      },
+      "notes": "resolveModeration(id): api.post(`/admin/moderation/${id}/resolve`), base '/api'. adminRoutes router.post('/moderation/:id/resolve')"
+    },
+    {
+      "callSite": { "file": "client/src/api/admin.js", "line": 54 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 26,
+        "route": "POST /api/admin/moderation/:id/dismiss"
+      },
+      "notes": "dismissModeration(id): api.post(`/admin/moderation/${id}/dismiss`), base '/api'. adminRoutes router.post('/moderation/:id/dismiss')"
+    },
+    {
+      "callSite": { "file": "client/src/api/admin.js", "line": 59 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 29,
+        "route": "GET /api/admin/queries/clusters"
+      },
+      "notes": "getClusters(): api.get('/admin/queries/clusters'), base '/api'. adminRoutes router.get('/queries/clusters') (the forum's queryRoutes is mounted at /queries, not under /admin)"
+    },
+    {
+      "callSite": { "file": "client/src/api/admin.js", "line": 64 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 30,
+        "route": "GET /api/admin/queries/by-category"
+      },
+      "notes": "getQueriesByCategory(): api.get('/admin/queries/by-category'), base '/api'. adminRoutes router.get('/queries/by-category')"
+    },
+    {
+      "callSite": { "file": "client/src/api/admin.js", "line": 69 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 31,
+        "route": "GET /api/admin/queries/attention"
+      },
+      "notes": "getAttentionQueue(): api.get('/admin/queries/attention'), base '/api'. adminRoutes router.get('/queries/attention')"
+    },
+    {
+      "callSite": { "file": "client/src/api/admin.js", "line": 74 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 32,
+        "route": "POST /api/admin/queries/:id/clear-attention"
+      },
+      "notes": "clearAttention(id): api.post(`/admin/queries/${id}/clear-attention`), base '/api'. adminRoutes router.post('/queries/:id/clear-attention')"
+    },
+    {
+      "callSite": { "file": "client/src/api/admin.js", "line": 79 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 33,
+        "route": "POST /api/admin/queries/merge"
+      },
+      "notes": "mergeQueries(): api.post('/admin/queries/merge', payload), base '/api'. adminRoutes router.post('/queries/merge'); the earlier POST '/queries/:id/clear-attention' has a second segment and can't match it"
+    },
+    {
+      "callSite": { "file": "client/src/api/admin.js", "line": 84 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 43,
+        "route": "GET /api/admin/audit"
+      },
+      "notes": "getAudit(): api.get('/admin/audit', { params }), base '/api'. adminRoutes router.get('/audit')"
+    },
+    {
+      "callSite": { "file": "client/src/api/admin.js", "line": 90 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 40,
+        "route": "GET /api/admin/recent-deletions"
+      },
+      "notes": "getRecentDeletions(): api.get('/admin/recent-deletions'), base '/api'. adminRoutes router.get('/recent-deletions')"
+    },
+    {
+      "callSite": { "file": "client/src/api/admin.js", "line": 96 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/jobRoutes.js",
+        "line": 9,
+        "route": "GET /api/jobs"
+      },
+      "notes": "listJobs(): api.get('/jobs'), base '/api'. routes/index.js mounts jobRoutes at /jobs; router.get('/', auth, admin)"
+    },
+    {
+      "callSite": { "file": "client/src/api/admin.js", "line": 101 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/jobRoutes.js",
+        "line": 10,
+        "route": "POST /api/jobs/:name/run"
+      },
+      "notes": "runJob(name): api.post(`/jobs/${name}/run`), base '/api'. jobRoutes router.post('/:name/run')"
+    },
+    {
+      "callSite": { "file": "client/src/api/admin.js", "line": 107 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/faqRoutes.js",
+        "line": 12,
+        "route": "POST /api/faq"
+      },
+      "notes": "createFaq(): api.post('/faq', payload), base '/api'. routes/index.js mounts faqRoutes at /faq; router.post('/', auth, admin)"
+    },
+    {
+      "callSite": { "file": "client/src/api/admin.js", "line": 112 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/routes/faqRoutes.js",
+        "line": 14,
+        "route": "PATCH /api/faq/:id"
+      },
+      "notes": "updateFaq(id): api.patch(`/faq/${id}`), base '/api'. faqRoutes router.patch('/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/api/admin.js", "line": 117 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/faqRoutes.js",
+        "line": 15,
+        "route": "POST /api/faq/:id/outdated"
+      },
+      "notes": "setFaqOutdated(id): api.post(`/faq/${id}/outdated`), base '/api'. faqRoutes router.post('/:id/outdated')"
+    },
+    {
+      "callSite": { "file": "client/src/api/admin.js", "line": 122 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/faqRoutes.js",
+        "line": 16,
+        "route": "DELETE /api/faq/:id"
+      },
+      "notes": "deleteFaq(id): api.delete(`/faq/${id}`), base '/api'. faqRoutes router.delete('/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/api/answers.js", "line": 4 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/queryRoutes.js",
+        "line": 45,
+        "route": "GET /api/queries/:queryId/answers"
+      },
+      "notes": "listAnswers(queryId): api.get(`/queries/${queryId}/answers`), base '/api'. routes/index.js mounts queryRoutes at /queries; router.get('/:queryId/answers') (the earlier GET '/:id' is one segment and can't match)"
+    },
+    {
+      "callSite": { "file": "client/src/api/answers.js", "line": 9 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/queryRoutes.js",
+        "line": 46,
+        "route": "POST /api/queries/:queryId/answers"
+      },
+      "notes": "postAnswer(queryId): api.post(`/queries/${queryId}/answers`), base '/api'. queryRoutes router.post('/:queryId/answers')"
+    },
+    {
+      "callSite": { "file": "client/src/api/answers.js", "line": 14 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/answerRoutes.js",
+        "line": 10,
+        "route": "POST /api/answers/:id/like"
+      },
+      "notes": "likeAnswer(answerId): api.post(`/answers/${answerId}/like`), base '/api'. routes/index.js mounts answerRoutes at /answers; router.post('/:id/like')"
+    },
+    {
+      "callSite": { "file": "client/src/api/answers.js", "line": 21 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/answerRoutes.js",
+        "line": 11,
+        "route": "POST /api/answers/:id/vote"
+      },
+      "notes": "voteAnswer(answerId): api.post(`/answers/${answerId}/vote`), base '/api'. answerRoutes router.post('/:id/vote')"
+    },
+    {
+      "callSite": { "file": "client/src/api/answers.js", "line": 26 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/routes/answerRoutes.js",
+        "line": 17,
+        "route": "PATCH /api/answers/:id"
+      },
+      "notes": "updateAnswer(answerId): api.patch(`/answers/${answerId}`), base '/api'. answerRoutes router.patch('/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/api/answers.js", "line": 31 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/answerRoutes.js",
+        "line": 18,
+        "route": "DELETE /api/answers/:id"
+      },
+      "notes": "deleteAnswer(answerId): api.delete(`/answers/${answerId}`), base '/api'. answerRoutes router.delete('/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/api/answers.js", "line": 37 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/answerRoutes.js",
+        "line": 19,
+        "route": "POST /api/answers/:id/restore"
+      },
+      "notes": "restoreAnswer(answerId): api.post(`/answers/${answerId}/restore`), base '/api'. answerRoutes router.post('/:id/restore')"
+    },
+    {
+      "callSite": { "file": "client/src/api/answers.js", "line": 43 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/answerRoutes.js",
+        "line": 12,
+        "route": "POST /api/answers/:id/helpful"
+      },
+      "notes": "markHelpful(answerId): api.post(`/answers/${answerId}/helpful`), base '/api'. answerRoutes router.post('/:id/helpful')"
+    },
+    {
+      "callSite": { "file": "client/src/api/answers.js", "line": 49 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/answerRoutes.js",
+        "line": 13,
+        "route": "POST /api/answers/:id/verify"
+      },
+      "notes": "verifyAnswer(answerId): api.post(`/answers/${answerId}/verify`), base '/api'. answerRoutes router.post('/:id/verify', auth, admin)"
+    },
+    {
+      "callSite": { "file": "client/src/api/answers.js", "line": 54 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/answerRoutes.js",
+        "line": 14,
+        "route": "POST /api/answers/:id/comments"
+      },
+      "notes": "addComment(answerId): api.post(`/answers/${answerId}/comments`), base '/api'. answerRoutes router.post('/:id/comments')"
+    },
+    {
+      "callSite": { "file": "client/src/api/answers.js", "line": 59 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/answerRoutes.js",
+        "line": 15,
+        "route": "DELETE /api/answers/comments/:commentId"
+      },
+      "notes": "deleteComment(commentId): api.delete(`/answers/comments/${commentId}`), base '/api'. answerRoutes router.delete('/comments/:commentId'), registered before DELETE '/:id' (which is one segment and couldn't match anyway)"
+    },
+    {
+      "callSite": { "file": "client/src/api/answers.js", "line": 64 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/queryRoutes.js",
+        "line": 47,
+        "route": "POST /api/queries/:id/solution"
+      },
+      "notes": "markSolution(queryId): api.post(`/queries/${queryId}/solution`), base '/api'. queryRoutes router.post('/:id/solution')"
+    },
+    {
+      "callSite": { "file": "client/src/api/answers.js", "line": 69 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/queryRoutes.js",
+        "line": 48,
+        "route": "POST /api/queries/:id/report"
+      },
+      "notes": "reportQuery(queryId): api.post(`/queries/${queryId}/report`), base '/api'. queryRoutes router.post('/:id/report')"
+    },
+    {
+      "callSite": { "file": "client/src/api/answers.js", "line": 74 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/answerRoutes.js",
+        "line": 16,
+        "route": "POST /api/answers/:id/report"
+      },
+      "notes": "reportAnswer(answerId): api.post(`/answers/${answerId}/report`), base '/api'. answerRoutes router.post('/:id/report')"
+    },
+    {
+      "callSite": { "file": "client/src/api/auth.js", "line": 4 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/authRoutes.js",
+        "line": 8,
+        "route": "POST /api/auth/register"
+      },
+      "notes": "register(): api.post('/auth/register'), base '/api'. routes/index.js mounts authRoutes at /auth; router.post('/register', authLimiter)"
+    },
+    {
+      "callSite": { "file": "client/src/api/auth.js", "line": 10 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/authRoutes.js",
+        "line": 9,
+        "route": "POST /api/auth/login"
+      },
+      "notes": "login(): api.post('/auth/login'), base '/api'. authRoutes router.post('/login')"
+    },
+    {
+      "callSite": { "file": "client/src/api/auth.js", "line": 16 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/authRoutes.js",
+        "line": 12,
+        "route": "GET /api/auth/me"
+      },
+      "notes": "fetchMe(): api.get('/auth/me'), base '/api'. authRoutes router.get('/me', auth)"
+    },
+    {
+      "callSite": { "file": "client/src/api/auth.js", "line": 22 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/authRoutes.js",
+        "line": 11,
+        "route": "POST /api/auth/logout"
+      },
+      "notes": "logout(): api.post('/auth/logout'), base '/api'. authRoutes router.post('/logout')"
+    },
+    {
+      "callSite": { "file": "client/src/api/chatbot.js", "line": 4 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/chatbotRoutes.js",
+        "line": 9,
+        "route": "POST /api/chatbot/ask"
+      },
+      "notes": "askChatbot(): api.post('/chatbot/ask', { … }) (call spans lines 4-8), base '/api'. routes/index.js mounts chatbotRoutes at /chatbot; router.post('/ask', optionalAuth, aiLimiter)"
+    },
+    {
+      "callSite": { "file": "client/src/api/chatbot.js", "line": 13 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/chatbotRoutes.js",
+        "line": 10,
+        "route": "GET /api/chatbot/session/:token"
+      },
+      "notes": "getChatSession(token): api.get(`/chatbot/session/${token}`), base '/api'. chatbotRoutes router.get('/session/:token')"
+    },
+    {
+      "callSite": { "file": "client/src/api/client.js", "line": 50 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/authRoutes.js",
+        "line": 10,
+        "route": "POST /api/auth/refresh"
+      },
+      "notes": "the response interceptor's one-shot refresh: plain axios.post(`${BASE_URL}/auth/refresh`), BASE_URL = VITE_API_BASE_URL ?? '/api' (proxied to :5000; root .env.example's http://localhost:5000/api is the same server). authRoutes at /api/auth; router.post('/refresh')"
+    },
+    {
+      "callSite": { "file": "client/src/api/faq.js", "line": 4 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/faqRoutes.js",
+        "line": 8,
+        "route": "GET /api/faq"
+      },
+      "notes": "listFaqs(category): api.get('/faq', { params }), base '/api'. faqRoutes at /api/faq; router.get('/')"
+    },
+    {
+      "callSite": { "file": "client/src/api/faq.js", "line": 9 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/faqRoutes.js",
+        "line": 9,
+        "route": "GET /api/faq/search"
+      },
+      "notes": "searchFaqs(q): api.get('/faq/search', { params: { q } }), base '/api'. faqRoutes router.get('/search')"
+    },
+    {
+      "callSite": { "file": "client/src/api/faq.js", "line": 14 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/faqRoutes.js",
+        "line": 13,
+        "route": "POST /api/faq/promote/:queryId"
+      },
+      "notes": "promoteQuery(queryId): api.post(`/faq/promote/${queryId}`), base '/api'. faqRoutes router.post('/promote/:queryId', auth, admin) (the later POST '/:id/outdated' needs 'outdated' as its second segment)"
+    },
+    {
+      "callSite": { "file": "client/src/api/notifications.js", "line": 4 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/notificationRoutes.js",
+        "line": 7,
+        "route": "GET /api/notifications"
+      },
+      "notes": "listNotifications(): api.get('/notifications'), base '/api'. routes/index.js mounts notificationRoutes at /notifications; router.get('/', auth)"
+    },
+    {
+      "callSite": { "file": "client/src/api/notifications.js", "line": 9 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/notificationRoutes.js",
+        "line": 8,
+        "route": "GET /api/notifications/unread-count"
+      },
+      "notes": "getUnreadCount(): api.get('/notifications/unread-count'), base '/api'. notificationRoutes router.get('/unread-count')"
+    },
+    {
+      "callSite": { "file": "client/src/api/notifications.js", "line": 14 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/notificationRoutes.js",
+        "line": 10,
+        "route": "POST /api/notifications/:id/read"
+      },
+      "notes": "markRead(id): api.post(`/notifications/${id}/read`), base '/api'. notificationRoutes router.post('/:id/read')"
+    },
+    {
+      "callSite": { "file": "client/src/api/notifications.js", "line": 18 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/notificationRoutes.js",
+        "line": 9,
+        "route": "POST /api/notifications/read-all"
+      },
+      "notes": "markAllRead(): api.post('/notifications/read-all'), base '/api'. notificationRoutes router.post('/read-all'), registered before POST '/:id/read'"
+    },
+    {
+      "callSite": { "file": "client/src/api/queries.js", "line": 5 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/queryRoutes.js",
+        "line": 12,
+        "route": "GET /api/queries"
+      },
+      "notes": "listQueries(params): api.get('/queries', { params }), base '/api'. queryRoutes at /api/queries; router.get('/', optionalAuth)"
+    },
+    {
+      "callSite": { "file": "client/src/api/queries.js", "line": 10 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/queryRoutes.js",
+        "line": 26,
+        "route": "GET /api/queries/:id"
+      },
+      "notes": "getQuery(id): api.get(`/queries/${id}`), base '/api'. queryRoutes router.get('/:id'), after the literal GETs /bookmarks, /categories, /search"
+    },
+    {
+      "callSite": { "file": "client/src/api/queries.js", "line": 16 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/queryRoutes.js",
+        "line": 21,
+        "route": "GET /api/queries/categories"
+      },
+      "notes": "listCategories(): api.get('/queries/categories'), base '/api'. queryRoutes router.get('/categories'), registered before GET '/:id' (line 26), so it isn't shadowed"
+    },
+    {
+      "callSite": { "file": "client/src/api/queries.js", "line": 22 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/queryRoutes.js",
+        "line": 24,
+        "route": "GET /api/queries/search"
+      },
+      "notes": "searchQueries(q): api.get('/queries/search', { params: { q } }), base '/api'. queryRoutes router.get('/search'), registered before GET '/:id'"
+    },
+    {
+      "callSite": { "file": "client/src/api/queries.js", "line": 37 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/queryRoutes.js",
+        "line": 29,
+        "route": "POST /api/queries"
+      },
+      "notes": "createQuery(): api.post('/queries', form) (multipart FormData), base '/api'. queryRoutes router.post('/', auth, banCheck, aiLimiter, screenshotUpload)"
+    },
+    {
+      "callSite": { "file": "client/src/api/queries.js", "line": 42 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/routes/queryRoutes.js",
+        "line": 30,
+        "route": "PATCH /api/queries/:id"
+      },
+      "notes": "updateQuery(id): api.patch(`/queries/${id}`), base '/api'. queryRoutes router.patch('/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/api/queries.js", "line": 47 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/queryRoutes.js",
+        "line": 31,
+        "route": "DELETE /api/queries/:id"
+      },
+      "notes": "deleteQuery(id): api.delete(`/queries/${id}`), base '/api'. queryRoutes router.delete('/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/api/queries.js", "line": 53 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/queryRoutes.js",
+        "line": 32,
+        "route": "POST /api/queries/:id/restore"
+      },
+      "notes": "restoreQuery(id): api.post(`/queries/${id}/restore`), base '/api'. queryRoutes router.post('/:id/restore')"
+    },
+    {
+      "callSite": { "file": "client/src/api/queries.js", "line": 59 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/queryRoutes.js",
+        "line": 15,
+        "route": "POST /api/queries/refine"
+      },
+      "notes": "refineWithAi(): api.post('/queries/refine'), base '/api'. queryRoutes router.post('/refine', auth, aiLimiter)"
+    },
+    {
+      "callSite": { "file": "client/src/api/queries.js", "line": 65 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/queryRoutes.js",
+        "line": 35,
+        "route": "POST /api/queries/:id/vote"
+      },
+      "notes": "voteQuery(id): api.post(`/queries/${id}/vote`), base '/api'. queryRoutes router.post('/:id/vote')"
+    },
+    {
+      "callSite": { "file": "client/src/api/queries.js", "line": 71 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/queryRoutes.js",
+        "line": 36,
+        "route": "POST /api/queries/:id/save"
+      },
+      "notes": "saveQuery(id): api.post(`/queries/${id}/save`), base '/api'. queryRoutes router.post('/:id/save')"
+    },
+    {
+      "callSite": { "file": "client/src/api/queries.js", "line": 77 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/queryRoutes.js",
+        "line": 39,
+        "route": "POST /api/queries/:id/attention"
+      },
+      "notes": "flagAttention(id): api.post(`/queries/${id}/attention`), base '/api'. queryRoutes router.post('/:id/attention')"
+    },
+    {
+      "callSite": { "file": "client/src/api/queries.js", "line": 83 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/routes/queryRoutes.js",
+        "line": 42,
+        "route": "PATCH /api/queries/:id/taxonomy"
+      },
+      "notes": "retagQuery(id): api.patch(`/queries/${id}/taxonomy`), base '/api'. queryRoutes router.patch('/:id/taxonomy')"
+    },
+    {
+      "callSite": { "file": "client/src/api/queries.js", "line": 89 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/queryRoutes.js",
+        "line": 18,
+        "route": "GET /api/queries/bookmarks"
+      },
+      "notes": "getBookmarks(): api.get('/queries/bookmarks'), base '/api'. queryRoutes router.get('/bookmarks', auth), registered before GET '/:id'"
+    },
+    {
+      "callSite": { "file": "client/src/api/taxonomy.js", "line": 6 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/taxonomyRoutes.js",
+        "line": 6,
+        "route": "GET /api/taxonomy"
+      },
+      "notes": "getTaxonomy(): api.get('/taxonomy'), base '/api'. routes/index.js mounts taxonomyRoutes at /taxonomy; router.get('/')"
+    },
+    {
+      "callSite": { "file": "client/src/api/taxonomy.js", "line": 12 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 36,
+        "route": "POST /api/admin/taxonomy"
+      },
+      "notes": "createTerm(): api.post('/admin/taxonomy'), base '/api'. adminRoutes (not taxonomyRoutes) at /api/admin; router.post('/taxonomy')"
+    },
+    {
+      "callSite": { "file": "client/src/api/taxonomy.js", "line": 18 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 37,
+        "route": "DELETE /api/admin/taxonomy/:id"
+      },
+      "notes": "deleteTerm(id): api.delete(`/admin/taxonomy/${id}`), base '/api'. adminRoutes router.delete('/taxonomy/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/api/users.js", "line": 4 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/userRoutes.js",
+        "line": 11,
+        "route": "GET /api/users/:id"
+      },
+      "notes": "getProfile(id): api.get(`/users/${id}`), base '/api'. routes/index.js mounts userRoutes at /users; router.get('/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/api/users.js", "line": 10 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/routes/userRoutes.js",
+        "line": 10,
+        "route": "PATCH /api/users/me"
+      },
+      "notes": "updateMe(): api.patch('/users/me'), base '/api'. userRoutes router.patch('/me', auth)"
+    },
+    {
+      "callSite": { "file": "client/src/api/users.js", "line": 16 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/userRoutes.js",
+        "line": 8,
+        "route": "GET /api/users/me/activity"
+      },
+      "notes": "getActivity(limit): api.get('/users/me/activity', { params: { limit } }), base '/api'. userRoutes router.get('/me/activity', auth), before GET '/:id' (one segment, couldn't match anyway)"
+    },
+    {
+      "callSite": { "file": "client/src/api/users.js", "line": 22 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/userRoutes.js",
+        "line": 9,
+        "route": "POST /api/users/me/request-moderator"
+      },
+      "notes": "requestModerator(): api.post('/users/me/request-moderator'), base '/api'. userRoutes router.post('/me/request-moderator', auth)"
+    },
+    {
+      "callSite": { "file": "client/src/api/users.js", "line": 27 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 14,
+        "route": "POST /api/admin/users/:id/ban"
+      },
+      "notes": "banUser(id) (users.js, a second copy of admin.js's): api.post(`/admin/users/${id}/ban`), base '/api'. adminRoutes router.post('/users/:id/ban')"
+    },
+    {
+      "callSite": { "file": "client/src/api/users.js", "line": 32 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 15,
+        "route": "POST /api/admin/users/:id/unban"
+      },
+      "notes": "unbanUser(id) (users.js copy): api.post(`/admin/users/${id}/unban`), base '/api'. adminRoutes router.post('/users/:id/unban')"
+    },
+    {
+      "callSite": { "file": "client/src/api/users.js", "line": 37 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 16,
+        "route": "POST /api/admin/users/:id/badge"
+      },
+      "notes": "issueNegativeBadge(id): api.post(`/admin/users/${id}/badge`), base '/api'. adminRoutes router.post('/users/:id/badge')"
+    },
+    {
+      "callSite": { "file": "client/src/api/users.js", "line": 42 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 17,
+        "route": "DELETE /api/admin/users/:id/badge/:key"
+      },
+      "notes": "revokeNegativeBadge(id, key): api.delete(`/admin/users/${id}/badge/${key}`), base '/api'. adminRoutes router.delete('/users/:id/badge/:key')"
+    },
+    {
+      "callSite": { "file": "client/src/api/users.js", "line": 47 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 18,
+        "route": "POST /api/admin/users/:id/custom-badge"
+      },
+      "notes": "awardCustomBadge(id): api.post(`/admin/users/${id}/custom-badge`), base '/api'. adminRoutes router.post('/users/:id/custom-badge')"
+    },
+    {
+      "callSite": { "file": "client/src/api/users.js", "line": 52 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/adminRoutes.js",
+        "line": 19,
+        "route": "DELETE /api/admin/users/:id/custom-badge/:key"
+      },
+      "notes": "revokeCustomBadge(id, key): api.delete(`/admin/users/${id}/custom-badge/${key}`), base '/api'. adminRoutes router.delete('/users/:id/custom-badge/:key')"
+    }
+  ]
+}

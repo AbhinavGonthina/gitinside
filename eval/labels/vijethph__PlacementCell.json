@@ -1,0 +1,167 @@
+{
+  "repo": "vijethph/PlacementCell",
+  "sha": "1831a7de312ad0e1ac69137f9e29434526b1cbe9",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "client/src/components/CompaniesList.tsx", "line": 23 },
+      "method": "GET",
+      "target": {
+        "file": "src/routes/companies.ts",
+        "line": 8,
+        "route": "GET /v1/companies"
+      },
+      "notes": "getData(\"companies\") in a useEffect; getData (client/src/services/UserFunctions.tsx:44) fetches `${routePrefix}/${url}` with method GET, routePrefix = `${window.location.origin}/v1`. Same origin as Express: the Dockerfile copies client/dist into ./public, which src/server.ts serves with express.static (render.yaml deploys that image); no dev proxy. server.ts mounts companiesRouter at /v1/companies; companiesRouter.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "client/src/components/Forum.tsx", "line": 25 },
+      "method": "GET",
+      "target": {
+        "file": "src/routes/discussions.ts",
+        "line": 115,
+        "route": "GET /v1/discussions"
+      },
+      "notes": "getData(\"discussions\") (GET `${window.location.origin}/v1/discussions`, same-origin Express serving the built SPA). discussionsRouter mounted at /v1/discussions; discussionsRouter.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "client/src/components/Quiz.tsx", "line": 125 },
+      "method": "GET",
+      "target": {
+        "file": "src/routes/questions.ts",
+        "line": 8,
+        "route": "GET /v1/quiz"
+      },
+      "notes": "getData(\"quiz\") (GET `${window.location.origin}/v1/quiz`, same-origin Express serving the built SPA). questionsRouter mounted at /v1/quiz; questionsRouter.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "client/src/components/VideosList.tsx", "line": 19 },
+      "method": "GET",
+      "target": {
+        "file": "src/routes/videos.ts",
+        "line": 8,
+        "route": "GET /v1/videos"
+      },
+      "notes": "getData(\"videos\") (GET `${window.location.origin}/v1/videos`, same-origin Express serving the built SPA). videosRouter mounted at /v1/videos; videosRouter.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "client/src/services/UserFunctions.tsx", "line": 65 },
+      "method": "POST",
+      "target": {
+        "file": "src/routes/users.ts",
+        "line": 16,
+        "route": "POST /v1/users/register"
+      },
+      "notes": "registerUser(): fetch(`${routePrefix}/users/register`, { method: \"POST\" }); routePrefix = `${window.location.origin}/v1`, the Express server that serves the built SPA from ./public (Dockerfile, src/server.ts express.static). usersRouter mounted at /v1/users; usersRouter.post(\"/register\")"
+    },
+    {
+      "callSite": { "file": "client/src/services/UserFunctions.tsx", "line": 87 },
+      "method": "POST",
+      "target": {
+        "file": "src/routes/users.ts",
+        "line": 48,
+        "route": "POST /v1/users/login"
+      },
+      "notes": "loginUser(): fetch(`${routePrefix}/users/login`, { method: \"POST\" }); same-origin base .../v1. usersRouter.post(\"/login\") under /v1/users"
+    },
+    {
+      "callSite": { "file": "client/src/services/UserFunctions.tsx", "line": 121 },
+      "method": "POST",
+      "target": {
+        "file": "src/routes/discussions.ts",
+        "line": 134,
+        "route": "POST /v1/discussions"
+      },
+      "notes": "postDiscussion(): fetch(`${routePrefix}/discussions`, { method: \"POST\" }); same-origin base .../v1. discussionsRouter.post(\"/\") under /v1/discussions"
+    },
+    {
+      "callSite": { "file": "client/src/services/UserFunctions.tsx", "line": 149 },
+      "method": "PUT",
+      "target": {
+        "file": "src/routes/discussions.ts",
+        "line": 159,
+        "route": "PUT /v1/discussions"
+      },
+      "notes": "putDiscussion(): fetch(`${routePrefix}/discussions`, { method: \"PUT\" }); same-origin base .../v1. discussionsRouter.put(\"/\") under /v1/discussions"
+    },
+    {
+      "callSite": { "file": "client/src/services/UserFunctions.tsx", "line": 176 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/routes/discussions.ts",
+        "line": 199,
+        "route": "DELETE /v1/discussions"
+      },
+      "notes": "deleteDiscussion(): fetch(`${routePrefix}/discussions`, { method: \"DELETE\" }) with the ID in the body; same-origin base .../v1. discussionsRouter.delete(\"/\") under /v1/discussions"
+    },
+    {
+      "callSite": { "file": "client/src/services/UserFunctions.tsx", "line": 201 },
+      "method": "POST",
+      "target": {
+        "file": "src/routes/discussions.ts",
+        "line": 28,
+        "route": "POST /v1/discussions/comments"
+      },
+      "notes": "postComment(): fetch(`${routePrefix}/discussions/comments`, { method: \"POST\" }); same-origin base .../v1. discussionsRouter.post(\"/comments\") under /v1/discussions"
+    },
+    {
+      "callSite": { "file": "client/src/services/UserFunctions.tsx", "line": 229 },
+      "method": "PUT",
+      "target": {
+        "file": "src/routes/discussions.ts",
+        "line": 56,
+        "route": "PUT /v1/discussions/comments"
+      },
+      "notes": "putComment(): fetch(`${routePrefix}/discussions/comments`, { method: \"PUT\" }); same-origin base .../v1. discussionsRouter.put(\"/comments\") under /v1/discussions"
+    },
+    {
+      "callSite": { "file": "client/src/services/UserFunctions.tsx", "line": 256 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/routes/discussions.ts",
+        "line": 85,
+        "route": "DELETE /v1/discussions/comments"
+      },
+      "notes": "deleteComment(): fetch(`${routePrefix}/discussions/comments`, { method: \"DELETE\" }); same-origin base .../v1. discussionsRouter.delete(\"/comments\") under /v1/discussions"
+    },
+    {
+      "callSite": { "file": "client/src/services/UserFunctions.tsx", "line": 281 },
+      "method": "POST",
+      "target": {
+        "file": "src/routes/codes.ts",
+        "line": 85,
+        "route": "POST /v1/codes"
+      },
+      "notes": "executeCode(): fetch(`${routePrefix}/codes`, { method: \"POST\" }); same-origin base .../v1. codeRouter mounted at /v1/codes; codeRouter.post(\"/\") (the callback URL in the body is data, not a request)"
+    },
+    {
+      "callSite": { "file": "client/src/services/UserFunctions.tsx", "line": 307 },
+      "method": "GET",
+      "target": {
+        "file": "src/routes/codes.ts",
+        "line": 108,
+        "route": "GET /v1/codes/:id"
+      },
+      "notes": "getCodeStatus(requestId): fetch(`${routePrefix}/codes/${requestId}`, { method: \"GET\" }); same-origin base .../v1. codeRouter.get(\"/:id\") under /v1/codes; the earlier codeRouter.get(\"/events\") (line 40) matches only the literal events, and requestId is HackerEarth's he_id"
+    },
+    {
+      "callSite": { "file": "src/routes/codes.ts", "line": 66 },
+      "method": "GET",
+      "target": null,
+      "notes": "Server-side axios.get(request.body.result.run_status.output || \"\") in the webhook listener: the URL comes from HackerEarth's webhook body at runtime, so it can't be known statically"
+    },
+    {
+      "callSite": { "file": "src/routes/codes.ts", "line": 88 },
+      "method": "POST",
+      "target": null,
+      "notes": "Server-side axios.post to the literal external host https://api.hackerearth.com/v4/partner/code-evaluation/submissions/"
+    },
+    {
+      "callSite": { "file": "src/routes/codes.ts", "line": 110 },
+      "method": "GET",
+      "target": null,
+      "notes": "Server-side axios.get(`https://api.hackerearth.com/v4/partner/code-evaluation/submissions/${request.params.id}`): external host"
+    }
+  ]
+}
