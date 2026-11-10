@@ -1,6 +1,11 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { CANONICAL_REDIRECT_CACHE_CONTROL, diagramSearch, redirectToCanonical } from "./canonical";
+import {
+  CANONICAL_REDIRECT_CACHE_CONTROL,
+  diagramSearch,
+  graphSearch,
+  redirectToCanonical,
+} from "./canonical";
 
 const BASE = "https://gitinside.test/api/graph/acme/shop/" + "a".repeat(40);
 
@@ -20,6 +25,16 @@ describe("redirectToCanonical", () => {
     expect(
       redirectToCanonical(`${BASE}?n=1&theme=dark`, "?theme=dark")?.headers.get("location"),
     ).toBe(`${new URL(BASE).pathname}?theme=dark`);
+  });
+});
+
+describe("graphSearch", () => {
+  it("keeps only this analyzer's version (ADR-0258)", () => {
+    expect(graphSearch(`${BASE}?v=0.3.0&n=1`, "0.3.0")).toBe("?v=0.3.0");
+    expect(graphSearch(`${BASE}?n=1&v=0.3.0`, "0.3.0")).toBe("?v=0.3.0");
+    expect(graphSearch(`${BASE}?v=0.2.0`, "0.3.0")).toBe("");
+    expect(graphSearch(`${BASE}?v=9.9.9`, "0.3.0")).toBe("");
+    expect(graphSearch(BASE, "0.3.0")).toBe("");
   });
 });
 

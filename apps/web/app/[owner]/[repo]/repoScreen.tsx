@@ -12,7 +12,7 @@ import { RepoDiagram } from "./RepoDiagram";
 import { RepoUnavailable } from "./RepoNotice";
 
 /** What {@link loadView} found: the view, or that it couldn't be had. */
-type Loaded = { view: RepoView; db: AnyDatabase } | { unavailable: true };
+type Loaded = { view: RepoView; db: AnyDatabase; analyzerVersion: string } | { unavailable: true };
 
 /** Log a failed lookup by name only: a database error's message can carry connection details. */
 function logFailure(error: unknown): void {
@@ -42,6 +42,7 @@ async function loadView(owner: string, repo: string, sha: string | undefined): P
     return {
       view: await viewRepo(sha === undefined ? { owner, repo } : { owner, repo, sha }, viewed),
       db: deps.db,
+      analyzerVersion: deps.analyzerVersion,
     };
   } catch (error) {
     logFailure(error);
@@ -82,7 +83,7 @@ export async function repoScreen(ref: RepoRef, sha?: string, query: SearchParams
   let compared: BaseView | undefined;
   if (view.status === "ready" && base !== undefined) {
     try {
-      compared = await viewBase(view, base, loaded.db);
+      compared = await viewBase(view, base, loaded.db, loaded.analyzerVersion);
     } catch (error) {
       logFailure(error);
       return <RepoUnavailable owner={ref.owner} repo={ref.repo} />;

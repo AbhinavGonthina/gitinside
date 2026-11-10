@@ -176,7 +176,8 @@ async function serveStorefront(page: Page) {
   const graph = JSON.parse(readFileSync(join(FIXTURE, "expected.json"), "utf8")) as {
     repo: Record<string, string>;
   };
-  await page.route(`**/api/graph/acme/storefront/${E2E_SHA}`, (route) =>
+  // `*`: the page asks with its analyzer version in the query (`?v=`, ADR-0258).
+  await page.route(`**/api/graph/acme/storefront/${E2E_SHA}*`, (route) =>
     route.fulfill({
       json: { ...graph, repo: { ...graph.repo, owner: "acme", name: "storefront", sha: E2E_SHA } },
     }),

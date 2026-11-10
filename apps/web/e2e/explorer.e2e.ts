@@ -33,7 +33,8 @@ function watchErrors(page: Page): string[] {
 /** Answers the graph and the code previews' file reads; returns the files read. */
 async function serveRepo(page: Page): Promise<string[]> {
   const files: string[] = [];
-  await page.route(`**/api/graph/fixtures/shop-demo/${E2E_SHA}`, (route) =>
+  // `*`: the page asks with its analyzer version in the query (`?v=`, ADR-0258).
+  await page.route(`**/api/graph/fixtures/shop-demo/${E2E_SHA}*`, (route) =>
     route.fulfill({ json: { ...graph, repo: { ...graph.repo, sha: E2E_SHA } } }),
   );
   const raw = `https://raw.githubusercontent.com/fixtures/shop-demo/${E2E_SHA}/`;
@@ -206,7 +207,7 @@ test("the base's Try again takes focus to the compared diagram (M6.11m)", async 
   const errors = watchErrors(page);
   await serveRepo(page);
   let reads = 0;
-  await page.route(`**/api/graph/fixtures/shop-demo/${E2E_SHA}`, (route) => {
+  await page.route(`**/api/graph/fixtures/shop-demo/${E2E_SHA}*`, (route) => {
     reads += 1;
     return reads === 2
       ? route.fulfill({ status: 503, json: { message: "Base unavailable." } })

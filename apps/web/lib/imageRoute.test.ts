@@ -110,11 +110,14 @@ beforeEach(async () => {
     // The real `/api/graph` handler over a fake bucket, as the CDN would reach it.
     async graph(path) {
       graphPaths.push(path);
-      const [, owner, repo, sha] = /^\/api\/graph\/([^/]+)\/([^/]+)\/([^/]+)$/.exec(path)!;
+      const url = new URL(path, "https://gitinside.test");
+      const [, owner, repo, sha] = /^\/api\/graph\/([^/]+)\/([^/]+)\/([^/]+)$/.exec(url.pathname)!;
+      const version = url.searchParams.get("v");
       const params = {
         owner: decodeURIComponent(owner!),
         repo: decodeURIComponent(repo!),
         sha: sha!,
+        ...(version !== null && { version }),
       };
       const response = await handleGraphRequest(params, graphDeps(), "gzip, deflate");
       // Decoded as `fetch` decodes the CDN's gzipped answer.
@@ -162,7 +165,8 @@ describe("handleImageRequest", () => {
     expect(await response.text()).toBe(renderBadge({ message: badgeMessage(GRAPH) }));
     expect(badgeMessage(GRAPH)).toMatch(/^\d+ services? · /);
     // Through the day-cached graph URL in the stored spelling, never the bucket directly.
-    expect(graphPaths).toEqual([`/api/graph/Acme/Shop/${OLD}`]);
+    // Versioned (ADR-0258), so a version bump isn't hidden behind the CDN's older copy.
+    expect(graphPaths).toEqual([`/api/graph/Acme/Shop/${OLD}?v=${VERSION}`]);
     expect(reads).toEqual([key(OLD)]);
     expect(enqueued).toEqual([]);
   });
@@ -218,7 +222,7 @@ describe("handleImageRequest", () => {
     const response = await badge();
     expectImage(response, IMAGE_CACHE_CONTROL);
     expect(await response.text()).toBe(renderBadge({ message: badgeMessage(GRAPH) }));
-    expect(graphPaths).toEqual([`/api/graph/Shopco/Store/${OLD}`]);
+    expect(graphPaths).toEqual([`/api/graph/Shopco/Store/${OLD}?v=${VERSION}`]);
     expect(enqueued).toEqual([]);
   });
 

@@ -15,6 +15,7 @@ import {
   type StoredAnalysis,
 } from "@gitinside/db";
 import { readSession, userAccessToken, type AuthDeps, type SignedInUser } from "./authRoute";
+import { GRAPH_VERSION_PARAM } from "./canonical";
 import { findTooMuchCode, type CodeSizeCache } from "./codeSize";
 import { COMMIT_SHA, type BaseView, type SearchParams } from "./compare";
 import {
@@ -247,9 +248,24 @@ export type RepoView =
       private?: { providerRepoId: number };
     };
 
-/** `/api/graph/<owner>/<repo>/<sha>`. */
-export function graphPath(owner: string, repo: string, sha: string): string {
-  return `/api/graph/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${sha}`;
+/**
+ * `/api/graph/<owner>/<repo>/<sha>`, with `?v=<version>` when `version` is set (M9.1b2c,
+ * ADR-0258). The CDN caches a graph a day by its URL, so a graph by this analyzer version gets
+ * a URL of its own (`versioned`): the unversioned one may still hold an older version's graph.
+ */
+export function graphPath(owner: string, repo: string, sha: string, version?: string): string {
+  const path = `/api/graph/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${sha}`;
+  return version === undefined ? path : `${path}?${GRAPH_VERSION_PARAM}=${version}`;
+}
+
+/**
+ * `view` with its `graphUrl` versioned when it shows a graph by `analyzerVersion` (this
+ * analyzer's), so a version bump reaches the browser on a URL the CDN never held an older
+ * graph under. An older version's graph keeps the unversioned URL, as before.
+ */
+function versioned(view: RepoView, analyzerVersion: string): RepoView {
+  if (view.status !== "ready" || view.analyzerVersion !== analyzerVersion) return view;
+  return { ...view, graphUrl: graphPath(view.owner, view.repo, view.sha, analyzerVersion) };
 }
 
 function ready(published: PublishedAnalysis | StoredAnalysis, head: HeadState): RepoView {
@@ -422,7 +438,9 @@ export function diffPath(owner: string, repo: string, base: string, head: string
  * GitHub's ID, so the check covers the base too. When `shown` names its commit and analyzer
  * version (a `ready` view does) and a pull request record of the repo names a stored diff of
  * `base`...that commit by that version (`findPullRequestDiffKey`, M8.6f1), the base also says
- * where that diff is; `/api/diff` checks access again before serving it.
+ * where that diff is; `/api/diff` checks access again before serving it. With `analyzerVersion`
+ * (this analyzer's), a base by that version is fetched from its versioned URL, as in
+ * {@link viewRepo}.
  */
 export async function viewBase(
   shown: {
@@ -434,6 +452,7 @@ export async function viewBase(
   },
   base: string,
   db: AnyDatabase,
+  analyzerVersion?: string,
 ): Promise<BaseView> {
   if (!COMMIT_SHA.test(base)) return { status: "invalid" };
   const published =
@@ -442,7 +461,9 @@ export async function viewBase(
       : await findStoredAnalysis(db, { providerRepoId: shown.private.providerRepoId, sha: base });
   if (published === undefined) return { status: "missing", sha: base };
   const { owner, name } = published.repo;
-  const view = { status: "ready", sha: base, graphUrl: graphPath(owner, name, base) } as const;
+  const current = published.analysis.analyzerVersion === analyzerVersion;
+  const graphUrl = graphPath(owner, name, base, current ? analyzerVersion : undefined);
+  const view = { status: "ready", sha: base, graphUrl } as const;
   if (shown.sha === undefined || shown.analyzerVersion === undefined) return view;
   const diffKey = await findPullRequestDiffKey(db, {
     repoId: published.repo.id,
@@ -514,11 +535,18 @@ async function purgeRepo(providerRepoId: number, deps: RepoViewDeps): Promise<vo
   }
 }
 
-/** Decide what `/<owner>/<repo>` (or `/<owner>/<repo>/<sha>` with `sha`) shows. */
+/**
+ * Decide what `/<owner>/<repo>` (or `/<owner>/<repo>/<sha>` with `sha`) shows. A graph by this
+ * analyzer version is fetched from its versioned URL (`graphPath`, ADR-0258).
+ */
 export async function viewRepo(
   ref: RepoRef & { sha?: string },
   deps: RepoViewDeps,
 ): Promise<RepoView> {
+  return versioned(await findView(ref, deps), deps.analyzerVersion);
+}
+
+async function findView(ref: RepoRef & { sha?: string }, deps: RepoViewDeps): Promise<RepoView> {
   const { db } = deps;
   let published = await findPublishedAnalysis(db, {
     owner: ref.owner,

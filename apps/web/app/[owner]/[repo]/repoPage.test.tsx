@@ -102,7 +102,8 @@ const GRAPH_URL = `/api/graph/acme/shop/${SHA}`;
 const BASE_URL = `/api/graph/acme/shop/${BASE}`;
 const JOB = `analyze-${"c".repeat(32)}`;
 const db = {} as RepoViewDeps["db"];
-const deps = { db } as RepoViewDeps;
+const ANALYZER = "0.1.0";
+const deps = { db, analyzerVersion: ANALYZER } as RepoViewDeps;
 
 const fetchMock = vi.fn<typeof fetch>();
 
@@ -207,7 +208,7 @@ describe("repo page", () => {
     vi.mocked(viewBase).mockResolvedValue({ status: "missing", sha: BASE });
     const searchParams = Promise.resolve({ base: ["x", BASE], sel: "service:api/" });
     render(await RepoPage({ params: params("acme", "shop"), searchParams }));
-    expect(viewBase).toHaveBeenCalledWith(view, BASE, db);
+    expect(viewBase).toHaveBeenCalledWith(view, BASE, db, ANALYZER);
     await screen.findByRole("region", { name: "Diagram" });
     expect(document.querySelector(".diagram-page__note")?.textContent).toContain(
       "Commit ddddddd hasn't been analyzed",
@@ -248,7 +249,7 @@ describe("commit permalink page", () => {
     fetchMock.mockImplementation(graphResponse);
     const searchParams = Promise.resolve({ base: "main" });
     render(await CommitPage({ params: commitParams("acme", "shop", SHA), searchParams }));
-    expect(viewBase).toHaveBeenCalledWith(view, "main", db);
+    expect(viewBase).toHaveBeenCalledWith(view, "main", db, ANALYZER);
     await screen.findByRole("region", { name: "Diagram" });
     expect(document.querySelector(".diagram-page__note")?.textContent).toContain(
       "The link's base isn't a full commit SHA",
@@ -341,7 +342,7 @@ describe("private repo pages (M8.4c1)", () => {
     vi.mocked(viewBase).mockResolvedValue({ status: "missing", sha: BASE });
     const searchParams = Promise.resolve({ base: BASE });
     render(await RepoPage({ params: params("acme", "shop"), searchParams }));
-    expect(viewBase).toHaveBeenCalledWith(view, BASE, db);
+    expect(viewBase).toHaveBeenCalledWith(view, BASE, db, ANALYZER);
     expect(await screen.findByRole("region", { name: "Diagram" })).toBeTruthy();
     expect(fetchMock).toHaveBeenCalledWith(GRAPH_URL, expect.anything());
   });
