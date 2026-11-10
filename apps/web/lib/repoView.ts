@@ -51,8 +51,9 @@ import { findSizeHold } from "./sizeHold";
  *    "Analyze", which goes through `/api/analyze` and the visitor's rate limit; a permalink
  *    is a 404.
  * 2. **Permalinks stop there:** a commit's diagram never changes, so no GitHub call. The one
- *    exception is a demo pin's permalink (`DEMO_PINS`, ADR-0255) with no finished analysis:
- *    the landing page's gallery links it, so its commit is queued (`queueDemoPin`).
+ *    exception is a demo pin's permalink (`DEMO_PINS`, ADR-0255) with no finished analysis by
+ *    this analyzer version (ADR-0257): the landing page's gallery links it, so its commit is
+ *    queued (`queueDemoPin`).
  * 3. **Check** the default branch's latest commit on GitHub, remembered per repo and shown
  *    analysis for {@link HEAD_TTL_MS} so busy pages don't spend GitHub's hourly quota. If
  *    GitHub can't be asked, the diagram is still shown (`unknown`). If GitHub says it's gone or
@@ -533,10 +534,13 @@ export async function viewRepo(
     }
   }
   if (ref.sha !== undefined) {
-    if (published) return ready(published, { state: "pinned" });
+    if (published?.analysis.analyzerVersion === deps.analyzerVersion) {
+      return ready(published, { state: "pinned" });
+    }
     const pinned = { owner: ref.owner, repo: ref.repo, sha: ref.sha };
     const pin = findDemoPin({ ...pinned, name: ref.repo }, deps.demos);
-    return pin === undefined ? { status: "missing" } : queueDemoPin(pinned, pin, deps);
+    if (pin !== undefined) return queueDemoPin(pinned, pin, deps, published);
+    return published === undefined ? { status: "missing" } : ready(published, { state: "pinned" });
   }
   let resolved: ResolveResult;
   if (published === undefined) {
@@ -576,15 +580,30 @@ export async function viewRepo(
 }
 
 /**
- * A demo pin's permalink with no finished analysis (ADR-0255): GitHub is asked for the repo
- * (it must still be the pin's, by GitHub's ID, and public), and the pinned commit is queued
- * as check-on-view queues a newer one ({@link queueHead}: its limits, charged to the repo),
- * so the gallery's links work however far the default branch has moved. `queued` opens the
- * job's progress page. A name GitHub doesn't show, or shows as another repo, is `missing`;
- * a commit that can't be queued now (GitHub or the queue down, a failed analysis, which isn't
- * re-run on every view, a limit) is `unavailable`.
+ * A demo pin's permalink with no finished analysis by this analyzer version (ADR-0255): GitHub
+ * is asked for the repo (it must still be the pin's, by GitHub's ID, and public), and the
+ * pinned commit is queued as check-on-view queues a newer one ({@link queueHead}: its limits,
+ * charged to the repo), so the gallery's links work however far the default branch has moved.
+ * `queued` opens the job's progress page. A name GitHub doesn't show, or shows as another repo,
+ * is `missing`; a commit that can't be queued now (GitHub or the queue down, a failed analysis,
+ * which isn't re-run on every view, a limit) is `unavailable`.
+ *
+ * With `older`, the pin's newest finished analysis by an older version (M9.1b2b, ADR-0257): the
+ * gallery shows what this analyzer draws, so the current version is queued the same way, and
+ * `older` is shown wherever the result would be `unavailable` or `missing`.
  */
 async function queueDemoPin(
+  ref: RepoRef & { sha: string },
+  pin: DemoPin,
+  deps: RepoViewDeps,
+  older?: PublishedAnalysis,
+): Promise<RepoView> {
+  const view = await queuePin(ref, pin, deps);
+  if (older === undefined || view.status === "ready" || view.status === "queued") return view;
+  return ready(older, { state: "pinned" });
+}
+
+async function queuePin(
   ref: RepoRef & { sha: string },
   pin: DemoPin,
   deps: RepoViewDeps,
