@@ -338,6 +338,62 @@ describe("viewRepo", () => {
       });
       expect(tasks.google.tasks).toEqual([]);
     });
+
+    it("queues the current analyzer version over an older one's graph, once (M9.1b2b)", async () => {
+      await done(NEW, "0.1.0");
+      const queued = {
+        status: "queued",
+        owner: "Acme",
+        repo: "Shop",
+        sha: NEW,
+        jobId: jobFor(NEW),
+      };
+      expect(await viewRepo({ owner: "acme", repo: "shop", sha: NEW }, deps)).toEqual(queued);
+      expect(tasks.google.tasks).toHaveLength(1);
+      expect(await rows()).toEqual([
+        { sha: NEW, status: "done", version: "0.1.0" },
+        { sha: NEW, status: "queued", version: VERSION },
+      ]);
+      expect(await repoSlots()).toBe(1);
+      expect(await viewRepo({ owner: "acme", repo: "shop", sha: NEW }, deps)).toEqual(queued);
+      expect(tasks.google.tasks).toHaveLength(1);
+      expect(await repoSlots()).toBe(1);
+      // Finished: this version's graph, with no GitHub call.
+      await t.db.delete(analyses);
+      await done(NEW, "0.1.0");
+      await done(NEW);
+      const asked = gh.requests.length;
+      expect(await viewRepo({ owner: "acme", repo: "shop", sha: NEW }, deps)).toEqual(
+        ready(NEW, { state: "pinned" }),
+      );
+      expect(gh.requests).toHaveLength(asked);
+    });
+
+    it("keeps an older version's graph when the current one can't be queued", async () => {
+      await done(NEW, "0.1.0");
+      const old = ready(NEW, { state: "pinned" }, "0.1.0");
+      const view = { owner: "acme", repo: "shop", sha: NEW };
+      gh.failNext(new Error("offline"));
+      expect(await viewRepo(view, deps)).toEqual(old);
+      expect(await viewRepo(view, { ...deps, queue: undefined })).toEqual(old);
+      const { id } = await startAnalysis(t.db, {
+        repoId: await repoId(),
+        sha: NEW,
+        analyzerVersion: VERSION,
+      });
+      await failAnalysis(t.db, id, "WORKER_ERROR");
+      expect(await viewRepo(view, deps)).toEqual(old);
+      expect(tasks.google.tasks).toEqual([]);
+    });
+
+    it("keeps an older version's graph of a commit that isn't a pin, never asking GitHub", async () => {
+      await done(OLD, "0.1.0");
+      expect(await viewRepo({ owner: "acme", repo: "shop", sha: OLD }, deps)).toEqual(
+        ready(OLD, { state: "pinned" }, "0.1.0"),
+      );
+      expect(gh.requests).toEqual([]);
+      expect(tasks.google.tasks).toEqual([]);
+    });
   });
 
   it("shows an up-to-date diagram, asking GitHub at most once a minute", async () => {
