@@ -1,4 +1,5 @@
-import { redirectToCanonical } from "../../../../../../lib/canonical";
+import { ANALYZER_VERSION } from "@gitinside/analyzer/version";
+import { graphSearch, redirectToCanonical } from "../../../../../../lib/canonical";
 import { handleGraphRequest } from "../../../../../../lib/graphRoute";
 import { graphDepsFromEnv } from "../../../../../../lib/serverDeps";
 
@@ -11,10 +12,11 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ owner: string; repo: string; sha: string }> },
 ): Promise<Response> {
+  const search = graphSearch(request.url, ANALYZER_VERSION);
   return (
-    redirectToCanonical(request.url, "") ??
+    redirectToCanonical(request.url, search) ??
     handleGraphRequest(
-      await params,
+      { ...(await params), ...(search !== "" && { version: ANALYZER_VERSION }) },
       graphDepsFromEnv(),
       request.headers.get("accept-encoding"),
       request.headers.get("cookie"),

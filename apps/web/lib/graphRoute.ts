@@ -37,6 +37,11 @@ import { graphPath } from "./repoView";
  *   when it finds the repo gone private, so the CDN's day ends there (M8.4d1, ADR-0238), and
  *   again once a request that read it as public can't still be running
  *   ({@link GRAPH_MAX_DURATION_SECONDS}, F14).
+ * - **Versioned URLs** (M9.1b2c, ADR-0258): the pages and images fetch a graph by this
+ *   analyzer version as `?v=<version>`, a URL the CDN never cached an older version's graph
+ *   under, so a version bump reaches them at once rather than a day later. The unversioned URL
+ *   still serves the newest graph. A `?v=` the newest analysis isn't by is a `307` to the
+ *   unversioned URL, never stored, so that URL can't cache an older graph either.
  * - **Gzipped so big graphs stay cacheable** (ADR-0097 amendment, M5.13a): Vercel's CDN
  *   doesn't cache a function response over 10 MB, and documenso's 13.4 MB of JSON was a
  *   `MISS` on every read (a bucket read each). Gzipped it's under 1 MB. A served body over
@@ -73,6 +78,12 @@ export const PRIVATE_CACHE_CONTROL = "private, no-store";
  * now redirects to it, until the cached one expires.
  */
 export const SPELLING_REDIRECT_CACHE_CONTROL = "public, max-age=300, s-maxage=3600";
+/**
+ * Cache headers of the redirect from a `?v=` the commit's newest analysis isn't by (M9.1b2c,
+ * ADR-0258) to the unversioned URL: never stored, so once that version's analysis finishes,
+ * the versioned URL serves it at once instead of a cached redirect (or older graph).
+ */
+export const VERSION_REDIRECT_CACHE_CONTROL = "no-store";
 
 /**
  * The largest function response Vercel's CDN caches: 10 MB, or 20 MB "for streaming"
@@ -166,10 +177,12 @@ async function privateAccess(
 /**
  * Answer one graph request. `deps` is `undefined` when the database or the bucket isn't
  * configured: every request is then "temporarily unavailable". `acceptEncoding` is the
- * request's `Accept-Encoding` and `cookie` its `Cookie` (`null` without one).
+ * request's `Accept-Encoding` and `cookie` its `Cookie` (`null` without one). `params.version`
+ * is the URL's `?v=` (lib/canonical.ts keeps only this analyzer's version), see
+ * {@link VERSION_REDIRECT_CACHE_CONTROL}.
  */
 export async function handleGraphRequest(
-  params: { owner: string; repo: string; sha: string },
+  params: { owner: string; repo: string; sha: string; version?: string },
   deps: GraphRouteDeps | undefined,
   acceptEncoding: string | null = null,
   cookie: string | null = null,
@@ -191,11 +204,21 @@ export async function handleGraphRequest(
       if (shown !== true) return shown;
     }
     const { owner, name } = stored.repo;
+    const { version } = params;
+    if (version !== undefined && version !== stored.analysis.analyzerVersion) {
+      return new Response(null, {
+        status: 307,
+        headers: {
+          location: graphPath(owner, name, params.sha),
+          "cache-control": VERSION_REDIRECT_CACHE_CONTROL,
+        },
+      });
+    }
     if (owner !== ref.owner || name !== ref.repo) {
       return new Response(null, {
         status: 308,
         headers: {
-          location: graphPath(owner, name, params.sha),
+          location: graphPath(owner, name, params.sha, version),
           ...(isPrivate
             ? { "cache-control": PRIVATE_CACHE_CONTROL, vary: "cookie" }
             : {

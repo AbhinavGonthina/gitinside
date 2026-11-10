@@ -145,7 +145,8 @@ const ready = (sha: string, head: object, version = VERSION) => ({
   repo: "Shop",
   sha,
   analyzerVersion: version,
-  graphUrl: `/api/graph/Acme/Shop/${sha}`,
+  // This analyzer's graphs on their own URL (ADR-0258), an older version's on the plain one.
+  graphUrl: `/api/graph/Acme/Shop/${sha}${version === VERSION ? `?v=${VERSION}` : ""}`,
   head,
 });
 
@@ -216,7 +217,7 @@ describe("viewRepo", () => {
       status: "ready",
       owner: "Shopco",
       repo: "Store",
-      graphUrl: `/api/graph/Shopco/Store/${OLD}`,
+      graphUrl: `/api/graph/Shopco/Store/${OLD}?v=${VERSION}`,
       head: { state: "current" },
     });
     // A permalink never asks GitHub, under either name.
@@ -831,6 +832,17 @@ describe("viewBase", () => {
     expect(tasks.google.tasks).toEqual([]);
   });
 
+  it("fetches a base by this analyzer version from its versioned URL (ADR-0258)", async () => {
+    await done(OLD, "0.1.0");
+    await done(NEW);
+    expect(await viewBase(shown, NEW, t.db, VERSION)).toMatchObject({
+      graphUrl: `/api/graph/Acme/Shop/${NEW}?v=${VERSION}`,
+    });
+    expect(await viewBase(shown, OLD, t.db, VERSION)).toMatchObject({
+      graphUrl: `/api/graph/Acme/Shop/${OLD}`,
+    });
+  });
+
   it("says a full SHA nobody analyzed is missing, and anything else is invalid", async () => {
     await done(NEW);
     expect(await viewBase(shown, OLD, t.db)).toEqual({ status: "missing", sha: OLD });
@@ -912,7 +924,7 @@ describe("viewRepo and viewBase for a private repo (M8.4c1)", () => {
     repo: "Secret",
     sha,
     analyzerVersion: VERSION,
-    graphUrl: graphUrl(sha),
+    graphUrl: `${graphUrl(sha)}?v=${VERSION}`,
     head,
     private: { providerRepoId: SECRET_ID },
   });
@@ -1339,5 +1351,6 @@ describe("createHeadCache", () => {
 describe("graphPath", () => {
   it("encodes names into the graph route", () => {
     expect(graphPath("acme", "shop.web", OLD)).toBe(`/api/graph/acme/shop.web/${OLD}`);
+    expect(graphPath("acme", "shop", OLD, "0.3.0")).toBe(`/api/graph/acme/shop/${OLD}?v=0.3.0`);
   });
 });

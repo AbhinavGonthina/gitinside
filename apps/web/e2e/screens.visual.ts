@@ -98,7 +98,7 @@ for (const [screen, reach] of Object.entries(SCREENS)) {
 
 /** Answers the graph and the code previews' file reads, as explorer.e2e.ts does. */
 async function serveRepo(page: Page) {
-  await page.route(`**/api/graph/fixtures/shop-demo/${E2E_SHA}`, (route) =>
+  await page.route(`**/api/graph/fixtures/shop-demo/${E2E_SHA}*`, (route) =>
     route.fulfill({ json: { ...graph, repo: { ...graph.repo, sha: E2E_SHA } } }),
   );
   const raw = `https://raw.githubusercontent.com/fixtures/shop-demo/${E2E_SHA}/`;

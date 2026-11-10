@@ -32,6 +32,7 @@ import {
   GRAPH_CACHE_CONTROL,
   PRIVATE_CACHE_CONTROL,
   SPELLING_REDIRECT_CACHE_CONTROL,
+  VERSION_REDIRECT_CACHE_CONTROL,
   acceptsGzip,
   handleGraphRequest,
   type GraphRouteDeps,
@@ -197,6 +198,37 @@ describe("handleGraphRequest", () => {
       expect(response.headers.get(CACHE_TAG_HEADER)).toBe("repo-1");
     }
     expect(reads).toEqual([]);
+  });
+
+  it("serves the newest graph at its version's URL, cacheable a day (ADR-0258)", async () => {
+    await publish();
+    const response = await handleGraphRequest({ ...params(), version: "0.1.0" }, deps, "identity");
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe(GRAPH_CACHE_CONTROL);
+    expect(await response.text()).toBe(GRAPH);
+  });
+
+  it("sends a version the newest graph isn't by to the unversioned URL, never cached, before reading the bucket", async () => {
+    await publish();
+    for (const p of [params(), params("acme", "shop")]) {
+      const response = await handleGraphRequest({ ...p, version: "0.3.0" }, deps);
+      expect(response.status).toBe(307);
+      expect(response.headers.get("location")).toBe(`/api/graph/Acme/Shop/${SHA}`);
+      expect(response.headers.get("cache-control")).toBe(VERSION_REDIRECT_CACHE_CONTROL);
+      expect(response.headers.get(CACHE_TAG_HEADER)).toBeNull();
+    }
+    expect(VERSION_REDIRECT_CACHE_CONTROL).toBe("no-store");
+    expect(reads).toEqual([]);
+  });
+
+  it("keeps the version when redirecting to the stored spelling", async () => {
+    await publish();
+    const response = await handleGraphRequest(
+      { ...params("acme", "shop"), version: "0.1.0" },
+      deps,
+    );
+    expect(response.status).toBe(308);
+    expect(response.headers.get("location")).toBe(`/api/graph/Acme/Shop/${SHA}?v=0.1.0`);
   });
 
   it("is a 404, read from nowhere, for bad names, bad SHAs, and unknown commits", async () => {
