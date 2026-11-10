@@ -839,6 +839,73 @@ describe("routers loaded from a folder listing (M5A.3e, ADR-0162)", () => {
     ]);
   });
 
+  it("mounts a listed module's `default || module` router bound by consts in the loop (M9.1a5)", async () => {
+    await put("src/api/record.ts", [
+      'import { Router } from "express";',
+      "const router = Router();",
+      'router.get("/robots/:id", () => 1);',
+      "export default router;",
+    ]);
+    await put("src/api/legacy.js", [
+      'const { Router } = require("express");',
+      'module.exports = Router().post("/legacy", () => 1);',
+    ]);
+    await put("src/api/both.ts", [
+      'import { Router } from "express";',
+      'export const named = Router().get("/named", () => 1);',
+      'export default Router().get("/both", () => 1);',
+    ]);
+    // maxun's server/src/server.ts:133, with `??` beside `||`.
+    await put("src/server.ts", [
+      'import express from "express";',
+      'import path from "path";',
+      'import { readdirSync } from "fs";',
+      "const app = express();",
+      "readdirSync(path.join(__dirname, 'api')).forEach((r) => {",
+      "  const route = require(path.join(__dirname, 'api', r));",
+      "  const router = route.default || route;",
+      "  if (typeof router === 'function') {",
+      "    app.use('/api', router);",
+      "  } else {",
+      "    console.error(`Error: ${r} does not export a valid router`);",
+      "  }",
+      "});",
+      "readdirSync(path.join(__dirname, 'api')).forEach((r) => {",
+      "  const route = require(path.join(__dirname, 'api', r));",
+      "  app.use('/v2', route.default ?? route);",
+      "});",
+      // Only `||` skips an empty string.
+      "const NONE = '';",
+      "readdirSync(path.join(__dirname, 'api')).forEach((r) => {",
+      "  app.use(NONE || '/v3', require(path.join(__dirname, 'api', r)).default);",
+      "});",
+      // `??` keeps it.
+      "readdirSync(path.join(__dirname, 'api')).forEach((r) => {",
+      "  app.use('/v4' + (NONE ?? '/x'), require(path.join(__dirname, 'api', r)).default);",
+      "});",
+    ]);
+    const { routes, listed, warnings } = await composed();
+    expect(routes).toEqual(
+      [
+        "route:app/GET /api/both",
+        "route:app/GET /api/robots/:id",
+        "route:app/GET /v2/both",
+        "route:app/GET /v2/robots/:id",
+        "route:app/GET /v3/both",
+        "route:app/GET /v3/robots/:id",
+        "route:app/GET /v4/both",
+        "route:app/GET /v4/robots/:id",
+        "route:app/POST /api/legacy",
+        "route:app/POST /v2/legacy",
+        "route:app/GET /named",
+      ].sort(),
+    );
+    expect(listed).toEqual(routes.filter((r) => r !== "route:app/GET /named"));
+    expect(warnings.map((w) => `${w.code} ${w.file}`)).toEqual([
+      "EXPRESS_UNMOUNTED_ROUTER src/api/both.ts",
+    ]);
+  });
+
   it("keeps a route reached both ways out of the listed set", async () => {
     await put("routes/users.js", [
       'const { Router } = require("express");',

@@ -38,7 +38,8 @@
  *   `for (const f of list) app.use(…)`. The folder must be a repo path (`__dirname`,
  *   `path.join`/`resolve`, templates, `+`, consts; `a ? b : c` lists both). The listing is
  *   computed from the service's own root files and each listed file's export
- *   (`module.exports`, or `require(f).default`) is mounted; prefixes may use the file name
+ *   (`module.exports`, `require(f).default`, or `m.default || m` / `??`, also through `const`s
+ *   in the loop body, as maxun's `server.ts` does) is mounted; prefixes may use the file name
  *   (`path.basename`, string `replace`/`slice`). Filters aren't evaluated, so a route reached
  *   only this way is listed in `listedRoutes` and matched at `heuristic` at best.
  *
@@ -958,7 +959,8 @@ export function collectExpressFacts(
   /**
    * The values an expression in `file` may have, with loop variables bound by `env`: strings
    * from literals, templates, `+`, `__dirname`, `path.join`/`resolve`/`basename`, string
-   * `replace`/`slice`, consts, and `a ? b : c` (each alternative); modules from `require`; and
+   * `replace`/`slice`, consts, `a ? b : c` (each alternative), and `a || b` / `a ?? b` (`b`
+   * only where `a` may have no value); modules from `require`; and
    * routers from a module's exports (`m.default`). Undefined when it can't be read.
    */
   const evaluate = (
@@ -996,6 +998,23 @@ export function collectExpressFacts(
       const b = evaluate(e.whenFalse, env, file, hops + 1);
       if (!a || !b || a.length + b.length > MAX_ALTERNATIVES) return undefined;
       return [...a, ...b];
+    }
+    if (
+      ts.isBinaryExpression(e) &&
+      (e.operatorToken.kind === ts.SyntaxKind.BarBarToken ||
+        e.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken)
+    ) {
+      // `m.default || m`: the left side's values, then the right side's where the left may be
+      // empty. A missing export reads as no value (`[]`), and only `||` skips an empty string.
+      const left = evaluate(e.left, env, file, hops + 1);
+      if (!left) return undefined;
+      const skips = (v: Listed) =>
+        e.operatorToken.kind === ts.SyntaxKind.BarBarToken && isText(v) && v.text === "";
+      const kept = left.filter((v) => !skips(v));
+      if (kept.length > 0 && kept.length === left.length) return kept;
+      const right = evaluate(e.right, env, file, hops + 1);
+      if (!right || kept.length + right.length > MAX_ALTERNATIVES) return undefined;
+      return [...kept, ...right];
     }
     if (ts.isIdentifier(e)) {
       const symbol = checker.getSymbolAtLocation(e);

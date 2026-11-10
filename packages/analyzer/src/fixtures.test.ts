@@ -570,19 +570,25 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
   it("express-folder-routers: routers from a folder listing are mounted, matched at heuristic (M5A.3e)", async () => {
     const g = await run("express-folder-routers");
     expect(ids(g, "route").sort()).toEqual([
+      "route:express-folder-routers/GET /api/robots/:id",
       "route:express-folder-routers/GET /api/v1/users/:id",
       "route:express-folder-routers/GET /health",
       "route:express-folder-routers/GET /legacy/reports/daily",
+      "route:express-folder-routers/POST /api/runs",
       "route:express-folder-routers/POST /api/v1/orders",
     ]);
     expect(g.warnings.filter((w) => w.code.startsWith("EXPRESS"))).toEqual([]);
     const client = "symbol:express-folder-routers/src/client.ts";
     const routes = "route:express-folder-routers";
+    // `loadRobot` and `startRun` reach `api/`'s routers through `route.default || route`
+    // (maxun's loop, M9.1a5).
     expect(links(g, "http")).toEqual([
       `${client}#dailyReport -> ${routes}/GET /legacy/reports/daily heuristic`,
       `${client}#health -> ${routes}/GET /health exact`,
+      `${client}#loadRobot -> ${routes}/GET /api/robots/:id heuristic`,
       `${client}#loadUser -> ${routes}/GET /api/v1/users/:id heuristic`,
       `${client}#placeOrder -> ${routes}/POST /api/v1/orders heuristic`,
+      `${client}#startRun -> ${routes}/POST /api/runs heuristic`,
     ]);
   });
 
