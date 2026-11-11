@@ -292,6 +292,7 @@ export function CodePreview({
       </figcaption>
       {status === "ready" ? (
         <CodeLines
+          path={path}
           startLine={startLine}
           lines={lines}
           tokens={syntax.tokens}
@@ -342,16 +343,22 @@ function useSyntax(
   return tokens ? { state: "done", tokens } : { state: "plain" };
 }
 
+/**
+ * The lines, in a `<pre>` that scrolls sideways for a long line, so it's in the Tab order
+ * (WCAG 2.1.1; axe's scrollable-region-focusable, M9.6): a keyboard user scrolls it with the
+ * arrow keys once it has focus.
+ */
 function CodeLines({
+  path,
   startLine,
   lines,
   tokens,
   highlight,
-}: Pick<CodePreviewProps, "startLine" | "lines" | "highlight"> & {
+}: Pick<CodePreviewProps, "path" | "startLine" | "lines" | "highlight"> & {
   tokens?: SyntaxToken[][] | undefined;
 }) {
   return (
-    <pre className="gi-code__body">
+    <pre className="gi-code__body" tabIndex={0} role="group" aria-label={`Code from ${path}`}>
       {lines.map((line, i) => {
         const n = startLine + i;
         const runs = tokens?.[i];

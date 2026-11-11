@@ -514,6 +514,17 @@ describe("inspector", () => {
     // At least the cold load's 10 s wait: CI's coverage run hit the 5 s default.
   }, 15_000);
 
+  it("puts the lines, which scroll sideways, in the Tab order with a name (M9.6)", () => {
+    // axe's scrollable-region-focusable: a keyboard user must be able to reach a long line.
+    const { container } = render(
+      <CodePreview path="src/a.ts" startLine={1} lines={["x".repeat(400)]} />,
+    );
+    const body = container.querySelector<HTMLElement>(".gi-code__body");
+    expect(body?.tabIndex).toBe(0);
+    // A plain <pre> may not carry a name (axe's aria-prohibited-attr); a group may.
+    expect(screen.getByRole("group", { name: "Code from src/a.ts" })).toBe(body);
+  });
+
   it("leaves a language it doesn't color plain", () => {
     const { container } = render(
       <CodePreview path="Dockerfile" startLine={1} lines={["FROM node"]} />,

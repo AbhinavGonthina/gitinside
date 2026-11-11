@@ -1423,6 +1423,11 @@ a.gi-button {
   line-height: 19px;
 }
 
+/* In the Tab order so a keyboard can scroll it; the ring sits inside the card's clip. */
+.gi-root .gi-code__body:focus-visible {
+  outline-offset: -2px;
+}
+
 .gi-code__line {
   display: flex;
   min-width: max-content;
@@ -1626,6 +1631,13 @@ code.gi-palette__name {
   color: var(--text-muted);
   font-size: var(--font-size-12);
   text-align: right;
+}
+
+/* The active row's tint takes muted text below 4.5:1 in dark (4.06, M9.6's axe audit), so
+   its muted text moves a fifth of the way to the body text (4.98; light 6.55). */
+.gi-palette__result[aria-selected="true"] .gi-palette__path,
+.gi-palette__result[aria-selected="true"] .gi-palette__kind {
+  color: color-mix(in srgb, var(--text-muted) 80%, var(--text));
 }
 
 /* A result the filters hide: said under its kind, since picking it shows it again. */
