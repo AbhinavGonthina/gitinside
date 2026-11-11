@@ -14,11 +14,12 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M9.4b Root SECURITY.md + needs-abhinav issue to turn on private vulnerability reporting
+M9.5 Blog post draft + needs-abhinav edit/publish-decision issue
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
 - [#1](https://github.com/AbhinavGonthina/gitinside-planning/issues/1) Review a seeded 20% of eval labels (30 call sites, seed 2026-10-28). Blocks nothing; on close: apply corrections with notes, set `reviewedBy`, add a summary of review disagreements to the report (EVALUATION.md §1 step 4; the renderer has no section for it yet, ADR-0045), regenerate the report without "Pending owner review".
+- [#28](https://github.com/AbhinavGonthina/gitinside-planning/issues/28) Turn on private vulnerability reporting for the gitinside repo (SECURITY.md's form). Blocks nothing; on close: confirm with `gh api repos/AbhinavGonthina/gitinside/private-vulnerability-reporting` (`enabled: true`), apply any change he asks to SECURITY.md's "What happens next", remove this entry.
 - Reminder (#3, closed 2026-11-04 with "all 119 checks match infra/gcp"): the Google Cloud trial ends 2027-01-30. Remind Abhinav before trial day 90 of anything needed before he activates the full account; he won't activate it until we confirm.
 
 ## Blockers
@@ -528,7 +529,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [x] M9.3e Test fixtures drawn as the repo's own infrastructure: this repo's graph at `ed99fd2` has 8 datastores and a RabbitMQ queue, and all but `infra/docker-compose.dev.yml`'s postgres come from `fixtures/*/docker-compose.yml` and `fixtures/*/.env*` (MongoDB ×2, Redis ×2, PostgreSQL ×3, the RabbitMQ broker). Decide by rule (ADR) whether compose/.env files under a fixtures or test folder are skipped, as tests are, or kept but marked; red fixture test first, eval delta {model: opus}
 - M9.4 Docs pages (how it works, limits, privacy) + root SECURITY.md, split (GitHub's private vulnerability reporting is off on the repo, and turning it on is Abhinav's setting):
 - [x] M9.4a The website's docs pages, `/how-it-works`, `/limits`, `/privacy`, `/self-hosting` (ROADMAP M9 task 4's self-hosting notes), at top-level paths so none shadows a repo page, linked from a footer on the landing and docs pages; each number on Limits and each cookie on Privacy checked against the constant that sets it; screenshots dark/light {model: opus}
-- [ ] M9.4b Root `SECURITY.md` (what's in scope, how to report through GitHub's private vulnerability reporting, what happens next) + a `needs-abhinav` issue to turn that reporting on; docs/SECURITY.md §5 and the Privacy page link it {model: opus}
+- [x] M9.4b Root `SECURITY.md` (what's in scope, how to report through GitHub's private vulnerability reporting, what happens next) + a `needs-abhinav` issue to turn that reporting on; docs/SECURITY.md §5 and the Privacy page link it {model: opus}
 - [ ] M9.5 Blog post draft + needs-abhinav edit/publish-decision issue {model: opus}
 - [ ] M9.6 Full regression + axe accessibility audit {model: opus}
 - [ ] M9.7 Milestone verification + M9-review.md + tag m9; set STATUS: DONE {model: opus}
@@ -536,6 +537,8 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+
+- 2026-11-11 M9.4b (`4ffdb34`): root `SECURITY.md`: supported versions (the live site, App, and `main` only), in scope (code running from an analyzed repo, extraction and limit escapes, private data across tenants or after uninstall, secrets in graphs, XSS and PR-comment markup, forged requests, App overreach), out of scope (load testing on free plans, the hosts, analyzed repos' own bugs, missing edges), reports through GitHub's private form with a no-details public issue as the fallback, and what happens next (acknowledged within 7 days, fix with a test, advisory with credit; no bounty). docs/SECURITY.md §5 and the Privacy page link it. `securityPolicy.test.ts` (8) and a `docs.test.tsx` case, all red first. Reporting is off on the repo (`enabled: false`): planning #28 asks Abhinav to turn it on. No screenshots: the Privacy change is one sentence whose link reuses the existing "threat model" link's style. Web 1129. No eval delta.
 
 - 2026-11-11 M9.4a (`f8c902a`): `/how-it-works`, `/limits`, `/privacy`, `/self-hosting` (top-level, since GitHub has a `docs` account whose repos `/docs/<x>` would shadow; `_docs/DocsPage.tsx` frames them, `lib/docs.ts` lists them), a docs nav with `aria-current`, and `SiteFooter` on the landing and docs pages (never the diagram page). `docs.test.tsx` (35) checks every Limits number and every cookie's name and lifetime against the constant that sets it; a wrong rate limit, cookie lifetime, and current tab each mutation-checked red. Cookies are a `<dl>`, not a table (a phone squeezed the table to a word a line). README's "within 5 minutes" corrected to the guaranteed 3 min 50 s. Shots dark/light, desktop and phone, through `next start` (`apps/web/dist/m94a-shots.mjs`): no overflow, no console errors, in `docs/milestones/M9/docs-pages/`. M9.4 split: root SECURITY.md is M9.4b (private vulnerability reporting is off). Web 1120. No eval delta.
 
