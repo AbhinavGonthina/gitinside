@@ -86,46 +86,98 @@ export function placeRect(rect: Rect, canvas: Size, zoom: number): Camera {
  */
 export const HOP_MARGIN = { x: 48, y: 160 } as const;
 
+/** Room a framed hop keeps from the minimap, in canvas px (M9.3c). */
+export const HOP_CLEARANCE = 16;
+
+/** Edges in canvas px. */
+interface Box {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
 /**
  * How a trace step moves the camera (M4b.15f): the zoom stays as it is,
  * raised to {@link READABLE_ZOOM} from below it, and lowered as far as it
  * takes to show both ends of the hop (`rect`, their bounding box) with
- * `margin` to spare. Unchanged (the same object) when that's the zoom
- * already and both ends are wholly on the canvas; else centered on them.
+ * {@link HOP_MARGIN} to spare. Unchanged (the same object) when that's the
+ * zoom already and both ends are wholly on the canvas; else centered on them.
  * The margin on each side is at most a quarter of the canvas, so a short
  * canvas keeps half its room for the hop instead of none (M4b.15h).
+ *
+ * `avoid` is the minimap (canvas px; none when it's 0 × 0), which the margins
+ * alone left the hop touching or under (M9.3c: taxonomy's step 2). A hop
+ * that would come within {@link HOP_CLEARANCE} of it is fitted above it or
+ * left of it instead, whichever keeps more zoom (above on a tie), its zoom
+ * rounded down so it stays clear.
  */
-export function frameHop(
-  camera: Camera,
-  rect: Rect,
-  canvas: Size,
-  wanted: { x: number; y: number } = HOP_MARGIN,
-): Camera {
+export function frameHop(camera: Camera, rect: Rect, canvas: Size, avoid?: Rect): Camera {
   if (canvas.width <= 0 || canvas.height <= 0) return camera;
   const margin = {
-    x: Math.min(wanted.x, canvas.width / 4),
-    y: Math.min(wanted.y, canvas.height / 4),
+    x: Math.min(HOP_MARGIN.x, canvas.width / 4),
+    y: Math.min(HOP_MARGIN.y, canvas.height / 4),
   };
-  const fits = clampZoom(
+  const whole: Box = {
+    left: margin.x,
+    top: margin.y,
+    right: canvas.width - margin.x,
+    bottom: canvas.height - margin.y,
+  };
+  const blocked: Box | undefined =
+    avoid && avoid.width > 0 && avoid.height > 0
+      ? {
+          left: avoid.x - HOP_CLEARANCE,
+          top: avoid.y - HOP_CLEARANCE,
+          right: avoid.x + avoid.width + HOP_CLEARANCE,
+          bottom: avoid.y + avoid.height + HOP_CLEARANCE,
+        }
+      : undefined;
+  const fits = (room: Box) =>
     Math.min(
-      (canvas.width - 2 * margin.x) / Math.max(rect.width, 1),
-      (canvas.height - 2 * margin.y) / Math.max(rect.height, 1),
-    ),
-  );
-  const zoom = Math.min(fits, Math.max(camera.zoom, READABLE_ZOOM));
-  const left = rect.x * camera.zoom + camera.x;
-  const top = rect.y * camera.zoom + camera.y;
+      (room.right - room.left) / Math.max(rect.width, 1),
+      (room.bottom - room.top) / Math.max(rect.height, 1),
+    );
+  const raised = Math.max(camera.zoom, READABLE_ZOOM);
+  const drawn = (c: Camera): Box => ({
+    left: rect.x * c.zoom + c.x,
+    top: rect.y * c.zoom + c.y,
+    right: (rect.x + rect.width) * c.zoom + c.x,
+    bottom: (rect.y + rect.height) * c.zoom + c.y,
+  });
+  const clear = (d: Box) =>
+    !blocked ||
+    d.right <= blocked.left ||
+    d.bottom <= blocked.top ||
+    d.left >= blocked.right ||
+    d.top >= blocked.bottom;
+  /** The camera at `zoom` centered on the hop in `room`. */
+  const place = (room: Box, zoom: number): Camera => ({
+    zoom,
+    x: round((room.left + room.right) / 2 - (rect.x + rect.width / 2) * zoom),
+    y: round((room.top + room.bottom) / 2 - (rect.y + rect.height / 2) * zoom),
+  });
+  const zoom = Math.min(clampZoom(fits(whole)), raised);
+  const now = drawn(camera);
   const inside =
-    left >= margin.x &&
-    top >= margin.y &&
-    left + rect.width * camera.zoom <= canvas.width - margin.x &&
-    top + rect.height * camera.zoom <= canvas.height - margin.y;
-  if (zoom === camera.zoom && inside) return camera;
-  return centerOn(
-    { zoom, x: 0, y: 0 },
-    { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 },
-    canvas,
-  );
+    now.left >= whole.left &&
+    now.top >= whole.top &&
+    now.right <= whole.right &&
+    now.bottom <= whole.bottom;
+  if (zoom === camera.zoom && inside && clear(now)) return camera;
+  const centered = place(whole, zoom);
+  if (!blocked || clear(drawn(centered))) return centered;
+  let best: Camera | undefined;
+  const rooms: Box[] = [
+    { ...whole, bottom: Math.min(whole.bottom, blocked.top) },
+    { ...whole, right: Math.min(whole.right, blocked.left) },
+  ];
+  for (const room of rooms) {
+    if (room.right <= room.left || room.bottom <= room.top) continue;
+    const z = Math.min(clampZoom(Math.floor(fits(room) * 100) / 100), raised);
+    if (!best || z > best.zoom) best = place(room, z);
+  }
+  return best ?? centered;
 }
 
 /** The camera at `zoom` (clamped) with the diagram point under canvas point `at` kept there. */

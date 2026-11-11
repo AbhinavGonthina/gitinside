@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { Button, SegmentedControl, StatusChip } from "../chrome/controls.js";
-import { shortSha, type RepoRef } from "../chrome/describe.js";
+import { shortSha, type Rect, type RepoRef } from "../chrome/describe.js";
 import { EmptyState, WarningList } from "../chrome/EmptyState.js";
 import { FiltersPopover } from "../chrome/FiltersPopover.js";
 import { ShareMenu } from "../chrome/ShareMenu.js";
@@ -252,7 +252,8 @@ function deepestOpen(view: GraphView, expansion: Expansion): string | undefined 
  * (Ctrl or ⌘ + wheel, a pinch, − / +, or the zoom buttons); from then on the
  * camera is theirs, and breaking a node down keeps that node where it was on
  * the canvas, until they fit again (0 or the fit button: the whole level).
- * Each trace step frames its hop's two ends (`frameHop`).
+ * Each trace step frames its hop's two ends clear of the minimap
+ * (`frameHop`), and again when Play starts or a drill-down lands.
  * Text thins out as the camera zooms out (`detailAt`): subtitles, counts,
  * and edge labels first, then everything but service names and the lines
  * between services.
@@ -582,24 +583,38 @@ export function Explorer({
 
   // A trace's start and each step frame the current hop's two ends at a
   // readable size if they aren't both on the canvas at one (`frameHop`,
-  // M4b.15f), once per step, after the first fit and on the drawn layout.
-  // An open frame holding an end is left out: it's the closed boxes that light up.
-  const framedHop = useRef<string | null>(null);
+  // M4b.15f), clear of the minimap, after the first fit and on the drawn
+  // layout: once per step, and again when Play starts or a new layout lands
+  // (a drill-down mid-trace, which otherwise left both ends off the canvas,
+  // M9.3c). An open frame holding an end is left out: it's the closed boxes
+  // that light up.
+  const [playAsked, setPlayAsked] = useState(0);
+  const framedHop = useRef<{ key: string; drawn: Shown["view"] } | null>(null);
   useEffect(() => {
     if (!tracing || !current) {
       framedHop.current = null;
       return;
     }
-    const key = `${traced ?? ""}\n${step}`;
-    if (framedHop.current === key || !settled || shown?.view !== view) return;
-    framedHop.current = key;
+    const key = `${traced ?? ""}\n${step}\n${playAsked}`;
+    if (!settled || shown?.view !== view) return;
+    if (framedHop.current?.key === key && framedHop.current.drawn === shown.view) return;
+    framedHop.current = { key, drawn: shown.view };
     const ends = [...hopBoxes].filter((id) => !view.byId.get(id)?.open);
     const rect = boxesRect(shown.layout.boxes, ends);
     if (!rect) return;
     const { camera: now, canvas: room } = live.current;
-    const next = frameHop(now, rect, room);
+    const next = frameHop(now, rect, room, minimapRect());
     if (next !== now) moveCamera(next, "layout");
   });
+
+  /** Where the minimap is on the canvas, in canvas px (0 × 0 when it isn't drawn). */
+  function minimapRect(): Rect {
+    const map = rootRef.current?.querySelector(".gi-minimap");
+    const on = canvasRef.current?.getBoundingClientRect();
+    const at = map?.getBoundingClientRect();
+    if (!on || !at) return { x: 0, y: 0, width: 0, height: 0 };
+    return { x: at.left - on.left, y: at.top - on.top, width: at.width, height: at.height };
+  }
 
   // The player: each step stays up for PLAY_STEP_MS, and play stops on the last.
   useEffect(() => {
@@ -778,7 +793,9 @@ export function Explorer({
    * the box's layout is the one drawn (focus put back after breaking down
    * comes before the explorer has the new layout). A click's focus leaves
    * the camera alone, so a box half off the edge doesn't jump away from the
-   * pointer.
+   * pointer. So does focus put back on the node just broken down while
+   * tracing: the trace frames the current step on the new layout instead,
+   * which the frame's corner would pan away from (M9.3c).
    */
   const [focusedBox, setFocusedBox] = useState<{ id: string } | null>(null);
   function followFocus(target: EventTarget) {
@@ -789,6 +806,7 @@ export function Explorer({
   useEffect(() => {
     if (!focusedBox || shown?.view !== view) return;
     setFocusedBox(null);
+    if (tracing && focusedBox.id === focus && view.byId.get(focus)?.open) return;
     const box = shown.layout.boxes.find((b) => b.id === focusedBox.id);
     if (!box) return;
     const { camera: now, canvas: room } = live.current;
@@ -1031,6 +1049,7 @@ export function Explorer({
     else {
       if (step !== null && step >= steps.length - 1) setStep(0);
       setPlaying(true);
+      setPlayAsked((n) => n + 1);
     }
   }
 
