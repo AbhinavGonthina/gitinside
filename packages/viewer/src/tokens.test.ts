@@ -154,6 +154,25 @@ describe("theme tokens", () => {
     );
   });
 
+  it.each(["dark", "light"] as const)(
+    "keeps the palette's active row's muted text at 4.5:1 in %s (M9.6)",
+    (theme) => {
+      // chrome.css: the row is `color-mix(accent 14%, surface-raised)`, its path and kind
+      // `color-mix(text-muted 80%, text)`; plain muted text there was 4.06:1 in dark.
+      const t = themeTokens[theme];
+      const row = mixHex(t.accent, t["surface-raised"], 0.14);
+      expect(contrastRatio(mixHex(t["text-muted"], t.text, 0.8), row)).toBeGreaterThanOrEqual(4.5);
+      const chrome = readFileSync(
+        fileURLToPath(new URL("./styles/chrome.css", import.meta.url)),
+        "utf8",
+      );
+      expect(chrome).toContain(
+        "background: color-mix(in srgb, var(--accent) 14%, var(--surface-raised));",
+      );
+      expect(chrome).toContain("color: color-mix(in srgb, var(--text-muted) 80%, var(--text));");
+    },
+  );
+
   describe.each(["dark", "light"] as const)("%s syntax colors", (theme) => {
     const t = themeTokens[theme];
     // The selected line: `color-mix(in srgb, var(--accent) 12%, transparent)` over the canvas.

@@ -22,6 +22,7 @@ These are mandatory standards. Nobody reviews each autopilot step, so the tests 
 | Component | Storybook stories (every state, light/dark) | `packages/viewer` | every push (build) |
 | Visual regression | Playwright screenshots | stories + key screens | every push, Linux CI only |
 | E2E | Playwright | `apps/web/e2e`: the unconfigured site, and the explorer on a seeded PGlite database (ADR-0132) | push to main |
+| Accessibility | axe-core (`@axe-core/playwright`) | `apps/web/e2e/a11y.e2e.ts`: WCAG 2.0–2.2 A and AA rules on every page and the explorer's states, both themes (M9.6) | every push (`web-e2e`) |
 | Security | Vitest + malicious fixtures | `fixtures/malicious/*`, worker extraction | every push |
 | Container | `node infra/gcp/check.mjs` (Docker, Linux CI job `worker-image`) | the worker image run as Cloud Run runs it: non-root, nothing writable outside `/tmp`, signed `/run`, a golden analysis, SIGTERM (ADR-0150) | every push |
 | Deploy config | Vitest | `infra/gcp/{service,queue,iam}.json` against the code's limits and ADR-0111's guardrails (`apps/web/lib/gcpConfig.test.ts`, ADR-0151) | every push |
@@ -52,6 +53,7 @@ Coverage is a floor, not a goal. Don't write tests that only touch lines.
 ## E2E
 
 - `pnpm turbo run build --filter=@gitinside/web`, then `pnpm --filter @gitinside/web e2e` (Windows or Linux, no Docker). Two servers of the production build: `unconfigured` (no database or worker; `site.e2e.ts`) and `seeded`, reading PGlite served over Postgres's wire protocol with one finished analysis of `fixtures/shop-demo` (`database.ts`; `explorer.e2e.ts` drives load, drill down, select, trace, the code preview, and Open on GitHub). The browser's graph and GitHub reads are answered by the tests (ADR-0132). Any console error or warning, a CSP violation included, fails a test.
+- **Accessibility audit** (the `a11y` project, M9.6): axe's `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22a`, and `wcag22aa` rules on 22 screens in dark and light: the landing page (and its field's error), the four docs pages, the 404, a job's progress page, a permalink while unavailable, the repo page (first-visit tips, diagram, selection with code, trace, trace picker, legend, search, filters, Share, Add to README, compared with a commit), and the signed-in dashboard and private progress page. Any violation fails, once finite animations have ended. One rule has a scoped exception: `label-content-name-mismatch` on a canvas box whose accessible name starts with its visible name's words and whose exposed text is that name alone (the subtitle and counts are its description; `docs/milestones/M9/a11y.md`). axe's "needs review" results are listed as test annotations in the HTML report. Automated rules find only part of WCAG's failures; the keyboard, focus, screen-reader, and reduced-motion behavior in UX.md is covered by the viewer's and explorer's tests.
 
 ## Visual regression
 

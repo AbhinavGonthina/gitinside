@@ -13,7 +13,8 @@ import { E2E_APP_SLUG, E2E_SESSION_SECRET, E2E_SHA, PORTS } from "./fixture";
 // (database.ts), so the repo page draws the explorer (explorer.e2e.ts). A third,
 // `signed-in`, reads its own copy of that database with sign-in set up against a fake
 // GitHub (github.ts) for the dashboard (dashboard.e2e.ts, M8.2c): PGlite is one session,
-// so sharing it let the seeded site's reads run beside the dashboard's. The `visual`
+// so sharing it let the seeded site's reads run beside the dashboard's. The `a11y` project
+// runs axe on pages of all three (a11y.e2e.ts, M9.6). The `visual`
 // project screenshots the key screens on the seeded server against e2e/baselines/
 // (screens.visual.ts, Linux CI only; re-capture with the "Visual baselines" workflow).
 
@@ -48,6 +49,11 @@ export default defineConfig({
       name: "signed-in",
       testMatch: "dashboard.e2e.ts",
       use: { baseURL: `http://127.0.0.1:${PORTS.signedIn}` },
+    },
+    {
+      // The axe audit (M9.6) visits all three sites by full URL.
+      name: "a11y",
+      testMatch: "a11y.e2e.ts",
     },
     {
       // Same settings as the viewer's visual tests (packages/viewer/visual).

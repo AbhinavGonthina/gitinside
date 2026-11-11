@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M9.6 Full regression + axe accessibility audit
+M9.7 Milestone verification + M9-review.md + tag m9; set STATUS: DONE
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -532,12 +532,14 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [x] M9.4a The website's docs pages, `/how-it-works`, `/limits`, `/privacy`, `/self-hosting` (ROADMAP M9 task 4's self-hosting notes), at top-level paths so none shadows a repo page, linked from a footer on the landing and docs pages; each number on Limits and each cookie on Privacy checked against the constant that sets it; screenshots dark/light {model: opus}
 - [x] M9.4b Root `SECURITY.md` (what's in scope, how to report through GitHub's private vulnerability reporting, what happens next) + a `needs-abhinav` issue to turn that reporting on; docs/SECURITY.md §5 and the Privacy page link it {model: opus}
 - [x] M9.5 Blog post draft + needs-abhinav edit/publish-decision issue {model: opus}
-- [ ] M9.6 Full regression + axe accessibility audit {model: opus}
+- [x] M9.6 Full regression + axe accessibility audit {model: opus}
 - [ ] M9.7 Milestone verification + M9-review.md + tag m9; set STATUS: DONE {model: opus}
 
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+
+- 2026-11-11 M9.6 (`fdd9217`, ADR-0263): `apps/web/e2e/a11y.e2e.ts` (the `a11y` project in `web-e2e`, `@axe-core/playwright` 4.14.0) runs axe's WCAG 2.0–2.2 A/AA rules on 22 screens × 2 themes (every page, each repo-page overlay, dashboard), after finite animations end. Fixed: the palette/trace picker's active row (muted text 4.06:1 dark → 4.98), the code preview's sideways scroll unreachable by keyboard (a named Tab stop), both `<pre>`s' prohibited `aria-label` (`role="group"`), and boxes whose subtitle/counts/fields a screen reader never heard (now the box's description; names unchanged). axe's `label-content-name-mismatch` is accepted only on boxes whose name starts with their visible name. Mutation-checked (each fix reverted → its rule red). Regression: 5,427 tests (`turbo --force`, 0 cached), 75 E2E; report `docs/milestones/M9/a11y.md`; 7 baselines (palette rows). Eval: no delta (report re-recorded for the lockfile).
 
 - 2026-11-11 M9.5 (`33cfebb`): `docs/blog/resolver-post.md`, D13.3's "How GitInside matches frontend calls to backend routes without running code" (~2,300 words, an unpublished-draft banner first): the three rules, the four resolver stages on the walkthrough's `wrapper-fetch` example, the blind eval's setup, batch 6 as measured (100.0% 521/521, 69.0% 521/755, 6/16, AA–AD), the anything-llm demo check (244 + 128 wrong edges fixed; 779/0/265), the backtest, limits. Claims re-checked against `match.ts`'s header, COVERAGE.md, and the backtest report (two corrected: ambiguity by method is unresolved, the #1157 callers are functions). `blogPost.test.ts` (6) parses batch 6's row and levels from the 0.3.1 report and the demo counts from README, and checks the banner and relative links; a wrong recall, demo count, and link each went red. Planning #29 asks Abhinav to edit and decide on publishing. Kept out of `eval/` so `eval --check` stays valid. Web 1135. No eval delta.
 
