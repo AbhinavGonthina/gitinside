@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import type { AnyDatabase } from "@gitinside/db";
 import { BASE_PARAM, baseParam, type BaseView, type SearchParams } from "../../../lib/compare";
-import { deepLinkQuery } from "../../../lib/deepLink";
+import { deepLinkQuery } from "../../../lib/deepLinkQuery";
 import type { RepoRef } from "../../../lib/repoUrl";
 import { movedPath, viewBase, viewRepo, type RepoView } from "../../../lib/repoView";
 import { progressHref } from "../../../lib/startAnalysis";
