@@ -182,7 +182,8 @@ export interface JobDeps {
   download?: Omit<DownloadOptions, "signal">;
   /**
    * Gets a job with an `installationId` its installation token (installationToken.ts), which
-   * replaces `download.token` for that job's facts and tarball and goes nowhere else (never to
+   * wins over `download.publicToken` for that job's facts and tarball (never dropped on a
+   * `403`, ADR-0260) and goes nowhere else (never to
    * the analysis child). Without it such a job fails as the permanent `TOKEN_UNCONFIGURED`.
    */
   installationToken?: InstallationTokenSource;

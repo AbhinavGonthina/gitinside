@@ -83,7 +83,7 @@ export interface StartOptions {
   /** Default {@link runMigrations} on `config.migrationUrl` (tests migrate their own database). */
   migrate?: (url: string) => Promise<void>;
   /** GitHub endpoints (tests point them at a fake); the token comes from the config. */
-  github?: Omit<DownloadOptions, "signal" | "token">;
+  github?: Omit<DownloadOptions, "signal" | "token" | "publicToken">;
   /** The analysis runner and its limits (tests stub the child). */
   jobDeps?: Pick<JobDeps, "run" | "runOptions">;
   /** Maintenance timing (maintenance.ts defaults), or `false` for none. */
@@ -184,7 +184,7 @@ export async function startWorkerProcess(
 
     const github = {
       ...options.github,
-      ...(config.githubToken === undefined ? {} : { token: config.githubToken }),
+      ...(config.githubToken === undefined ? {} : { publicToken: config.githubToken }),
     };
     const store = createCountedStore(config.store, db, log);
     const recorder = createAnalysisRecorder({ db, store, analyzerVersion, github });

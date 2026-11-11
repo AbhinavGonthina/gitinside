@@ -121,6 +121,11 @@ const PERMANENT: Readonly<Record<string, { reason: string; advice?: string }>> =
   REPO_NOT_FOUND: NOT_PUBLIC,
   REPO_NOT_PUBLIC: NOT_PUBLIC,
   REPO_UNAVAILABLE: { reason: "GitHub has blocked access to that repo." },
+  // GitHub answered the worker's download with a refusal (a 403 that isn't a rate limit, even
+  // without the worker's own token, ADR-0260), or with something that isn't a download.
+  DOWNLOAD_REFUSED: {
+    reason: "GitHub refused to send GitInside this repo's code, so it wasn't analyzed.",
+  },
   // A private job's installation (ADR-0227): refused at enqueue, or deleted before it ran.
   INSTALLATION_NOT_FOUND: {
     reason: "GitInside isn't installed on this repo's account any more, so it can't read the repo.",

@@ -249,6 +249,15 @@ describe("failureView", () => {
     });
   });
 
+  it("GitHub refusing the download says so, not 'on our side' (planning #26)", () => {
+    expect(failureView("DOWNLOAD_REFUSED")).toEqual({
+      state: "failed",
+      errorCode: "DOWNLOAD_REFUSED",
+      message: "GitHub refused to send GitInside this repo's code, so it wasn't analyzed.",
+      retry: false,
+    });
+  });
+
   it("anything else is on our side, worth trying again, and never shows the code's words", () => {
     for (const code of ["DOWNLOAD_FAILED", "JOB_STALLED", "ANALYZER_CRASHED", "SOMETHING_NEW"]) {
       expect(failureView(code)).toEqual({
