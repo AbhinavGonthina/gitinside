@@ -198,6 +198,59 @@ for (const c of cases) {
     );
     expect(buried, "no overlay is drawn under the diagram").toEqual([]);
 
+    // While the explorer picks the camera itself, the first-visit hint's card
+    // covers no box: the fit leaves it room (M9.2g: pawtograder/platform's top
+    // box sat under "Tip 1 of 3"). An open frame counts by its name row, its
+    // icon and words (its text spans the frame's width): a frame around the
+    // framed node starts above it. A start zoom (`data-hand-camera`) may run
+    // boxes under the card.
+    const underHint = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>(".gi-explorer:not([data-hand-camera])")].flatMap(
+        (root) => {
+          const card = root
+            .querySelector('.gi-hint[data-state="open"]')
+            ?.closest(".gi-explorer__pin")
+            ?.getBoundingClientRect();
+          if (!card) return [];
+          const meets = (r: DOMRect) =>
+            r.left < card.right &&
+            card.left < r.right &&
+            r.top < card.bottom &&
+            card.top < r.bottom;
+          const words = (el: Element) => {
+            const rects: DOMRect[] = [];
+            const walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+            for (let t = walk.nextNode(); t; t = walk.nextNode()) {
+              if (!t.textContent?.trim()) continue;
+              const range = document.createRange();
+              range.selectNodeContents(t);
+              rects.push(range.getBoundingClientRect());
+            }
+            return rects;
+          };
+          return [
+            ...root.querySelectorAll<HTMLElement>(".gi-drill__node:not([data-leaving]) > .gi-node"),
+          ]
+            .filter((n) => {
+              const header = n.parentElement?.hasAttribute("data-open")
+                ? n.querySelector(":scope > .gi-node__header")
+                : null;
+              const name = header
+                ? [
+                    ...[...header.querySelectorAll(".gi-icon-tile")].map((t) =>
+                      t.getBoundingClientRect(),
+                    ),
+                    ...words(header),
+                  ]
+                : [n.getBoundingClientRect()];
+              return name.some(meets);
+            })
+            .map((n) => n.getAttribute("aria-label") ?? "");
+        },
+      ),
+    );
+    expect(underHint, "the hint's card covers no box the explorer framed").toEqual([]);
+
     // An open popover (filters, share) sits wholly on the page, and its
     // controls fit it (M4b.10b: the share menu's Export row).
     const clipped = await page.evaluate(() =>

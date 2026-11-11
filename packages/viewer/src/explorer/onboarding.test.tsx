@@ -1,5 +1,5 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { shopDemo } from "../shopDemo.testkit.js";
 import { Explorer } from "./Explorer.js";
 import {
@@ -211,6 +211,92 @@ describe("Explorer onboarding", { timeout: 30_000 }, () => {
     fireEvent.click(hint() as HTMLElement);
     // The click didn't reach the canvas, which would clear the selection.
     expect(box(DB)?.hasAttribute("data-selected")).toBe(true);
+  });
+
+  describe("on a measured canvas (M9.2g)", () => {
+    // Short enough that the system level's fit reaches the top inset, where
+    // the hint's card would cover boxes (pawtograder/platform at 1440 × 900).
+    const CANVAS = { width: 640, height: 400 };
+    /** The hint's pin, as a browser would lay it out: 16px down, 170px tall. */
+    const PIN = { top: 16, height: 170 };
+    beforeEach(() => {
+      vi.stubGlobal(
+        "ResizeObserver",
+        class {
+          constructor(private readonly report: ResizeObserverCallback) {}
+          observe() {
+            this.report(
+              [{ contentRect: CANVAS } as ResizeObserverEntry],
+              this as unknown as ResizeObserver,
+            );
+          }
+          disconnect() {}
+        },
+      );
+      const pinned = (el: HTMLElement, value: number) =>
+        el.matches('.gi-explorer__pin[data-place="top-center"]') ? value : 0;
+      vi.spyOn(HTMLElement.prototype, "offsetTop", "get").mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        return pinned(this, PIN.top);
+      });
+      vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (
+        this: HTMLElement,
+      ) {
+        return pinned(this, PIN.height);
+      });
+    });
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
+    });
+
+    /** The camera drawn on the canvas, read back from its transform. */
+    const cameraOf = (container: HTMLElement) => {
+      const transform =
+        container.querySelector<HTMLElement>(".gi-explorer__drill")?.style.transform;
+      const m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(transform ?? "");
+      if (!m) throw new Error(`no camera in ${transform}`);
+      return { x: Number(m[1]), y: Number(m[2]), zoom: Number(m[3]) };
+    };
+    /** The top of the highest box drawn, in canvas px. */
+    const topBox = (container: HTMLElement) => {
+      const c = cameraOf(container);
+      const tops = [
+        ...container.querySelectorAll<HTMLElement>(".gi-drill__node:not([data-leaving])"),
+      ].map((el) => parseFloat(el.style.top) * c.zoom + c.y);
+      return Math.min(...tops);
+    };
+
+    it("fits the first view below the hint's card, and takes the room back once it closes", async () => {
+      const plain = await setup(undefined);
+      const fit = cameraOf(plain.container);
+      // Without a hint the level starts at the inset, where the card would be.
+      expect(topBox(plain.container)).toBeLessThan(PIN.top + PIN.height);
+      cleanup();
+
+      const { container, button } = await setup(memoryOnboarding());
+      await waitFor(() =>
+        expect(topBox(container)).toBeGreaterThanOrEqual(PIN.top + PIN.height + 16),
+      );
+      // Next: the room stays (the next card is measured the same).
+      await act(() => fireEvent.click(button("Next")));
+      expect(topBox(container)).toBeGreaterThanOrEqual(PIN.top + PIN.height + 16);
+      await act(() => fireEvent.click(button("Close tips")));
+      await waitFor(() => expect(cameraOf(container)).toEqual(fit));
+    });
+
+    it("leaves a camera the reader set alone", async () => {
+      const { container, button } = await setup(memoryOnboarding(), { initialZoom: 1 });
+      await waitFor(() =>
+        expect(container.querySelector(".gi-explorer")?.hasAttribute("data-hand-camera")).toBe(
+          true,
+        ),
+      );
+      const set = cameraOf(container);
+      await act(() => fireEvent.click(button("Close tips")));
+      expect(cameraOf(container)).toEqual(set);
+    });
   });
 
   it("doesn't offer a trace when the repo has nothing to trace", async () => {

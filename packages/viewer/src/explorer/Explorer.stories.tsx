@@ -231,6 +231,25 @@ export const OnboardingOverBoxes: Story = {
   },
 };
 
+/**
+ * A first visit on a deep link three levels into the web app (M9.2g): the
+ * explorer frames the file it opens on itself, so the frames' names start
+ * below the hint's card rather than under it (they did, as pawtograder's top
+ * box sat under "Tip 1 of 3"). Unlike "Onboarding over boxes", no start zoom.
+ */
+export const OnboardingDrilledDeep: Story = {
+  name: "Onboarding, drilled deep",
+  render: function Render() {
+    const [store] = useState(() => memoryOnboarding());
+    return (
+      <Explore
+        onboarding={store}
+        initialOpen={["service:web/", "module:web/lib", "file:web/lib/orders.ts"]}
+      />
+    );
+  },
+};
+
 // The analyzer's output for fixtures/next-server-actions (ADR-0203).
 const ACTIONS = "../../../../fixtures/next-server-actions/";
 const actionsGraph = Object.values(
