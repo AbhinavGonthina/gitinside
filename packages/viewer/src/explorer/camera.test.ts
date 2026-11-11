@@ -7,6 +7,7 @@ import {
   fitCamera,
   frameHop,
   holdInPlace,
+  HOP_CLEARANCE,
   HOP_MARGIN,
   keepInView,
   KEEP_IN_VIEW,
@@ -121,6 +122,67 @@ describe("camera", () => {
     expect(onCanvas(c, { x: 250, y: 250 })).toEqual({ x: 500, y: 160 });
     // Already in the middle half of the short canvas: left alone.
     expect(frameHop(c, rect, short)).toBe(c);
+  });
+
+  describe("a hop clear of the minimap (M9.3c)", () => {
+    // Where the explorer's minimap sits on this canvas: its bottom-right corner, 16px in.
+    const minimap = { x: 784, y: 644, width: 200, height: 140 };
+    /** A hop's ends as drawn at `c`, in canvas px. */
+    const drawn = (c: { zoom: number; x: number; y: number }, r: typeof minimap) => {
+      const a = onCanvas(c, r);
+      return {
+        left: a.x,
+        top: a.y,
+        right: a.x + r.width * c.zoom,
+        bottom: a.y + r.height * c.zoom,
+      };
+    };
+    const clear = (d: ReturnType<typeof drawn>) =>
+      d.right <= minimap.x - HOP_CLEARANCE ||
+      d.bottom <= minimap.y - HOP_CLEARANCE ||
+      d.left >= minimap.x + minimap.width + HOP_CLEARANCE ||
+      d.top >= minimap.y + minimap.height + HOP_CLEARANCE;
+
+    it("fits a wide hop above the minimap when its centered frame would run under it", () => {
+      const camera = { zoom: 1, x: 0, y: 0 };
+      const rect = { x: 0, y: 0, width: 900, height: 480 };
+      // Without the minimap: 100%, centered, its bottom-right corner under it.
+      const plain = frameHop(camera, rect, canvas);
+      expect(plain.zoom).toBe(1);
+      expect(clear(drawn(plain, rect))).toBe(false);
+      const c = frameHop(camera, rect, canvas, minimap);
+      expect(clear(drawn(c, rect))).toBe(true);
+      // Above it (the most zoom): as wide as before, just short of its top.
+      expect(c.zoom).toBe(0.97);
+      expect(drawn(c, rect).top).toBeGreaterThanOrEqual(HOP_MARGIN.y);
+      expect(onCanvas(c, { x: 450, y: 0 }).x).toBe(canvas.width / 2);
+    });
+
+    it("fits a tall hop beside the minimap when that keeps more of its zoom", () => {
+      const camera = { zoom: 1, x: 0, y: 0 };
+      const rect = { x: 0, y: 0, width: 1200, height: 900 };
+      expect(clear(drawn(frameHop(camera, rect, canvas), rect))).toBe(false);
+      const c = frameHop(camera, rect, canvas, minimap);
+      expect(clear(drawn(c, rect))).toBe(true);
+      // Left of it, at the zoom the canvas's height allows; above it would be 0.52.
+      expect(c.zoom).toBe(0.53);
+      expect(drawn(c, rect).left).toBeGreaterThanOrEqual(HOP_MARGIN.x);
+    });
+
+    it("leaves a camera alone that already shows the hop clear of the minimap, and moves one that doesn't", () => {
+      const camera = { zoom: 1, x: 0, y: 0 };
+      const away = { x: 100, y: 200, width: 400, height: 200 };
+      expect(frameHop(camera, away, canvas, minimap)).toBe(camera);
+      // Wholly inside the margins, but its corner on the minimap's 16px of room.
+      const near = { x: 500, y: 435, width: 290, height: 200 };
+      expect(drawn(camera, near).bottom).toBeLessThanOrEqual(canvas.height - HOP_MARGIN.y);
+      expect(clear(drawn(camera, near))).toBe(false);
+      const c = frameHop(camera, near, canvas, minimap);
+      expect(c).not.toBe(camera);
+      expect(clear(drawn(c, near))).toBe(true);
+      // An unmeasured minimap (0 × 0, hidden) is no obstacle.
+      expect(frameHop(camera, near, canvas, { x: 0, y: 0, width: 0, height: 0 })).toBe(camera);
+    });
   });
 
   it("zooms around a point, keeping the diagram point under it", () => {
