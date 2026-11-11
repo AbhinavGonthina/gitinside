@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M9.3d Keep the README diagram image's edge labels apart
+M9.3e Decide whether fixtures' compose/.env files count as the repo's infrastructure
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -524,7 +524,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - M9.3c Trace camera, seen recording M9.3's GIF (taxonomy's permalink, `GET /api/users/stripe`, 1280×800): Play starts on step 1 without framing it (the trace's start frames the whole path at 32%, and drilling down mid-trace leaves the camera on the frame's top-left, so step 1 is never shown up close; steps 2–5 fly), and a framed step's box can sit under the minimap (step 2's `lib` at 42%). Split (the GIF is recorded on production, which has the fix only once it deploys):
 - [x] M9.3c1 Frame the current step when Play starts or a drill-down lands, and keep framed steps clear of the minimap; red tests first, real-browser check, screenshots dark/light {model: opus}
 - [x] M9.3c2 Once M9.3c1 is live on production: re-record `docs/media/trace*.gif` with `apps/web/dist/m93-gif.mjs` (recreate it from M9.3's note if gone), adding a drill-down into `app` before Play so step 1 reads up close; check each frame's step against the list, update README's GIF description if it changes {model: opus}
-- [ ] M9.3d The README diagram image (`/api/diagram/<owner>/<repo>.svg`) draws edge labels over each other: this repo's image at `ed99fd2` shows "4 ca" under "calls" beside `@gitinside/viewer` and "14 ca" under "5 calls" on the line to `@gitinside/schema`. Labels in the SVG renderer kept apart (or dropped with a count) like the canvas's pills; red test first (two labels' boxes overlapping in a fixture's SVG), screenshots dark/light {model: opus}
+- [x] M9.3d The README diagram image (`/api/diagram/<owner>/<repo>.svg`) draws edge labels over each other: this repo's image at `ed99fd2` shows "4 ca" under "calls" beside `@gitinside/viewer` and "14 ca" under "5 calls" on the line to `@gitinside/schema`. Labels in the SVG renderer kept apart (or dropped with a count) like the canvas's pills; red test first (two labels' boxes overlapping in a fixture's SVG), screenshots dark/light {model: opus}
 - [ ] M9.3e Test fixtures drawn as the repo's own infrastructure: this repo's graph at `ed99fd2` has 8 datastores and a RabbitMQ queue, and all but `infra/docker-compose.dev.yml`'s postgres come from `fixtures/*/docker-compose.yml` and `fixtures/*/.env*` (MongoDB ×2, Redis ×2, PostgreSQL ×3, the RabbitMQ broker). Decide by rule (ADR) whether compose/.env files under a fixtures or test folder are skipped, as tests are, or kept but marked; red fixture test first, eval delta {model: opus}
 - [ ] M9.4 Docs pages (how it works, limits, privacy) + root SECURITY.md {model: opus}
 - [ ] M9.5 Blog post draft + needs-abhinav edit/publish-decision issue {model: opus}
@@ -534,6 +534,8 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+
+- 2026-11-11 M9.3d (`67e17ab`, ADR-0261): the README image's pills go through `spreadLabels` (`image/layout.ts`) after routing: in graph order a pill keeps its spot if it's ≥ 4px (`LABEL_GAP`) from every placed pill and box, else slides along its own line (nearest first, 6px steps, ≤ 81 spots, never within 12px of an end); none clear ⇒ `hideLabel` and the footer says "· N line labels left off". This repo's production graph at `ed99fd2`: 10 overlapping pairs → 0, all 23 labels drawn, none left off. Red first (3 `spreadLabels` tests, this repo's shape and the footer note in `image.test.ts`); the whole pass and the box guard mutation-checked. Bytes changed only for `vite-proxy`, `next-rewrites` (pills had sat on a box) and the synthetic wrapped graph. Shots dark/light in `docs/milestones/M9/labels/` (before = production's live image at `0c50ee3`). No analyzer change, no eval delta.
 
 - 2026-11-11 M9.3c2 (`9a09c06`): `docs/media/trace.gif` and `trace-light.gif` re-recorded on production's taxonomy permalink once PR #77 deployed (Vercel `success` on `665128d`), by `apps/web/dist/m93-gif.mjs` with `app` broken down after Enter and before Play. Its per-frame log (`m93c2-summary.mjs`) shows each settled frame's step matching the list in both themes, the current hop's boxes on the canvas and ≥ 68px from the minimap: step 1 at 74% (was 32%), 2 at 51% (`lib` 283px off the minimap, was 5px), 3–4 at 80%, 5 at 35% (a wide hop, framed whole). 960×600, 25.7 s, ~2.3 MB each; README alt text updated. Planning #27 closed "ok" (keep it as is): removed from Needs Abhinav. Docs only, no eval delta.
 
