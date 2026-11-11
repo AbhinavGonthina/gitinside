@@ -61,3 +61,10 @@ Median milliseconds. A warm run that reuses every service builds no program, so 
 | assemble | 972 ms | 900 ms |
 
 Raw per-run numbers are in the JSON file next to this report.
+
+## Observations (hand-written, not generated)
+
+- **The launch analyzer (0.3.0, M9.2d), run at `6df17b7`.** These are the same 10 commits as M6.8's replays, and every warm graph is its cold pair's bytes.
+- **Median 1.02×** (M6.8c2: 0.99×). Seven of the nine source-changing commits are 0.99–1.03×, each re-collecting 89–90 services, as a shared-package edit does. Warm spends 1.8–2.1 s per re-collected run outside every stage (M6.8c2: 0.72–0.85 s). The locale-JSON commit `0f19cc46ef` reuses everything: 8.5 s warm, 11.90× (M6.8c2: 6.6 s, 5.27×).
+- **Two pairs are machine noise, not cache behavior.** The cold runs of `1dbaf8e7b4` (87.7 s) and `6bfe2df9d1` (33.6 s) were much faster than the other eight (101.3–104.5 s). That's where the 0.88× and 0.31× come from. In `6bfe2df9d1`'s cold run every compiler stage was about 3–4× faster than the median: `programs` 6.0 s against 22.1 s, `calls` 5.7 s against 22.3 s, `http` 7.7 s against 25.9 s. Its warm pair took 109.8 s, on the same code and commit. The laptop briefly ran at a speed it didn't hold for the rest of the session. So the other runs here (and in this session's other analysis reports) are about 3× slower than the machine can be.
+- **Memory:** the fully reused commit peaks at 204 MiB (M6.8c2: 190 MiB), and the other warm runs at up to 2,159 MiB.

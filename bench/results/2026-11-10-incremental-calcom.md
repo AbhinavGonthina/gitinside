@@ -48,3 +48,15 @@ Median milliseconds. A warm run that reuses every service builds no program, so 
 | assemble | 1,011 ms | 907 ms | 1,017 ms | 924 ms | 2,440 ms | 891 ms |
 
 Raw per-run numbers are in the JSON file next to this report.
+
+## Observations (hand-written, not generated)
+
+- **The launch analyzer (0.3.0, M9.2d), run at `0e1bf7d`.** Every warm graph is its cold pair's bytes. cal.com now has 114 services (M6.8c2: 113), so it fills 114 entries, still 2 MiB on disk.
+- **Per pair, cold ÷ warm** (from the JSON, `bench/dist/m92d-pairs.mjs`; compare within a pair):
+  - Nothing changed: 15.0–18.1×, median 16.8× (M6.8c2: 5.3–6.6×).
+  - One leaf app edited: 4.21–4.47×, median 4.28× (M6.8c2: 2.73–4.36×, median 2.79×).
+  - A shared package edited: 0.99–1.06×, median 1.03× (M6.8c2: 0.94–1.03×, median 0.99×). 89 services are collected again (an input they recorded changed), so this case costs about a cold run, as before.
+- **The ratios rose because cold rose more than warm.** Warm took 6.6 s with nothing changed (M6.8c2: 4.4 s) and 25.5 s with a leaf app edited (12.6 s). Cold took 102.3–113.1 s (21.8–43.6 s). The laptop ran about 3× slower than it can for most of this session (the commit replay's 33.6 s cold run, `2026-11-10-incremental-calcom-commits.md`). The slowdown is uneven, though. The stage that mostly reads files didn't slow (inventory, with nothing changed: 2.8 s cold at M6.8c2, 2.5 s now), but the compiler stages did (`programs` 7.2 → 23.6 s cold). A warm run that reuses everything mostly reads, so it slows least. These ratios are this session's, not a speedup to quote against M6.8.
+- **One leaf app edited:** the warm run re-collects one service (`apps/api/v2`, 113 entries found). Its `calls` take 9.1 s of the 25.5 s and `programs` 5.5 s.
+- **A shared package edited:** warm spends 1.9–2.1 s per run outside every stage, mostly storing 89 service entries (M6.8c2: 0.72–0.85 s).
+- **Memory:** with nothing changed, the warm run peaks at 206 MiB (M6.8c2: 190 MiB). With a leaf app edited it peaks at 646 MiB (639 MiB). Cold runs peak at 1,842–2,187 MiB.
