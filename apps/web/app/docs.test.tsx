@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { REPO_ANALYSIS_MINUTES } from "../lib/analyze";
 import { CHALLENGE_AFTER_PER_ADDRESS, CHALLENGE_AFTER_SITE } from "../lib/botCheck";
 import { MAX_GITHUB_CODE_BYTES } from "../lib/codeSize";
-import { DOCS_PAGES } from "../lib/docs";
+import { DOCS_PAGES, repoFile } from "../lib/docs";
 import { ANALYSIS_TIME_LIMIT, SUPPORTED_SOURCE_FILES, SUPPORTED_SOURCE_MB } from "../lib/limits";
 import { RECHECKS_PER_HOUR } from "../lib/repoView";
 import { SIGNED_IN_HOURLY_LIMIT, SIGNED_OUT_HOURLY_LIMIT } from "../lib/serverDeps";
@@ -172,6 +172,12 @@ describe("the Privacy page", () => {
   it("checks private access as often as the access cache does", () => {
     render(<Privacy />);
     expect(text()).toContain(`at least every ${String(ACCESS_TTL_SECONDS)} seconds`);
+  });
+
+  it("links the security policy, where vulnerabilities are reported (M9.4b)", () => {
+    render(<Privacy />);
+    const link = screen.getByRole("link", { name: "security policy" });
+    expect(link.getAttribute("href")).toBe(repoFile("SECURITY.md"));
   });
 });
 
