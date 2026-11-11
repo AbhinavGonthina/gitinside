@@ -207,6 +207,33 @@ describe("JobProgress", () => {
     expect(replace).toHaveBeenCalledWith(`/acme/shop/${commit}`);
   });
 
+  it("keeps a pin's deep link on its permalink (F3)", () => {
+    const commit = "e".repeat(40);
+    const deepLink = "open=web/&trace=route:api/GET%20/x";
+    render(
+      <JobProgress owner="acme" repo="shop" jobId={JOB} commit={commit} deepLink={deepLink} />,
+    );
+    latest().send({ state: "done" });
+    expect(replace).toHaveBeenCalledWith(`/acme/shop/${commit}?${deepLink}`);
+  });
+
+  it.each([
+    [failureView("DOWNLOAD_FAILED"), "Try again"],
+    [{ state: "missing", message: "We couldn't find this analysis." } as const, "Analyze again"],
+  ])(
+    "retries a pin's job by opening its permalink, never the default branch (F1): %j",
+    (view, label) => {
+      const commit = "e".repeat(40);
+      render(<JobProgress owner="acme" repo="shop" jobId={JOB} commit={commit} deepLink="sel=x" />);
+      latest().send(view);
+      expect(screen.queryByRole("button")).toBeNull();
+      const links = screen.getAllByRole("link").filter((a) => a.textContent === label);
+      expect(links.map((a) => a.getAttribute("href"))).toEqual([`/acme/shop/${commit}?sel=x`]);
+      expect(screen.queryByRole("link", { name: "Open the diagram" })).toBeNull();
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
+
   it("a permanent failure says what happened, offers no retry, and takes focus", () => {
     show();
     latest().send(failureView("LIMIT_FILES"));

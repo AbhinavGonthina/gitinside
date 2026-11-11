@@ -1,5 +1,31 @@
-import { withState, type IgnoredParam } from "@gitinside/viewer";
+import { BASE_PARAM, STATE_PARAMS, withState, type IgnoredParam } from "@gitinside/viewer";
+import type { SearchParams } from "./compare";
 import { short } from "./repoStatus";
+
+/** The parameters a deep link is made of: diff mode's base, then the explorer's state. */
+const DEEP_LINK_PARAMS: readonly string[] = [BASE_PARAM, ...STATE_PARAMS];
+
+/**
+ * The deep-link part of a page's query (F3, M9.7b), as a query string without `?` (empty when
+ * there's none): only {@link DEEP_LINK_PARAMS}, in that order, each value of a repeated one in
+ * order, so a demo pin's detour through its progress page comes back to the same view. Next
+ * hands the page decoded values, so each is escaped again, keeping `,` (the explorer's list
+ * separator) and `/`, `:`, `@` (readable node IDs) as they are.
+ */
+export function deepLinkQuery(query: SearchParams): string {
+  const escape = (value: string) =>
+    encodeURIComponent(value).replace(/%(2C|2F|3A|40)/g, (_, hex: string) =>
+      String.fromCharCode(parseInt(hex, 16)),
+    );
+  const parts: string[] = [];
+  for (const param of DEEP_LINK_PARAMS) {
+    const value = Object.hasOwn(query, param) ? query[param] : undefined;
+    for (const one of Array.isArray(value) ? value : [value]) {
+      if (one !== undefined) parts.push(`${param}=${escape(one)}`);
+    }
+  }
+  return parts.join("&");
+}
 
 /**
  * The link "Copy link" gives (UX.md "Deep links"): this commit's permalink with the
