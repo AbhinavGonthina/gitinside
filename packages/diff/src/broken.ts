@@ -108,7 +108,10 @@ export function parseHttpLabel(label: string): HttpCall | undefined {
  * Whether a call could reach a route, by the analyzer's rules (`match.ts`): methods equal,
  * an `ALL` route or request, `HEAD` to a `GET` route, or an unknown method; and the path
  * aligns at any level, with no wildcard of a route without literals (`/*`) taking a wholly
- * unknown segment (M5C.7c).
+ * unknown segment (M5C.7c). Since M9.1a3b the analyzer never links any request to such a
+ * catch-all of every path (`isCatchAll`), literal paths included, so no base edge targets one
+ * and this check needn't repeat that rule: the hole rule here only keeps an unresolved head
+ * call from counting as one that still reaches a catch-all route.
  */
 function reaches(call: HttpCall, route: RouteNode): boolean {
   const { method } = call;

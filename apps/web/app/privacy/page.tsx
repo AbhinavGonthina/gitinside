@@ -43,8 +43,16 @@ export default function Privacy() {
         <p>
           For each analyzed commit, GitInside stores its diagram: the file paths, the names of
           functions, routes, and database models and fields, line numbers, and a hash of each file.
-          It doesn&apos;t keep the code. The download is unpacked in memory and deleted once the
-          analysis ends.
+          It doesn&apos;t keep the code. The download is unpacked into the job&apos;s own temporary
+          folder and deleted once the analysis ends.
+        </p>
+        <p>
+          To make the next commit faster, the worker also keeps what the analysis found in each
+          package (the same kind of names, paths, line numbers, and file hashes the diagram holds),
+          in a cache in the worker&apos;s memory. It lasts only as long as that worker instance,
+          within a fixed size. A repo installed through the GitHub App gets its own cache folder,
+          which no other repo&apos;s analysis can read. Once the repo is no longer installed, the
+          folder is deleted when that instance starts its next job, or when the instance stops.
         </p>
         <p>
           From <code>.env</code> files it keeps the variable names and the hosts of URLs, never the
