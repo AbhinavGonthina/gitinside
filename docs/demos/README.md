@@ -17,7 +17,8 @@ is **zero wrong edges** (D13.4).
 | [getmaxun/maxun](https://github.com/getmaxun/maxun) | `99c6bd0` | 18,183 | 142 | [all 142](getmaxun__maxun.json) | 0 |
 
 Stars are as of 2026-11-09. Edge counts come from analyzer 0.2.0 at the pinned commit, as of
-the latest fix, and are the same at 0.3.0 (the version bump changed no output). anything-llm was pinned at 978 edges (`repos.json`); M9.1a3a removed 244 wrong
+the latest fix, and are the same at 0.3.0 (the version bump changed no output) and at 0.3.1
+(M9.3e's fixture rule changed nothing in these repos; see "In production"). anything-llm was pinned at 978 edges (`repos.json`); M9.1a3a removed 244 wrong
 ones and added 131 right ones, M9.1a3b replaced 11 more wrong ones with 9 unresolved ones, and
 M9.1a3e2a replaced 117 wrong SDK edges with 120 (50 to their real host or route, 70 unresolved).
 
@@ -61,6 +62,22 @@ from that repo's record here, and a test (`apps/web/lib/gallery.test.ts`) fails 
 or any edge's verdict is `wrong`.
 
 ## In production
+
+Production now holds each pin at analyzer 0.3.1. On 2026-11-11 (M9.7c) each pin's 0.3.1
+graph was fetched from the site (`/api/graph/<owner>/<name>/<full sha>` with a throwaway
+query, so the CDN couldn't answer with an older copy) and compared with a local 0.3.1
+analysis built the same way as below (`apps/web/dist/m91b2-compare.mjs`):
+
+| Repo | Commit | Files extracted | Nodes | Edges (inferred) | Warnings | Bytes | Production vs local |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |
+| anything-llm | `308b276` | 1,586 | 7,784 | 12,630 (873) | 3 | 10,560,747 | identical (SHA-256 `f8a40489…`) |
+| taxonomy | `298a885` | 188 | 529 | 542 (29) | 1 | 439,847 | identical (SHA-256 `5fa2275c…`) |
+| maxun | `99c6bd0` | 276 | 1,525 | 2,323 (142) | 0 | 1,999,969 | identical (SHA-256 `716b8f63…`) |
+
+Every count and size equals 0.3.0's below. The hashes can't, since the graph records its
+analyzer version (`"0.3.0"` and `"0.3.1"` are the same length, so the sizes still can).
+
+### At 0.3.0
 
 All three pins were analyzed on the site at analyzer 0.3.0 on 2026-11-10 (M9.1b2b), right
 after 0.3.0 deployed: maxun's and anything-llm's by opening their permalinks (no graph of
