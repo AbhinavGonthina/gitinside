@@ -75,6 +75,7 @@ const NAMES = [
   "nested-config",
   "external-sdk",
   "compose-and-env",
+  "infra-test-folders",
   "fake-secrets",
   "queues-bullmq",
   "shop-demo",
@@ -908,6 +909,16 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     ]);
     expect(ids(g, "queue")).toEqual(["queue:infra/broker"]);
     expect(links(g, "stores")).toEqual(["model:compose-and-env/Todo -> datastore:infra/db exact"]);
+  });
+
+  it("infra-test-folders: test and fixture folders' compose and env files draw nothing (M9.3e)", async () => {
+    const g = await run("infra-test-folders");
+    expect(ids(g, "datastore")).toEqual(["datastore:infra/db"]);
+    expect(ids(g, "queue")).toEqual([]);
+    expect(links(g, "stores")).toEqual([
+      "model:infra-test-folders/Invoice -> datastore:infra/db heuristic",
+    ]);
+    expect(g.warnings.map((w) => w.code)).toEqual(["TSCONFIG_MISSING"]);
   });
 
   it("queues-bullmq: producer and worker meet at the queue name; runtime names are unresolved", async () => {
