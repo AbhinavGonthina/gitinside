@@ -77,6 +77,12 @@ analysis built the same way as below (`apps/web/dist/m91b2-compare.mjs`):
 Every count and size equals 0.3.0's below. The hashes can't, since the graph records its
 analyzer version (`"0.3.0"` and `"0.3.1"` are the same length, so the sizes still can).
 
+At 0.3.2 (M9.7d, ADR-0264: typed and branching SDK clients) each pin was analyzed again the
+same way and compared with the 0.3.1 graph above, node by node and edge by edge
+(`apps/web/dist/m97d-pins.mjs`): every node, edge, and warning is identical, only the
+version differs (same counts and byte sizes). All three pins are JavaScript, so no edge
+changed and none needed rechecking by hand.
+
 ### At 0.3.0
 
 All three pins were analyzed on the site at analyzer 0.3.0 on 2026-11-10 (M9.1b2b), right

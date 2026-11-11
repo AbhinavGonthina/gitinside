@@ -1,0 +1,4 @@
+{
+  "name": "typed-sdk-base",
+  "dependencies": { "express": "4", "openai": "6" }
+}

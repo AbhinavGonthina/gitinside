@@ -34,6 +34,7 @@ export const WARNING_TITLES: Readonly<Record<string, string>> = {
   PRISMA_DYNAMIC_PROVIDER: "Prisma providers set at runtime",
   PRISMA_NO_DATASOURCE: "Prisma schemas without a datasource",
   PRISMA_SYNTAX: "Prisma schemas that didn't parse",
+  SDK_REQUESTS_UNMATCHED: "SDK requests not matched (the HTTP stage failed)",
   SKIPPED_DEPTH: "Folders nested too deep, skipped",
   SKIPPED_GENERATED: "Generated files, skipped",
   SKIPPED_LARGE: "Files over 2 MB, skipped",

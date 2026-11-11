@@ -74,6 +74,7 @@ const NAMES = [
   "wrapper-chain",
   "nested-config",
   "external-sdk",
+  "typed-sdk-base",
   "compose-and-env",
   "infra-test-folders",
   "fake-secrets",
@@ -388,6 +389,21 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     ]);
     expect(links(g, "external_call")).toEqual([
       `${llm}#RouterLLM.complete -> external:ext/openrouter.ai heuristic`,
+    ]);
+  });
+
+  it("typed-sdk-base: a typed client's construction is read before its type; unseen and branching bases are unresolved (M9.7d)", async () => {
+    const g = await run("typed-sdk-base");
+    const llm = "symbol:typed-sdk-base/src/llm.ts";
+    const at = "unresolved:typed-sdk-base/src/llm.ts";
+    expect(links(g, "http")).toEqual([
+      `${llm}#Embedder.embed -> ${at}:33:31 unresolved DYNAMIC_URL`,
+      `${llm}#LocalModel.chat -> route:typed-sdk-base/POST /v1/chat/completions heuristic`,
+      `${llm}#routedChat -> ${at}:43:34 unresolved DYNAMIC_URL`,
+    ]);
+    // `lastFastChat` reads a mock's calls, so `fastChat` is groq's only caller.
+    expect(links(g, "external_call")).toEqual([
+      `${llm}#fastChat -> external:ext/api.groq.com exact`,
     ]);
   });
 
