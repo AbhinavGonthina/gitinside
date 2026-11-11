@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   FAILED_MESSAGE,
   OFFLINE_MESSAGE,
+  permalinkHref,
   progressHref,
   repoHref,
   startAnalysis,
@@ -105,5 +106,12 @@ describe("startAnalysis", () => {
   it("paths encode the names", () => {
     expect(repoHref("a", "b c")).toBe("/a/b%20c");
     expect(progressHref("a", "b", JOB)).toBe(`/a/b/jobs/${JOB}`);
+    const sha = "e".repeat(40);
+    expect(progressHref("a", "b", JOB, sha)).toBe(`/a/b/jobs/${JOB}?commit=${sha}`);
+    expect(progressHref("a", "b", JOB, sha, "sel=x")).toBe(`/a/b/jobs/${JOB}?commit=${sha}&sel=x`);
+    // A deep link is kept only for a commit's page.
+    expect(progressHref("a", "b", JOB, undefined, "sel=x")).toBe(`/a/b/jobs/${JOB}`);
+    expect(permalinkHref("a", "b c", sha)).toBe(`/a/b%20c/${sha}`);
+    expect(permalinkHref("a", "b", sha, "sel=x")).toBe(`/a/b/${sha}?sel=x`);
   });
 });
