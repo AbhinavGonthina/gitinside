@@ -14,12 +14,13 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M9.5 Blog post draft + needs-abhinav edit/publish-decision issue
+M9.6 Full regression + axe accessibility audit
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
 - [#1](https://github.com/AbhinavGonthina/gitinside-planning/issues/1) Review a seeded 20% of eval labels (30 call sites, seed 2026-10-28). Blocks nothing; on close: apply corrections with notes, set `reviewedBy`, add a summary of review disagreements to the report (EVALUATION.md §1 step 4; the renderer has no section for it yet, ADR-0045), regenerate the report without "Pending owner review".
 - [#28](https://github.com/AbhinavGonthina/gitinside-planning/issues/28) Turn on private vulnerability reporting for the gitinside repo (SECURITY.md's form). Blocks nothing; on close: confirm with `gh api repos/AbhinavGonthina/gitinside/private-vulnerability-reporting` (`enabled: true`), apply any change he asks to SECURITY.md's "What happens next", remove this entry.
+- [#29](https://github.com/AbhinavGonthina/gitinside-planning/issues/29) Edit the blog post draft (`docs/blog/resolver-post.md`) and decide whether, where, and when to publish it. Blocks nothing; on close: apply his edits, refresh the numbers if the analyzer changed since 0.3.1 (`blogPost.test.ts` fails on a mismatch), make links absolute if he publishes off GitHub, remove this entry.
 - Reminder (#3, closed 2026-11-04 with "all 119 checks match infra/gcp"): the Google Cloud trial ends 2027-01-30. Remind Abhinav before trial day 90 of anything needed before he activates the full account; he won't activate it until we confirm.
 
 ## Blockers
@@ -530,13 +531,15 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - M9.4 Docs pages (how it works, limits, privacy) + root SECURITY.md, split (GitHub's private vulnerability reporting is off on the repo, and turning it on is Abhinav's setting):
 - [x] M9.4a The website's docs pages, `/how-it-works`, `/limits`, `/privacy`, `/self-hosting` (ROADMAP M9 task 4's self-hosting notes), at top-level paths so none shadows a repo page, linked from a footer on the landing and docs pages; each number on Limits and each cookie on Privacy checked against the constant that sets it; screenshots dark/light {model: opus}
 - [x] M9.4b Root `SECURITY.md` (what's in scope, how to report through GitHub's private vulnerability reporting, what happens next) + a `needs-abhinav` issue to turn that reporting on; docs/SECURITY.md §5 and the Privacy page link it {model: opus}
-- [ ] M9.5 Blog post draft + needs-abhinav edit/publish-decision issue {model: opus}
+- [x] M9.5 Blog post draft + needs-abhinav edit/publish-decision issue {model: opus}
 - [ ] M9.6 Full regression + axe accessibility audit {model: opus}
 - [ ] M9.7 Milestone verification + M9-review.md + tag m9; set STATUS: DONE {model: opus}
 
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+
+- 2026-11-11 M9.5 (`33cfebb`): `docs/blog/resolver-post.md`, D13.3's "How GitInside matches frontend calls to backend routes without running code" (~2,300 words, an unpublished-draft banner first): the three rules, the four resolver stages on the walkthrough's `wrapper-fetch` example, the blind eval's setup, batch 6 as measured (100.0% 521/521, 69.0% 521/755, 6/16, AA–AD), the anything-llm demo check (244 + 128 wrong edges fixed; 779/0/265), the backtest, limits. Claims re-checked against `match.ts`'s header, COVERAGE.md, and the backtest report (two corrected: ambiguity by method is unresolved, the #1157 callers are functions). `blogPost.test.ts` (6) parses batch 6's row and levels from the 0.3.1 report and the demo counts from README, and checks the banner and relative links; a wrong recall, demo count, and link each went red. Planning #29 asks Abhinav to edit and decide on publishing. Kept out of `eval/` so `eval --check` stays valid. Web 1135. No eval delta.
 
 - 2026-11-11 M9.4b (`4ffdb34`): root `SECURITY.md`: supported versions (the live site, App, and `main` only), in scope (code running from an analyzed repo, extraction and limit escapes, private data across tenants or after uninstall, secrets in graphs, XSS and PR-comment markup, forged requests, App overreach), out of scope (load testing on free plans, the hosts, analyzed repos' own bugs, missing edges), reports through GitHub's private form with a no-details public issue as the fallback, and what happens next (acknowledged within 7 days, fix with a test, advisory with credit; no bounty). docs/SECURITY.md §5 and the Privacy page link it. `securityPolicy.test.ts` (8) and a `docs.test.tsx` case, all red first. Reporting is off on the repo (`enabled: false`): planning #28 asks Abhinav to turn it on. No screenshots: the Privacy change is one sentence whose link reuses the existing "threat model" link's style. Web 1129. No eval delta.
 
