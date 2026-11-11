@@ -6,11 +6,44 @@
 
 See how any codebase really works. Break it down from services to functions, trace every request, and catch broken connections before they ship.
 
-(Status: in development. M1 (analyzer CLI), M2 (cross-service links + infra), M3 (accuracy eval harness), M4a (design system + prototype, approved), and M4b (the interactive explorer) are done. The website (M5) is live at [gitinside.abhinavgonthina.dev](https://gitinside.abhinavgonthina.dev), with its last production checks in progress; the graph diff (M6) and the PR bot come next.)
+<a href="https://gitinside.abhinavgonthina.dev/shadcn-ui/taxonomy/298a8857c7128a0d121e7f699dfd729f23b3966d?open=service:taxonomy/&trace=route:taxonomy/GET%20/api/users/stripe">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/media/trace.gif">
+    <img alt="Trace mode on shadcn-ui/taxonomy: the Next.js service is broken down, T opens the picker, typing &quot;stripe&quot; finds GET /api/users/stripe, and Play walks its five steps (the route's handler, getUserSubscriptionPlan, its Prisma read of User, MySQL, and the Stripe API) with each step's code beside the diagram" src="docs/media/trace-light.gif" width="960">
+  </picture>
+</a>
+
+*Trace mode on [shadcn-ui/taxonomy](https://gitinside.abhinavgonthina.dev/shadcn-ui/taxonomy/298a8857c7128a0d121e7f699dfd729f23b3966d), recorded on the live site: one request's path from its route to the database and Stripe, step by step, with the code of each step.*
+
+## What it is
+
+Paste a GitHub repo's URL (or sign in for a private one) and GitInside draws its architecture: the services of a monorepo, their folders, files, and functions, the pages and routes, the database models, and the outside APIs, with every request from a frontend matched to the backend route it hits. You break any box down to see what's inside, and trace a request from its route to the database.
+
+The diagram comes from **static analysis, never an LLM's guess**:
+- **Parsed, never run.** GitInside reads the code with the TypeScript compiler. It never installs or runs anything from the repo ([docs/SECURITY.md](docs/SECURITY.md)).
+- **Deterministic.** The same commit always gives the same graph, byte for byte.
+- **Visible failures.** A request whose URL can't be worked out is drawn as unresolved, with the reason, rather than dropped or guessed.
+
+It has four parts:
+1. **The website**, [gitinside.abhinavgonthina.dev](https://gitinside.abhinavgonthina.dev): public repos with no sign-in, private ones through the GitHub App.
+2. **A live README diagram:** a badge (like the one above) or the full diagram image, kept current with the default branch.
+3. **A PR bot:** the GitHub App comments each pull request's architecture diff and flags the connections it breaks, such as a request whose route the PR removed.
+4. **The explorer:** the dark-first, keyboard-driven canvas in the GIF.
+
+v1 reads TypeScript and JavaScript: React and Next.js, Express and Next.js API routes, Prisma, docker-compose and `.env`, and workspace monorepos, up to 20,000 source files. What each detector does and doesn't handle is in [docs/COVERAGE.md](docs/COVERAGE.md).
+
+**Status:** every milestone through the PR bot (M8) is done, and the launch work (M9) is in progress. The site is live, but nothing has been announced publicly yet.
+
+## Try it
+
+- **On the website:** open [gitinside.abhinavgonthina.dev](https://gitinside.abhinavgonthina.dev) and paste a public repo's URL. A progress page shows the analysis stages, then the diagram opens. Three demo repos, each checked edge by edge (see [Results](#demo-repos-checked-by-hand)), open at once: [Mintplex-Labs/anything-llm](https://gitinside.abhinavgonthina.dev/Mintplex-Labs/anything-llm/308b27662b2f6fd4947791d61c797945c609fcbc), [shadcn-ui/taxonomy](https://gitinside.abhinavgonthina.dev/shadcn-ui/taxonomy/298a8857c7128a0d121e7f699dfd729f23b3966d), and [getmaxun/maxun](https://gitinside.abhinavgonthina.dev/getmaxun/maxun/99c6bd0d42b14336b706ba121a3757f62a9814f7).
+- **In the explorer:** double-click a box (or press Enter) to break it down, press T to trace a page or route, Ctrl+K to search, and Esc to go back up. Share gives a link to what's on screen (what's broken down, the selection, the trace step, the filters) at that commit.
+- **In your README:** on a repo's page, "Add to README" gives the Markdown for its live badge or diagram image.
+- **On your pull requests:** sign in, then install the GitHub App on your repos from the dashboard. Each PR then gets a `GitInside` check and a comment with the architecture diff and any broken connections.
 
 ## Quickstart (analyzer CLI)
 
-GitInside builds the diagram from static analysis. It parses the repo and never installs or runs anything from it.
+The CLI runs the same analysis on a folder on your machine:
 
 ```sh
 pnpm install
@@ -18,9 +51,9 @@ pnpm build
 node packages/analyzer/dist/cli.js analyze path/to/repo --out architecture.json
 ```
 
-The output is a schema-valid `architecture.json`, the same bytes every time for the same commit. It covers workspace services, modules, files, symbols, imports, calls, Express and Next.js routes, and Prisma models. It also links `fetch`/axios calls to the routes they hit, each with a confidence level (exact, pattern, heuristic). It adds external APIs (from literal hosts and allowlisted SDKs), docker-compose and `.env` datastores (key names and URL hosts only, never values), and BullMQ/Bull/Bee-Queue queues. Anything it can't resolve appears as an `unresolved` node or a warning, never a guess. Optional flags `--owner`, `--name`, and `--sha` record the repo identity.
+The output is a schema-valid `architecture.json`, the same bytes every time for the same commit ([docs/GRAPH_SCHEMA.md](docs/GRAPH_SCHEMA.md)). It covers workspace services, modules, files, symbols, imports, calls, Express and Next.js routes, and Prisma models. It also links `fetch`/axios calls to the routes they hit, each with a confidence level (exact, pattern, heuristic). It adds external APIs (from literal hosts and allowlisted SDKs), docker-compose and `.env` datastores (key names and URL hosts only, never values), and BullMQ/Bull/Bee-Queue queues. Anything it can't resolve appears as an `unresolved` node or a warning, never a guess. Optional flags `--owner`, `--name`, and `--sha` record the repo identity.
 
-**Supported size:** repos up to 20,000 source files and 50 MB of source code (the `.ts .tsx .js .jsx .mjs .cjs .prisma` files left after ignored, generated, and over-2 MB files), in the CLI and on the website. A bigger repo fails at once with `LIMIT_FILES` or `LIMIT_SOURCE_SIZE`, before any parsing. Under the website's caps (3 GB of memory, 5 minutes) on a 20-core laptop, cal.com (5,073 files, 18 MB, 113 services) took 38 s and a 59 MB VS Code folder 51 s, while VS Code itself (15,184 files, 201 MB) is refused 0.5 s into the analysis. A repo of many services can still run out of memory or time under 50 MB. [Report](bench/results/2026-10-31-capped-vscode.md), ADR-0137. For Cloud Run's 4 GiB instances the heap cap is now 2,560 MB (and 400 MB unpacked, 60,000 files and folders); cal.com and a 45 MB VS Code folder still finished under 2,048 MB. [Report](bench/results/2026-11-01-capped-memory.md), ADR-0146.
+**Supported size:** repos up to 20,000 source files and 50 MB of source code (the `.ts .tsx .js .jsx .mjs .cjs .prisma` files left after ignored, generated, and over-2 MB files), in the CLI and on the website. A bigger repo fails at once with `LIMIT_FILES` or `LIMIT_SOURCE_SIZE`, before any parsing. The website's worker runs each analysis on 1 vCPU and 4 GiB (a 2,560 MB heap, 400 MB unpacked, 60,000 files and folders) within 5 minutes, so a repo of many services can still run out of memory or time under 50 MB ([report](bench/results/2026-11-01-capped-memory.md), ADR-0137, ADR-0146).
 
 ## Quickstart (website, local)
 
@@ -45,9 +78,44 @@ Commits are checked out into temporary `git worktree`s (no git hooks run) and re
 
 ## Architecture
 
-A pnpm + Turborepo monorepo:
+```mermaid
+flowchart LR
+  U["Browser"] --> W
+  subgraph Vercel["Vercel"]
+    W["apps/web (Next.js)<br/>pages, API routes,<br/>App webhooks"]
+  end
+  subgraph Google["Google Cloud"]
+    Q[("Cloud Tasks<br/>2 at once, 3 attempts")]
+    K["apps/worker on Cloud Run<br/>one job per request"]
+    C["analyzer child process<br/>no network, no env"]
+  end
+  PG[("Neon Postgres<br/>jobs, repos, progress")]
+  S3[("Oracle Object Storage<br/>graph snapshots")]
+  GH["GitHub<br/>API, tarballs, webhooks"]
+
+  W -->|"signed job"| Q -->|"push"| K --> C
+  K -->|"download tarball"| GH
+  K -->|"gzipped graph"| S3
+  K -->|"progress, result"| PG
+  W --> PG
+  W -->|"read graph"| S3
+  GH -->|"PR webhooks"| W
+  W -->|"comment + Check Run"| GH
+```
+
+The website never parses a repo. It records a job in Postgres and queues it on Cloud Tasks, which pushes it to the worker. The worker downloads the commit's tarball, extracts it with path checks, and runs the analyzer in a child process locked down by Node's permission model, with an empty environment and no network. It then stores the graph and reports progress through the job's row, which the progress page streams. Everything runs on free tiers. [docs/DESIGN.md](docs/DESIGN.md) has the details, and [docs/SECURITY.md](docs/SECURITY.md) the threat model.
+
+Inside the analyzer, one pass over a checkout:
+
+```
+inventory → workspaces → per-service TypeScript programs → symbols, imports, calls
+  → detectors (routes, Prisma, HTTP calls, SDKs, compose/.env, queues)
+  → match each request's URL to a route → validated, canonically sorted graph
+```
+
+The code is a pnpm + Turborepo monorepo:
 - `packages/schema` holds the graph format and the graph diff format (types + Zod validators).
-- `packages/diff` compares two graphs of a repo (M6, in progress): `diffGraphs` classifies nodes and edges by per-kind fingerprints, detects renames and moves, and finds broken connections; `applyDiff` rebuilds head from base + diff; `renderMermaidSummary` draws the change. Property-tested with fast-check.
+- `packages/diff` compares two graphs of a repo: `diffGraphs` classifies nodes and edges by per-kind fingerprints, detects renames and moves, and finds broken connections; `applyDiff` rebuilds head from base + diff; `renderMermaidSummary` draws the change. Property-tested with fast-check.
 - `packages/analyzer` holds the analysis pipeline and the `gitinside` CLI (`analyze`, and `diff`, which analyzes both sides and calls `packages/diff`) (inventory → workspaces → per-service TypeScript programs → detectors → validated graph).
 - `packages/viewer` holds the explorer's React components and their Storybook (`pnpm --filter @gitinside/viewer storybook`).
 - `packages/db` holds the Postgres schema (Drizzle), committed SQL migrations, and the client shared by the web app and worker. Local Postgres: `docker compose -f infra/docker-compose.dev.yml up -d`, then `pnpm --filter @gitinside/db migrate` with `DATABASE_URL` from that file. Its tests run on in-memory PGlite, so they need no Docker.
@@ -56,7 +124,7 @@ A pnpm + Turborepo monorepo:
 - `eval/` holds the accuracy eval (pinned repos, hand-written labels, scorer, committed reports).
 - `bench/` holds benchmarks, and `fixtures/` holds golden test repos.
 
-Design notes: [docs/DESIGN.md](docs/DESIGN.md). Milestone reviews: [M1](docs/milestones/M1-review.md), [M2](docs/milestones/M2-review.md), [M3](docs/milestones/M3-review.md). How cross-service links are resolved: [docs/walkthroughs/resolver.md](docs/walkthroughs/resolver.md). How two commits' graphs are diffed and broken connections found: [docs/walkthroughs/diff.md](docs/walkthroughs/diff.md).
+Design notes: [docs/DESIGN.md](docs/DESIGN.md). Decisions: [docs/DECISIONS.md](docs/DECISIONS.md). Milestone reviews: [docs/milestones](docs/milestones). How cross-service links are resolved: [docs/walkthroughs/resolver.md](docs/walkthroughs/resolver.md). How two commits' graphs are diffed and broken connections found: [docs/walkthroughs/diff.md](docs/walkthroughs/diff.md).
 
 ## Results
 
