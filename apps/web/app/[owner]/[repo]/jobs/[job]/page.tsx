@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { COMMIT_SHA, type SearchParams } from "../../../../../lib/compare";
+import { deepLinkQuery } from "../../../../../lib/deepLinkQuery";
 import { ANALYZE_JOB_ID } from "../../../../../lib/jobRoute";
 import { parseRepoPath } from "../../../../../lib/repoUrl";
 import { COMMIT_PARAM } from "../../../../../lib/startAnalysis";
@@ -25,8 +26,9 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
  * The progress page (UX.md "Analyze", ADR-0067): where `/api/analyze` sends a visitor whose
  * commit was queued. The live part is {@link JobProgress}; this page only checks the path.
  * Names GitHub wouldn't allow and IDs the worker could never issue are a 404, never echoed.
- * `?commit=<sha>` (a demo pin's permalink, ADR-0255) opens that commit when done; a value that
- * isn't one full SHA is ignored, so the page opens the repo page as usual.
+ * `?commit=<sha>` (a demo pin's permalink, ADR-0255) opens that commit when done, with the
+ * query's deep link (`deepLinkQuery`, F3); a value that isn't one full SHA is ignored, so the
+ * page opens the repo page as usual.
  */
 export default async function ProgressPage({
   params,
@@ -38,13 +40,16 @@ export default async function ProgressPage({
   const { owner, repo, job } = await params;
   const ref = parseRepoPath(owner, repo);
   if (!ref || !ANALYZE_JOB_ID.test(job)) notFound();
-  const commit = (await searchParams)?.[COMMIT_PARAM];
+  const query = (await searchParams) ?? {};
+  const commit = query[COMMIT_PARAM];
+  const pinned = typeof commit === "string" && COMMIT_SHA.test(commit);
   return (
     <JobProgress
       owner={ref.owner}
       repo={ref.repo}
       jobId={job}
-      commit={typeof commit === "string" && COMMIT_SHA.test(commit) ? commit : undefined}
+      commit={pinned ? commit : undefined}
+      deepLink={pinned ? deepLinkQuery(query) : undefined}
     />
   );
 }

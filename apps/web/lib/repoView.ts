@@ -37,6 +37,7 @@ import {
   type SeenRepo,
   type SeenResult,
 } from "./github";
+import { permanentFailure } from "./jobs";
 import { userGitHub } from "./privateRepo";
 import { checkRepoAccess } from "./repoAccess";
 import type { RepoRef } from "./repoUrl";
@@ -613,8 +614,10 @@ async function findView(ref: RepoRef & { sha?: string }, deps: RepoViewDeps): Pr
  * pinned commit is queued as check-on-view queues a newer one ({@link queueHead}: its limits,
  * charged to the repo), so the gallery's links work however far the default branch has moved.
  * `queued` opens the job's progress page. A name GitHub doesn't show, or shows as another repo,
- * is `missing`; a commit that can't be queued now (GitHub or the queue down, a failed analysis,
- * which isn't re-run on every view, a limit) is `unavailable`.
+ * is `missing`; a commit that can't be queued now (GitHub or the queue down, a failure that would
+ * fail again, `permanentFailure`, a limit) is `unavailable`. Any other failure is queued again
+ * (F1, M9.7b). The stored row is read before GitHub is asked, and GitHub's answer is remembered
+ * a minute (`pinRepo`, F2).
  *
  * With `older`, the pin's newest finished analysis by an older version (M9.1b2b, ADR-0257): the
  * gallery shows what this analyzer draws, so the current version is queued the same way, and
@@ -631,6 +634,20 @@ async function queueDemoPin(
   return ready(older, { state: "pinned" });
 }
 
+/**
+ * GitHub's answer for a pin's repo, remembered per repo like {@link latestCommit}'s (F2): while
+ * its job is in flight, every view of the gallery's links would otherwise ask GitHub again.
+ * Only the repo's facts are used (the commit is the pin's), so the key names no analysis.
+ */
+async function pinRepo(ref: RepoRef, deps: RepoViewDeps): Promise<ResolveResult> {
+  const key = `${ref.owner}/${ref.repo}@pin`.toLowerCase();
+  const cached = publicAnswer(deps.heads.get(key));
+  if (cached !== undefined) return cached;
+  const resolved = await resolveRepo(ref, deps.github);
+  deps.heads.set(key, resolved);
+  return resolved;
+}
+
 async function queuePin(
   ref: RepoRef & { sha: string },
   pin: DemoPin,
@@ -638,29 +655,33 @@ async function queuePin(
 ): Promise<RepoView> {
   const { db } = deps;
   const unavailable: RepoView = { status: "unavailable" };
-  const resolved = await resolveRepo(ref, deps.github);
+  const key = { providerRepoId: pin.providerRepoId, sha: pin.sha };
+  const published = async () => {
+    const latest = await findPublishedAnalysis(db, key);
+    return latest === undefined ? unavailable : ready(latest, { state: "pinned" });
+  };
+  // The stored row first (F2): a finished or permanently failed pin costs no GitHub call.
+  const existing = await findAnalysisToQueue(
+    db,
+    { ...key, analyzerVersion: deps.analyzerVersion },
+    { replacePrivate: true },
+  );
+  if (existing?.status === "done") return published();
+  // A failure that would fail again isn't re-run; any other is queued again (F1), under the
+  // repo's limits like a new commit, so a broken pin costs at most RECHECKS_PER_HOUR runs.
+  if (existing?.status === "failed" && permanentFailure(existing.errorCode ?? "") !== undefined) {
+    return unavailable;
+  }
+  const resolved = await pinRepo(ref, deps);
   if (!resolved.ok) {
     const gone = resolved.code === "REPO_NOT_FOUND" || resolved.code === "REPO_UNAVAILABLE";
     return gone ? { status: "missing" } : unavailable;
   }
   if (resolved.repo.providerRepoId !== pin.providerRepoId) return { status: "missing" };
   const head = { ...resolved.repo, sha: pin.sha };
-  const key = { providerRepoId: head.providerRepoId, sha: head.sha };
-  const existing = await findAnalysisToQueue(
-    db,
-    { ...key, analyzerVersion: deps.analyzerVersion },
-    { replacePrivate: true },
-  );
-  if (existing?.status === "failed" && existing.errorCode !== QUEUE_UNAVAILABLE) return unavailable;
   const inFlight = existing?.status === "queued" || existing?.status === "running";
-  const next =
-    existing?.status === "done"
-      ? ({ state: "done" } as const)
-      : await queueHead(head, inFlight, deps, deps.github);
-  if (next.state === "done") {
-    const latest = await findPublishedAnalysis(db, key);
-    return latest === undefined ? unavailable : ready(latest, { state: "pinned" });
-  }
+  const next = await queueHead(head, inFlight, deps, deps.github);
+  if (next.state === "done") return published();
   if (next.state === "updating" && next.jobId !== undefined) {
     return {
       status: "queued",

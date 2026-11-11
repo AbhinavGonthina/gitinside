@@ -312,7 +312,7 @@ describe("viewRepo", () => {
       expect(await rows()).toEqual([]);
     });
 
-    it("is unavailable when it can't be queued: GitHub down, no queue, a failed run, the repo's limit", async () => {
+    it("is unavailable when it can't be queued: GitHub down, no queue, a permanent failure, the repo's limit", async () => {
       const view = { owner: "acme", repo: "shop", sha: NEW };
       gh.failNext(new Error("offline"));
       expect(await viewRepo(view, deps)).toEqual({ status: "unavailable" });
@@ -321,15 +321,17 @@ describe("viewRepo", () => {
       });
       expect(tasks.google.tasks).toEqual([]);
 
-      // A failure isn't re-run on every view (check-on-view's rule). Not a `LIMIT_*` one, which
-      // the size hold would refuse anyway.
+      // A failure that would fail again isn't re-run, and costs no GitHub call. Not a `LIMIT_*`
+      // one, which the size hold would refuse anyway.
       const { id } = await startAnalysis(t.db, {
         repoId: await repoId(),
         sha: NEW,
         analyzerVersion: VERSION,
       });
-      await failAnalysis(t.db, id, "WORKER_ERROR");
+      await failAnalysis(t.db, id, "TAR_INVALID");
+      const asked = gh.requests.length;
       expect(await viewRepo(view, deps)).toEqual({ status: "unavailable" });
+      expect(gh.requests).toHaveLength(asked);
       expect(tasks.google.tasks).toEqual([]);
 
       await t.db.delete(analyses);
@@ -382,9 +384,59 @@ describe("viewRepo", () => {
         sha: NEW,
         analyzerVersion: VERSION,
       });
-      await failAnalysis(t.db, id, "WORKER_ERROR");
+      await failAnalysis(t.db, id, "TAR_INVALID");
       expect(await viewRepo(view, deps)).toEqual(old);
       expect(tasks.google.tasks).toEqual([]);
+    });
+
+    it("queues a failure that could pass again, under the repo's limits (F1)", async () => {
+      await done(NEW, "0.1.0");
+      const view = { owner: "acme", repo: "shop", sha: NEW };
+      const queued = {
+        status: "queued",
+        owner: "Acme",
+        repo: "Shop",
+        sha: NEW,
+        jobId: jobFor(NEW),
+      };
+      const { id } = await startAnalysis(t.db, {
+        repoId: await repoId(),
+        sha: NEW,
+        analyzerVersion: VERSION,
+      });
+      await failAnalysis(t.db, id, "WORKER_ERROR");
+      expect(await viewRepo(view, deps)).toEqual(queued);
+      expect(tasks.google.tasks).toHaveLength(1);
+      expect(await repoSlots()).toBe(1);
+      expect((await rows()).at(-1)).toEqual({ sha: NEW, status: "queued", version: VERSION });
+
+      // Failed again with the repo's hour used up: the older graph, nothing queued.
+      await startAnalysis(t.db, { repoId: await repoId(), sha: NEW, analyzerVersion: VERSION });
+      await failAnalysis(t.db, id, "DOWNLOAD_FAILED");
+      expect(await viewRepo(view, { ...deps, rechecksPerHour: 1 })).toEqual(
+        ready(NEW, { state: "pinned" }, "0.1.0"),
+      );
+      expect(tasks.google.tasks).toHaveLength(1);
+    });
+
+    it("asks GitHub at most once a minute while its job is in flight (F2)", async () => {
+      const queued = {
+        status: "queued",
+        owner: "Acme",
+        repo: "Shop",
+        sha: NEW,
+        jobId: jobFor(NEW),
+      };
+      const view = { owner: "acme", repo: "shop", sha: NEW };
+      expect(await viewRepo(view, deps)).toEqual(queued);
+      const asked = gh.requests.length;
+      expect(asked).toBeGreaterThan(0);
+      for (let i = 0; i < 3; i++) expect(await viewRepo(view, deps)).toEqual(queued);
+      expect(gh.requests).toHaveLength(asked);
+      clock += 61_000;
+      expect(await viewRepo(view, deps)).toEqual(queued);
+      expect(gh.requests.length).toBeGreaterThan(asked);
+      expect(tasks.google.tasks).toHaveLength(1);
     });
 
     it("keeps an older version's graph of a commit that isn't a pin, never asking GitHub", async () => {

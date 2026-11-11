@@ -249,6 +249,12 @@ describe("progress page", () => {
       [{ commit: "F".repeat(40) }, "/acme/shop"],
       [{ commit: "main" }, "/acme/shop"],
       [{}, "/acme/shop"],
+      // The deep link comes back with the pin (F3), only its own parameters, escaped again.
+      [
+        { commit: SHA, utm: "x", trace: "route:api/GET /a,b", open: ["web/", "api/"], step: "2" },
+        `/acme/shop/${SHA}?open=web/&open=api/&trace=route:api/GET%20/a,b&step=2`,
+      ],
+      [{ open: "web/" }, "/acme/shop"],
     ];
     for (const [query, opens] of cases) {
       router.replace.mockReset();
