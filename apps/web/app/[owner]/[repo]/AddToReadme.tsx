@@ -174,7 +174,14 @@ export function AddToReadme({
               alt={readmeAlt(owner, repo)}
             />
           </div>
-          <pre className="readme-panel__code" ref={code} tabIndex={0} aria-label="Markdown">
+          <pre
+            className="readme-panel__code"
+            ref={code}
+            tabIndex={0}
+            // A plain <pre> may not carry a name (aria-prohibited-attr, M9.6); a group may.
+            role="group"
+            aria-label="Markdown"
+          >
             <code>{markdown}</code>
           </pre>
           <div className="readme-panel__actions">

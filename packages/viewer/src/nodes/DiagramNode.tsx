@@ -1,5 +1,5 @@
 import type { GraphNode, Layer } from "@gitinside/schema";
-import type { HTMLAttributes, ReactNode } from "react";
+import { useId, type HTMLAttributes, type ReactNode } from "react";
 import { IconTile, isTileShape, NodeIcon, TILE_ICON_SIZE } from "../icons/Icon.js";
 import {
   changesText,
@@ -40,20 +40,46 @@ export interface DiagramNodeProps
   children?: ReactNode;
 }
 
+// The text under a box's name (subtitle, count badges, a model's fields) is `aria-hidden`, and
+// the same words, joined with commas, are the box's description: a `hidden` span the box's
+// `aria-describedby` points to (a referenced node is read even when hidden; one plain string,
+// so no browser runs "Next.js" into "apps/web"). The box's accessible name is its label and
+// kind; before M9.6 a screen reader never heard the subtitle or counts, and the exposed text
+// is now the label alone, which starts the name (WCAG 2.5.3, Label in Name; a11y.e2e.ts).
+
+/** The box's description: subtitle, the counts that aren't changes (those are in the name), fields. */
+export function nodeDescription(
+  subtitle: NodeText,
+  counts: readonly NodeCount[] | undefined,
+  fields: string | undefined,
+): string {
+  return [
+    subtitle.text,
+    subtitle.code,
+    ...(counts ?? []).filter((c) => !c.diff).map(countText),
+    fields,
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
 function Text({ value, className }: { value: NodeText; className: string }) {
   return (
-    <span className={className}>
+    <span className={className} aria-hidden>
       {value.text && <span>{value.text}</span>}
       {value.code && <code>{value.code}</code>}
     </span>
   );
 }
 
-/** The diff state as a tag on the node's top edge, so it takes no room from the name. */
+/**
+ * The diff state as a tag on the node's top edge, so it takes no room from the name. Hidden
+ * from assistive tech: the name already says it ("Added in this change").
+ */
 function DiffTag({ diff }: Pick<DiagramNodeProps, "diff">) {
   if (!diff) return null;
   return (
-    <span className="gi-badge gi-node__diff" data-diff={diff}>
+    <span className="gi-badge gi-node__diff" data-diff={diff} aria-hidden>
       <span className="gi-badge__dot" aria-hidden />
       {DIFF_TEXT[diff]}
     </span>
@@ -63,7 +89,7 @@ function DiffTag({ diff }: Pick<DiagramNodeProps, "diff">) {
 function Badges({ counts }: Pick<DiagramNodeProps, "counts">) {
   if (!counts?.length) return null;
   return (
-    <span className="gi-node__badges">
+    <span className="gi-node__badges" aria-hidden>
       {counts.map((c) => (
         <span
           key={c.diff ? `diff:${c.diff}` : c.noun}
@@ -122,6 +148,12 @@ export function DiagramNode({
   const named = rest["aria-selected"] === undefined && selected;
   // A box holding changes says so in words too, as its badges do.
   const changes = changesText(counts ?? []);
+  const descriptionId = useId();
+  const hasSubtitle = Boolean(subtitle.text ?? subtitle.code);
+  const description = nodeDescription(subtitle, counts, fields);
+  const describedBy = [rest["aria-describedby"], description ? descriptionId : undefined].filter(
+    Boolean,
+  );
 
   const attrs = {
     ...rest,
@@ -132,6 +164,7 @@ export function DiagramNode({
     "aria-label": [nodeAccessibleName(node, { selected: named, emphasis, diff }), changes]
       .filter(Boolean)
       .join(". "),
+    ...(describedBy.length ? { "aria-describedby": describedBy.join(" ") } : {}),
     ...(tier === "frame" ? { "data-expanded": String(open) } : {}),
     ...(tint ? { "data-layer": tint } : {}),
     ...(hovered ? { "data-hover": "" } : {}),
@@ -159,17 +192,20 @@ export function DiagramNode({
             ))}
           {label.code && <code>{label.code}</code>}
         </span>
-        {(subtitle.text ?? subtitle.code) && (
-          <Text value={subtitle} className="gi-node__subtitle" />
-        )}
+        {hasSubtitle && <Text value={subtitle} className="gi-node__subtitle" />}
       </span>
       <Badges counts={counts} />
       {fields && (
-        <code className="gi-node__fields" title={fields}>
+        <code className="gi-node__fields" title={fields} aria-hidden>
           {fields}
         </code>
       )}
       <DiffTag diff={diff} />
+      {description && (
+        <span id={descriptionId} hidden>
+          {description}
+        </span>
+      )}
     </>
   );
 
