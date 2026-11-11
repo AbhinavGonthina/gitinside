@@ -17,7 +17,7 @@ import { storeConfigFromEnv, type StoreConfig } from "./storage.js";
  * | `CACHE_ROOT` | no, `/tmp/cache` | absolute parent of the fact cache folders (factcache.ts), apart from `JOBS_ROOT` |
  * | `HOST` | no, `127.0.0.1` | `POST /run`'s address (a container sets `0.0.0.0`) |
  * | `PORT` | no, `8080` | `POST /run`'s port (Cloud Run sets it) |
- * | `GITHUB_TOKEN` | no | sent to GitHub's API only (raises the 60/hour limit) |
+ * | `GITHUB_TOKEN` | no | sent to GitHub's API only (raises the 60/hour limit) for public jobs; dropped for a request GitHub refuses it on (ADR-0260) |
  * | `WEBSITE_ORIGIN` | no | the website (`https://…`; `http://` on loopback), asked for private jobs' installation tokens (M8.3c3b); without it they fail as `TOKEN_UNCONFIGURED` |
  *
  * Every problem is reported at once, and messages name the variable, never its value.

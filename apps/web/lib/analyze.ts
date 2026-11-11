@@ -140,6 +140,8 @@ const ACCESS_FAILURES: ReadonlySet<string> = new Set([
   "INSTALLATION_NOT_FOUND",
   "INSTALLATION_SUSPENDED",
   "REPO_NOT_INSTALLED",
+  // GitHub refused the worker's download, whose rules can change (ADR-0260).
+  "DOWNLOAD_REFUSED",
 ]);
 
 export interface AnalyzeError {

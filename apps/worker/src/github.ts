@@ -12,6 +12,9 @@ import { JobFailure } from "./failure.js";
  *   leave GitHub's API host.
  * - **Anywhere else:** refused (`DOWNLOAD_FAILED`), never fetched.
  *
+ * The worker's own token (`publicToken`) is dropped after a `403` that isn't a rate limit,
+ * and the same URL asked once more without it (ADR-0260); an installation's (`token`) never.
+ *
  * Failures (codes in failure.ts):
  * - `REPO_NOT_FOUND`: 404 (a missing repo or commit, or a private one we can't read).
  * - `REPO_UNAVAILABLE`: 451 (blocked for legal reasons).
@@ -40,8 +43,15 @@ export interface DownloadOptions {
   apiBase?: string;
   /** Origins a redirect may send the download to. Default `https://codeload.github.com`. */
   downloadOrigins?: readonly string[];
-  /** Sent to the API only (raises the public rate limit; M8 uses installation tokens). */
+  /** An installation's token: sent to the API only, and never dropped. Wins over `publicToken`. */
   token?: string;
+  /**
+   * The worker's own `GITHUB_TOKEN`, which only raises the public rate limit: sent to the API
+   * only, when there's no `token`. A `403` to it that isn't a rate limit asks the same URL
+   * once more without it (planning #26, ADR-0260): an org can refuse a personal token by
+   * policy even on its public repos, and such a repo downloads without one.
+   */
+  publicToken?: string;
   /** Aborts the request and the body. */
   signal?: AbortSignal;
   /** The fetch to use (tests). Default the global `fetch`. */
@@ -75,6 +85,24 @@ export function failureForStatus(status: number, headers: Headers): JobFailure {
 
 async function discard(response: Response): Promise<void> {
   await response.body?.cancel().catch(() => undefined);
+}
+
+/**
+ * Whether `response` refuses the worker's own token (sent as `sent`) by policy rather than by
+ * rate limit, so the same URL is asked once more without it. Never for an installation's
+ * token: `sent` is only the public token when `options.token` is unset.
+ */
+function refusesPublicToken(
+  response: Response,
+  sent: string | undefined,
+  options: DownloadOptions,
+): boolean {
+  return (
+    sent !== undefined &&
+    options.token === undefined &&
+    response.status === 403 &&
+    failureForStatus(403, response.headers).code === "DOWNLOAD_REFUSED"
+  );
 }
 
 function apiHeaders(token: string | undefined): Record<string, string> {
@@ -245,12 +273,13 @@ async function getApiJson(
   const path = parts.map(encodeURIComponent).join("/");
   let url = new URL(`${api.pathname.replace(/\/$/, "")}/${path}`, api);
   if (query !== undefined) url.search = query;
+  let token = options.token ?? options.publicToken;
 
-  for (let hop = 0; ; hop++) {
+  for (let hop = 0; ; ) {
     let response: Response;
     try {
       response = await doFetch(url, {
-        headers: apiHeaders(options.token),
+        headers: apiHeaders(token),
         redirect: "manual",
         ...(options.signal === undefined ? {} : { signal: options.signal }),
       });
@@ -268,6 +297,10 @@ async function getApiJson(
       throw failure("DOWNLOAD_REFUSED", `malformed answer: ${what}`);
     }
     await discard(response);
+    if (refusesPublicToken(response, token, options)) {
+      token = undefined;
+      continue;
+    }
     if (!REDIRECT.has(response.status)) throw failureForStatus(response.status, response.headers);
     const location = response.headers.get("location");
     let next: URL | undefined;
@@ -279,6 +312,7 @@ async function getApiJson(
     if (next?.origin !== api.origin || hop >= MAX_REDIRECTS) {
       throw failure("DOWNLOAD_REFUSED", "repo redirect refused");
     }
+    hop++;
     url = next;
   }
 }
@@ -298,10 +332,11 @@ export async function openTarball(
     .map(encodeURIComponent)
     .join("/");
   let url = new URL(`${api.pathname.replace(/\/$/, "")}/${path}`, api);
+  let token = options.token ?? options.publicToken;
 
-  for (let hop = 0; ; hop++) {
+  for (let hop = 0; ; ) {
     const toApi = url.origin === api.origin;
-    const headers = toApi ? apiHeaders(options.token) : { "user-agent": USER_AGENT };
+    const headers = toApi ? apiHeaders(token) : { "user-agent": USER_AGENT };
     let response: Response;
     try {
       response = await doFetch(url, {
@@ -318,11 +353,12 @@ export async function openTarball(
       if (response.body === null) throw failure("DOWNLOAD_FAILED", "empty response body");
       return response.body;
     }
-    if (!REDIRECT.has(response.status)) {
-      await discard(response);
-      throw failureForStatus(response.status, response.headers);
-    }
     await discard(response);
+    if (toApi && refusesPublicToken(response, token, options)) {
+      token = undefined;
+      continue;
+    }
+    if (!REDIRECT.has(response.status)) throw failureForStatus(response.status, response.headers);
     const location = response.headers.get("location");
     if (location === null) throw failure("DOWNLOAD_REFUSED", "redirect without a location");
     let next: URL;
@@ -338,6 +374,7 @@ export async function openTarball(
     } else if (!downloadOrigins.has(next.origin) || !toApi) {
       throw failure("DOWNLOAD_REFUSED", `redirect to ${next.origin} refused`);
     }
+    hop++;
     url = next;
   }
 }

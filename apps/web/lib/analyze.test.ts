@@ -426,8 +426,10 @@ describe("requestAnalysis", () => {
         "INSTALLATION_NOT_FOUND",
         "INSTALLATION_SUSPENDED",
         "REPO_NOT_INSTALLED",
+        // GitHub refusing the worker's download (planning #26): the worker's fix can pass.
+        "DOWNLOAD_REFUSED",
       ]) {
-        // Six requests from one address: past its hourly limit without this.
+        // Seven requests from one address: past its hourly limit without this.
         await t.db.delete(rateLimits);
         await t.db.delete(analyses);
         await t.db.update(repos).set({ analysisClaimSha: null, analysisClaimedAt: null });

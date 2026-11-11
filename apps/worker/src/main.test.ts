@@ -371,6 +371,29 @@ describe("startWorkerProcess", () => {
     expect(await readdir(join(root, "cache", "installations"))).toEqual([]);
   });
 
+  it("analyzes a public repo whose org refuses the worker's token, without it (planning #26)", async () => {
+    const original = github.api;
+    github.api = (req, res) => {
+      if (req.headers.authorization === undefined) return original(req, res);
+      res.writeHead(403, { "x-ratelimit-remaining": "4999" });
+      res.end('{"message":"Forbidden"}');
+    };
+    const worker = await start();
+    const deliveries = await pushTask(fakeTask(origin(worker), JOB, SECRET));
+    expect(deliveries).toMatchObject([{ status: 200, body: { state: "done" } }]);
+    const [row] = await t.db.select().from(analyses);
+    expect(row).toMatchObject({ status: "done", sha: SHA });
+    // The description, then the tarball: each refused once with the token, then asked without.
+    expect(github.requests.map((r) => [r.server, r.authorization])).toEqual([
+      ["api", "Bearer test-token"],
+      ["api", undefined],
+      ["api", "Bearer test-token"],
+      ["api", undefined],
+      ["codeload", undefined],
+    ]);
+    await worker.stop();
+  });
+
   it("takes a pushed task to the bucket and Postgres, then stops cleanly", async () => {
     const worker = await start();
     const health = await fetch(`${origin(worker)}/health`);
