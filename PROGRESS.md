@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M9.3e Decide whether fixtures' compose/.env files count as the repo's infrastructure
+M9.4 Docs pages (how it works, limits, privacy) + root SECURITY.md
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -525,7 +525,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [x] M9.3c1 Frame the current step when Play starts or a drill-down lands, and keep framed steps clear of the minimap; red tests first, real-browser check, screenshots dark/light {model: opus}
 - [x] M9.3c2 Once M9.3c1 is live on production: re-record `docs/media/trace*.gif` with `apps/web/dist/m93-gif.mjs` (recreate it from M9.3's note if gone), adding a drill-down into `app` before Play so step 1 reads up close; check each frame's step against the list, update README's GIF description if it changes {model: opus}
 - [x] M9.3d The README diagram image (`/api/diagram/<owner>/<repo>.svg`) draws edge labels over each other: this repo's image at `ed99fd2` shows "4 ca" under "calls" beside `@gitinside/viewer` and "14 ca" under "5 calls" on the line to `@gitinside/schema`. Labels in the SVG renderer kept apart (or dropped with a count) like the canvas's pills; red test first (two labels' boxes overlapping in a fixture's SVG), screenshots dark/light {model: opus}
-- [ ] M9.3e Test fixtures drawn as the repo's own infrastructure: this repo's graph at `ed99fd2` has 8 datastores and a RabbitMQ queue, and all but `infra/docker-compose.dev.yml`'s postgres come from `fixtures/*/docker-compose.yml` and `fixtures/*/.env*` (MongoDB ×2, Redis ×2, PostgreSQL ×3, the RabbitMQ broker). Decide by rule (ADR) whether compose/.env files under a fixtures or test folder are skipped, as tests are, or kept but marked; red fixture test first, eval delta {model: opus}
+- [x] M9.3e Test fixtures drawn as the repo's own infrastructure: this repo's graph at `ed99fd2` has 8 datastores and a RabbitMQ queue, and all but `infra/docker-compose.dev.yml`'s postgres come from `fixtures/*/docker-compose.yml` and `fixtures/*/.env*` (MongoDB ×2, Redis ×2, PostgreSQL ×3, the RabbitMQ broker). Decide by rule (ADR) whether compose/.env files under a fixtures or test folder are skipped, as tests are, or kept but marked; red fixture test first, eval delta {model: opus}
 - [ ] M9.4 Docs pages (how it works, limits, privacy) + root SECURITY.md {model: opus}
 - [ ] M9.5 Blog post draft + needs-abhinav edit/publish-decision issue {model: opus}
 - [ ] M9.6 Full regression + axe accessibility audit {model: opus}
@@ -534,6 +534,8 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+
+- 2026-11-11 M9.3e (`766e48b`, ADR-0262, analyzer 0.3.1, `KEY_FORMAT` 44): compose and env files with a `test`, `tests`, `__tests__`, `e2e`, `cypress`, `__mocks__`, `fixtures`, `__fixtures__`, or `testdata` folder in their path are skipped (`inTestFolder`, `infra.ts`), not kept and marked: the README image and the PR bot apply no viewer filters. File names don't count (root `docker-compose.test.yml`/`.env.test` read); `envExamples.ts` unchanged. Red first (`infra.test.ts`, new `infra-test-folders` fixture); compose and env guards each mutation-checked alone. This repo at `dfab945`: 9 infra nodes → 1 (`infra/docker-compose.dev.yml`'s postgres); the 3 demo pins have no such files. Goldens change only in the version line; `KEY_FORMAT` bumped only for the new fixture's digest. Eval: no delta (report `2026-11-11-0.3.1.md`, identical scores). Analyzer 1492, viewer 1136, web 1085, worker 868.
 
 - 2026-11-11 M9.3d (`67e17ab`, ADR-0261): the README image's pills go through `spreadLabels` (`image/layout.ts`) after routing: in graph order a pill keeps its spot if it's ≥ 4px (`LABEL_GAP`) from every placed pill and box, else slides along its own line (nearest first, 6px steps, ≤ 81 spots, never within 12px of an end); none clear ⇒ `hideLabel` and the footer says "· N line labels left off". This repo's production graph at `ed99fd2`: 10 overlapping pairs → 0, all 23 labels drawn, none left off. Red first (3 `spreadLabels` tests, this repo's shape and the footer note in `image.test.ts`); the whole pass and the box guard mutation-checked. Bytes changed only for `vite-proxy`, `next-rewrites` (pills had sat on a box) and the synthetic wrapped graph. Shots dark/light in `docs/milestones/M9/labels/` (before = production's live image at `0c50ee3`). No analyzer change, no eval delta.
 
