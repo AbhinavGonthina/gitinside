@@ -199,6 +199,65 @@ describe("DiagramNode", () => {
     expect(el.querySelector(".gi-icon-tile")?.getAttribute("data-size")).toBe("sm");
   });
 
+  it("describes a box with the text under its name, which is out of the exposed text (WCAG 2.5.3)", () => {
+    // axe's label-content-name-mismatch (M9.6): a named box's exposed text must be in its name,
+    // so the subtitle, the counts, and a model's fields are hidden there and read as its
+    // description, one comma-joined string; change counts and the diff tag are in the name.
+    const described = (el: HTMLElement) =>
+      (el.getAttribute("aria-describedby") ?? "")
+        .split(" ")
+        .filter(Boolean)
+        .map((id) => document.getElementById(id)?.textContent);
+    const exposed = (el: HTMLElement) => {
+      const out: string[] = [];
+      const walk = (n: Node) => {
+        if (n instanceof HTMLElement && (n.hidden || n.getAttribute("aria-hidden") === "true")) {
+          return;
+        }
+        if (n.nodeType === Node.TEXT_NODE) out.push(n.textContent ?? "");
+        n.childNodes.forEach(walk);
+      };
+      walk(el);
+      return out.join("");
+    };
+
+    const { getByRole } = render(
+      <DiagramNode
+        node={sample("service")}
+        counts={[
+          { value: 3, noun: "page" },
+          { value: 2, noun: "change", diff: "added" },
+        ]}
+        diff="changed"
+      />,
+    );
+    const service = getByRole("group");
+    const name = service.getAttribute("aria-label") ?? "";
+    expect(name).toMatch(/, service\. Changed in this change\. Changes inside: 2 changes$/);
+    expect(name.startsWith(exposed(service))).toBe(true);
+    const sub = nodeSubtitle(sample("service"));
+    expect(sub.text && sub.code).toBeTruthy();
+    expect(described(service)).toEqual([`${sub.text}, ${sub.code}, 3 pages`]);
+    cleanup();
+
+    const datastore = render(<DiagramNode node={sample("datastore")} />).getByRole("group");
+    expect(exposed(datastore)).toBe("postgres");
+    expect(described(datastore)).toEqual(["PostgreSQL"]);
+    cleanup();
+
+    const model = render(<DiagramNode node={sample("model")} />).getByRole("group");
+    expect(exposed(model)).toBe("Order");
+    expect(described(model)).toEqual([
+      "6 fields, id · total · status · userId · note? · createdAt",
+    ]);
+    cleanup();
+
+    // A box with nothing under its name has no description.
+    const route = render(<DiagramNode node={sample("route")} />).getByRole("group");
+    expect(route.hasAttribute("aria-describedby")).toBe(false);
+    expect(exposed(route)).toBe("POST/api/orders");
+  });
+
   it("draws icon-first nodes on a large tile with their logo", () => {
     const { getByRole } = render(<DiagramNode node={sample("datastore")} />);
     const el = getByRole("group", { name: "postgres, datastore" });
