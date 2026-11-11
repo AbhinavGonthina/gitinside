@@ -138,7 +138,7 @@ The same graph powers GitInside's PR bot, which diffs a PR's architecture agains
 
 Each detector lists the patterns it handles and the ones it doesn't ([coverage](../COVERAGE.md)). The ones that matter most here:
 
-- **No env values, rewrites, or dev proxies.** The analyzer reads env var *names* only, since values can be secrets, so a request whose base is an env var not named like an API URL stays unresolved.
+- **No env values.** The analyzer reads env var *names* only, since values can be secrets, so a request whose base is an env var not named like an API URL stays unresolved. It does borrow the URL *path* from a committed example env file (the `/api` above), and it reads Next.js `rewrites` and `basePath` and Vite and CRA dev proxies from their configs, but only to match requests; no env value goes into the graph.
 - **No runtime-built URLs.** A base computed by a function the normalizer doesn't know (the `.replace` trim above, `qs.stringifyUrl`) is a runtime value.
 - **No route order.** When two routes overlap, Express runs the one registered first. The matcher marks the pair ambiguous instead.
 - **TypeScript and JavaScript only,** with `fetch`, axios, and a handful of clients built on them (ky, ofetch, SWR, RTK Query).
