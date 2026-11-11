@@ -112,6 +112,8 @@ On the first visit to a diagram, show 3 dismissible hints in sequence (zoom in â
 
 Done in M4b.12a (ADR-0127): one small card at the top of the canvas ("Tip 1 of 3", the title and a sentence, "Don't show again", Next). Breaking a node down, selecting one, or starting a trace moves on from the hint asking for it, as Next does; on the last, Done. Finishing them is remembered like "Don't show again"; the close button or Esc hides them for this visit only. A hint a deep link has already done, or one this repo can't do (nothing to trace), is left out. The website keeps the choice in `localStorage`.
 
+The card never covers a box the explorer framed itself (M9.2g): while it shows, a camera the explorer picks (the first view, a fit, a frame after a drill-down) fits below the card, its bottom plus 16px, when the plain fit would start under it, and takes the room back once the card closes. The room is the tallest card so far, so Next doesn't move the diagram. A camera the reader set (a pan, a zoom, a link's start zoom) is left alone, and a canvas too short to keep the insets below the card gets the plain fit.
+
 ## Keyboard and accessibility
 
 | Key | Action |

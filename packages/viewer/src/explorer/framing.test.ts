@@ -4,9 +4,9 @@ import { buildHierarchy } from "../model/hierarchy.js";
 import { buildView } from "../model/view.js";
 import { shopDemo } from "../shopDemo.testkit.js";
 import type { Rect } from "../chrome/describe.js";
-import { fitCamera, READABLE_ZOOM, type Camera } from "./camera.js";
+import { fitCamera, READABLE_ZOOM, type Camera, type Size } from "./camera.js";
 import { FIT_INSET } from "./fit.js";
-import { autoCamera, boxesRect, entriesRect, fitLevel, lastOpened } from "./framing.js";
+import { autoCamera, belowBand, boxesRect, entriesRect, fitLevel, lastOpened } from "./framing.js";
 import type { Shown } from "./transition.js";
 
 const index = buildHierarchy(shopDemo());
@@ -169,6 +169,30 @@ describe("fitLevel", () => {
     // The level's far corner sits at the inset's corner, not past it.
     expect(layout.width * c.zoom + c.x).toBe(CANVAS.width - FIT_INSET.x);
     expect(layout.height * c.zoom + c.y).toBe(CANVAS.height - FIT_INSET.y);
+  });
+
+  it("fits below a band over the canvas's top, and as before when the band is within the inset (M9.2g)", () => {
+    const layout = { width: 900, height: 1200, edges: [], boxes: column("a", 40, 40, 11) };
+    const fit = fitLevel(layout, CANVAS);
+    // The level fills the canvas's height: its top is at the inset.
+    expect(layout.height * fit.zoom).toBeGreaterThan(CANVAS.height - 2 * FIT_INSET.y - 1);
+    const pick = (room: Size) => fitLevel(layout, room);
+    expect(belowBand(CANVAS, 0, pick)).toEqual(fit);
+    expect(belowBand(CANVAS, FIT_INSET.y, pick)).toEqual(fit);
+    // A 220px band (a hint card): the level starts below it and ends at the bottom inset.
+    const c = belowBand(CANVAS, 220, pick);
+    expect(c.zoom).toBeLessThan(fit.zoom);
+    expect(Math.min(...layout.boxes.map((b) => b.y * c.zoom + c.y))).toBeGreaterThanOrEqual(220);
+    expect(layout.height * c.zoom + c.y).toBeLessThanOrEqual(CANVAS.height - FIT_INSET.y);
+    // A level the fit already starts below the band: left where it is.
+    const low = { width: 900, height: 300, edges: [], boxes: column("b", 40, 40, 2) };
+    const lowFit = fitLevel(low, CANVAS);
+    expect(lowFit.y).toBeGreaterThanOrEqual(220);
+    expect(belowBand(CANVAS, 220, (room) => fitLevel(low, room))).toEqual(lowFit);
+    // A canvas too short to keep the insets below the band: as if there were none.
+    const short = { width: 1000, height: 280 };
+    expect(belowBand(short, 220, pick)).toEqual(fitLevel(layout, short));
+    expect(belowBand({ width: 0, height: 0 }, 220, pick)).toEqual({ zoom: 1, x: 0, y: 0 });
   });
 
   it("finds the node opened last that the drawn view still has open", () => {
