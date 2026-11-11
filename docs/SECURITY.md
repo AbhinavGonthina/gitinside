@@ -85,4 +85,4 @@ What these bound, worked out from the rows above:
 
 ## 5. Reporting
 
-`SECURITY.md` at the repo root (added in M9) gives a contact for vulnerability reports. Until then, issues go to Abhinav directly.
+The root [SECURITY.md](../SECURITY.md) (M9.4b) is the reporting policy: what's in and out of scope, reports through GitHub's private vulnerability reporting (never a public issue), and what happens after one. The website's Privacy page links it. `apps/web/lib/securityPolicy.test.ts` checks that it sends reports to the private form, names no email address, and is linked from here.

@@ -131,7 +131,8 @@ export default function Privacy() {
         </p>
         <p>
           The <a href={repoFile("docs/SECURITY.md")}>threat model</a> covers each of these in
-          detail, with the tests that check them.
+          detail, with the tests that check them. To report a vulnerability, see the{" "}
+          <a href={repoFile("SECURITY.md")}>security policy</a>.
         </p>
       </DocsSection>
     </DocsPage>
