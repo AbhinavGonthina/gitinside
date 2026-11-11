@@ -29,10 +29,26 @@ export function repoHref(owner: string, repo: string): string {
  */
 export const COMMIT_PARAM = "commit";
 
-/** The progress page's path for a job; with `commit`, it opens that commit's permalink when done. */
-export function progressHref(owner: string, repo: string, jobId: string, commit?: string): string {
+/**
+ * The progress page's path for a job; with `commit`, it opens that commit's permalink when done,
+ * with `deepLink` (a query from `deepLinkQuery`, F3) kept on it.
+ */
+export function progressHref(
+  owner: string,
+  repo: string,
+  jobId: string,
+  commit?: string,
+  deepLink = "",
+): string {
   const path = `${repoHref(owner, repo)}/jobs/${jobId}`;
-  return commit === undefined ? path : `${path}?${COMMIT_PARAM}=${commit}`;
+  if (commit === undefined) return path;
+  return `${path}?${COMMIT_PARAM}=${commit}${deepLink === "" ? "" : `&${deepLink}`}`;
+}
+
+/** A commit's permalink, with `deepLink` (a query without `?`) when there is one. */
+export function permalinkHref(owner: string, repo: string, commit: string, deepLink = ""): string {
+  const path = `${repoHref(owner, repo)}/${commit}`;
+  return deepLink === "" ? path : `${path}?${deepLink}`;
 }
 
 const text = (value: unknown): value is string => typeof value === "string" && value !== "";

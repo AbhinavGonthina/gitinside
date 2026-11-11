@@ -287,6 +287,13 @@ describe("commit permalink page", () => {
     await expect(CommitPage({ params: commitParams("acme", "shop", SHA) })).rejects.toThrow(
       `NEXT_REDIRECT /Acme/Shop/jobs/${jobId}?commit=${SHA}`,
     );
+    // With the link's deep link (F3): the README GIF's link survives a version bump.
+    const searchParams = Promise.resolve({ open: "web/", trace: "route:api/GET /x", fbclid: "1" });
+    await expect(
+      CommitPage({ params: commitParams("acme", "shop", SHA), searchParams }),
+    ).rejects.toThrow(
+      `NEXT_REDIRECT /Acme/Shop/jobs/${jobId}?commit=${SHA}&open=web/&trace=route:api/GET%20/x`,
+    );
   });
 
   it("says a demo pin that can't be analyzed right now is unavailable", async () => {

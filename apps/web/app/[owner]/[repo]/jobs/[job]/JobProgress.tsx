@@ -1,12 +1,12 @@
 "use client";
 
-import { Button } from "@gitinside/viewer";
+import { Button, LinkButton } from "@gitinside/viewer";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import type { FoundLine } from "@gitinside/worker/progress";
 import { PROGRESS_STEPS, UNAVAILABLE_VIEW, type JobView } from "../../../../../lib/jobs";
-import { repoHref } from "../../../../../lib/startAnalysis";
+import { permalinkHref, repoHref } from "../../../../../lib/startAnalysis";
 import { useStartAnalysis } from "../../../../useStartAnalysis";
 import { COPIED_MS } from "../../AddToReadme";
 
@@ -22,6 +22,8 @@ export interface JobProgressProps {
    * SHA checked by the page; without it, the repo page.
    */
   commit?: string | undefined;
+  /** With `commit`: the link's deep-link query (`deepLinkQuery`, F3), kept on the permalink. */
+  deepLink?: string | undefined;
 }
 
 /** A view still moving: the steps list is drawn for it. */
@@ -159,7 +161,7 @@ const CHECK = (
  * has found shows under the stages ({@link FoundSoFar}), and the job link can be copied to
  * come back to ({@link JobLink}).
  */
-export function JobProgress({ owner, repo, jobId, commit }: JobProgressProps) {
+export function JobProgress({ owner, repo, jobId, commit, deepLink }: JobProgressProps) {
   const router = useRouter();
   const [live, setLive] = useState<LiveView | undefined>(undefined);
   const [ended, setEnded] = useState<Extract<JobView, { state: "failed" | "missing" }>>();
@@ -167,7 +169,8 @@ export function JobProgress({ owner, repo, jobId, commit }: JobProgressProps) {
   // Bumped by "Try again" when the new job has the same ID, so the stream restarts.
   const [attempt, setAttempt] = useState(0);
   const heading = useRef<HTMLHeadingElement>(null);
-  const home = commit === undefined ? repoHref(owner, repo) : `${repoHref(owner, repo)}/${commit}`;
+  const home =
+    commit === undefined ? repoHref(owner, repo) : permalinkHref(owner, repo, commit, deepLink);
   // "Try again", with the bot check when the server asks for it (ADR-0157).
   const retry = useStartAnalysis({
     onStarted: (href) => {
@@ -238,7 +241,14 @@ export function JobProgress({ owner, repo, jobId, commit }: JobProgressProps) {
           </p>
         )}
         <div className="progress__actions">
-          {canRetry && (
+          {/* A pin's job (F1): its permalink queues the pin again, where `/api/analyze` would
+              queue the default branch. A full load, since it redirects back to this page. */}
+          {canRetry && commit !== undefined && (
+            <LinkButton variant="primary" href={home}>
+              {ended.state === "missing" ? "Analyze again" : "Try again"}
+            </LinkButton>
+          )}
+          {canRetry && commit === undefined && (
             <Button
               variant="primary"
               onClick={() => retry.start(`${owner}/${repo}`)}
@@ -249,8 +259,11 @@ export function JobProgress({ owner, repo, jobId, commit }: JobProgressProps) {
           )}
           <p className="notice__links">
             {/* A link reopened after its job is gone (#8): the repo page shows its latest
-                diagram, or offers to analyze it. A failed job made no diagram to open. */}
-            {ended.state === "missing" && <Link href={home}>Open the diagram</Link>}
+                diagram, or offers to analyze it. A failed job made no diagram to open. A pin's
+                "Analyze again" already opens its permalink. */}
+            {ended.state === "missing" && commit === undefined && (
+              <Link href={home}>Open the diagram</Link>
+            )}
             <Link href="/">Analyze another repo</Link>
             <a href={github} rel="noopener noreferrer">
               Open on GitHub
