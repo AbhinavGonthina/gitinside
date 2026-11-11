@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { COMMIT_SHA, type SearchParams } from "../../../../../lib/compare";
-import { deepLinkQuery } from "../../../../../lib/deepLink";
+import { deepLinkQuery } from "../../../../../lib/deepLinkQuery";
 import { ANALYZE_JOB_ID } from "../../../../../lib/jobRoute";
 import { parseRepoPath } from "../../../../../lib/repoUrl";
 import { COMMIT_PARAM } from "../../../../../lib/startAnalysis";
