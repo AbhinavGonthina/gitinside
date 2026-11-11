@@ -14,12 +14,11 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M9.3c2 Re-record the README's trace GIFs on production with M9.3c1's camera
+M9.3d Keep the README diagram image's edge labels apart
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
 - [#1](https://github.com/AbhinavGonthina/gitinside-planning/issues/1) Review a seeded 20% of eval labels (30 call sites, seed 2026-10-28). Blocks nothing; on close: apply corrections with notes, set `reviewedBy`, add a summary of review disagreements to the report (EVALUATION.md §1 step 4; the renderer has no section for it yet, ADR-0045), regenerate the report without "Pending owner review".
-- [#27](https://github.com/AbhinavGonthina/gitinside-planning/issues/27) Read the README's "Why I built this" (M9.3b). Blocks nothing; on close: apply any wording he gives to both README.md and gitinside-planning/MOTIVATION.md.
 - Reminder (#3, closed 2026-11-04 with "all 119 checks match infra/gcp"): the Google Cloud trial ends 2027-01-30. Remind Abhinav before trial day 90 of anything needed before he activates the full account; he won't activate it until we confirm.
 
 ## Blockers
@@ -524,7 +523,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [x] M9.3b README "Why I built this" section from gitinside-planning/MOTIVATION.md (his voice, nothing added) + needs-abhinav review issue {model: opus}
 - M9.3c Trace camera, seen recording M9.3's GIF (taxonomy's permalink, `GET /api/users/stripe`, 1280×800): Play starts on step 1 without framing it (the trace's start frames the whole path at 32%, and drilling down mid-trace leaves the camera on the frame's top-left, so step 1 is never shown up close; steps 2–5 fly), and a framed step's box can sit under the minimap (step 2's `lib` at 42%). Split (the GIF is recorded on production, which has the fix only once it deploys):
 - [x] M9.3c1 Frame the current step when Play starts or a drill-down lands, and keep framed steps clear of the minimap; red tests first, real-browser check, screenshots dark/light {model: opus}
-- [ ] M9.3c2 Once M9.3c1 is live on production: re-record `docs/media/trace*.gif` with `apps/web/dist/m93-gif.mjs` (recreate it from M9.3's note if gone), adding a drill-down into `app` before Play so step 1 reads up close; check each frame's step against the list, update README's GIF description if it changes {model: opus}
+- [x] M9.3c2 Once M9.3c1 is live on production: re-record `docs/media/trace*.gif` with `apps/web/dist/m93-gif.mjs` (recreate it from M9.3's note if gone), adding a drill-down into `app` before Play so step 1 reads up close; check each frame's step against the list, update README's GIF description if it changes {model: opus}
 - [ ] M9.3d The README diagram image (`/api/diagram/<owner>/<repo>.svg`) draws edge labels over each other: this repo's image at `ed99fd2` shows "4 ca" under "calls" beside `@gitinside/viewer` and "14 ca" under "5 calls" on the line to `@gitinside/schema`. Labels in the SVG renderer kept apart (or dropped with a count) like the canvas's pills; red test first (two labels' boxes overlapping in a fixture's SVG), screenshots dark/light {model: opus}
 - [ ] M9.3e Test fixtures drawn as the repo's own infrastructure: this repo's graph at `ed99fd2` has 8 datastores and a RabbitMQ queue, and all but `infra/docker-compose.dev.yml`'s postgres come from `fixtures/*/docker-compose.yml` and `fixtures/*/.env*` (MongoDB ×2, Redis ×2, PostgreSQL ×3, the RabbitMQ broker). Decide by rule (ADR) whether compose/.env files under a fixtures or test folder are skipped, as tests are, or kept but marked; red fixture test first, eval delta {model: opus}
 - [ ] M9.4 Docs pages (how it works, limits, privacy) + root SECURITY.md {model: opus}
@@ -535,6 +534,8 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+
+- 2026-11-11 M9.3c2 (`9a09c06`): `docs/media/trace.gif` and `trace-light.gif` re-recorded on production's taxonomy permalink once PR #77 deployed (Vercel `success` on `665128d`), by `apps/web/dist/m93-gif.mjs` with `app` broken down after Enter and before Play. Its per-frame log (`m93c2-summary.mjs`) shows each settled frame's step matching the list in both themes, the current hop's boxes on the canvas and ≥ 68px from the minimap: step 1 at 74% (was 32%), 2 at 51% (`lib` 283px off the minimap, was 5px), 3–4 at 80%, 5 at 35% (a wide hop, framed whole). 960×600, 25.7 s, ~2.3 MB each; README alt text updated. Planning #27 closed "ok" (keep it as is): removed from Needs Abhinav. Docs only, no eval delta.
 
 - 2026-11-11 M9.3c1 (`9486a83`, PR #77): the trace's step frame (`frameHop`) reruns when Play starts (`playAsked`) and on each new layout while tracing, and focus put back on the node just broken down no longer pans to its corner over it. `frameHop` takes the minimap's measured rect: a centered frame within 16px (`HOP_CLEARANCE`) is fitted above it or left of it, whichever keeps more zoom. Red first (3 camera, 4 explorer tests), each guard mutation-checked alone. Scratch Storybook run on taxonomy's production graph (`apps/web/dist/m93c-check.mjs`): step 2's `lib` 5 → 64px from the minimap, step 1 after a drill-down into `app` 74% (was 32% or off the canvas), Play after a pan reframes. Shots in `docs/milestones/M9/trace-camera/`. Task split: the GIF re-record (M9.3c2) needs this on production. Viewer 1131, web 1085. No eval delta.
 

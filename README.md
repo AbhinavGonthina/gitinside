@@ -9,7 +9,7 @@ See how any codebase really works. Break it down from services to functions, tra
 <a href="https://gitinside.abhinavgonthina.dev/shadcn-ui/taxonomy/298a8857c7128a0d121e7f699dfd729f23b3966d?open=service:taxonomy/&trace=route:taxonomy/GET%20/api/users/stripe">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/media/trace.gif">
-    <img alt="Trace mode on shadcn-ui/taxonomy: the Next.js service is broken down, T opens the picker, typing &quot;stripe&quot; finds GET /api/users/stripe, and Play walks its five steps (the route's handler, getUserSubscriptionPlan, its Prisma read of User, MySQL, and the Stripe API) with each step's code beside the diagram" src="docs/media/trace-light.gif" width="960">
+    <img alt="Trace mode on shadcn-ui/taxonomy: the Next.js service is broken down, T opens the picker, typing &quot;stripe&quot; finds GET /api/users/stripe, the app folder is broken down so the first step reads up close, and Play walks its five steps (the route's handler, getUserSubscriptionPlan, its Prisma read of User, MySQL, and the Stripe API) with each step's code beside the diagram" src="docs/media/trace-light.gif" width="960">
   </picture>
 </a>
 
