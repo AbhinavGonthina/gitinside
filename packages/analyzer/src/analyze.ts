@@ -151,6 +151,23 @@ export function detectorFailure(
 }
 
 /**
+ * The matcher SDK requests on clients built with a base URL get when the HTTP stage failed
+ * (M9.7d): with no routes read, none is matched to a route or host, each is unresolved, and
+ * an unreadable base keeps its own reason.
+ */
+const UNMATCHED: RouteMatcher = {
+  label: () => undefined,
+  match: ({ url }) =>
+    url.resolved
+      ? {
+          kind: "unresolved",
+          reason: "NO_MATCHING_ROUTE",
+          detail: "the http stage failed, so this request wasn't matched to a route or host",
+        }
+      : { kind: "unresolved", reason: url.reason, detail: url.detail },
+};
+
+/**
  * Analyze the repository at `dir` and return its architecture graph.
  * The analyzer only reads files; it never executes or installs anything from the repo.
  * Throws if `dir` is not a directory, and `AnalysisError` when a limit is exceeded.
@@ -502,10 +519,15 @@ async function analyzeRoot(
       const composed = composeSdkEdges(stageFacts(bundles, "sdk"), inlineHandlers);
       if (composed.requests.length === 0) return composed;
       // Calls on clients built with a base URL go where `fetch` calls to that base would.
+      // With no HTTP stage they're drawn unresolved, and the rest of the stage stands (M9.7d).
       if (!routeMatcher) {
-        throw new Error("the HTTP stage failed, so SDK clients' base URLs can't be matched");
+        const count = composed.requests.length;
+        failures.push({
+          code: "SDK_REQUESTS_UNMATCHED",
+          message: `the http stage failed, so ${count} ${count === 1 ? "request" : "requests"} on an SDK client built with a base URL ${count === 1 ? "is" : "are"} drawn unresolved`,
+        });
       }
-      const based = buildHttpEdges(composed.requests, routeMatcher, workspace);
+      const based = buildHttpEdges(composed.requests, routeMatcher ?? UNMATCHED, workspace);
       return {
         ...composed,
         nodes: [...composed.nodes, ...based.nodes],
