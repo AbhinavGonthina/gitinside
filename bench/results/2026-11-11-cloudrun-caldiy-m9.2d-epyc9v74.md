@@ -42,3 +42,8 @@
 Graph (run 1): 5,075 files, 19,422 nodes, 31,779 edges, 710 unresolved, 157 warnings, 25 MiB serialized.
 
 Raw numbers are in the JSON file next to this report.
+
+## Observations (hand-written, not generated)
+
+- **The launch analyzer (0.3.0, M9.2d)** at `0e1bf7d`, from the "Benchmark (1 vCPU)" workflow's run `42932692858` (UTC date 2026-11-11). Its twin run on another CPU model is `2026-11-11-cloudrun-caldiy-m9.2d-epyc9v45.md`.
+- **49.4 s median analysis (49.1–49.9 s), within the 60 s budget.** M5.13a5 measured 42.6 s on this CPU model at 0.2.0 (`6d90553`, 32 MiB semi-space, now the default), so this is +16%. Two runners of one model have differed by up to 13% (M5.13a4a), so only part of this is clearly the code. Most of it is in `imports` (2.4–2.7 → 5.7–7.4 s) and `http` (6.3–8.9 → 9.1–9.3 s); `programs` held at 10.8–11.4 s. `2026-11-10-analysis-calcom.md` has the comparison.
