@@ -174,6 +174,18 @@ describe("the Privacy page", () => {
     expect(text()).toContain(`at least every ${String(ACCESS_TTL_SECONDS)} seconds`);
   });
 
+  it("says where the download goes as How it works does, and names the fact cache (M9.7c)", () => {
+    render(<HowItWorks />);
+    expect(text()).toContain("outside the job's folder fails the job");
+    cleanup();
+    render(<Privacy />);
+    const privacy = text();
+    expect(privacy).toContain("unpacked into the job's own temporary folder and deleted");
+    expect(privacy).not.toContain("in memory and deleted");
+    expect(privacy).toContain("in a cache in the worker's memory");
+    expect(privacy).toContain("gets its own cache folder, which no other repo's analysis can read");
+  });
+
   it("links the security policy, where vulnerabilities are reported (M9.4b)", () => {
     render(<Privacy />);
     const link = screen.getByRole("link", { name: "security policy" });
