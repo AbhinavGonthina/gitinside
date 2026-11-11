@@ -118,6 +118,107 @@ describe("openTarball", () => {
   });
 });
 
+describe("the worker's own token (planning #26)", () => {
+  /** GitHub refusing a token for the org's policy: a 403 with rate limit left. */
+  const refused = (): Response =>
+    new Response('{"message":"Forbidden"}', {
+      status: 403,
+      headers: { "x-ratelimit-remaining": "4999" },
+    });
+  const facts = (): Response =>
+    new Response(
+      JSON.stringify({
+        id: 1,
+        name: "shop",
+        owner: { login: "acme" },
+        private: false,
+        default_branch: "main",
+      }),
+    );
+  const auth = (calls: { headers: Record<string, string> }[]) =>
+    calls.map((c) => c.headers.authorization);
+
+  it("sends it to the API, as a token", async () => {
+    const { calls, fetch } = scripted(ok());
+    await openTarball(SOURCE, { fetch, publicToken: "p" });
+    expect(auth(calls)).toEqual(["Bearer p"]);
+  });
+
+  it("asks for the tarball again without it when GitHub refuses it", async () => {
+    const { calls, fetch } = scripted(refused(), redirect(302, `${CODELOAD}/x`), ok());
+    const body = await openTarball(SOURCE, { fetch, publicToken: "p" });
+    expect(await new Response(body).text()).toBe("tarball");
+    expect(calls.map((c) => [c.url, c.headers.authorization])).toEqual([
+      [`${API}/repos/acme/shop/tarball/${SOURCE.sha}`, "Bearer p"],
+      [`${API}/repos/acme/shop/tarball/${SOURCE.sha}`, undefined],
+      [`${CODELOAD}/x`, undefined],
+    ]);
+  });
+
+  it("asks for the repo description again without it when GitHub refuses it", async () => {
+    const { calls, fetch } = scripted(refused(), facts());
+    expect((await fetchRepoFacts(SOURCE, { fetch, publicToken: "p" })).id).toBe(1);
+    expect(auth(calls)).toEqual(["Bearer p", undefined]);
+  });
+
+  it("keeps it dropped past a renamed repo's redirect", async () => {
+    const { calls, fetch } = scripted(refused(), redirect(301, `${API}/repositories/1`), facts());
+    await fetchRepoFacts(SOURCE, { fetch, publicToken: "p" });
+    expect(auth(calls)).toEqual(["Bearer p", undefined, undefined]);
+    const tarball = scripted(refused(), redirect(301, `${API}/repositories/1/tarball/x`), ok());
+    await openTarball(SOURCE, { fetch: tarball.fetch, publicToken: "p" });
+    expect(auth(tarball.calls)).toEqual(["Bearer p", undefined, undefined]);
+  });
+
+  it("asks the download host once: it never had the token", async () => {
+    const { calls, fetch } = scripted(redirect(302, `${CODELOAD}/x`), refused());
+    expect(await codeOf({ fetch, publicToken: "p" })).toBe("DOWNLOAD_REFUSED");
+    expect(calls.map((c) => c.url)).toEqual([
+      `${API}/repos/acme/shop/tarball/${SOURCE.sha}`,
+      `${CODELOAD}/x`,
+    ]);
+  });
+
+  it("drops it at most once: a second refusal fails", async () => {
+    const tarball = scripted(refused(), refused());
+    expect(await codeOf({ fetch: tarball.fetch, publicToken: "p" })).toBe("DOWNLOAD_REFUSED");
+    expect(auth(tarball.calls)).toEqual(["Bearer p", undefined]);
+    const repo = scripted(refused(), refused());
+    await expect(fetchRepoFacts(SOURCE, { fetch: repo.fetch, publicToken: "p" })).rejects.toThrow(
+      "DOWNLOAD_REFUSED",
+    );
+    expect(repo.calls).toHaveLength(2);
+  });
+
+  it.each([
+    ["a rate limit", 403, { "x-ratelimit-remaining": "0" }, "GITHUB_RATE_LIMITED"],
+    ["a secondary rate limit", 403, { "retry-after": "60" }, "GITHUB_RATE_LIMITED"],
+    ["a 404", 404, {}, "REPO_NOT_FOUND"],
+    ["a 401", 401, {}, "DOWNLOAD_REFUSED"],
+  ])("keeps it on %s", async (_, status, headers, code) => {
+    const tarball = scripted(new Response("{}", { status, headers }));
+    expect(await codeOf({ fetch: tarball.fetch, publicToken: "p" })).toBe(code);
+    expect(tarball.calls).toHaveLength(1);
+    const repo = scripted(new Response("{}", { status, headers }));
+    await expect(fetchRepoFacts(SOURCE, { fetch: repo.fetch, publicToken: "p" })).rejects.toThrow();
+    expect(repo.calls).toHaveLength(1);
+  });
+
+  it("never drops an installation's token, which wins over it", async () => {
+    const tarball = scripted(refused());
+    const options = { fetch: tarball.fetch, token: "ghs_i", publicToken: "p" };
+    expect(await codeOf(options)).toBe("DOWNLOAD_REFUSED");
+    expect(auth(tarball.calls)).toEqual(["Bearer ghs_i"]);
+    const repo = scripted(refused());
+    await expect(fetchRepoFacts(SOURCE, { ...options, fetch: repo.fetch })).rejects.toThrow();
+    expect(auth(repo.calls)).toEqual(["Bearer ghs_i"]);
+    const compare = scripted(refused());
+    const pair = { owner: "acme", repo: "shop", base: "a".repeat(40), head: "b".repeat(40) };
+    await expect(fetchMergeBase(pair, { ...options, fetch: compare.fetch })).rejects.toThrow();
+    expect(auth(compare.calls)).toEqual(["Bearer ghs_i"]);
+  });
+});
+
 describe("failureForStatus", () => {
   it.each([
     [404, {}, "REPO_NOT_FOUND"],
