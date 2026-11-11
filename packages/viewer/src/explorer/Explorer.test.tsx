@@ -1459,6 +1459,7 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
       "Filters",
       "NoApp",
       "Onboarding",
+      "OnboardingDrilledDeep",
       "OnboardingOverBoxes",
       "Outline",
       "Overview",
@@ -1490,6 +1491,13 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
     await settle();
     expect(drilled.querySelector('.gi-hint[data-state="open"]')).not.toBeNull();
     expect(drilled.querySelector(".gi-drill__node[data-open]")).not.toBeNull();
+    cleanup();
+    // The hint on a deep link the explorer frames itself (M9.2g): the visual
+    // suite checks its card covers no box.
+    const { container: deep } = render(<all.OnboardingDrilledDeep />);
+    await settle();
+    expect(deep.querySelector('.gi-hint[data-state="open"]')).not.toBeNull();
+    expect(deep.querySelector(".gi-explorer")?.hasAttribute("data-hand-camera")).toBe(false);
     cleanup();
     render(<all.TracingUnresolved />);
     await settle();

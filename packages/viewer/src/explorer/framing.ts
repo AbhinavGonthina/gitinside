@@ -91,6 +91,31 @@ export function fitLevel(layout: Size & { boxes: readonly Rect[] }, canvas: Size
 }
 
 /**
+ * `pick`'s camera for the canvas below a band over its top, `top` canvas px
+ * tall (M9.2g: the first-visit hint's card, which covered pawtograder's top
+ * box): `pick` fits the canvas less the band's height past
+ * {@link FIT_INSET}'s top, and the camera moves down by as much, so nothing
+ * it fits starts under the band. `pick`'s camera for the whole canvas when
+ * that already starts the diagram (its origin) below the band, when the band
+ * is within the inset, or when what's left below it couldn't keep the insets
+ * (a very short canvas, where the card then covers part of the diagram).
+ */
+export function belowBand(canvas: Size, top: number, pick: (canvas: Size) => Camera): Camera {
+  const extra = Math.ceil(top - FIT_INSET.y);
+  const whole = pick(canvas);
+  if (
+    extra <= 0 ||
+    whole.y >= top ||
+    canvas.width <= 0 ||
+    canvas.height - extra <= 2 * FIT_INSET.y
+  ) {
+    return whole;
+  }
+  const camera = pick({ width: canvas.width, height: canvas.height - extra });
+  return { ...camera, y: camera.y + extra };
+}
+
+/**
  * What must read in a broken-down node: from its frame's top-left corner
  * (its name) to the far corner of its entries (the routes and pages leading
  * a service's first level, UX.md), or its whole frame when it has none.

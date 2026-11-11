@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M9.2g First view's fit leaves the first-visit hint's card clear
+M9.3 README (slogan, GIF with trace first, quickstart, architecture, results)
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -518,7 +518,7 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - M9.2f A public job isn't failed by the worker's optional token (planning #26: `pawtograder/platform` failed `DOWNLOAD_REFUSED`, GitHub answering 403 to `GITHUB_TOKEN`, likely an org token policy, while the repo downloads without it), split (the fix, then the production check once it deploys):
 - [x] M9.2f1 A 403 that isn't a rate limit to the worker's own token (the repo description and the tarball) retried once without it, an installation's token never; `DOWNLOAD_REFUSED` gets its own message on the website instead of "failed on our side. Try again", and a public request may still try again; red tests first (the fake GitHub answering 403 to the token and 200 without it), ADR {model: opus}
 - [x] M9.2f2 After M9.2f1 deploys (`Creating Revision…done` in `main`'s deploy log): `pawtograder/platform` re-run on production through `/api/analyze`, its job followed to `done` and its repo page checked to render (or, if it fails again, the job's code and the next step in a `needs-abhinav` issue); outcome in planning #26 {model: opus}
-- [ ] M9.2g The first view's fit leaves the first-visit hint's card clear: on `pawtograder/platform`'s permalink at 1440×900 (M9.2f2, `docs/milestones/M9/pawtograder/`), "Tip 1 of 3" covers the top external box and its label in both themes, because `framing.ts`/`fit.ts` inset only by `FIT_INSET`, not the hint's height. Fit (and first-view framing) below the card while it shows, or place the card where no box is; red test first, real-browser check that no box's rect meets the card's, screenshots dark/light, baselines {model: opus}
+- [x] M9.2g The first view's fit leaves the first-visit hint's card clear: on `pawtograder/platform`'s permalink at 1440×900 (M9.2f2, `docs/milestones/M9/pawtograder/`), "Tip 1 of 3" covers the top external box and its label in both themes, because `framing.ts`/`fit.ts` inset only by `FIT_INSET`, not the hint's height. Fit (and first-view framing) below the card while it shows, or place the card where no box is; red test first, real-browser check that no box's rect meets the card's, screenshots dark/light, baselines {model: opus}
 - [ ] M9.3 README (slogan, GIF with trace first, quickstart, architecture, results) {model: opus}
 - [ ] M9.3b README "Why I built this" section from gitinside-planning/MOTIVATION.md (his voice, nothing added) + needs-abhinav review issue {model: opus}
 - [ ] M9.4 Docs pages (how it works, limits, privacy) + root SECURITY.md {model: opus}
@@ -529,6 +529,8 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+
+- 2026-11-10 M9.2g (`e18a2b8`, PR #74): while the first-visit hint shows, a camera the explorer picks (fit, 0/overview, a frame after a drill-down) fits below the card: `belowBand` (framing.ts) fits the canvas less the card's bottom + 16px past `FIT_INSET`'s top and moves down by as much. The pin is measured before paint (offsetTop + offsetHeight, a `ResizeObserver`), the tallest card so far; a plain fit already below the card, a hand-set camera (`data-hand-camera`), or a too-short canvas is left alone; the room goes back on close. Red first (framing, onboarding on a 640×400 canvas); both guards mutation-checked. The visual suite checks no framed box (an open frame by its name row's words) meets the card; the new "Onboarding, drilled deep" story reproduces it (scratch browser run: `lib, module` flagged without the fix, nothing with it). The other stories' cameras are unchanged. Shots in `docs/milestones/M9/hint/`. Viewer 1124, web 1085. No eval delta.
 
 - 2026-11-10 M9.2f2 (planning #26): M9.2f1 shipped in `main`'s run 42952502573 (`Creating Revision…done` ×2, 03:35 UTC). `pawtograder/platform` re-requested through `/api/analyze` from a script (no Turnstile needed): `202`, job `analyze-20d4fe44…` queued → `done` in 62 s at `89748a9`, the same default branch that failed `DOWNLOAD_REFUSED`. The permalink serves the `0.3.0` graph (`?v=0.3.0`), draws 12 boxes with no page errors in dark and light (`docs/milestones/M9/pawtograder/`), and the repo page reads `head: current`. Supports the org-token-policy cause; still not confirmed (no 403 body read). The shots showed "Tip 1 of 3" covering a box: new task M9.2g.
 

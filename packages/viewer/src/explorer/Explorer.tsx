@@ -1,6 +1,14 @@
 import { compareStrings } from "@gitinside/schema";
 import type { ArchitectureGraph, EdgeKind, GraphDiff, GraphNode } from "@gitinside/schema";
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { Button, SegmentedControl, StatusChip } from "../chrome/controls.js";
 import { shortSha, type RepoRef } from "../chrome/describe.js";
 import { EmptyState, WarningList } from "../chrome/EmptyState.js";
@@ -63,7 +71,7 @@ import { ChangesSection, movesNote } from "./changes.js";
 import { encodeState, withState, type ExplorerState } from "./deepLink.js";
 import { DrillCanvas, toggledBetween, type BoxLook, type LineLook } from "./DrillCanvas.js";
 import { useDrill, type Expansion } from "./drill.js";
-import { autoCamera, boxesRect, fitLevel, lastOpened } from "./framing.js";
+import { autoCamera, belowBand, boxesRect, fitLevel, lastOpened } from "./framing.js";
 import { useCanvasGestures, type CameraMotion } from "./gestures.js";
 import { useGlideSpan } from "./glide.js";
 import { hintSteps, OnboardingHint, type HintStep, type OnboardingStore } from "./onboarding.js";
@@ -76,6 +84,9 @@ import type { Shown } from "./transition.js";
 
 /** How long the player stays on a step: the pulse travels its hop three times. */
 export const PLAY_STEP_MS = durations["trace-hop"] * 3;
+
+/** Room between the first-visit hint's card and the diagram fitted below it: the overlays' 16px spacing. */
+const HINT_GAP = 16;
 
 /** Props for {@link Explorer}. */
 export interface ExplorerProps {
@@ -436,9 +447,15 @@ export function Explorer({
   // frame (`fitLevel`, quadratic in boxes), and the explorer re-renders on
   // every hover.
   const focus = lastOpened(drill.expansion, shown);
+  // While the first-visit hint shows, that camera fits below its card
+  // (`belowBand`, M9.2g): the card's bottom plus a gap, in canvas px.
+  const [hintBand, setHintBand] = useState(0);
   const auto = useMemo(
-    () => (overview && shown ? fitLevel(shown.layout, canvas) : autoCamera(shown, canvas, focus)),
-    [overview, shown, canvas, focus],
+    () =>
+      belowBand(canvas, hintBand, (room) =>
+        overview && shown ? fitLevel(shown.layout, room) : autoCamera(shown, room, focus),
+      ),
+    [overview, shown, canvas, focus, hintBand],
   );
   const camera = handSet ?? auto;
   const [cameraMotion, setCameraMotion] = useState<CameraMotion>("layout");
@@ -654,6 +671,24 @@ export function Explorer({
     setHints({ steps, at: 0 });
     setHintsOn(true);
   }, [onboarding]);
+
+  // The card's room (`hintBand`): measured before paint, so the first fit is
+  // already below it; the tallest of its tips so far, so Next doesn't move
+  // the diagram back and forth; none from the moment it starts closing.
+  const [hintPin, setHintPin] = useState<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    if (!hintsOn || !hintPin) {
+      setHintBand(0);
+      return;
+    }
+    const measure = () =>
+      setHintBand((band) => Math.max(band, hintPin.offsetTop + hintPin.offsetHeight + HINT_GAP));
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(hintPin);
+    return () => observer.disconnect();
+  }, [hintsOn, hintPin]);
 
   /** Next (or Done): the next hint, or, after the last, none, remembered. */
   function nextHint() {
@@ -1224,6 +1259,7 @@ export function Explorer({
       data-bare={topBar ? undefined : ""}
       data-layout-runs-in={runsIn}
       data-settled={settled ? "" : undefined}
+      data-hand-camera={handSet ? "" : undefined}
       onKeyDown={onKeyDown}
     >
       {topBar && (
@@ -1252,6 +1288,7 @@ export function Explorer({
           {/* First in the canvas, so Tab meets the hint before the boxes it's about. */}
           {hintState && hint !== undefined && hints && (
             <div
+              ref={setHintPin}
               className="gi-explorer__pin"
               data-place="top-center"
               onClick={(e) => e.stopPropagation()}
