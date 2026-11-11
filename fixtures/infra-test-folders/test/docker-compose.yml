@@ -1,0 +1,5 @@
+services:
+  testdb:
+    image: postgres:16-alpine
+  testcache:
+    image: redis:7

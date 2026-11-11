@@ -438,6 +438,45 @@ describe("buildInfra via analyze", () => {
     ]);
   });
 
+  it("reads no compose or env file in a test or fixture folder (M9.3e)", async () => {
+    await prismaApp();
+    await put("docker-compose.yml", ["services:", "  db:", "    image: postgres"]);
+    await put("docker-compose.test.yml", ["services:", "  cache:", "    image: redis"]);
+    for (const folder of [
+      "test",
+      "tests",
+      "__tests__",
+      "e2e",
+      "cypress",
+      "__mocks__",
+      "fixtures/shop",
+      "__fixtures__",
+      "src/testdata",
+    ]) {
+      await put(`${folder}/docker-compose.yml`, [
+        "services:",
+        "  mongo:",
+        "    image: mongo",
+        "  pg:",
+        "    image: postgres",
+      ]);
+      await put(`${folder}/.env`, ["QUEUE_URL=amqp://localhost"]);
+    }
+    // Folders merely named like one are read.
+    await put("contest/.env", ["CACHE_URL=redis://cache.internal:6379"]);
+    // File names are no sign: a root .env.test is read like docker-compose.test.yml.
+    await put(".env.test", ["SEARCH_URL=mongodb://search.internal"]);
+    const graph = await analyze(dir);
+    expect(infraNodes(graph)).toEqual([
+      "datastore:infra/cache redis cache (docker-compose.test.yml:2)",
+      "datastore:infra/db postgres db (docker-compose.yml:2)",
+      "datastore:infra/env#CACHE_URL redis redis (contest/.env:1)",
+      "datastore:infra/env#SEARCH_URL mongo mongo (.env.test:1)",
+    ]);
+    expect(stores(graph)).toEqual(["model:api/User -> datastore:infra/db (heuristic)"]);
+    expect(infraWarnings(graph)).toEqual([]);
+  });
+
   it("never links a literal Prisma URL to a compose service by engine alone (M2 review)", async () => {
     await prismaApp(['  url = "postgresql://u:p@prod.neon.tech/app"']);
     await put("docker-compose.yml", ["services:", "  testdb:", "    image: postgres"]);

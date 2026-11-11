@@ -10,7 +10,7 @@
  * it whenever the output changes, or production keeps serving the old code's graphs as current
  * (M9.1b2a, ADR-0256). `version.test.ts` enforces it for the fixtures ({@link OUTPUT_DIGESTS}).
  */
-export const ANALYZER_VERSION = "0.3.0";
+export const ANALYZER_VERSION = "0.3.1";
 
 /**
  * The SHA-256 of every fixture's golden graph (`fixtures/<name>/expected.json`, each without
@@ -24,4 +24,5 @@ export const ANALYZER_VERSION = "0.3.0";
  */
 export const OUTPUT_DIGESTS: Readonly<Record<string, string>> = {
   "0.3.0": "da45a313463e569285e96a55ad0224acc41a7e7b4892e0341c39298271ab7695",
+  "0.3.1": "30de0b2a7ff53f0482027501e3bee3a10a09ab31f8b90cf11b9679826a347439",
 };

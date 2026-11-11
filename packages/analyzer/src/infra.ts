@@ -5,7 +5,8 @@
  *
  * Patterns handled:
  * - Compose files: `docker-compose.yml`, `compose.yaml`, and variants such as
- *   `docker-compose.dev.yml` or `docker-compose-test.yaml`, anywhere in the inventory. Each
+ *   `docker-compose.dev.yml` or `docker-compose-test.yaml`, anywhere in the inventory but a
+ *   test or fixture folder (see {@link TEST_FOLDERS}). Each
  *   entry under `services:` whose `image` names a known engine (see {@link imageEngine}:
  *   `postgres`, `postgis/postgis`, `bitnami/postgresql`, `mysql`, `mariadb`, `mongo`, `redis`,
  *   `valkey/valkey`, `rabbitmq:3-management`, `confluentinc/cp-kafka`, …; registry hosts, tags,
@@ -14,7 +15,8 @@
  *   one folder are one Compose project, so a service defined in both `docker-compose.yml` and
  *   an override file is one node; its host names (`container_name`, `hostname`, network
  *   aliases) and published host ports are merged. YAML anchors and `<<` merge keys work.
- * - Env files: `.env` and `.env.<anything>` (`.env.local`, `.env.example`, …). Lines are
+ * - Env files: `.env` and `.env.<anything>` (`.env.local`, `.env.example`, …), outside test
+ *   and fixture folders. Lines are
  *   `KEY=value`, optionally `export KEY=value`, with `#` comments and quoted values, including
  *   quoted values that span lines. Only the key and, when the value is a URL, its scheme,
  *   host, and port are kept; the rest of the value (credentials, paths, query) is discarded
@@ -35,6 +37,10 @@
  *   serves, becomes `datastore:infra/env#<KEY>` (or `queue:…`), labeled with the engine.
  *
  * Patterns not handled:
+ * - Compose and env files in a folder named `test`, `tests`, `__tests__`, `e2e`, `cypress`,
+ *   `__mocks__`, `fixtures`, `__fixtures__`, or `testdata` (a test's database or a sample
+ *   repo's files, not this repo's infrastructure; ADR-0262). File names are no such sign:
+ *   `docker-compose.test.yml` and `.env.test` at the root are read.
  * - Compose `extends`, `include`, `profiles`, `env_file`, `environment`, and `build`-only
  *   services (those are the repo's own apps); images set from a variable
  *   (`image: ${DB_IMAGE}`, warned as `COMPOSE_DYNAMIC_IMAGE`); images not in the table.
@@ -69,6 +75,32 @@ const COMPOSE_FILE = /^(?:docker-)?compose(?:[.-][\w.-]+)?\.ya?ml$/;
 
 /** Env file names, matched against the base name. */
 const ENV_FILE = /^\.env(?:\.[\w.-]+)?$/;
+
+/**
+ * Folders holding tests, mocks, and test data by convention (the viewer's "Hide tests and
+ * config" folders, plus `fixtures` and `testdata`). A compose or env file under one describes
+ * something a test starts or reads, not the repo's own infrastructure, so it's never read
+ * (ADR-0262).
+ */
+const TEST_FOLDERS: ReadonlySet<string> = new Set([
+  "__fixtures__",
+  "__mocks__",
+  "__tests__",
+  "cypress",
+  "e2e",
+  "fixtures",
+  "test",
+  "testdata",
+  "tests",
+]);
+
+/** Whether any folder in a repo-relative path is one of {@link TEST_FOLDERS}. */
+function inTestFolder(file: string): boolean {
+  return file
+    .split("/")
+    .slice(0, -1)
+    .some((part) => TEST_FOLDERS.has(part));
+}
 
 /** Images whose full path (registry dropped) names the engine. Checked before {@link IMAGE_NAMES}. */
 const IMAGE_PATHS: ReadonlyMap<string, string> = new Map([["mssql/server", "sqlserver"]]);
@@ -441,7 +473,7 @@ export async function buildInfra(
 
   // Compose services. Files are sorted, so the first file defining an engine wins the node.
   const pending = new Map<string, { hostnames: string[]; ports: number[] }[]>();
-  for (const file of files.filter((f) => COMPOSE_FILE.test(baseName(f)))) {
+  for (const file of files.filter((f) => COMPOSE_FILE.test(baseName(f)) && !inTestFolder(f))) {
     const { services, error } = parseCompose(await readFile(join(root, file), "utf8"));
     if (error !== undefined) {
       warnings.push({ code: "COMPOSE_INVALID", file, message: `${error}; ignored` });
@@ -500,7 +532,9 @@ export async function buildInfra(
 
   // Env files.
   const envByKey = new Map<string, EnvValue[]>();
-  for (const file of files.filter((f) => ENV_FILE.test(baseName(f)) && !isSource(f))) {
+  for (const file of files.filter(
+    (f) => ENV_FILE.test(baseName(f)) && !isSource(f) && !inTestFolder(f),
+  )) {
     for (const entry of parseEnv(await readFile(join(root, file), "utf8"))) {
       const values = envByKey.get(entry.key) ?? [];
       values.push({ file, entry });
