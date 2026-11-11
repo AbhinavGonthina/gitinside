@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M9.2f2 `pawtograder/platform` re-run on production after M9.2f1 deploys (planning #26)
+M9.2g First view's fit leaves the first-visit hint's card clear
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -517,7 +517,8 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [x] M9.2e README "Results" rewritten around the final numbers (blind batch 6 first, earlier batches and the backtest summarized, benchmarks), each linking its committed report {model: opus}
 - M9.2f A public job isn't failed by the worker's optional token (planning #26: `pawtograder/platform` failed `DOWNLOAD_REFUSED`, GitHub answering 403 to `GITHUB_TOKEN`, likely an org token policy, while the repo downloads without it), split (the fix, then the production check once it deploys):
 - [x] M9.2f1 A 403 that isn't a rate limit to the worker's own token (the repo description and the tarball) retried once without it, an installation's token never; `DOWNLOAD_REFUSED` gets its own message on the website instead of "failed on our side. Try again", and a public request may still try again; red tests first (the fake GitHub answering 403 to the token and 200 without it), ADR {model: opus}
-- [ ] M9.2f2 After M9.2f1 deploys (`Creating Revision…done` in `main`'s deploy log): `pawtograder/platform` re-run on production through `/api/analyze`, its job followed to `done` and its repo page checked to render (or, if it fails again, the job's code and the next step in a `needs-abhinav` issue); outcome in planning #26 {model: opus}
+- [x] M9.2f2 After M9.2f1 deploys (`Creating Revision…done` in `main`'s deploy log): `pawtograder/platform` re-run on production through `/api/analyze`, its job followed to `done` and its repo page checked to render (or, if it fails again, the job's code and the next step in a `needs-abhinav` issue); outcome in planning #26 {model: opus}
+- [ ] M9.2g The first view's fit leaves the first-visit hint's card clear: on `pawtograder/platform`'s permalink at 1440×900 (M9.2f2, `docs/milestones/M9/pawtograder/`), "Tip 1 of 3" covers the top external box and its label in both themes, because `framing.ts`/`fit.ts` inset only by `FIT_INSET`, not the hint's height. Fit (and first-view framing) below the card while it shows, or place the card where no box is; red test first, real-browser check that no box's rect meets the card's, screenshots dark/light, baselines {model: opus}
 - [ ] M9.3 README (slogan, GIF with trace first, quickstart, architecture, results) {model: opus}
 - [ ] M9.3b README "Why I built this" section from gitinside-planning/MOTIVATION.md (his voice, nothing added) + needs-abhinav review issue {model: opus}
 - [ ] M9.4 Docs pages (how it works, limits, privacy) + root SECURITY.md {model: opus}
@@ -528,6 +529,8 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+
+- 2026-11-10 M9.2f2 (planning #26): M9.2f1 shipped in `main`'s run 42952502573 (`Creating Revision…done` ×2, 03:35 UTC). `pawtograder/platform` re-requested through `/api/analyze` from a script (no Turnstile needed): `202`, job `analyze-20d4fe44…` queued → `done` in 62 s at `89748a9`, the same default branch that failed `DOWNLOAD_REFUSED`. The permalink serves the `0.3.0` graph (`?v=0.3.0`), draws 12 boxes with no page errors in dark and light (`docs/milestones/M9/pawtograder/`), and the repo page reads `head: current`. Supports the org-token-policy cause; still not confirmed (no 403 body read). The shots showed "Tip 1 of 3" covering a box: new task M9.2g.
 
 - 2026-11-10 M9.2f1 (`cd0c64e`, planning #26, ADR-0260): `DownloadOptions` has `publicToken` (the worker's `GITHUB_TOKEN`, from main.ts) beside `token` (an installation's, which wins and is never dropped). A `403` from the API to `publicToken` that isn't a rate limit asks the same URL once more without it (`fetchRepoFacts`, `openTarball`; later hops too); `401`, `404`, rate limits, and the download host unchanged. The website's `DOWNLOAD_REFUSED` says "GitHub refused to send GitInside this repo's code, so it wasn't analyzed." (no Try again) and is an access failure, so a new request still queues. Red tests first (github, job, main against the fake GitHub, jobs, analyze); the four guards, the main.ts wiring, and the access entry mutation-checked. Worker 868, web 1,085 pass. No analyzer change, no eval delta. The production re-run is M9.2f2.
 - 2026-11-10 M9.2e (`aae8dd6`): README's "Results so far" is now "Results": batch 6's blind run first (100.0% / 69.0%, 6 of 16, the miss causes), then one table of every earlier set's first run beside its 0.3.0 numbers (seen), the demo hand checks summed from `docs/demos/README.md` (1,044 inferred edges: 779 correct, 0 wrong, 265 unresolved; 372 wrong ones fixed on the way), the backtest (now saying it ran at 0.2.0), and M9.2d's benchmarks led by the 1-vCPU budget run. Superseded M1/M2 bullets and per-fix histories dropped (kept in the reports, EVALUATION.md, ADRs). Every number re-read from its report; all 30 local links checked to exist (`apps/web/dist/m92e-links.mjs`). Docs only, no eval delta. The README's status line stays stale for M9.3.
