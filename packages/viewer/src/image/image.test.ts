@@ -1,6 +1,8 @@
 import type { ArchitectureGraph, GraphEdge, GraphNode } from "@gitinside/schema";
 import { describe, expect, it } from "vitest";
+import type { Rect } from "../chrome/describe.js";
 import { contrastRatio } from "../contrast.js";
+import type { Point } from "../edges/geometry.js";
 import { glyphNames } from "../icons/glyphs.js";
 import { TILE_OUTLINES } from "../icons/Icon.js";
 import { themeTokens } from "../tokens.js";
@@ -9,12 +11,14 @@ import { BADGE_COLORS, BADGE_HEIGHT, renderBadge } from "./badge.js";
 import {
   BADGE_MESSAGE_MAX,
   badgeMessage,
+  labelPill,
   layoutTopLevel,
   MAX_ROWS,
   renderDiagram,
   rowsFor,
   topLevelCounts,
 } from "./diagram.js";
+import { pillRect } from "./layout.js";
 import { attrs, esc, fit, glyphMarkup, num, textWidth } from "./markup.js";
 import { imageColors, mix, paletteCss } from "./palette.js";
 
@@ -65,6 +69,21 @@ const datastore = (id: string): GraphNode => ({
   layer: "data",
   engine: "postgres",
 });
+
+/** How far `at` is from the nearest point of a polyline. */
+function distanceToLine(points: readonly Point[], at: Point): number {
+  return Math.min(
+    ...points.slice(1).map((b, i) => {
+      const a = points[i] as Point;
+      const l2 = (b.x - a.x) ** 2 + (b.y - a.y) ** 2;
+      const f =
+        l2 > 0
+          ? Math.min(Math.max(((at.x - a.x) * (b.x - a.x) + (at.y - a.y) * (b.y - a.y)) / l2, 0), 1)
+          : 0;
+      return Math.hypot(a.x + (b.x - a.x) * f - at.x, a.y + (b.y - a.y) * f - at.y);
+    }),
+  );
+}
 
 const edge = (from: string, to: string, kind: GraphEdge["kind"] = "calls"): GraphEdge => ({
   id: `${kind}:${from}->${to}`,
@@ -346,6 +365,48 @@ describe("renderDiagram", () => {
       y: (web0?.y ?? 0) + (web0?.height ?? 0),
     });
     expect(line?.points.at(-1)?.x).toBe(boxes.get("api")?.x);
+  });
+
+  it("keeps line labels apart and off the boxes, each on its own line (M9.3d)", () => {
+    // This repo's shape at ed99fd2: two frontend packages calling one package in a wrapped
+    // backend column, so both lines run along the gap above it and their pills met there.
+    // And a frontend → outside API line across the backend column (vite-proxy's pill sat on a box).
+    const front = ["web", "viewer"].map((id): GraphNode => ({ ...service(id), layer: "frontend" }));
+    const back = Array.from({ length: 8 }, (_, i) => service(`s${i}`));
+    const api: GraphNode = {
+      id: "x",
+      kind: "external",
+      label: "api.stripe.com",
+      parentId: root.id,
+      layer: "external",
+      host: "api.stripe.com",
+    };
+    const graph = graphOf(
+      [...front, ...back, api],
+      [edge("web", "s6"), edge("viewer", "s6"), edge("viewer", "x", "external_call")],
+    );
+    const layout = layoutTopLevel(graph);
+    const drawn = layout.edges.filter((p) => !p.hideLabel);
+    expect(drawn).toHaveLength(3);
+    const pills = drawn.map((p) => pillRect(p.label, labelPill(p).width));
+    const meets = (a: Rect, b: Rect) =>
+      a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+    pills.forEach((a, i) => {
+      for (const b of pills.slice(i + 1)) expect(meets(a, b), `${i}`).toBe(false);
+      for (const box of layout.boxes.values()) expect(meets(a, box), `${i}`).toBe(false);
+    });
+    for (const p of drawn) expect(distanceToLine(p.points, p.label)).toBeLessThan(0.01);
+    expect(renderDiagram(graph)).not.toContain("left off");
+  });
+
+  it("leaves off a label with no clear spot on its line and says so in the footer", () => {
+    // Two lines down the 40px gap between stacked boxes: room for one pill only.
+    const graph = graphOf([service("a"), service("b")], [edge("a", "b"), edge("b", "a")]);
+    expect(layoutTopLevel(graph).edges.map((p) => p.hideLabel ?? false)).toEqual([false, true]);
+    const svg = renderDiagram(graph);
+    parse(svg);
+    expect(svg.match(/>calls</g)).toHaveLength(1);
+    expect(svg).toContain("0123456</tspan> · 1 line label left off</text>");
   });
 
   it("escapes hostile names from the repo", () => {

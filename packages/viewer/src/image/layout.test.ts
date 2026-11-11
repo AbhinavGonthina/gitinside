@@ -5,7 +5,16 @@ import { countsRowWidth, frameCounts, MIN_FRAME_WIDTH, WINDOW_BAND } from "../la
 import { buildHierarchy } from "../model/hierarchy.js";
 import { buildView } from "../model/view.js";
 import { shopDemo } from "../shopDemo.testkit.js";
-import { imageNodeSize, PARALLEL_GAP, pointAlong, route, routeEdges } from "./layout.js";
+import {
+  imageNodeSize,
+  LABEL_GAP,
+  PARALLEL_GAP,
+  pointAlong,
+  route,
+  routeEdges,
+  spreadLabels,
+  type PlacedEdge,
+} from "./layout.js";
 
 const index = buildHierarchy(shopDemo());
 
@@ -99,6 +108,43 @@ describe("route", () => {
       { x: 90, y: 70 },
       { x: 90, y: 100 },
     ]);
+  });
+});
+
+describe("spreadLabels", () => {
+  const { edges } = buildView(index, []);
+  const view = edges[0];
+  if (!view) throw new Error("shop-demo has top-level edges");
+  const line = (y: number, length = 300): PlacedEdge => ({
+    view,
+    points: [
+      { x: 0, y },
+      { x: length, y },
+    ],
+    label: { x: length / 2, y },
+  });
+
+  it("keeps a clear spot, and slides a taken one along its line to the nearest clear spot", () => {
+    const [a, b] = spreadLabels([line(0), line(0)], [40, 40], []);
+    expect(a?.label).toEqual({ x: 150, y: 0 });
+    expect(a?.hideLabel).toBeUndefined();
+    // 6px steps, alternating sides: 48px is the first ≥ 40 + LABEL_GAP away.
+    expect(LABEL_GAP).toBe(4);
+    expect(b?.label).toEqual({ x: 198, y: 0 });
+  });
+
+  it("keeps pills off boxes", () => {
+    const [p] = spreadLabels([line(50)], [40], [{ x: 120, y: 40, width: 60, height: 20 }]);
+    // The pill's left edge lands LABEL_GAP past the box's right edge (180).
+    expect(p?.label).toEqual({ x: 204, y: 50 });
+  });
+
+  it("leaves a label off when no spot on its line is clear, never past its ends", () => {
+    const [, short] = spreadLabels([line(0, 40), line(0, 40)], [30, 30], []);
+    expect(short?.hideLabel).toBe(true);
+    // Clear only within 6px of an end (x ≥ 294), where the arrowhead is.
+    const [, far] = spreadLabels([line(0), line(0)], [260, 20], []);
+    expect(far?.hideLabel).toBe(true);
   });
 });
 

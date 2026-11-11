@@ -99,7 +99,7 @@ describe("renderDiagram bytes", () => {
 
 /** `auto`, `dark`, `light`: the first 16 hex digits of each SVG's SHA-256. */
 const EXPECTED: Record<string, string[]> = {
-  "(wrapped)": ["06931ccd18333938", "55c383ec9a7cb26b", "3554fde5780c809c"],
+  "(wrapped)": ["deb075b6bf4dccca", "9975f5ccf8422130", "fc156e6e458900a0"],
   "ambiguous-routes": ["f6fc365004c3fac0", "072e898f2475e408", "f3e83a2b18d48624"],
   "axios-baseurl-instance": ["8f9e58cbf579f118", "db7a9fd293ab190f", "87b6aa201ac04dc1"],
   "axios-defaults": ["9a41364376ea30fe", "903e1f84ae26d897", "90329d742c6f290b"],
@@ -138,7 +138,7 @@ const EXPECTED: Record<string, string[]> = {
   "next-connect": ["e3491958e79cd2ff", "55cdbe3076562dd7", "92e18284d06069a5"],
   "next-method-exclusions": ["fa1a9684081bccc7", "99edf2121fa9bee3", "f3c616510a54c58a"],
   "next-pages-api": ["cfc5e40c69391f0d", "7a84135e11ca8c0f", "5adb677acbeb0974"],
-  "next-rewrites": ["adc0cfa1236dffbc", "9a68ac7c5cc2d7bf", "f66fbcdce1988ccd"],
+  "next-rewrites": ["68eb8d3f9dde56f4", "14411ee22011c780", "beff95d9a37ba667"],
   "next-wrapped-handler": ["36fc8392cef8bf8b", "37b409dd887d0746", "719a1bdfad06894f"],
   "next-server-actions": ["5588e49fb41c26d2", "08f497552460fb40", "bbab3795796925b1"],
   "no-tsconfig": ["ca64d1e9051263e9", "69804ff099267024", "df35ae81cb864468"],
@@ -159,7 +159,7 @@ const EXPECTED: Record<string, string[]> = {
   "syntax-error": ["55396ca32388bd0f", "9cb7f0340d7cb270", "7b0e096375125e04"],
   "tanstack-query-key": ["ce2f1fe99c5ed702", "8347e6264b3b78cd", "3ca62f021db8f439"],
   "url-alternatives": ["6cbdfe701f1334a7", "db8ab97b3b62d5e5", "97cd61834becbd45"],
-  "vite-proxy": ["9b3e0e072f9758ac", "4b2b176b72454cd2", "545a523731bd1732"],
+  "vite-proxy": ["15ba3d02005de3a2", "57a83cf2e36f652f", "7f1dc03c6619878c"],
   "workspace-root-files": ["fdbc469bea2d70c7", "0e720004c4d99d39", "6b8780fa3237d923"],
   "wrapper-chain": ["f249726542aa0a4d", "0c40730082dcefd8", "68c772d30e5c1f6a"],
   "wrapper-fetch": ["4681a4e560c54da0", "c69fa9fa49ddbc87", "1de9141ac1810a27"],
