@@ -71,7 +71,8 @@ function deps(overrides: Partial<JobDeps> = {}): JobDeps {
     download: {
       apiBase: github.apiBase,
       downloadOrigins: [github.codeloadOrigin],
-      token: "test-token",
+      // The worker's own `GITHUB_TOKEN`, as main.ts passes it.
+      publicToken: "test-token",
     },
     run: fakeRun,
     ...overrides,
@@ -407,6 +408,37 @@ describe("processJob downloads", () => {
       ["api", "Bearer test-token"],
       ["codeload", undefined],
     ]);
+  });
+
+  it("downloads a public repo without the worker's token when GitHub refuses it (planning #26)", async () => {
+    const original = github.api;
+    github.api = (req, res) => {
+      if (req.headers.authorization === undefined) return original(req, res);
+      res.writeHead(403, { "x-ratelimit-remaining": "4999" });
+      res.end('{"message":"Forbidden"}');
+    };
+    const outcome = await processJob({ id: ID, request: REQUEST }, deps());
+    expect(outcome.stats).toEqual(STATS);
+    expect(github.requests.map((r) => [r.server, r.authorization])).toEqual([
+      ["api", "Bearer test-token"],
+      ["api", undefined],
+      ["codeload", undefined],
+    ]);
+  });
+
+  it("fails a private job GitHub refuses its installation's token for, asking once", async () => {
+    github.api = (_req, res) => {
+      res.writeHead(403, { "x-ratelimit-remaining": "4999" });
+      res.end("{}");
+    };
+    const error = await failure(
+      processJob(
+        { id: ID, request: { ...REQUEST, installationId: 77 } },
+        deps({ installationToken: async () => ({ token: "ghs_installation" }) }),
+      ),
+    );
+    expect([error.code, error.retriable]).toEqual(["DOWNLOAD_REFUSED", false]);
+    expect(github.requests.map((r) => r.authorization)).toEqual(["Bearer ghs_installation"]);
   });
 
   it.each([
