@@ -33,6 +33,7 @@ body {
    graphics color, so it never colors small text itself. */
 .landing a,
 .notice a,
+.docs__article a,
 .dashboard__retry,
 .installation__more a {
   color: var(--text);
@@ -45,6 +46,7 @@ body {
 
 .landing a:hover,
 .notice a:hover,
+.docs__article a:hover,
 .dashboard__retry:hover,
 .installation__more a:hover {
   text-decoration-thickness: 2px;
@@ -447,6 +449,181 @@ code {
 
 .notice__title:focus {
   outline: none;
+}
+
+/* Docs pages (M9.4a): a quiet row of tabs, then prose at reading width. */
+
+.docs {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: var(--space-32) var(--space-24) var(--space-48);
+}
+
+/* Pulled left by a tab's padding, so the first tab's text lines up with the title. */
+.docs__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: 0 0 0 calc(-1 * var(--space-12));
+  padding: 0;
+  list-style: none;
+}
+
+.docs__tab {
+  display: inline-block;
+  padding: 6px var(--space-12);
+  border-radius: var(--radius-chip);
+  color: var(--text-muted);
+  font-size: var(--font-size-13);
+  text-decoration: none;
+  transition:
+    color var(--duration-fast) var(--ease-standard),
+    background-color var(--duration-fast) var(--ease-standard);
+}
+
+.docs__tab:hover {
+  color: var(--text);
+}
+
+.docs__tab[aria-current="page"] {
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: var(--font-weight-medium);
+}
+
+.docs__title {
+  margin: var(--space-48) 0 0;
+  font-size: var(--font-size-28);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  letter-spacing: -0.02em;
+}
+
+.docs__lede {
+  max-width: 62ch;
+  margin: var(--space-12) 0 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-16);
+  line-height: var(--line-height-body);
+}
+
+.docs__section {
+  margin-top: var(--space-48);
+}
+
+.docs__heading {
+  margin: 0 0 var(--space-12);
+  font-size: var(--font-size-16);
+  font-weight: var(--font-weight-semibold);
+}
+
+.docs__section p,
+.docs__section li {
+  max-width: 68ch;
+  font-size: var(--font-size-14);
+  line-height: var(--line-height-body);
+}
+
+.docs__section p {
+  margin: 0 0 var(--space-12);
+}
+
+.docs__steps,
+.docs__list {
+  margin: 0 0 var(--space-12);
+  padding-left: var(--space-24);
+}
+
+.docs__steps li,
+.docs__list li {
+  margin-bottom: var(--space-8);
+  padding-left: var(--space-4);
+}
+
+.docs__steps li::marker,
+.docs__list li::marker {
+  color: var(--text-muted);
+}
+
+.docs__code {
+  margin: 0 0 var(--space-12);
+  padding: var(--space-12) var(--space-16);
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-tile);
+  background: var(--surface-1);
+  font-size: var(--font-size-13);
+  line-height: 1.6;
+}
+
+/* Name and meaning side by side, stacked on a phone (the names can't wrap). */
+.docs__terms {
+  margin: 0 0 var(--space-12);
+  font-size: var(--font-size-14);
+  line-height: var(--line-height-body);
+}
+
+.docs__term {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  gap: var(--space-4) var(--space-16);
+  padding: var(--space-12) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.docs__term:first-child {
+  border-top: 1px solid var(--border);
+}
+
+.docs__term dd {
+  margin: 0;
+}
+
+.docs__kept {
+  color: var(--text-muted);
+}
+
+@media (max-width: 560px) {
+  .docs__term {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Footer (landing and docs pages) ----------------------------------------- */
+
+.site-footer {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 760px;
+  margin: auto auto 0;
+  padding: var(--space-48) var(--space-24) var(--space-32);
+}
+
+.site-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8) var(--space-24);
+  margin: 0;
+  padding: var(--space-16) 0 0;
+  border-top: 1px solid var(--border);
+  list-style: none;
+}
+
+.site-footer__links a {
+  border-radius: var(--radius-chip);
+  color: var(--text-muted);
+  font-size: var(--font-size-13);
+  text-decoration: none;
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+
+.site-footer__links a:hover {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-underline-offset: 3px;
 }
 
 /* Dashboard (M8.2c) ------------------------------------------------------- */
