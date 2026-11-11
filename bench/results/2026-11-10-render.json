@@ -1,0 +1,220 @@
+{
+  "meta": {
+    "date": "2026-11-10",
+    "gitinsideSha": "25f174f801c7466f2393c29cf844fed291eecd55",
+    "machine": {
+      "label": "dev machine",
+      "cpu": "13th Gen Intel(R) Core(TM) i7-13700H",
+      "cores": 20,
+      "ramGiB": 15.6,
+      "os": "win32 10.0.26300",
+      "node": "v22.13.0"
+    },
+    "browser": "Chromium 156.0.8078.4 (headless)",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "seconds": 10,
+    "idleSeconds": 2,
+    "real": {
+      "name": "calcom",
+      "url": "https://github.com/calcom/cal.com",
+      "sha": "0f19cc46ef6b6426ee398c670575b3c96be7af9e"
+    }
+  },
+  "runs": [
+    {
+      "graph": "synthetic",
+      "target": 500,
+      "nodes": 500,
+      "lines": 720,
+      "layoutMs": 968.3506000000052,
+      "frames": {
+        "start": 203,
+        "drawn": {
+          "min": 193,
+          "max": 209
+        },
+        "idle": {
+          "frames": 120,
+          "seconds": 2,
+          "medianFps": 59.880239520962,
+          "p5Fps": 59.88023952095548,
+          "meanFps": 60,
+          "longFrames": 0,
+          "worstMs": 16.80000000000109
+        },
+        "moving": {
+          "frames": 596,
+          "seconds": 10.0662,
+          "medianFps": 59.880239520962,
+          "p5Fps": 59.523809523812105,
+          "meanFps": 59.20804275694899,
+          "longFrames": 1,
+          "worstMs": 100.09999999999854
+        }
+      }
+    },
+    {
+      "graph": "calcom",
+      "target": 500,
+      "nodes": 500,
+      "lines": 649,
+      "layoutMs": 1994.2018000000098,
+      "frames": {
+        "start": 108,
+        "drawn": {
+          "min": 101,
+          "max": 112
+        },
+        "idle": {
+          "frames": 121,
+          "seconds": 2.016600000000002,
+          "medianFps": 59.880239520968516,
+          "p5Fps": 59.88023952095548,
+          "meanFps": 60.001983536645774,
+          "longFrames": 0,
+          "worstMs": 16.799999999999272
+        },
+        "moving": {
+          "frames": 599,
+          "seconds": 10.083,
+          "medianFps": 59.88023952095548,
+          "p5Fps": 59.523809523812105,
+          "meanFps": 59.40692254289398,
+          "longFrames": 0,
+          "worstMs": 49.900000000001455
+        }
+      }
+    },
+    {
+      "graph": "synthetic",
+      "target": 1000,
+      "nodes": 1000,
+      "lines": 1470,
+      "layoutMs": 922.75,
+      "frames": {
+        "start": 203,
+        "drawn": {
+          "min": 193,
+          "max": 207
+        },
+        "idle": {
+          "frames": 121,
+          "seconds": 2.016547999999999,
+          "medianFps": 59.880239520962,
+          "p5Fps": 59.523809523812105,
+          "meanFps": 60.003530786274396,
+          "longFrames": 0,
+          "worstMs": 16.80000000000109
+        },
+        "moving": {
+          "frames": 590,
+          "seconds": 10.0163,
+          "medianFps": 59.880239520962,
+          "p5Fps": 59.523809523812105,
+          "meanFps": 58.90398650200174,
+          "longFrames": 1,
+          "worstMs": 83.29999999999927
+        }
+      }
+    },
+    {
+      "graph": "calcom",
+      "target": 1000,
+      "nodes": 1000,
+      "lines": 1012,
+      "layoutMs": 2514.073299999989,
+      "frames": {
+        "start": 105,
+        "drawn": {
+          "min": 11,
+          "max": 107
+        },
+        "idle": {
+          "frames": 121,
+          "seconds": 2.016576000000001,
+          "medianFps": 59.880239520968516,
+          "p5Fps": 59.88023952094243,
+          "meanFps": 60.00269764194354,
+          "longFrames": 0,
+          "worstMs": 16.80000000000291
+        },
+        "moving": {
+          "frames": 596,
+          "seconds": 10.049599999999998,
+          "medianFps": 59.880239520968516,
+          "p5Fps": 59.523809523824994,
+          "meanFps": 59.30584301862761,
+          "longFrames": 0,
+          "worstMs": 50
+        }
+      }
+    },
+    {
+      "graph": "synthetic",
+      "target": 2000,
+      "nodes": 2000,
+      "lines": 2970,
+      "layoutMs": 1431.9711999999708,
+      "frames": {
+        "start": 209,
+        "drawn": {
+          "min": 196,
+          "max": 211
+        },
+        "idle": {
+          "frames": 120,
+          "seconds": 2,
+          "medianFps": 59.88023952095548,
+          "p5Fps": 59.523809523812105,
+          "meanFps": 60,
+          "longFrames": 0,
+          "worstMs": 16.80000000000291
+        },
+        "moving": {
+          "frames": 591,
+          "seconds": 10.049599999999998,
+          "medianFps": 59.880239520968516,
+          "p5Fps": 59.523809523812105,
+          "meanFps": 58.808310778538456,
+          "longFrames": 2,
+          "worstMs": 83.29999999999927
+        }
+      }
+    },
+    {
+      "graph": "calcom",
+      "target": 2000,
+      "nodes": 2000,
+      "lines": 2333,
+      "layoutMs": 11019.65909999999,
+      "frames": {
+        "start": 102,
+        "drawn": {
+          "min": 103,
+          "max": 114
+        },
+        "idle": {
+          "frames": 121,
+          "seconds": 2.016599999999977,
+          "medianFps": 59.88023952091634,
+          "p5Fps": 59.88023952091634,
+          "meanFps": 60.001983536646534,
+          "longFrames": 0,
+          "worstMs": 16.800000000046566
+        },
+        "moving": {
+          "frames": 574,
+          "seconds": 10.066299999999988,
+          "medianFps": 59.88023952091634,
+          "p5Fps": 59.52380952385077,
+          "meanFps": 57.02194450791261,
+          "longFrames": 3,
+          "worstMs": 66.70000000001164
+        }
+      }
+    }
+  ]
+}
