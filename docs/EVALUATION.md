@@ -280,6 +280,11 @@ Format rules (ADR-0040, enforced by `eval/src/format.ts`; `pnpm --filter @gitins
 - **Repo:** one large public TS monorepo under 20k source files, pinned SHA, recorded in `bench/repos.json`.
 - **Measured:** wall-clock time of `analyze` (median of 5 runs after 1 warm-up), peak RSS, and time per pipeline stage.
 - **Incremental:** apply the diff of 10 consecutive real commits one at a time and measure re-analysis time vs. a full run. Report the median speedup. `pnpm bench:incremental -- --commits` replays the 10 first-parent commits ending at the pinned SHA (history before it never changes); plain `pnpm bench:incremental` adds an unchanged rerun and synthetic one-line edits (a leaf app, a shared package). First results: [commits](../bench/results/2026-11-02-incremental-calcom-commits.md) (median 0.84×), [edits](../bench/results/2026-11-02-incremental-calcom.md). After M6.8b's storage cuts: [commits](../bench/results/2026-11-02-incremental-calcom-commits-m6.8b.md) (median 0.91×), [edits](../bench/results/2026-11-02-incremental-calcom-m6.8b.md). After M6.8c1 stored shared inputs once: [commits](../bench/results/2026-11-02-incremental-calcom-commits-m6.8c.md) (median 0.94×), [edits](../bench/results/2026-11-02-incremental-calcom-m6.8c.md). After M6.8c2 read each file once per run and stored inputs in parts (ADR-0181): [commits](../bench/results/2026-11-02-incremental-calcom-commits-m6.8c2.md) (median 0.99×), [edits](../bench/results/2026-11-02-incremental-calcom-m6.8c2.md).
+- **Final, at the launch analyzer (0.3.0, M9.2d):**
+  - Full analysis: [report](../bench/results/2026-11-10-analysis-calcom.md), median 110.7 s on the laptop.
+  - Incremental: [commits](../bench/results/2026-11-10-incremental-calcom-commits.md) (median 1.02×) and [edits](../bench/results/2026-11-10-incremental-calcom.md) (unchanged 16.8×, a leaf app 4.28×, a shared package 1.03×, medians of pairs).
+  - 1 vCPU in the worker image (cal.diy): [EPYC 9V74](../bench/results/2026-11-11-cloudrun-caldiy-m9.2d-epyc9v74.md) 49.4 s, [EPYC 9V45](../bench/results/2026-11-11-cloudrun-caldiy-m9.2d-epyc9v45.md) 42.3 s.
+  - The laptop ran about 3× slower than it can for most of that session (one cold run took 33.6 s against ~102 s), so its seconds don't compare across reports. The 1-vCPU runs are the budget numbers.
 - **Machines:** the Oracle Always Free VM (production) and Abhinav's dev machine. Each is labeled with CPU, RAM, OS, and Node version.
 
 **Stress and the supported size (M5.16, #10):**
@@ -291,6 +296,7 @@ Format rules (ADR-0040, enforced by `eval/src/format.ts`; `pnpm --filter @gitins
 - A synthetic and a real graph at 500 / 1,000 / 2,000 visible nodes.
 - Playwright drives pan and zoom for 10 s; fps comes from `requestAnimationFrame` deltas (median and p5).
 - Target: ≥ 60fps median at 2,000 nodes.
+- Final (M9.2d, [report](../bench/results/2026-11-10-render.md)): 59.9 fps median and 59.5 fps p5 in all six cases, at the display's 59.9 ceiling.
 
 **Output:** `bench/results/<YYYY-MM-DD>-<name>.md` with raw numbers (JSON alongside), committed.
 
