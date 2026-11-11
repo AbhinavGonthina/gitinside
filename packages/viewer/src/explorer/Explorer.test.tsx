@@ -10,7 +10,7 @@ import { buildHierarchy } from "../model/hierarchy.js";
 import { buildView } from "../model/view.js";
 import { shopDemo, shopDemoSources } from "../shopDemo.testkit.js";
 import { durations } from "../tokens.js";
-import { fitCamera, READABLE_ZOOM } from "./camera.js";
+import { fitCamera, HOP_CLEARANCE, READABLE_ZOOM } from "./camera.js";
 import { fitLevel } from "./framing.js";
 import { decodeState, DEFAULT_STATE, encodeState, type ExplorerState } from "./deepLink.js";
 import * as stories from "./Explorer.stories.js";
@@ -1046,6 +1046,113 @@ describe("Explorer framing on a small canvas (M4b.15f)", { timeout: 30_000 }, ()
       });
       if (i < steps - 1) fireEvent.click(screen.getByRole("button", { name: /Next step/ }));
     }
+  });
+
+  /** The current hop's ends as drawn (closed boxes lit as `current`), in canvas px. */
+  const currentEnds = (container: HTMLElement) =>
+    [...container.querySelectorAll<HTMLElement>(".gi-drill__node:not([data-leaving]) > .gi-node")]
+      .filter((el) => el.getAttribute("data-emphasis") === "current")
+      .map((el) => placed(container, el));
+  const framed = (container: HTMLElement) => {
+    const now = currentEnds(container);
+    expect(now.length).toBeGreaterThan(0);
+    for (const end of now) expect(wholly(end)).toBe(true);
+  };
+  const panAway = async (container: HTMLElement) => {
+    fireEvent.wheel(screen.getByRole("region", { name: "Diagram" }), { deltaX: 50_000 });
+    await waitFor(() => expect(currentEnds(container).every(wholly)).toBe(false));
+  };
+
+  it("frames each step's ends clear of the minimap where it's drawn (M9.3c)", async () => {
+    // jsdom lays nothing out: the canvas is at the page's origin, and the
+    // minimap is where it's drawn on a 640 × 400 canvas (16px in from the corner).
+    const minimap = { x: 416, y: 248, width: 208, height: 136 };
+    const real = Element.prototype.getBoundingClientRect;
+    const spy = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (
+      this: Element,
+    ) {
+      if (!this.classList.contains("gi-minimap")) return real.call(this);
+      const { x, y, width, height } = minimap;
+      return {
+        x,
+        y,
+        width,
+        height,
+        left: x,
+        top: y,
+        right: x + width,
+        bottom: y + height,
+        toJSON: () => ({}),
+      };
+    });
+    onTestFinished(() => spy.mockRestore());
+    const { container, press } = await setup({ initialOpen: [WEB, API, SRC] });
+    await waitFor(() =>
+      expect(container.querySelector(".gi-explorer")?.hasAttribute("data-settled")).toBe(true),
+    );
+    await press("t");
+    const steps = traceFrom(index, CHECKOUT).steps.length;
+    const clear = (r: { x: number; y: number; right: number; bottom: number }) =>
+      r.right <= minimap.x - HOP_CLEARANCE ||
+      r.bottom <= minimap.y - HOP_CLEARANCE ||
+      r.x >= minimap.x + minimap.width + HOP_CLEARANCE ||
+      r.y >= minimap.y + minimap.height + HOP_CLEARANCE;
+    for (let i = 0; i < steps; i++) {
+      await waitFor(() => {
+        framed(container);
+        for (const end of currentEnds(container)) expect(clear(end)).toBe(true);
+      });
+      if (i < steps - 1) fireEvent.click(screen.getByRole("button", { name: /Next step/ }));
+    }
+  });
+
+  it("frames the current step again when Play starts (M9.3c)", async () => {
+    const { container, press } = await setup({ initialOpen: [WEB, API, SRC] });
+    await waitFor(() =>
+      expect(container.querySelector(".gi-explorer")?.hasAttribute("data-settled")).toBe(true),
+    );
+    await press("t");
+    await waitFor(() => framed(container));
+    // Panned away by hand after the trace started: Play brings step 1 back.
+    await panAway(container);
+    fireEvent.click(screen.getByRole("button", { name: "Play" }));
+    await waitFor(() => framed(container), { timeout: PLAY_STEP_MS / 2 });
+    const current = container.querySelector(".gi-explorer__step[aria-current] > span");
+    expect(current?.textContent).toBe("1");
+  });
+
+  it("frames the current step again when a drill-down lands mid-trace (M9.3c)", async () => {
+    const { container, press, box, act } = await setup({ initialOpen: [WEB] });
+    await waitFor(() =>
+      expect(container.querySelector(".gi-explorer")?.hasAttribute("data-settled")).toBe(true),
+    );
+    await press("t");
+    await waitFor(() => framed(container));
+    await panAway(container);
+    // Breaking a box down (the camera's hand-set, so it holds that box in place)
+    // still brings the step's ends back on the new layout.
+    await act(() => fireEvent.doubleClick(box(API) as HTMLElement));
+    await waitFor(() => framed(container));
+  });
+
+  it("keeps the step framed after a drill-down from the keyboard, not the opened frame's corner (M9.3c)", async () => {
+    const { container, press, box } = await setup({ initialOpen: [WEB] });
+    await waitFor(() =>
+      expect(container.querySelector(".gi-explorer")?.hasAttribute("data-settled")).toBe(true),
+    );
+    await press("t");
+    await waitFor(() => framed(container));
+    await panAway(container);
+    // Enter on a focused box breaks it down and puts focus back on it, which
+    // would fly the camera to its corner, away from the step.
+    const api = box(API) as HTMLElement;
+    act(() => api.focus());
+    await press("Enter", api);
+    await waitFor(() => expect(box(API)?.parentElement?.hasAttribute("data-open")).toBe(true));
+    await waitFor(() => framed(container));
+    // And it stays framed once everything has settled.
+    await new Promise((r) => setTimeout(r, 300));
+    framed(container);
   });
 
   it("keeps the step's title in a header that stays at the inspector's top", async () => {
