@@ -28,7 +28,14 @@ import { frameCounts, WINDOW_BAND } from "../layout/size.js";
 import { buildHierarchy, layerOf, type HierarchyIndex } from "../model/hierarchy.js";
 import { buildView, drawnEdge, type ViewEdge } from "../model/view.js";
 import { scaleTokens } from "../tokens.js";
-import { imageNodeSize, pointAlong, routeEdges, type PlacedEdge } from "./layout.js";
+import {
+  imageNodeSize,
+  LABEL_HEIGHT,
+  pointAlong,
+  routeEdges,
+  spreadLabels,
+  type PlacedEdge,
+} from "./layout.js";
 import { attrs, esc, fit, glyphMarkup, num, textWidth } from "./markup.js";
 import { paletteCss, v, type ImageTheme } from "./palette.js";
 
@@ -54,10 +61,14 @@ import { paletteCss, v, type ImageTheme } from "./palette.js";
  *   into or out of a wrapped sub-column through the gap between its rows (in
  *   at the top, out at the bottom); between two boxes of one sub-column that
  *   aren't neighbors, down a lane beside it.
+ * - **Labels** never cover each other or a box (`spreadLabels`, M9.3d): a
+ *   pill whose spot is taken slides along its line to the nearest clear one,
+ *   and one with none is left off, the footer saying how many.
  * - **Not handled:** a frontend → data line passes the backend column at
- *   its source's height and can cross a box there; labels of busy columns
- *   can overlap. The canvas's ELK layout avoids both, but it's asynchronous
- *   and `renderDiagram` isn't, so the image keeps its own arithmetic.
+ *   its source's height and can cross a box there, and lines sharing a
+ *   stretch run on top of each other. The canvas's ELK layout avoids both,
+ *   but it's asynchronous and `renderDiagram` isn't, so the image keeps its
+ *   own arithmetic.
  * - **Untrusted text:** every label, host, and path is escaped (`esc`), and
  *   nothing from the graph reaches an attribute name, a style, or a URL.
  */
@@ -559,14 +570,20 @@ export function edgeMarkup(index: HierarchyIndex, placed: PlacedEdge): string {
   return out.join("");
 }
 
-/** A line's label pill, centered on its label point, its text cut to fit `max` px. */
-export function labelMarkup(placed: PlacedEdge, max = LABEL_MAX): string {
+/** A line's label text, cut to fit `max` px, and its pill's width. */
+export function labelPill(placed: PlacedEdge, max = LABEL_MAX): { text: string; width: number } {
   const { edge, count } = drawnEdge(placed.view);
   const text = fit(edgeLabelText(edgeLabel(edge, count)), max, 11);
-  const width = Math.ceil(textWidth(text, 11)) + 14;
+  return { text, width: Math.ceil(textWidth(text, 11)) + 14 };
+}
+
+/** A line's label pill, centered on its label point, its text cut to fit `max` px ("" when it's left off). */
+export function labelMarkup(placed: PlacedEdge, max = LABEL_MAX): string {
+  if (placed.hideLabel) return "";
+  const { text, width } = labelPill(placed, max);
   const { x, y } = placed.label;
   return (
-    `<rect${attrs({ x: x - width / 2, y: y - 9.5, width, height: 19, rx: 9.5 })} style="fill:${v("s2")};stroke:${v("border")}"/>` +
+    `<rect${attrs({ x: x - width / 2, y: y - LABEL_HEIGHT / 2, width, height: LABEL_HEIGHT, rx: LABEL_HEIGHT / 2 })} style="fill:${v("s2")};stroke:${v("border")}"/>` +
     `<text${attrs({ x, y: y + 4, "font-size": 11, "text-anchor": "middle" })} style="fill:${v("muted")}">${esc(text)}</text>`
   );
 }
@@ -581,19 +598,34 @@ export function brandsOf(nodes: readonly GraphNode[]): Brand[] {
   return [...out.values()].sort((a, b) => compareStrings(a.slug, b.slug));
 }
 
-/** The image's footer at `top`: a rule, `owner/name sha` on the left, the mark and "GitInside" on the right. */
-export function footer(graph: ArchitectureGraph, width: number, top: number): string {
+/** "2 line labels left off" for {@link footer}, or undefined when every label is drawn. */
+export function hiddenLabelsNote(edges: readonly PlacedEdge[]): string | undefined {
+  const n = edges.filter((p) => p.hideLabel).length;
+  return n === 0 ? undefined : `${n} line label${n === 1 ? "" : "s"} left off`;
+}
+
+/**
+ * The image's footer at `top`: a rule, `owner/name sha` (and `note`, after a
+ * dot) on the left, the mark and "GitInside" on the right.
+ */
+export function footer(
+  graph: ArchitectureGraph,
+  width: number,
+  top: number,
+  note?: string,
+): string {
   const y = top + 26;
   const { owner, name, sha } = graph.repo;
   const repo = `${owner}/${name}`;
   const brand = 98;
   const max = width - 2 * PAD - brand - 16;
-  const repoText = fit(repo, sha ? max - 72 : max, 12);
+  const noteText = note ? ` · ${note}` : "";
+  const repoText = fit(repo, (sha ? max - 72 : max) - textWidth(noteText, 12), 12);
   return [
     `<line${attrs({ x1: 0, y1: top + 0.5, x2: width, y2: top + 0.5 })} style="stroke:${v("border")}"/>`,
     `<text${attrs({ x: PAD, y, "font-size": 12 })} style="fill:${v("muted")}" xml:space="preserve">${esc(repoText)}${
       sha ? ` <tspan font-family="${esc(MONO)}">${esc(sha.slice(0, 7))}</tspan>` : ""
-    }</text>`,
+    }${esc(noteText)}</text>`,
     // The logo mark (mark.ts), 16px, and the name, on the right.
     `<g transform="translate(${num(width - PAD - brand)} ${num(y - 12)}) scale(0.667)">`,
     markMarkup({ frame: v("text"), node: v("accent"), size: 16 }),
@@ -621,7 +653,12 @@ export function layoutTopLevel(graph: ArchitectureGraph): TopLevelLayout {
   // Nothing open: the top level, with edges lifted to it (imports hidden).
   const { edges } = buildView(index, []);
   const placement = place(index, top);
-  const routed = routeAll(edges, placement);
+  const lines = routeAll(edges, placement);
+  const routed = spreadLabels(
+    lines,
+    lines.map((p) => labelPill(p).width),
+    [...placement.boxes.values()],
+  );
   const laneRight = Math.max(...routed.flatMap((p) => p.points.map((q) => q.x)), 0);
   return {
     index,
@@ -669,7 +706,7 @@ export function renderDiagram(graph: ArchitectureGraph, options: DiagramImageOpt
     `<rect${attrs({ x: 0.5, y: 0.5, width: width - 1, height: height - 1, rx: 12 })} style="fill:${v("canvas")};stroke:${v("border")}"/>`,
     `<g font-family="${esc(SANS)}">`,
     body,
-    footer(graph, width, bodyHeight),
+    footer(graph, width, bodyHeight, hiddenLabelsNote(routed)),
     `</g>`,
     `</svg>`,
   ].join("");

@@ -52,6 +52,97 @@ export interface PlacedEdge {
   view: ViewEdge;
   points: Point[];
   label: Point;
+  /** No spot on the line kept its label clear of the others, so it's left off ({@link spreadLabels}). */
+  hideLabel?: boolean;
+}
+
+/** A label pill's height (`labelMarkup`). */
+export const LABEL_HEIGHT = 19;
+/** Room kept between two pills, and between a pill and a box. */
+export const LABEL_GAP = 4;
+/** How far from either end of its line a pill's center stays, clear of the arrowhead. */
+const LABEL_END = 12;
+/** Most spots tried per line, so a busy image stays quick to draw. */
+const LABEL_TRIES = 81;
+
+/** The pill of `width` px centered on `at`. */
+export function pillRect(at: Point, width: number): Rect {
+  return { x: at.x - width / 2, y: at.y - LABEL_HEIGHT / 2, width, height: LABEL_HEIGHT };
+}
+
+/** Whether two rects come within `gap` px of each other. */
+function near(a: Rect, b: Rect, gap: number): boolean {
+  return (
+    a.x < b.x + b.width + gap &&
+    b.x < a.x + a.width + gap &&
+    a.y < b.y + b.height + gap &&
+    b.y < a.y + a.height + gap
+  );
+}
+
+/** How far along a polyline (by length) the point on it nearest `at` is. */
+function lengthAt(points: readonly Point[], at: Point): number {
+  let best = Infinity;
+  let bestLength = 0;
+  let walked = 0;
+  for (const [i, b] of points.slice(1).entries()) {
+    const a = points[i] as Point;
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    const f =
+      length > 0
+        ? Math.min(
+            Math.max(((at.x - a.x) * (b.x - a.x) + (at.y - a.y) * (b.y - a.y)) / length ** 2, 0),
+            1,
+          )
+        : 0;
+    const d = Math.hypot(a.x + (b.x - a.x) * f - at.x, a.y + (b.y - a.y) * f - at.y);
+    if (d < best) {
+      best = d;
+      bestLength = walked + f * length;
+    }
+    walked += length;
+  }
+  return bestLength;
+}
+
+/**
+ * Keeps line labels from covering each other or a box (M9.3d): in order,
+ * each pill (`widths[i]` px for `edges[i]`) stays where routing put it when
+ * that spot is clear ({@link LABEL_GAP}), else slides along its own line,
+ * nearest spots first, to the first clear one. A line with no clear spot
+ * keeps its line but loses its label (`hideLabel`), and the caller says how
+ * many were left off. Earlier lines win, so the order is the caller's
+ * (graph order for the README image) and the result is deterministic.
+ *
+ * Not handled: a pill isn't kept off other lines, so on a shared stretch it
+ * can sit on a neighbor's line (the canvas's ELK layout keeps lines apart;
+ * the image's arithmetic routing doesn't).
+ */
+export function spreadLabels(
+  edges: readonly PlacedEdge[],
+  widths: readonly number[],
+  boxes: readonly Rect[],
+): PlacedEdge[] {
+  const taken: Rect[] = [];
+  const clear = (r: Rect) =>
+    !taken.some((t) => near(r, t, LABEL_GAP)) && !boxes.some((b) => near(r, b, LABEL_GAP));
+  return edges.map((p, i) => {
+    const width = widths[i] ?? 0;
+    const total = lengthAt(p.points, p.points.at(-1) as Point);
+    const start = lengthAt(p.points, p.label);
+    const room = total - 2 * LABEL_END;
+    const step = Math.max(6, room / (LABEL_TRIES - 1));
+    const spots = [p.label];
+    for (let k = 1; k < LABEL_TRIES; k++) {
+      const s = start + Math.ceil(k / 2) * step * (k % 2 === 1 ? 1 : -1);
+      if (s >= LABEL_END && s <= total - LABEL_END && total > 0)
+        spots.push(pointAlong(p.points, s / total));
+    }
+    const spot = spots.find((at) => clear(pillRect(at, width)));
+    if (!spot) return { ...p, hideLabel: true };
+    taken.push(pillRect(spot, width));
+    return spot === p.label ? p : { ...p, label: spot };
+  });
 }
 
 const round = (n: number) => Math.round(n * 100) / 100;
