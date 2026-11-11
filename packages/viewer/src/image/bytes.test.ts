@@ -129,6 +129,7 @@ const EXPECTED: Record<string, string[]> = {
   "fetch-event-source": ["d60123db4349f84a", "3862fd0ef8c3346a", "98116eede4410257"],
   "fetch-template-literal": ["8b80d7390797ba19", "248e377451753beb", "261682dcd8866049"],
   "fixed-url-helpers": ["ab7626f2e1d493e9", "03409237b6bb3e26", "2c08a0fb3fc72402"],
+  "infra-test-folders": ["789ce3712ac34461", "823de049e0657bce", "8e4485f276b1629a"],
   "js-global-assignment": ["18b60ddacf92a70b", "855baae653ff2dc8", "bcde91a2c1772632"],
   "ky-client": ["98b488d4045dd56e", "a36d5c046e900109", "a2a2f4377183f742"],
   "let-query-urls": ["8a7b0fa56e0ca90e", "2cb98638918479b5", "4b7a3c5b789f5ec7"],

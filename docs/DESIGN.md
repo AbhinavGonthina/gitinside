@@ -184,7 +184,7 @@ Every detector file starts with a doc comment listing **patterns handled** and *
   - `docker-compose*.yml` / `compose*.yaml` services by image (`postgres`, `mysql`, `mongo`, `redis`, `rabbitmq`, `minio`, `elasticsearch`, etc.) ⇒ `datastore` or `queue` nodes, with override files in the same folder merged.
   - `.env*` URL keys: a Prisma datasource's `url = env("DATABASE_URL")` links its models' `stores` edges to the compose service the URL names (`exact`) or whose published port it uses on localhost (`heuristic`); other URL keys with a datastore scheme (`REDIS_URL=rediss://…`) that nothing else explains become env-only datastores.
   - Values are never stored. Only key names and URL schemes/hosts/ports are read; secrets are discarded at parse time, and hosts are only compared, never written.
-- **Not handled:** `*_API_KEY` keys (SDK calls draw those edges), compose `extends`/`include`/`env_file`, images set from variables (warned), literal Prisma URLs, and other ORMs' connection settings.
+- **Not handled:** compose and env files in test and fixture folders (`test/`, `__tests__/`, `e2e/`, `fixtures/`, …; a test's containers or a sample repo's, not this repo's infrastructure, ADR-0262), `*_API_KEY` keys (SDK calls draw those edges), compose `extends`/`include`/`env_file`, images set from variables (warned), literal Prisma URLs, and other ORMs' connection settings.
 
 ## 7. Cross-service resolution algorithm
 
