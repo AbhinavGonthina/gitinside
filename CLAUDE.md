@@ -349,7 +349,8 @@ You are the engineering partner on GitInside, a solo project owned by Abhinav. *
 - In the seeded E2E, opening Add to README loads the repo's latest-commit badge or image, which asks GitHub about the fixture and hides its pages from every later test in the run (M9.6: 11 "There's no page here." failures). `page.route` `/api/(badge|diagram)/` to a stub SVG in such tests.
 - axe run during an entrance fade reports a false contrast failure (a blend of text and background: 3.93:1, 1.07:1 at M9.6), and content that arrives later (a job's facts) fades after a first wait. Before `analyze()`, loop until a frame passes with no running finite animation (`audit` in `apps/web/e2e/a11y.e2e.ts`).
 - axe's `label-content-name-mismatch` reads all *visible* text as the label, `aria-hidden` or not, so hiding supplementary text doesn't clear it (M9.6). Check its source (`node_modules/.pnpm/axe-core@*/axe.js`) before designing a fix around a rule.
-- `pnpm --filter @gitinside/web e2e --reporter=json` writes the JSON followed by pnpm's own error lines when a test fails. Parse from the first `{` to the last `\n}` (`apps/web/dist/m96-review.mjs`).<!-- lessons:end -->
+- `pnpm --filter @gitinside/web e2e --reporter=json` writes the JSON followed by pnpm's own error lines when a test fails. Parse from the first `{` to the last `\n}` (`apps/web/dist/m96-review.mjs`).
+- A milestone tag can land after the next milestone's first PRs (`m8` sits after M9.1a1–a3f, merged before M8.10g), so `git diff m<n-1>..HEAD` misses them (M9.7a). Take a milestone review's range from its first task's merge (`git log --first-parent`), not the previous tag.<!-- lessons:end -->
 
 **Problems you can't fix yourself.** If a fix would need a change to a protected file (the loop script or the permission settings), write the proposed new version under `../gitinside-planning/proposed/`, open a `needs-abhinav` issue explaining why, and continue with other work.
 
