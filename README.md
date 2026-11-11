@@ -34,6 +34,14 @@ v1 reads TypeScript and JavaScript: React and Next.js, Express and Next.js API r
 
 **Status:** every milestone through the PR bot (M8) is done, and the launch work (M9) is in progress. The site is live, but nothing has been announced publicly yet.
 
+## Why I built this
+
+**PRs are slow to review because the flow is hard to see.** In my Software Design and Delivery class, we discussed how to make PRs as easy to review as possible. One thing I noticed: reviewers spend much of their time just working out where a piece of code fits into the overall flow. The bigger the project, the longer that takes, and for someone more junior it can be genuinely confusing. System design charts could help, but they rarely go into the fine-grained detail a reviewer actually needs.
+
+**A Figma-like view of the flow helped me learn a codebase.** During my co-op at Philips, I collaborated with other teams, such as the UI/UX team, who had our app's whole flow laid out in Figma. I loved that. Figma's interface is very intuitive for me, and that kind of environment really helped me understand the codebase at the time.
+
+Bringing those together: a simple interface, similar to Figma's designs with their details, but with the level of interactivity someone new to a codebase needs. That's GitInside.
+
 ## Try it
 
 - **On the website:** open [gitinside.abhinavgonthina.dev](https://gitinside.abhinavgonthina.dev) and paste a public repo's URL. A progress page shows the analysis stages, then the diagram opens. Three demo repos, each checked edge by edge (see [Results](#demo-repos-checked-by-hand)), open at once: [Mintplex-Labs/anything-llm](https://gitinside.abhinavgonthina.dev/Mintplex-Labs/anything-llm/308b27662b2f6fd4947791d61c797945c609fcbc), [shadcn-ui/taxonomy](https://gitinside.abhinavgonthina.dev/shadcn-ui/taxonomy/298a8857c7128a0d121e7f699dfd729f23b3966d), and [getmaxun/maxun](https://gitinside.abhinavgonthina.dev/getmaxun/maxun/99c6bd0d42b14336b706ba121a3757f62a9814f7).
