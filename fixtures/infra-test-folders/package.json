@@ -1,0 +1,1 @@
+{ "name": "infra-test-folders", "dependencies": { "@prisma/client": "5" } }

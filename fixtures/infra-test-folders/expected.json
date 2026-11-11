@@ -1,0 +1,150 @@
+{
+  "analyzerVersion": "0.3.1",
+  "edges": [
+    {
+      "confidence": "exact",
+      "fields": [
+        "customer"
+      ],
+      "from": "symbol:infra-test-folders/src/invoices.ts#invoiceTotal",
+      "id": "reads:symbol:infra-test-folders/src/invoices.ts#invoiceTotal->model:infra-test-folders/Invoice",
+      "kind": "reads",
+      "sites": [
+        {
+          "column": 37,
+          "file": "src/invoices.ts",
+          "line": 6
+        }
+      ],
+      "to": "model:infra-test-folders/Invoice"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "model:infra-test-folders/Invoice",
+      "id": "stores:model:infra-test-folders/Invoice->datastore:infra/db",
+      "kind": "stores",
+      "sites": [
+        {
+          "column": 1,
+          "file": "prisma/schema.prisma",
+          "line": 1
+        }
+      ],
+      "to": "datastore:infra/db"
+    }
+  ],
+  "nodes": [
+    {
+      "engine": "postgres",
+      "id": "datastore:infra/db",
+      "kind": "datastore",
+      "label": "db",
+      "layer": "data",
+      "parentId": "system:root",
+      "source": {
+        "column": 3,
+        "file": "docker-compose.yml",
+        "line": 2
+      }
+    },
+    {
+      "hash": "4b2fb31dbd201caf7126ade86864c68e5a2ffaee808abf028abb328c51c7ea64",
+      "id": "file:infra-test-folders/prisma/schema.prisma",
+      "kind": "file",
+      "label": "schema.prisma",
+      "parentId": "module:infra-test-folders/prisma",
+      "path": "prisma/schema.prisma"
+    },
+    {
+      "hash": "7bdf289e911bddbcf911b6428c89418cc12769d7e81bfaaba0785c81b74f5def",
+      "id": "file:infra-test-folders/src/invoices.ts",
+      "kind": "file",
+      "label": "invoices.ts",
+      "parentId": "module:infra-test-folders/src",
+      "path": "src/invoices.ts"
+    },
+    {
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "Int"
+        },
+        {
+          "name": "customer",
+          "optional": false,
+          "type": "String"
+        },
+        {
+          "name": "cents",
+          "optional": false,
+          "type": "Int"
+        }
+      ],
+      "id": "model:infra-test-folders/Invoice",
+      "kind": "model",
+      "label": "Invoice",
+      "layer": "data",
+      "parentId": "file:infra-test-folders/prisma/schema.prisma",
+      "source": {
+        "column": 1,
+        "endLine": 14,
+        "file": "prisma/schema.prisma",
+        "line": 10
+      }
+    },
+    {
+      "id": "module:infra-test-folders/prisma",
+      "kind": "module",
+      "label": "prisma",
+      "parentId": "service:infra-test-folders/",
+      "path": "prisma"
+    },
+    {
+      "id": "module:infra-test-folders/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:infra-test-folders/",
+      "path": "src"
+    },
+    {
+      "id": "service:infra-test-folders/",
+      "kind": "service",
+      "label": "infra-test-folders",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:infra-test-folders/src/invoices.ts#invoiceTotal",
+      "kind": "symbol",
+      "label": "invoiceTotal",
+      "parentId": "file:infra-test-folders/src/invoices.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 8,
+        "file": "src/invoices.ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "infra-test-folders",
+      "parentId": null
+    }
+  ],
+  "repo": {
+    "name": "infra-test-folders",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}
