@@ -410,11 +410,12 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     ]);
   });
 
-  it("sdk-branches: every write and branch of a client counts; a placeholder example host is no API (M9.7g, M9.7l, M9.7m)", async () => {
+  it("sdk-branches: every write and branch of a client counts; a placeholder example host is no API (M9.7g, M9.7l, M9.7m, M9.7n)", async () => {
     const g = await run("sdk-branches");
     const fields = "symbol:sdk-branches/src/fields.ts";
     const lazy = "symbol:sdk-branches/src/lazy.ts";
     const sw = "symbol:sdk-branches/src/switch.js";
+    const warm = "symbol:sdk-branches/src/warm.ts";
     const at = "unresolved:sdk-branches/src";
     // A default-built client beside an unread branch (`repoFor`, `Pluggable`), and a global
     // member no write in the file names (`sharedModels`), are unresolved too (M9.7j). So are
@@ -422,7 +423,10 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     // of a parameter named `self` (`modelsOf`), and a three-way join with an unread branch
     // (`issuesFor`), whatever its order (M9.7l). A lazy `??=` getter reads what was there
     // before: a variable a setter writes (`clientModels`); a global cached in one file and
-    // written with another base in another (`proxiedModels`) has both (M9.7m).
+    // written with another base in another (`proxiedModels`) has both (M9.7m). A getter's
+    // result written back (`warm`) leaves its variable's setter in, whichever call is traced
+    // first (`cachedModels`), and a global `var`'s bare-name write is a store (`sharedModels`)
+    // (M9.7n).
     expect(links(g, "http")).toEqual([
       `${fields}#Switchable.models -> ${at}/fields.ts:15:27 unresolved DYNAMIC_URL`,
       `${fields}#azureChat -> ${at}/fields.ts:42:33 unresolved NO_MATCHING_ROUTE`,
@@ -437,6 +441,9 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       `${sw}#embed -> ${at}/switch.js:33:37 unresolved DYNAMIC_URL`,
       `${sw}#modelsOf -> ${at}/switch.js:73:20 unresolved DYNAMIC_URL`,
       `${sw}#sharedModels -> ${at}/switch.js:55:24 unresolved DYNAMIC_URL`,
+      `${warm}#cachedModels -> ${at}/warm.ts:25:29 unresolved DYNAMIC_URL`,
+      `${warm}#sharedModels -> ${at}/warm.ts:36:29 unresolved DYNAMIC_URL`,
+      `${warm}#warm -> ${at}/warm.ts:21:24 unresolved DYNAMIC_URL`,
     ]);
     expect(links(g, "external_call")).toEqual([
       `${fields}#route -> external:ext/openrouter.ai exact`,
