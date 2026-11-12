@@ -16,14 +16,22 @@
  *   namespace import (`new aws.S3Client()`), or a nested path a package lists
  *   (`new calendar_v3.Calendar({ auth })`, `google.calendar({ version })`). Declarations typed
  *   with such a name (`constructor(private stripe: Stripe)`) are clients too, when how they
- *   were built isn't found (M9.7d): a declaration's initializer, or for an instance field
- *   without one, its `this.<name> = …` writes in the class's members, is read first. The
- *   call that builds a client is not itself a request.
+ *   were built isn't found (M9.7d): a declaration's initializer and, for an instance field,
+ *   its `this.<name> = …` writes in the class's members, are read first. The call that builds
+ *   a client is not itself a request.
  * - Values are traced like axios instances (`http.ts`): through variables, imports and
  *   workspace packages (taking the import's confidence), exports, CommonJS exports,
  *   `??`/`||`/`&&`, ternaries, `await`, and factory functions that return a client. Each
- *   branch (both sides, every `return`, every field write) is read; clients of one package
- *   whose bases differ are one client whose base is only known at runtime (M9.7d).
+ *   branch (both sides, every `return`, every declaration, a field's initializer and every
+ *   write; M9.7g) is read; clients of one package whose bases differ are one client whose
+ *   base is only known at runtime (M9.7d), and so are clients of two packages, unless
+ *   neither reads a base and both go to one host. A branch that is a name, member, or call
+ *   not traced to an SDK (`opts.client ?? new OpenAI({ baseURL })`, a parameter) may hold any
+ *   client: beside a client whose export reads a base, it's one built with an unseen base;
+ *   beside any other client it changes nothing (ADR-0266). A member read from the global
+ *   object (`globalThis.ai ?? new OpenAI(…)`, a module's cache) and a self-reference
+ *   (`this.ai = this.ai || new OpenAI(…)`) add no branch, nor does `a && b`'s left side. Two
+ *   values that aren't both clients keep the first.
  * - A request is a method call on a module value or a client, at any depth:
  *   `stripe.customers.create()`, `s3.send(cmd)`, `sgMail.send()`. Its site is the method
  *   name. The owner is the innermost symbol, or the routes of an inline Express handler;
@@ -65,11 +73,13 @@
  * - Directly called named exports that aren't clients (`import { send } from "x"; send()`),
  *   and methods on results (`(await s3.send(cmd)).Body.transformToString()`): one call
  *   per chain counts, the one on the client.
- * - Clients destructured (`const { customers } = stripe`) or stored in collections. A JS
- *   field assigned in several places (`this.openai = …` in two methods) is read from its
- *   first write only; a TypeScript field's writes are all read. Writes to a static field,
- *   a parameter property's later writes, and a variable declared without an initializer and
- *   assigned later (`let c: OpenAI; c = …`) aren't read: such clients are known by type.
+ * - Clients destructured (`const { customers } = stripe`) or stored in collections; a cache
+ *   in a module variable or a `Map` (`cache.get(k) ?? new OpenAI(…)`) is an unread branch,
+ *   so such a client's base is unresolved. A parameter's default
+ *   (`constructor(client = new OpenAI({ baseURL }))`) is read as its one client, though a
+ *   caller may pass another. Writes to a static field, a parameter property's later writes,
+ *   and a variable declared without an initializer and assigned later
+ *   (`let c: OpenAI; c = …`) aren't read: such clients are known by type.
  * - SDKs whose host depends on the account or project (Supabase, Firebase, Algolia,
  *   Salesforce), SMTP clients (nodemailer), and telemetry (Sentry, PostHog). They're not on
  *   the allowlist, so like any third-party package they get no edge (ADR-0024).
@@ -374,6 +384,33 @@ type SdkBase =
   | { kind: "unseen"; paths: boolean }
   | { kind: "branches"; paths: boolean };
 
+/** A branch whose value isn't traced to an SDK but may hold any client (M9.7g). */
+const UNREAD = "unread";
+
+/** One branch of a value: an SDK value, {@link UNREAD}, or nothing an SDK call is made on. */
+type Branch = SdkValue | typeof UNREAD | undefined;
+
+/** A joined value once every branch is in: an unread one alone is no SDK value. */
+const settled = (branch: Branch): SdkValue | undefined => (branch === UNREAD ? undefined : branch);
+
+/** Names of the global object; a member read from one is a cache, not an injected client. */
+const GLOBAL_OBJECTS: ReadonlySet<string> = new Set(["global", "globalThis", "self", "window"]);
+
+/**
+ * The value a JS assignment declaration assigns (`this.ai = …`, `exports.x = …`): such a
+ * declaration is the assignment, or its left side.
+ */
+function assignedValue(declaration: ts.Declaration): ts.Expression | undefined {
+  if (ts.isBinaryExpression(declaration)) return declaration.right;
+  const parent = declaration.parent as ts.Node | undefined;
+  return ts.isPropertyAccessExpression(declaration) &&
+    parent &&
+    ts.isBinaryExpression(parent) &&
+    parent.left === declaration
+    ? parent.right
+    : undefined;
+}
+
 /**
  * Jest's and Vitest's mock methods (`create.mockResolvedValue(…)`) and their `mock` record
  * (`create.mock.calls.at(-1)`): a test configuring or reading a mocked client's method, not
@@ -610,16 +647,92 @@ export function collectSdkFacts(
   /**
    * Two SDK values an expression may be, one per branch (`a ?? b`, `c ? a : b`, a factory's
    * returns, a field's writes; M9.7d): either when the other isn't an SDK's, and the first
-   * when they aren't both clients of one package. Clients whose bases differ are `branches`:
-   * which one a call uses is only known at runtime.
+   * when they aren't both clients. Clients whose bases differ are `branches`: which one a call
+   * uses is only known at runtime. So are clients of two packages (M9.7g), unless neither
+   * reads a base and both go to one host (`@octokit/rest` and `octokit`); their method paths
+   * differ, so none is listed.
    */
   const merged = (a: SdkValue | undefined, b: SdkValue | undefined): SdkValue | undefined => {
     if (!a || !b) return a ?? b;
-    if (a.name !== null || b.name !== null || a.pkg.module !== b.pkg.module) return a;
+    if (a.name !== null || b.name !== null) return a;
     const confidence = weaker(a.confidence, b.confidence);
+    if (a.pkg.module !== b.pkg.module) {
+      if (!a.base && !b.base && a.pkg.host === b.pkg.host) return { ...a, confidence };
+      return { ...a, confidence, base: { kind: "branches", paths: false } };
+    }
     if (sameBase(a.base, b.base)) return { ...a, confidence };
     const paths = (a.base?.paths ?? true) && (b.base?.paths ?? true);
     return { ...a, confidence, base: { kind: "branches", paths } };
+  };
+
+  /**
+   * Two branches merged like {@link merged}, where a branch may be {@link UNREAD}: a value
+   * that isn't traced to an SDK but may hold any client (`opts.client` in
+   * `opts.client ?? new OpenAI({ baseURL })`, M9.7g). Beside a client whose export reads a
+   * base, it's a client built with an unseen base, so the two are `branches`; beside any other
+   * client it changes nothing, since that client's calls go to its SDK's host however it was
+   * built.
+   */
+  const joined = (a: Branch, b: Branch): Branch => {
+    if (a !== UNREAD && b !== UNREAD) return merged(a, b);
+    const other = a === UNREAD ? b : a;
+    if (other === undefined || other === UNREAD) return UNREAD;
+    if (other.name !== null || !other.base) return other;
+    return merged(other, { ...other, base: { kind: "unseen", paths: other.base.paths } });
+  };
+
+  /**
+   * What one branch is: an SDK value, {@link UNREAD}, or nothing an SDK call can be made on.
+   * A member read from the global object (`globalThis.ai ?? new OpenAI(…)`, also through a
+   * `const` holding `globalThis as …`) is a module's cache of the client the other branches
+   * build, so it adds nothing, typed or not.
+   */
+  const branchOf = (sp: ServiceProgram, expression: ts.Expression, hops: number): Branch => {
+    if (fromGlobal(sp, expression, hops)) return undefined;
+    const found = sdkOf(sp, expression, hops);
+    if (found) return found;
+    return unread(sp, expression) ? UNREAD : undefined;
+  };
+
+  /**
+   * True when an expression not traced to an SDK may still hold a client: a name, a member, or
+   * a call (`opts.client`, `getClient()`). Literals, `null`, `undefined`, objects, functions,
+   * and `new` of a class that isn't an SDK's can't. Neither can the value being traced itself
+   * (`this.ai = this.ai || new OpenAI(…)`), whose other branches are already counted.
+   */
+  const unread = (sp: ServiceProgram, expression: ts.Expression): boolean => {
+    let e = unwrap(expression);
+    while (ts.isAwaitExpression(e)) e = unwrap(e.expression);
+    if (ts.isIdentifier(e)) {
+      if (e.text === "undefined") return false;
+    } else if (
+      !ts.isPropertyAccessExpression(e) &&
+      !ts.isElementAccessExpression(e) &&
+      !ts.isCallExpression(e)
+    ) {
+      return false;
+    }
+    const name = ts.isIdentifier(e) ? e : ts.isPropertyAccessExpression(e) ? e.name : undefined;
+    const symbol = name && symbolAt(sp, name);
+    return !(symbol && sdkBySymbol.get(symbol) === null);
+  };
+
+  /** True for a member read from the global object, directly or through a `const`. */
+  const fromGlobal = (sp: ServiceProgram, expression: ts.Expression, hops: number): boolean => {
+    if (hops > MAX_HOPS) return false;
+    const e = unwrap(expression);
+    if (ts.isPropertyAccessExpression(e) || ts.isElementAccessExpression(e)) {
+      return fromGlobal(sp, e.expression, hops + 1);
+    }
+    if (!ts.isIdentifier(e)) return false;
+    if (GLOBAL_OBJECTS.has(e.text)) return true;
+    const declaration = symbolAt(sp, e)?.declarations?.[0];
+    return (
+      declaration !== undefined &&
+      ts.isVariableDeclaration(declaration) &&
+      declaration.initializer !== undefined &&
+      fromGlobal(sp, declaration.initializer, hops + 1)
+    );
   };
 
   /** True when two clients' bases are the same: one env var, or values read to one URL. */
@@ -646,19 +759,19 @@ export function collectSdkFacts(
 
   /**
    * The values written to instance field `declaration` (`this.<name> = …`, `??=` too) in its
-   * class's members, merged (M9.7d): a TypeScript field declared without an initializer is
-   * set this way, and only its writes say how its client was built. Nested classes and
-   * `function`s have their own `this`, so their writes aren't counted.
+   * class's members, joined (M9.7d): they say how its client was built, and a write beside an
+   * initializer can replace the client it built (M9.7g). Nested classes and `function`s have
+   * their own `this`, so their writes aren't counted.
    */
   const fieldWrites = (
     sp: ServiceProgram,
     declaration: ts.PropertyDeclaration,
     hops: number,
-  ): SdkValue | undefined => {
+  ): Branch => {
     const name = declaration.name;
     const cls = declaration.parent;
     if (!ts.isIdentifier(name) || !ts.isClassLike(cls) || isStatic(declaration)) return undefined;
-    let found: SdkValue | undefined;
+    let found: Branch;
     const walk = (node: ts.Node): void => {
       if (ts.isClassLike(node) || ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node))
         return;
@@ -673,7 +786,7 @@ export function collectSdkFacts(
           left.expression.kind === ts.SyntaxKind.ThisKeyword &&
           left.name.text === name.text
         ) {
-          found = merged(found, sdkOf(sp, node.right, hops + 1));
+          found = joined(found, branchOf(sp, node.right, hops + 1));
         }
       }
       ts.forEachChild(node, walk);
@@ -726,14 +839,14 @@ export function collectSdkFacts(
       ts.isPropertySignature(declaration) ||
       ts.isParameter(declaration)
     ) {
-      // How the value was built says more than its type, which can't name a base (M9.7d).
+      // How the value was built says more than its type, which can't name a base (M9.7d);
+      // a field's writes count beside its initializer (M9.7g).
       const init = ts.isPropertySignature(declaration) ? undefined : declaration.initializer;
-      const built = init
-        ? sdkOf(sp, init, hops + 1)
-        : ts.isPropertyDeclaration(declaration)
-          ? fieldWrites(sp, declaration, hops)
-          : undefined;
-      return built ?? sdkOfType(sp, declaration.type);
+      const built = joined(
+        init && branchOf(sp, init, hops + 1),
+        ts.isPropertyDeclaration(declaration) ? fieldWrites(sp, declaration, hops) : undefined,
+      );
+      return settled(built) ?? sdkOfType(sp, declaration.type);
     }
     if (ts.isPropertyAssignment(declaration)) return sdkOf(sp, declaration.initializer, hops + 1);
     if (ts.isShorthandPropertyAssignment(declaration)) {
@@ -741,22 +854,16 @@ export function collectSdkFacts(
       return value && sdkOfSymbol(sp, value, hops + 1);
     }
     if (ts.isExportAssignment(declaration)) return sdkOf(sp, declaration.expression, hops + 1);
-    // CommonJS: `module.exports = x` and `exports.x = y` declare on the assignment.
-    if (ts.isBinaryExpression(declaration)) return sdkOf(sp, declaration.right, hops + 1);
-    const parent = declaration.parent as ts.Node | undefined;
-    if (
-      ts.isPropertyAccessExpression(declaration) &&
-      parent &&
-      ts.isBinaryExpression(parent) &&
-      parent.left === declaration
-    ) {
-      return sdkOf(sp, parent.right, hops + 1);
-    }
+    // CommonJS's `module.exports = x` and `exports.x = y`, and a JS field's `this.x = y`,
+    // declare on the assignment: `traceSymbol` reads those with `assignedValue`.
     return undefined;
   };
 
-  /** Results by symbol; `null` while a symbol is being traced, so cycles stop. */
-  const sdkBySymbol = new Map<ts.Symbol, SdkValue | null>();
+  /**
+   * Results by symbol: `null` while a symbol is being traced, so cycles stop (and
+   * {@link unread} knows a self-reference), `false` for one traced to no SDK value.
+   */
+  const sdkBySymbol = new Map<ts.Symbol, SdkValue | null | false>();
 
   const sdkOfSymbol = (
     sp: ServiceProgram,
@@ -765,10 +872,10 @@ export function collectSdkFacts(
   ): SdkValue | undefined => {
     if (hops > MAX_HOPS) return undefined;
     const known = sdkBySymbol.get(start);
-    if (known !== undefined) return known ?? undefined;
+    if (known !== undefined) return known === null || known === false ? undefined : known;
     sdkBySymbol.set(start, null);
     const result = traceSymbol(sp, start, hops);
-    sdkBySymbol.set(start, result ?? null);
+    sdkBySymbol.set(start, result ?? false);
     return result;
   };
 
@@ -790,11 +897,17 @@ export function collectSdkFacts(
       }
       symbol = aliased;
     }
+    // Every declaration counts, joined (M9.7g): a JS field's `this.ai = …` writes each
+    // declare it, and any of them may have built the client a call uses.
+    let found: Branch;
     for (const declaration of symbol.declarations ?? []) {
-      const found = sdkOfDeclaration(sp, declaration, hops);
-      if (found) return found;
+      const right = assignedValue(declaration);
+      found = joined(
+        found,
+        right ? branchOf(sp, right, hops + 1) : sdkOfDeclaration(sp, declaration, hops),
+      );
     }
-    return undefined;
+    return settled(found);
   };
 
   /** A value reached through a workspace-package import, at that import's confidence. */
@@ -820,11 +933,11 @@ export function collectSdkFacts(
     let known = sdkByFactory.get(fn);
     if (known === undefined) {
       sdkByFactory.set(fn, null);
-      let found: SdkValue | undefined;
+      let found: Branch;
       for (const returned of returnedExpressions(fn)) {
-        found = merged(found, sdkOf(sp, returned, hops + 1));
+        found = joined(found, branchOf(sp, returned, hops + 1));
       }
-      known = found ?? null;
+      known = settled(found) ?? null;
       sdkByFactory.set(fn, known);
     }
     return viaImport({ confidence }, known ?? undefined);
@@ -843,11 +956,11 @@ export function collectSdkFacts(
     if (required !== undefined) return moduleValue(required, "default");
     if (ts.isBinaryExpression(e)) {
       const op = e.operatorToken.kind;
-      if (
-        op === ts.SyntaxKind.QuestionQuestionToken ||
-        op === ts.SyntaxKind.BarBarToken ||
-        op === ts.SyntaxKind.AmpersandAmpersandToken
-      ) {
+      if (op === ts.SyntaxKind.QuestionQuestionToken || op === ts.SyntaxKind.BarBarToken) {
+        return settled(joined(branchOf(sp, e.left, hops + 1), branchOf(sp, e.right, hops + 1)));
+      }
+      // `a && b` is `a` only when `a` is falsy, so no client is unread on its left.
+      if (op === ts.SyntaxKind.AmpersandAmpersandToken) {
         return merged(sdkOf(sp, e.left, hops + 1), sdkOf(sp, e.right, hops + 1));
       }
       if (op === ts.SyntaxKind.EqualsToken || op === ts.SyntaxKind.QuestionQuestionEqualsToken) {
@@ -856,7 +969,9 @@ export function collectSdkFacts(
       return undefined;
     }
     if (ts.isConditionalExpression(e)) {
-      return merged(sdkOf(sp, e.whenTrue, hops + 1), sdkOf(sp, e.whenFalse, hops + 1));
+      return settled(
+        joined(branchOf(sp, e.whenTrue, hops + 1), branchOf(sp, e.whenFalse, hops + 1)),
+      );
     }
     if (ts.isNewExpression(e))
       return constructed(sp, sdkOf(sp, e.expression, hops + 1), e.arguments);
