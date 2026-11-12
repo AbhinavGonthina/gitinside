@@ -146,6 +146,28 @@ describe("spreadLabels", () => {
     const [, far] = spreadLabels([line(0), line(0)], [260, 20], []);
     expect(far?.hideLabel).toBe(true);
   });
+
+  it("measures a line that passes its own end point earlier by its whole length (M9.7f)", () => {
+    // Right 300, down 100, back left 150, up 100: the end (150, 0) is also
+    // on the first segment, 150px in, but the line is 650px long.
+    const hook: PlacedEdge = {
+      view,
+      points: [
+        { x: 0, y: 0 },
+        { x: 300, y: 0 },
+        { x: 300, y: 100 },
+        { x: 150, y: 100 },
+        { x: 150, y: 0 },
+      ],
+      label: { x: 200, y: 100 },
+    };
+    // A box over the label's spot: the nearest clear one is further along the
+    // bottom stretch, toward (300, 100).
+    const [p] = spreadLabels([hook], [30], [{ x: 160, y: 90, width: 80, height: 20 }]);
+    expect(p?.hideLabel).toBeUndefined();
+    expect(p?.label.y).toBe(100);
+    expect(p?.label.x).toBeGreaterThanOrEqual(240 + LABEL_GAP + 15);
+  });
 });
 
 describe("pointAlong", () => {
