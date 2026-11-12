@@ -109,6 +109,15 @@ each pin was analyzed again the same way (`apps/web/dist/m97l-pins.mjs`,
 and byte sizes): no pin builds an SDK client in a compound assignment, a reassigned `let`, or
 on the global object. No edge needed rechecking by hand.
 
+At 0.3.8 (M9.7n, ADR-0270: a result traced while something it reads is still being traced
+isn't kept as final, a global `var` read or written by its bare name is its global path, and
+a use of the global object the matcher can't follow makes the paths below it unread) each pin
+was analyzed again the same way (`apps/web/dist/m97n-pins.mjs`) and is again identical to the
+0.3.1 graph but for the version: 7,784 / 529 / 1,525 nodes, 12,630 (873) / 542 (29) /
+2,323 (142) edges, and 10,560,747 / 439,847 / 1,999,969 bytes, with no node or edge added,
+removed, or changed. No pin reads an SDK client through a getter written back to what it
+reads, or off the global object. No edge needed rechecking by hand.
+
 ### At 0.3.0
 
 All three pins were analyzed on the site at analyzer 0.3.0 on 2026-11-10 (M9.1b2b), right
