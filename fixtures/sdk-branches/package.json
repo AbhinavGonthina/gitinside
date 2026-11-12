@@ -1,0 +1,4 @@
+{
+  "name": "sdk-branches",
+  "dependencies": { "@anthropic-ai/sdk": "0.30", "openai": "6" }
+}
