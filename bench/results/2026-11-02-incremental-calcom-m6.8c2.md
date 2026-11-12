@@ -1,7 +1,7 @@
 # Incremental analysis benchmark: calcom (2026-11-02)
 
 - **Repo:** https://github.com/calcom/cal.com at `0f19cc46ef6b6426ee398c670575b3c96be7af9e`
-- **Analyzer:** 0.1.0 (gitinside `95334da94cc8058796a1b3ae9c60f81bad2e27be`)
+- **Analyzer:** 0.1.0 (gitinside `9ac9e716444ad86a3ef3586f659e68aeb81ea783`)
 - **Method:** 1 cold warm-up run, then one cold run filling a disk fact cache (`openDiskCache`) from the unedited tree. Each case then makes 5 pairs of runs on the same tree, each run a fresh Node process: one with no cache (cold) and one with the cache (warm), in alternating order. An edit case appends a line declaring a new exported constant, different in each pair, to one file before the pair and restores the file after it, so no warm run finds its own edit in the cache. Opening the cache is part of the warm time.
 - **Machine:** dev machine: 13th Gen Intel(R) Core(TM) i7-13700H (20 logical cores), 15.6 GiB RAM, win32 10.0.26300, Node v22.13.0
 - **Filling the cache:** 22,793 ms, 113 entries written, 2 MiB on disk.
@@ -51,7 +51,7 @@ Raw per-run numbers are in the JSON file next to this report.
 
 ## Observations (hand-written, not generated)
 
-- **What changed since M6.8c1's report** (`2026-11-02-incremental-calcom-m6.8c.md`): every run reads each repo file once, side by side, and shares it between the cache keys, the compiler hosts, and the file nodes (gitinside `0625454`); observed inputs are stored in parts by owning service, each distinct part once (`a13ac18`, ADR-0181). The run was at `95334da` (the eval re-record after them). Every warm graph is its cold pair's bytes. Saved with the `-m6.8c2` suffix.
+- **What changed since M6.8c1's report** (`2026-11-02-incremental-calcom-m6.8c.md`): every run reads each repo file once, side by side, and shares it between the cache keys, the compiler hosts, and the file nodes (gitinside `c973c1f`); observed inputs are stored in parts by owning service, each distinct part once (`1b495e8`, ADR-0181). The run was at `9ac9e71` (the eval re-record after them). Every warm graph is its cold pair's bytes. Saved with the `-m6.8c2` suffix.
 - **The laptop slowed during the run:** the unchanged case's cold runs took 21.8–26.1 s, the edit cases' 26.9–43.6 s, settling near 35 s. Pairs alternate their order, so compare within a pair; the medians across cases aren't comparable.
 - **Shared package edited (88 services collected):** per pair 1.03×, 0.94×, 1.01×, 0.96×, 0.99× (median of pairs 0.99×; the medians in the table give 0.98×). M6.8c1: 0.92×. Warm spends 0.72–0.85 s outside every stage (storing 88 service entries and 1–2 new inputs parts, instead of the 23 whole sets M6.8c1 wrote).
 - **Nothing changed:** 4.4 s warm (M6.8c1: 8.3 s), with `programs` (keys over files read side by side, entries and parts read) at 0.8–1.2 s; peak 190 MiB (M6.8c1: 285 MiB).

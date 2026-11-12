@@ -1,7 +1,7 @@
 {
   "repo": "hoangsonww/Claude-Code-Agent-Monitor",
   "run": {
-    "gitinside": "7e97209c355eabdb64dc1cad9c128204fcd1f6c5",
+    "gitinside": "9b86d399ba50a5e56b6374fe929ba890b828723c",
     "analyzerVersion": "0.2.0",
     "started": "2026-11-07",
     "machine": {
@@ -12,7 +12,7 @@
       "node": "v22.13.0"
     }
   },
-  "replay": "a3622e19f2da52c78368574e2e75aa1fbf979388",
+  "replay": "88634953871a1e3f9b0da392b580b467af3c7cfc",
   "endSha": "c1a11f7c350ab113c55bc5bf7509f7d29ca7f5d6",
   "prs": []
 }

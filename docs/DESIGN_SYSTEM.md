@@ -4,7 +4,7 @@
 
 ### 1.1 Design gate outcome (2026-10-30)
 
-Abhinav's review of [M4a-review.md](milestones/M4a-review.md), in his words where it matters:
+Abhinav's review of the M4a design prototype, in his words where it matters:
 
 - **Kept as is:** tokens, logos, glyphs, edge confidence styles, node states, the inspector ("looks clean"), the command palette ("kinda like Mac, that's nice"), the broken-down service's sidebar, the code sample in the inspector, and the light theme ("looks clean and good"). Overall it reads as a system design diagram he'd explore in both themes, "good for a first run"; the diagram should get richer later.
 - **Fix: content must fit its container.** `@shop/web`'s count badges wrapped onto a second line and spilled out of its closed frame. Every node is sized from its content (M4b.0a).

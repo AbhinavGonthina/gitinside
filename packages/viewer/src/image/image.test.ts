@@ -368,7 +368,7 @@ describe("renderDiagram", () => {
   });
 
   it("keeps line labels apart and off the boxes, each on its own line (M9.3d)", () => {
-    // This repo's shape at ed99fd2: two frontend packages calling one package in a wrapped
+    // This repo's shape at 4500914: two frontend packages calling one package in a wrapped
     // backend column, so both lines run along the gap above it and their pills met there.
     // And a frontend → outside API line across the backend column (vite-proxy's pill sat on a box).
     const front = ["web", "viewer"].map((id): GraphNode => ({ ...service(id), layer: "frontend" }));

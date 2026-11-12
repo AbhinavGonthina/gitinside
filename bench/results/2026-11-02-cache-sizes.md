@@ -3,7 +3,7 @@
 How much room one analysis's cached facts take in the worker's in-memory `/tmp`, to size the
 cache's share of the 4 GiB Cloud Run instance (ADR-0178).
 
-- **Measured:** 2026-11-02, analyzer at `ceeff11` + uncommitted cache changes (the block count
+- **Measured:** 2026-11-02, analyzer at `f0dcd2b` + uncommitted cache changes (the block count
   only; the facts are unchanged), Windows dev laptop.
 - **How:** a scratch script ran `analyze(repo, { cache })` cold into an empty folder opened with
   `openDiskCache(dir, { blockBytes: 4096 })`, then read the folder's size with and without
@@ -11,7 +11,7 @@ cache's share of the 4 GiB Cloud Run instance (ADR-0178).
 
 | Repo | Commit | Services | Entries | Gzipped bytes | In 4 KiB pages | Graph bytes |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| fixtures/shop-demo | `ceeff11` | 2 | 2 | 3,337 | 8,192 | 21,678 |
+| fixtures/shop-demo | `f0dcd2b` | 2 | 2 | 3,337 | 8,192 | 21,678 |
 | shadcn-ui/taxonomy | `298a885` | 1 | 1 | 27,457 | 28,672 | 439,184 |
 | krishnaacharyaa/wanderlust | `2d83720` | 3 | 3 | 21,254 | 28,672 | 263,031 |
 | cal.com | `0f19cc4` | 113 | 113 | 26,295,056 | 26,472,448 | 26,023,666 |

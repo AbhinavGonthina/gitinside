@@ -6,7 +6,7 @@
       "repo": "cal.diy",
       "sha": "2eb48eccd8aca8a0c0ffabf28cf92e298b33ecee"
     },
-    "gitinsideSha": "9521be66fb836f94f6ec5db6251da1a4f7f8820e",
+    "gitinsideSha": "bd5cfeabae4b81906fa5a9091d3e33e9d5480e29",
     "analyzerVersion": "0.2.0",
     "host": "GitHub Actions Linux runner",
     "image": {

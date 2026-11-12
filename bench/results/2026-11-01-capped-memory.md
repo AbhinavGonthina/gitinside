@@ -2,7 +2,7 @@
 
 - **Repos:** cal.com from `pnpm bench`, and folders of https://github.com/microsoft/vscode at `11ba54a90a0ff8720cf47c086f5a9948eef9cf2c` (the tree `pnpm bench:stress` extracted, M5.16a)
 - **Method:** `pnpm bench:capped [--heap-mb=<n>] <folder>...` (`bench/src/capped.ts`): each folder through the worker's own sandboxed runner (`runAnalysis`: the given heap cap, 5 min, no network), one after another. New in M5.17c2c: the child reports its peak RSS (`process.resourceUsage().maxRSS`), its V8 heap after serializing (`heapTotal`), and the graph's size.
-- **Code:** gitinside `5c73e45` plus M5.17c2c's changes (uncommitted while measuring).
+- **Code:** gitinside `6747ef3` plus M5.17c2c's changes (uncommitted while measuring).
 - **Machine:** dev machine: 13th Gen Intel(R) Core(TM) i7-13700H (20 logical cores), 15.6 GiB RAM, Windows 11, Node v22.13.0. Only 2.4 GiB of RAM was free during the runs (other programs open), so these times are 2–3× M5.16b's for the same folders and shouldn't be compared with them.
 - **Runs:** one per folder and cap. Raw lines are below.
 

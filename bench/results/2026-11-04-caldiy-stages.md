@@ -3,7 +3,7 @@
 M5.13's production smoke test measured 96.3 s from queued to done for `calcom/cal.diy` at `2eb48eccd8aca8a0c0ffabf28cf92e298b33ecee` (5,075 source files, 113 services) on one Cloud Run instance (1 vCPU / 4 GiB). DESIGN.md §9's budget is ≤ 60 s for a 5k-file repo. This note re-measures the same commit locally, says where the time goes, and what would bring it under 60 s.
 
 - **Repo:** https://github.com/calcom/cal.diy at `2eb48eccd8aca8a0c0ffabf28cf92e298b33ecee`, fetched with `git fetch --depth 1` into `bench/.repos/caldiy-2eb48ec` (the same files as GitHub's tarball, which the worker extracts).
-- **Code:** gitinside `cc3fe55` (analyzer 0.2.0, the version production ran), built before measuring.
+- **Code:** gitinside `010e96b` (analyzer 0.2.0, the version production ran), built before measuring.
 - **Machine:** dev machine: 13th Gen Intel(R) Core(TM) i7-13700H (20 logical cores), 15.6 GiB RAM, Windows 11, Node v22.13.0, other programs open.
 - **Production's own stage times** are in that row's `analyses.stats` (`stageMs`, and `jobMs`: download, analyze, upload), which only a production database read can show. Abhinav read them on gitinside-planning#20 (2026-11-05); they're under "Production's split" below.
 
@@ -72,7 +72,7 @@ The fact cache (ADR-0178) doesn't help a first analysis: production's 96.3 s was
 
 ## Production's split (added 2026-11-05, M5.14b2)
 
-The two big rows from M5.13's smoke test, read by Abhinav from production's `analyses` table on gitinside-planning#20 (2026-11-05 ~06:20 UTC), copied unchanged. Both ran at gitinside `cfda744` (analyzer 0.2.0), whose analyzer is the same as `cc3fe55` above and `232ddd9` in `2026-11-04-cloudrun-caldiy.md` (the commits between them changed the website and benchmarks only).
+The two big rows from M5.13's smoke test, read by Abhinav from production's `analyses` table on gitinside-planning#20 (2026-11-05 ~06:20 UTC), copied unchanged. Both ran at gitinside `80e409a` (analyzer 0.2.0), whose analyzer is the same as `010e96b` above and `d47f463` in `2026-11-04-cloudrun-caldiy.md` (the commits between them changed the website and benchmarks only).
 
 | owner | name | sha | queued_at | started_at | finished_at |
 |---|---|---|---|---|---|

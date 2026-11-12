@@ -1,7 +1,7 @@
 # Incremental analysis benchmark: calcom (2026-11-02)
 
 - **Repo:** https://github.com/calcom/cal.com at `0f19cc46ef6b6426ee398c670575b3c96be7af9e`
-- **Analyzer:** 0.1.0 (gitinside `d1809416401598009b52d47c3186ef511c7c94d1`)
+- **Analyzer:** 0.1.0 (gitinside `a019087cdfdae3c538aa4568fd4f762aaa24cca6`)
 - **Method:** 1 cold warm-up run, then one cold run filling a disk fact cache (`openDiskCache`) from the unedited tree. Each case then makes 5 pairs of runs on the same tree, each run a fresh Node process: one with no cache (cold) and one with the cache (warm), in alternating order. An edit case appends a line declaring a new exported constant, different in each pair, to one file before the pair and restores the file after it, so no warm run finds its own edit in the cache. Opening the cache is part of the warm time.
 - **Machine:** dev machine: 13th Gen Intel(R) Core(TM) i7-13700H (20 logical cores), 15.6 GiB RAM, win32 10.0.26300, Node v22.13.0
 - **Filling the cache:** 29,659 ms, 113 entries written, 7 MiB on disk.
@@ -51,7 +51,7 @@ Raw per-run numbers are in the JSON file next to this report.
 
 ## Observations (hand-written, not generated)
 
-- **What changed since M6.8b's report** (`2026-11-02-incremental-calcom-m6.8b.md`, gitinside `c13f3a5`): each distinct set of observed inputs is now one cache entry that service entries name by digest (gitinside `e367fea`, ADR-0180; `d180941` after it only re-records the eval report). Same cases, same machine. Every warm graph is its cold pair's bytes. Saved with the `-m6.8c` suffix so the earlier reports stay.
+- **What changed since M6.8b's report** (`2026-11-02-incremental-calcom-m6.8b.md`, gitinside `cf0ed1f`): each distinct set of observed inputs is now one cache entry that service entries name by digest (gitinside `180c759`, ADR-0180; `a019087` after it only re-records the eval report). Same cases, same machine. Every warm graph is its cold pair's bytes. Saved with the `-m6.8c` suffix so the earlier reports stay.
 - **The cache on disk: 7 MiB, was 25 MiB**, for the same 113 service entries (plus their distinct inputs entries, which the "entries written" count leaves out: it counts per service).
 - **A shared package edited: still 0.92× (108%, was 109%).** 88 services collected: 37.6 s against 34.7 s cold. Time outside every stage (storing) is 1.0–1.1 s per run (M6.8b: 1.8–2.4 s), but `programs` is still 1.1 s over cold (13.0 vs 11.9 s median: keys hash every service's own files, and the 112 entries found are read and checked), and the rest of the gap is in the re-collected stages, within noise of cold. M6.8c2 looks at those two.
 - **Unchanged and leaf-app cases:** unchanged 8.3 s against 32.7 s (4.0×); `apps/api/v2/src/main.ts` edited 15.4 s against 37.9 s (2.5×, M6.8b: 2.3×), within this machine's noise.

@@ -1,7 +1,7 @@
 # Incremental analysis benchmark: calcom (2026-11-10)
 
 - **Repo:** https://github.com/calcom/cal.com at `0f19cc46ef6b6426ee398c670575b3c96be7af9e`
-- **Analyzer:** 0.3.0 (gitinside `0e1bf7dafd82d04b1ceb531e133855b6c5043546`)
+- **Analyzer:** 0.3.0 (gitinside `14c27784856e47ab9898d3607910975dda68455f`)
 - **Method:** 1 cold warm-up run, then one cold run filling a disk fact cache (`openDiskCache`) from the unedited tree. Each case then makes 5 pairs of runs on the same tree, each run a fresh Node process: one with no cache (cold) and one with the cache (warm), in alternating order. An edit case appends a line declaring a new exported constant, different in each pair, to one file before the pair and restores the file after it, so no warm run finds its own edit in the cache. Opening the cache is part of the warm time.
 - **Machine:** dev machine: 13th Gen Intel(R) Core(TM) i7-13700H (20 logical cores), 15.6 GiB RAM, win32 10.0.26300, Node v22.13.0
 - **Filling the cache:** 108,727 ms, 114 entries written, 2 MiB on disk.
@@ -51,7 +51,7 @@ Raw per-run numbers are in the JSON file next to this report.
 
 ## Observations (hand-written, not generated)
 
-- **The launch analyzer (0.3.0, M9.2d), run at `0e1bf7d`.** Every warm graph is its cold pair's bytes. cal.com now has 114 services (M6.8c2: 113), so it fills 114 entries, still 2 MiB on disk.
+- **The launch analyzer (0.3.0, M9.2d), run at `14c2778`.** Every warm graph is its cold pair's bytes. cal.com now has 114 services (M6.8c2: 113), so it fills 114 entries, still 2 MiB on disk.
 - **Per pair, cold ÷ warm** (from the JSON, `bench/dist/m92d-pairs.mjs`; compare within a pair):
   - Nothing changed: 15.0–18.1×, median 16.8× (M6.8c2: 5.3–6.6×).
   - One leaf app edited: 4.21–4.47×, median 4.28× (M6.8c2: 2.73–4.36×, median 2.79×).
