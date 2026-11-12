@@ -88,6 +88,13 @@ file names) each pin was analyzed again the same way (`apps/web/dist/m97e-pins.m
 again identical to the 0.3.1 graph but for the version: anything-llm's five example env files
 and taxonomy's one change no edge, and maxun has none. No edge needed rechecking by hand.
 
+At 0.3.4 (M9.7g, ADR-0266: every write and branch of an SDK client counts, and an example's
+placeholder host is no API) each pin was analyzed again the same way
+(`apps/web/dist/m97g-pins.mjs`) and is again identical to the 0.3.1 graph but for the
+version (same counts and byte sizes): none of anything-llm's SDK clients is written on two
+branches or beside an unread value, and no pin's example names a placeholder host for an SDK
+base. No edge needed rechecking by hand.
+
 ### At 0.3.0
 
 All three pins were analyzed on the site at analyzer 0.3.0 on 2026-11-10 (M9.1b2b), right
