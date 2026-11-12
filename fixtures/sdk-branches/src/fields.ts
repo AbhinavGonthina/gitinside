@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { Octokit } from "@octokit/rest";
+import { App, Octokit as Kit } from "octokit";
 import OpenAI from "openai";
 
 /** A write beside the initializer replaces the client it built. */
@@ -48,4 +49,12 @@ export function azureChat(prompt: string) {
 export function repoFor(given: unknown, owner: string, repo: string) {
   const github = (given as Octokit | undefined) ?? new Octokit({ auth: process.env.GITHUB_TOKEN });
   return github.repos.get({ owner, repo });
+}
+
+const app = new App({ appId: 1, privateKey: process.env.GITHUB_APP_KEY ?? "" });
+
+/** A caller's client, the App's, or one built with a token: in any order, any base is possible. */
+export function issuesFor(opts: { gh?: unknown; token?: string }, owner: string, repo: string) {
+  const github = (opts.gh as Kit | undefined) ?? app.octokit ?? new Kit({ auth: opts.token });
+  return github.rest.issues.listForRepo({ owner, repo });
 }

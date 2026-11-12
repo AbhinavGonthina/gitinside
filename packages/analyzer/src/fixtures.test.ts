@@ -410,21 +410,27 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     ]);
   });
 
-  it("sdk-branches: every write and branch of a client counts; a placeholder example host is no API (M9.7g)", async () => {
+  it("sdk-branches: every write and branch of a client counts; a placeholder example host is no API (M9.7g, M9.7l)", async () => {
     const g = await run("sdk-branches");
     const fields = "symbol:sdk-branches/src/fields.ts";
     const sw = "symbol:sdk-branches/src/switch.js";
     const at = "unresolved:sdk-branches/src";
     // A default-built client beside an unread branch (`repoFor`, `Pluggable`), and a global
-    // member no write in the file names (`sharedModels`), are unresolved too (M9.7j).
+    // member no write in the file names (`sharedModels`), are unresolved too (M9.7j). So are
+    // a global member whose only write stores an injected client (`assistantModels`), a member
+    // of a parameter named `self` (`modelsOf`), and a three-way join with an unread branch
+    // (`issuesFor`), whatever its order (M9.7l).
     expect(links(g, "http")).toEqual([
-      `${fields}#Switchable.models -> ${at}/fields.ts:14:27 unresolved DYNAMIC_URL`,
-      `${fields}#azureChat -> ${at}/fields.ts:41:33 unresolved NO_MATCHING_ROUTE`,
-      `${fields}#listModels -> ${at}/fields.ts:34:27 unresolved DYNAMIC_URL`,
-      `${fields}#repoFor -> ${at}/fields.ts:50:23 unresolved DYNAMIC_URL`,
+      `${fields}#Switchable.models -> ${at}/fields.ts:15:27 unresolved DYNAMIC_URL`,
+      `${fields}#azureChat -> ${at}/fields.ts:42:33 unresolved NO_MATCHING_ROUTE`,
+      `${fields}#issuesFor -> ${at}/fields.ts:59:29 unresolved DYNAMIC_URL`,
+      `${fields}#listModels -> ${at}/fields.ts:35:27 unresolved DYNAMIC_URL`,
+      `${fields}#repoFor -> ${at}/fields.ts:51:23 unresolved DYNAMIC_URL`,
       `${sw}#LocalOrCloud.models -> ${at}/switch.js:11:27 unresolved DYNAMIC_URL`,
       `${sw}#Pluggable.models -> ${at}/switch.js:47:27 unresolved DYNAMIC_URL`,
+      `${sw}#assistantModels -> ${at}/switch.js:66:27 unresolved DYNAMIC_URL`,
       `${sw}#embed -> ${at}/switch.js:33:37 unresolved DYNAMIC_URL`,
+      `${sw}#modelsOf -> ${at}/switch.js:73:20 unresolved DYNAMIC_URL`,
       `${sw}#sharedModels -> ${at}/switch.js:55:24 unresolved DYNAMIC_URL`,
     ]);
     expect(links(g, "external_call")).toEqual([
