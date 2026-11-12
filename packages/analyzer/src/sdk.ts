@@ -38,9 +38,9 @@
  *   the global object (`globalThis`, `global`, `window`, `self` when the repo's code doesn't
  *   declare that name), or a global `var` read by its bare name (`declare global { var ai }`,
  *   a script's top-level `var`, M9.7n), is what every file of the service writes at that
- *   path, joined (ADR-0268, ADR-0269, ADR-0270), bare-name writes included: a write holding
- *   a read of the path (`globalThis.ai ?? new OpenAI(…)` beside `globalThis.ai = ai`, a
- *   module's cache; through a `let` only when its every value holds it) adds nothing, an
+ *   path, joined (ADR-0268, ADR-0269, ADR-0270), bare-name writes included: a read of the
+ *   path inside a stored value (`globalThis.ai ?? new OpenAI(…)` beside `globalThis.ai = ai`,
+ *   a module's cache) is a self-reference and adds nothing, the rest of the value counts, an
  *   injected client (`setAI(c) { globalThis.ai = c }`, `Object.assign(globalThis, { ai: c })`)
  *   is unread, and so is a path no file writes, one written in a way the matcher can't read
  *   (`Object.defineProperty`, a computed key, `Object.assign` from a non-literal, a
@@ -52,6 +52,17 @@
  *   `a && b`'s left side; a result traced while something it reads was still being traced
  *   is kept only until that is done (M9.7n), so it doesn't depend on which call is traced
  *   first. Two values that aren't both clients keep the first.
+ * - A client is trusted only when every value that can reach it is traced (M9.7o, ADR-0271):
+ *   an SDK construction, a factory's returns, a module variable's seen writes, or a
+ *   self-reference (a self-cache of the same path or variable). Anything else is unread, and
+ *   unread is carried through every join, settle, factory, and object property: a join of
+ *   unread values (`opts.ai ?? opts.fallback`, `flag ? opts.a : opts.b`, `(0, opts.ai)`,
+ *   `on && opts.ai`, in JS and TS `any`), any form not listed as holding no client, a
+ *   destructuring default (`({ ai: x = new OpenAI() } = deps)`, a field's too), any use of a
+ *   `const` alias of the global object imported from another file (named, renamed, or a
+ *   namespace's member), a binding pattern from the global object (`const { slots } =
+ *   globalThis`), and a stored value joining the read with anything else (`g.ai = g.ai ?? c`
+ *   is `c`; `g.ai = g.ai ?? new OpenAI()` stays a cache).
  * - A request is a method call on a module value or a client, at any depth:
  *   `stripe.customers.create()`, `s3.send(cmd)`, `sgMail.send()`. Its site is the method
  *   name. The owner is the innermost symbol, or the routes of an inline Express handler;
@@ -95,13 +106,12 @@
  *   per chain counts, the one on the client.
  * - Clients destructured (`const { customers } = stripe`) or stored in collections; a cache
  *   in a `Map` (`cache.get(k) ?? new OpenAI(…)`) is an unread branch, so such a client's base
- *   is unresolved. A stored global value holding a read of its own path is dropped whole, so
- *   another client beside the read in it (`g.ai = env.P ? new OpenAI({ baseURL }) : ai`) is
- *   missed (M9.7m, L4). Global writes made in another workspace package's program aren't
- *   read. The global object passed to anything (`jest.spyOn(window, "fetch")`) makes every
- *   client read from it in that service unresolved, though most such calls write nothing
- *   (M9.7n). A write of a getter's result (`g.ai = getClient()`) isn't a cache, since
- *   function bodies aren't searched for the read: it's traced through the getter instead. A parameter's default (`constructor(client = new OpenAI({ baseURL }))`) is read as
+ *   is unresolved. Global writes made in another workspace package's program aren't read. The
+ *   global object passed to anything (`jest.spyOn(window, "fetch")`), or an alias of it used
+ *   in a file that imports it, makes every client read from it in that service unresolved,
+ *   though most such uses write nothing (M9.7n, M9.7o). A JS field written only by a
+ *   destructuring (`({ ai: this.ai = new OpenAI() } = deps)`) is never declared, so its calls
+ *   draw nothing. A parameter's default (`constructor(client = new OpenAI({ baseURL }))`) is read as
  *   its one client, though a caller may pass another. Writes to a static field and a
  *   parameter property's later writes aren't read: such clients are known by type.
  * - SDKs whose host depends on the account or project (Supabase, Firebase, Algolia,
@@ -1089,23 +1099,26 @@ export function collectSdkFacts(
   const branchOf = (sp: ServiceProgram, expression: ts.Expression, hops: number): Branch => {
     const global = globalRead(sp, expression, hops);
     if (global) return global.branch;
-    const found = sdkOf(sp, expression, hops);
-    if (found) return found;
+    const found = valueOf(sp, expression, hops);
+    if (found !== undefined) return found;
     return unread(sp, expression, hops) ? UNREAD : undefined;
   };
 
   /**
-   * True when an expression not traced to an SDK may still hold a client: a name, a member, or
-   * a call (`opts.client`, `getClient()`). Literals, `null`, `undefined`, objects, functions,
-   * and `new` of a class that isn't an SDK's can't. Neither can the value being traced itself
-   * (`this.ai = this.ai || new OpenAI(…)`), whose other branches are already counted, nor a
-   * call of the factory being traced (M9.7n). A module variable whose every value is seen and
-   * none may hold a client (`let client` written only with a getter's result, while that
-   * getter is traced) is nothing, not unread (M1).
+   * True when an expression not traced to an SDK may still hold a client (M9.7o: anything not
+   * positively known to hold none): a name, a member, a call (`opts.client`, `getClient()`),
+   * `this`, a computed member, and any form not listed here. Literals, `null`, `undefined`,
+   * templates, objects, arrays, functions, classes, unary and binary operators (whose operands
+   * {@link valueOf} already joined), and `new` of a class that isn't an SDK's can't. Neither can
+   * the value being traced itself (`this.ai = this.ai || new OpenAI(…)`), whose other branches
+   * are already counted, nor a call of the factory being traced (M9.7n). A module variable
+   * whose every value is seen and none may hold a client (`let client` written only with a
+   * getter's result, while that getter is traced) is nothing, not unread (M1).
    */
   const unread = (sp: ServiceProgram, expression: ts.Expression, hops: number): boolean => {
     let e = unwrap(expression);
     while (ts.isAwaitExpression(e)) e = unwrap(e.expression);
+    if (holdsNoClient(e)) return false;
     if (ts.isCallExpression(e)) {
       const callee = unwrap(e.expression);
       const name = ts.isPropertyAccessExpression(callee) ? callee.name : callee;
@@ -1116,7 +1129,7 @@ export function collectSdkFacts(
     if (ts.isIdentifier(e)) {
       if (e.text === "undefined") return false;
     } else if (!ts.isPropertyAccessExpression(e) && !ts.isElementAccessExpression(e)) {
-      return false;
+      return true;
     }
     const name = ts.isIdentifier(e) ? e : ts.isPropertyAccessExpression(e) ? e.name : undefined;
     const symbol = name && symbolAt(sp, name);
@@ -1158,9 +1171,10 @@ export function collectSdkFacts(
    * For a member read from the global object (directly, through a `const` holding it, or a
    * `const` holding the read), the branch it is: every value the service's files store at
    * that path (`g.ai = …`, `g["ai"] ??= …`), joined (M9.7m: a write in any file may be the one
-   * a call sees), where a value holding a read of the path itself (`g.ai = cached` with
-   * `cached = g.ai ?? new OpenAI(…)`) is the module caching the client the other branches
-   * build and adds nothing. A path no file writes may hold a client other code put there, so
+   * a call sees), where a read of the path itself inside a stored value (`g.ai = cached` with
+   * `cached = g.ai ?? new OpenAI(…)`) is a self-reference: the module caching the client the
+   * other branches build adds nothing, but anything joined beside the read counts (M9.7o, L4:
+   * `g.ai = g.ai ?? c` is `c`). A path no file writes may hold a client other code put there, so
    * it's unread (M9.7j), and so is a write of a client injected from outside (`setAI(c) {
    * globalThis.ai = c }`, M9.7l), a write the matcher can't read whole (`Object.assign(
    * globalThis, …)`, `Object.defineProperty`, `Reflect.set`, a computed key), and a parent
@@ -1226,9 +1240,10 @@ export function collectSdkFacts(
         if (write.kind === "any" || pathKey(write.path) !== key) continue;
         if (write.kind === "hidden") return UNREAD;
         seen = true;
-        if (!holds(sp, write.value, key, 0)) {
-          branch = joined(branch, branchOf(sp, write.value, hops + 1));
-        }
+        // A read of the path inside the stored value is this read, still open: a
+        // self-reference that adds nothing, so `g.ai = g.ai ?? new OpenAI()` is a cache and
+        // `g.ai = g.ai ?? c` is `c` (M9.7o, L4).
+        branch = joined(branch, branchOf(sp, write.value, hops + 1));
       } else if (isPrefix(write.path, path)) {
         const member = path[write.path.length] ?? "";
         if (write.kind !== "set" || !lacks(write.value, member)) return UNREAD;
@@ -1251,55 +1266,6 @@ export function collectSdkFacts(
         );
       })
     );
-  };
-
-  /** Results of {@link holds} by service, expression, and path key; `false` while being read. */
-  const holdsByNode = new Map<ServiceProgram, Map<ts.Node, Map<string, Slot<boolean>>>>();
-
-  /**
-   * True when `expression`, or a variable it names (at any depth, through imports too),
-   * contains a read of the global path `key`. A `let` or `var` does only when its initializer
-   * and every write to it do (M9.7n, M4: `let next = g.ai; next = c` may hold `c`).
-   */
-  const holds = (sp: ServiceProgram, expression: ts.Node, key: string, hops: number): boolean => {
-    if (tooDeep(hops)) return false;
-    let byNode = holdsByNode.get(sp);
-    if (!byNode) holdsByNode.set(sp, (byNode = new Map()));
-    let byKey = byNode.get(expression);
-    if (!byKey) byNode.set(expression, (byKey = new Map()));
-    return memo(byKey, key, hops, false, () => {
-      let found = false;
-      const visit = (node: ts.Node): void => {
-        if (found) return;
-        if (ts.isIdentifier(node) || (ts.isExpression(node) && memberOf(node))) {
-          const path = globalPath(sp, node, 0);
-          if (path !== undefined && pathKey(path) === key) {
-            found = true;
-            return;
-          }
-        }
-        if (ts.isIdentifier(node)) {
-          let symbol = symbolAt(sp, node);
-          if (symbol && symbol.flags & ts.SymbolFlags.Alias) {
-            symbol = resolver.checkerOf(sp).getAliasedSymbol(symbol);
-          }
-          const declaration = symbol?.declarations?.[0];
-          if (declaration === undefined || !ts.isVariableDeclaration(declaration)) return;
-          const values = [
-            ...(declaration.initializer ? [declaration.initializer] : []),
-            ...(assignedValues(sp, declaration) ?? []),
-          ];
-          // A write the matcher doesn't read (`undefined`) may hold anything.
-          found =
-            values.length > 0 &&
-            values.every((v) => v !== undefined && holds(sp, v, key, hops + 1));
-          return;
-        }
-        ts.forEachChild(node, visit);
-      };
-      visit(expression);
-      return found;
-    });
   };
 
   /**
@@ -1394,7 +1360,10 @@ export function collectSdkFacts(
     ) {
       return undefined;
     }
-    if (ts.isVariableDeclaration(p) && p.initializer === n && isConst(p)) return undefined;
+    // A binding pattern (`const { slots } = globalThis`) holds members the walk doesn't follow
+    // (M9.7o, N4).
+    if (ts.isVariableDeclaration(p) && p.initializer === n && isConst(p) && ts.isIdentifier(p.name))
+      return undefined;
     if (ts.isCallExpression(p) && p.arguments[0] === n && callWrites(p)) return undefined;
     return { kind: assignmentTarget(n) && path.length > 0 ? "hidden" : "any", path };
   };
@@ -1413,6 +1382,9 @@ export function collectSdkFacts(
     // Names that may be the global object, a global variable, or a `const` holding a path:
     // only uses rooted at one are looked up.
     const names = new Set(GLOBAL_OBJECTS);
+    // Names bound by an import or `require` (and namespaces): a use of one may be an alias of
+    // the global object declared in another file (M9.7o, N3).
+    const imports = new Set<string>();
     const collect = (node: ts.Node): void => {
       if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
         const alias =
@@ -1420,6 +1392,23 @@ export function collectSdkFacts(
           node.initializer !== undefined &&
           globalPath(sp, node.initializer, 0) !== undefined;
         if (alias || globalVariable(node)) names.add(node.name.text);
+      }
+      if (
+        ts.isImportSpecifier(node) ||
+        ts.isNamespaceImport(node) ||
+        ts.isImportEqualsDeclaration(node) ||
+        (ts.isImportClause(node) && node.name)
+      ) {
+        if (node.name) imports.add(node.name.text);
+      } else if (ts.isVariableDeclaration(node) && node.initializer) {
+        if (requiredModule(unwrap(node.initializer)) !== undefined) {
+          const bound = ts.isIdentifier(node.name)
+            ? [node.name]
+            : node.name.elements.flatMap((b) =>
+                ts.isBindingElement(b) && ts.isIdentifier(b.name) ? [b.name] : [],
+              );
+          for (const id of bound) imports.add(id.text);
+        }
       }
       ts.forEachChild(node, collect);
     };
@@ -1436,6 +1425,22 @@ export function collectSdkFacts(
         }
       }
     };
+    /** The global path a name is, when it's a `const` alias declared in another file. */
+    const importedAlias = (id: ts.Identifier): readonly string[] | undefined => {
+      let symbol = symbolAt(sp, id);
+      if (symbol && symbol.flags & ts.SymbolFlags.Alias) {
+        symbol = resolver.checkerOf(sp).getAliasedSymbol(symbol);
+      }
+      const declaration = symbol?.declarations?.[0];
+      return declaration &&
+        ts.isVariableDeclaration(declaration) &&
+        ts.isIdentifier(declaration.name) &&
+        isConst(declaration) &&
+        declaration.initializer !== undefined &&
+        declaration.getSourceFile() !== id.getSourceFile()
+        ? globalPath(sp, declaration.initializer, 0)
+        : undefined;
+    };
     const writes: GlobalWrite[] = [];
     const walk = (node: ts.Node): void => {
       const use = ts.isIdentifier(node)
@@ -1447,6 +1452,18 @@ export function collectSdkFacts(
       const path = use && ts.isExpression(node) ? globalPath(sp, node, 0) : undefined;
       const escaped = path && ts.isExpression(node) ? escape(node, path) : undefined;
       if (escaped) writes.push(escaped);
+      // Any use of an imported alias of the global object (`import { G }`, `globals.G`) may
+      // write below it in ways the walk doesn't follow (M9.7o, N3).
+      const imported =
+        ts.isIdentifier(node) && imports.has(node.text) && valueReference(node)
+          ? importedAlias(node)
+          : ts.isPropertyAccessExpression(node) &&
+              ts.isIdentifier(node.expression) &&
+              ts.isIdentifier(node.name) &&
+              imports.has(node.expression.text)
+            ? importedAlias(node.name)
+            : undefined;
+      if (imported) writes.push({ kind: "any", path: imported });
       if (ts.isBinaryExpression(node) && ASSIGNMENTS.has(node.operatorToken.kind)) {
         const left = unwrap(node.left);
         const stored = memberOf(left)
@@ -1519,18 +1536,42 @@ export function collectSdkFacts(
     const name = declaration.name;
     const cls = declaration.parent;
     if (!ts.isIdentifier(name) || !ts.isClassLike(cls) || isStatic(declaration)) return undefined;
+    return thisWrites(sp, cls, name.text, hops);
+  };
+
+  /**
+   * The values a class's instance members write to `this.<name>`, joined ({@link fieldWrites};
+   * a JS field, declared by those writes, reads them here too so a destructuring target is
+   * seen, M9.7o).
+   */
+  const thisWrites = (
+    sp: ServiceProgram,
+    cls: ts.ClassLikeDeclaration,
+    name: string,
+    hops: number,
+  ): Branch => {
     let found: Branch;
     const walk = (node: ts.Node): void => {
       if (ts.isClassLike(node) || ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node))
         return;
-      if (ts.isBinaryExpression(node) && ASSIGNMENTS.has(node.operatorToken.kind)) {
-        const left = unwrap(node.left);
-        if (
-          ts.isPropertyAccessExpression(left) &&
-          left.expression.kind === ts.SyntaxKind.ThisKeyword &&
-          left.name.text === name.text
-        ) {
-          found = joined(found, branchOf(sp, node.right, hops + 1));
+      if (
+        ts.isPropertyAccessExpression(node) &&
+        node.expression.kind === ts.SyntaxKind.ThisKeyword &&
+        node.name.text === name
+      ) {
+        // A store the matcher reads (`=`, `??=`, `||=`) adds its value; any other (`&&=`, a
+        // destructuring target or default, a `for … of` head) may store any client (M9.7o, N2).
+        const n = outermost(node);
+        const p = n.parent;
+        if (ts.isBinaryExpression(p) && p.left === n) {
+          const op = p.operatorToken.kind;
+          if (ASSIGNMENTS.has(op) && !assignmentTarget(p)) {
+            found = joined(found, branchOf(sp, p.right, hops + 1));
+          } else if (ASSIGNMENTS.has(op) || op === ts.SyntaxKind.AmpersandAmpersandEqualsToken) {
+            found = joined(found, UNREAD);
+          }
+        } else if (assignmentTarget(n)) {
+          found = joined(found, UNREAD);
         }
       }
       ts.forEachChild(node, walk);
@@ -1571,8 +1612,11 @@ export function collectSdkFacts(
         if (ts.isBinaryExpression(node)) {
           const left = unwrap(node.left);
           const op = node.operatorToken.kind;
-          if (ts.isIdentifier(left) && ASSIGNMENTS.has(op))
-            found.push({ name: left, value: node.right });
+          // A destructuring default (`({ ai: x = new OpenAI() } = deps)`) stores the source's
+          // value when it has one (M9.7o, N2).
+          if (ts.isIdentifier(left) && ASSIGNMENTS.has(op)) {
+            found.push({ name: left, value: assignmentTarget(node) ? undefined : node.right });
+          }
           if (ts.isIdentifier(left) && op === ts.SyntaxKind.AmpersandAmpersandEqualsToken) {
             found.push({ name: left, value: undefined });
           }
@@ -1663,12 +1707,14 @@ export function collectSdkFacts(
       // An unread value stays unread, so a variable that may hold any client says so (M9.7n).
       return settled(built) ?? sdkOfType(sp, declaration.type) ?? built;
     }
-    if (ts.isPropertyAssignment(declaration)) return sdkOf(sp, declaration.initializer, hops + 1);
+    if (ts.isPropertyAssignment(declaration)) {
+      return branchOf(sp, declaration.initializer, hops + 1);
+    }
     if (ts.isShorthandPropertyAssignment(declaration)) {
       const value = resolver.checkerOf(sp).getShorthandAssignmentValueSymbol(declaration);
-      return value && sdkOfSymbol(sp, value, hops + 1);
+      return value ? nameBranch(sp, value, hops + 1) : UNREAD;
     }
-    if (ts.isExportAssignment(declaration)) return sdkOf(sp, declaration.expression, hops + 1);
+    if (ts.isExportAssignment(declaration)) return branchOf(sp, declaration.expression, hops + 1);
     // CommonJS's `module.exports = x` and `exports.x = y`, and a JS field's `this.x = y`,
     // declare on the assignment: `traceSymbol` reads those with `assignedValue`.
     return undefined;
@@ -1680,8 +1726,16 @@ export function collectSdkFacts(
    */
   const sdkBySymbol = new Map<ts.Symbol, Slot<Branch>>();
 
-  const sdkOfSymbol = (sp: ServiceProgram, start: ts.Symbol, hops: number): SdkValue | undefined =>
-    settled(symbolBranch(sp, start, hops));
+  /**
+   * What a name may hold: its symbol's branch, or {@link UNREAD} when that's nothing but the
+   * name may be set where the matcher doesn't look (a parameter, an import it can't follow;
+   * not a {@link seenVariable}, nor one being traced).
+   */
+  const nameBranch = (sp: ServiceProgram, symbol: ts.Symbol, hops: number): Branch => {
+    const found = symbolBranch(sp, symbol, hops);
+    if (found !== undefined || isOpen(sdkBySymbol, symbol) || seenVariable(symbol)) return found;
+    return UNREAD;
+  };
 
   /** What a symbol may hold, {@link UNREAD} past the hop limit. */
   const symbolBranch = (sp: ServiceProgram, start: ts.Symbol, hops: number): Branch => {
@@ -1699,15 +1753,25 @@ export function collectSdkFacts(
       const aliased = resolver.checkerOf(sp).getAliasedSymbol(symbol);
       if ((aliased.declarations ?? []).length === 0) {
         const target = own && resolver.importTarget(sp, own);
-        return target && viaImport(target, sdkOfSymbol(target.sp, target.symbol, hops + 1));
+        return target && viaImport(target, symbolBranch(target.sp, target.symbol, hops + 1));
       }
       symbol = aliased;
     }
     // Every declaration counts, joined (M9.7g): a JS field's `this.ai = …` writes each
-    // declare it, and any of them may have built the client a call uses.
+    // declare it, and any of them may have built the client a call uses; its class's other
+    // stores to it (a destructuring target) are read with them (M9.7o, N2).
     let found: Branch;
+    const classes = new Set<ts.ClassLikeDeclaration>();
     for (const declaration of symbol.declarations ?? []) {
       const right = assignedValue(declaration);
+      const field = right && thisField(declaration);
+      if (field) {
+        if (!classes.has(field.cls)) {
+          classes.add(field.cls);
+          found = joined(found, thisWrites(sp, field.cls, field.name, hops));
+        }
+        continue;
+      }
       found = joined(
         found,
         right ? branchOf(sp, right, hops + 1) : sdkOfDeclaration(sp, declaration, hops),
@@ -1717,69 +1781,82 @@ export function collectSdkFacts(
   };
 
   /** A value reached through a workspace-package import, at that import's confidence. */
-  const viaImport = (
-    target: { confidence: Confidence },
-    found: SdkValue | undefined,
-  ): SdkValue | undefined =>
-    found && { ...found, confidence: weaker(target.confidence, found.confidence) };
+  const viaImport = (target: { confidence: Confidence }, found: Branch): Branch =>
+    found && found !== UNREAD
+      ? { ...found, confidence: weaker(target.confidence, found.confidence) }
+      : found;
 
   /**
    * Results by factory function, like {@link sdkBySymbol}: without it, factories that each
    * return several calls of the next one are traced exponentially often.
    */
-  const sdkByFactory = new Map<FunctionWithBody, Slot<SdkValue | undefined>>();
+  const sdkByFactory = new Map<FunctionWithBody, Slot<Branch>>();
 
-  /** The SDK values a factory function returns, merged, no stronger than `confidence`. */
+  /**
+   * What a factory function returns, every `return` joined (an unread one stays unread,
+   * M9.7o), no stronger than `confidence`.
+   */
   const returnedSdk = (
     sp: ServiceProgram,
     fn: FunctionWithBody,
     confidence: Confidence,
     hops: number,
-  ): SdkValue | undefined => {
+  ): Branch => {
     const known = memo(sdkByFactory, fn, hops, undefined, () => {
       let found: Branch;
       for (const returned of returnedExpressions(fn)) {
         found = joined(found, branchOf(sp, returned, hops + 1));
       }
-      return settled(found);
+      return found;
     });
     return viaImport({ confidence }, known);
   };
 
-  /** What an expression is when it comes from an SDK. */
+  /** What an expression is when it comes from an SDK: {@link valueOf}, settled. */
   const sdkOf = (
     sp: ServiceProgram,
     expression: ts.Expression,
     hops: number,
-  ): SdkValue | undefined => {
-    if (tooDeep(hops)) return undefined;
+  ): SdkValue | undefined => settled(valueOf(sp, expression, hops));
+
+  /**
+   * What an expression is as a {@link Branch}, before {@link branchOf}'s unread fallback: an
+   * unread operand stays unread through every join (M9.7o, N1: `opts.ai ?? opts.fallback`,
+   * `flag ? opts.a : opts.b`, a factory returning one), so a later default-built client
+   * beside it is never the only option.
+   */
+  const valueOf = (sp: ServiceProgram, expression: ts.Expression, hops: number): Branch => {
+    if (tooDeep(hops)) return UNREAD;
     const e = unwrap(expression);
-    if (ts.isAwaitExpression(e)) return sdkOf(sp, e.expression, hops + 1);
+    if (ts.isAwaitExpression(e)) return branchOf(sp, e.expression, hops + 1);
     const required = requiredModule(e);
     if (required !== undefined) return moduleValue(required, "default");
     if (ts.isBinaryExpression(e)) {
       const op = e.operatorToken.kind;
-      if (op === ts.SyntaxKind.QuestionQuestionToken || op === ts.SyntaxKind.BarBarToken) {
-        return settled(joined(branchOf(sp, e.left, hops + 1), branchOf(sp, e.right, hops + 1)));
-      }
-      // `a && b` is `a` only when `a` is falsy, so no client is unread on its left.
-      if (op === ts.SyntaxKind.AmpersandAmpersandToken) {
-        return merged(sdkOf(sp, e.left, hops + 1), sdkOf(sp, e.right, hops + 1));
-      }
-      if (op === ts.SyntaxKind.EqualsToken) return sdkOf(sp, e.right, hops + 1);
       // `x ??= y` is `x ?? (x = y)`: the left side's value as it was, or the right (M9.7m).
       if (
+        op === ts.SyntaxKind.QuestionQuestionToken ||
+        op === ts.SyntaxKind.BarBarToken ||
         op === ts.SyntaxKind.QuestionQuestionEqualsToken ||
         op === ts.SyntaxKind.BarBarEqualsToken
       ) {
-        return settled(joined(branchOf(sp, e.left, hops + 1), branchOf(sp, e.right, hops + 1)));
+        return joined(branchOf(sp, e.left, hops + 1), branchOf(sp, e.right, hops + 1));
+      }
+      // `a && b` (and `a &&= b`) is `a` only when `a` is falsy, so no client is unread on its
+      // left; `a, b` and `a = b` are `b`.
+      if (
+        op === ts.SyntaxKind.AmpersandAmpersandToken ||
+        op === ts.SyntaxKind.AmpersandAmpersandEqualsToken
+      ) {
+        return joined(sdkOf(sp, e.left, hops + 1), branchOf(sp, e.right, hops + 1));
+      }
+      if (op === ts.SyntaxKind.EqualsToken || op === ts.SyntaxKind.CommaToken) {
+        return branchOf(sp, e.right, hops + 1);
       }
       return undefined;
     }
     if (ts.isConditionalExpression(e)) {
-      return settled(
-        joined(branchOf(sp, e.whenTrue, hops + 1), branchOf(sp, e.whenFalse, hops + 1)),
-      );
+      return joined(branchOf(sp, e.whenTrue, hops + 1), branchOf(sp, e.whenFalse, hops + 1));
     }
     if (ts.isNewExpression(e))
       return constructed(sp, sdkOf(sp, e.expression, hops + 1), e.arguments);
@@ -1813,8 +1890,8 @@ export function collectSdkFacts(
       const written = global && settled(global.branch);
       if (written) return written;
       const symbol = symbolAt(sp, ts.isIdentifier(e) ? e : e.name);
-      const found = symbol && sdkOfSymbol(sp, symbol, hops + 1);
-      if (found || !ts.isPropertyAccessExpression(e)) return found;
+      const found = symbol && symbolBranch(sp, symbol, hops + 1);
+      if (settled(found) || !ts.isPropertyAccessExpression(e)) return found;
       const object = unwrap(e.expression);
       // `pay.stripe` where `pay` is a namespace import of a workspace package.
       if (ts.isIdentifier(object)) {
@@ -1822,13 +1899,13 @@ export function collectSdkFacts(
         if (declaration && ts.isNamespaceImport(declaration)) {
           const target = resolver.importTarget(sp, declaration, e.name.text);
           const member =
-            target && viaImport(target, sdkOfSymbol(target.sp, target.symbol, hops + 1));
-          if (member) return member;
+            target && viaImport(target, symbolBranch(target.sp, target.symbol, hops + 1));
+          if (member !== undefined) return member;
         }
       }
       // An SDK's own members have no symbols without `node_modules`: `stripe.customers`.
       const base = sdkOf(sp, object, hops + 1);
-      if (!base) return undefined;
+      if (!base) return found;
       // A member of a client (`name` `null`) is still the SDK's, but never a client export.
       return { ...base, name: base.name === null ? null : memberPath(base.name, e.name.text) };
     }
@@ -2002,11 +2079,68 @@ export function collectSdkFacts(
   return { service: sp.service.key, requests, http };
 }
 
+/**
+ * For a JS assignment declaration `this.<name> = …` in a class's instance member (arrows
+ * included, not a nested `function`), that class and name.
+ */
+function thisField(
+  declaration: ts.Declaration,
+): { cls: ts.ClassLikeDeclaration; name: string } | undefined {
+  const access = ts.isBinaryExpression(declaration) ? declaration.left : declaration;
+  if (
+    !ts.isPropertyAccessExpression(access) ||
+    access.expression.kind !== ts.SyntaxKind.ThisKeyword
+  ) {
+    return undefined;
+  }
+  for (let n: ts.Node = access; n.parent; n = n.parent) {
+    if (ts.isFunctionDeclaration(n) || ts.isFunctionExpression(n)) return undefined;
+    if (ts.isClassLike(n.parent)) {
+      return isStatic(n) ? undefined : { cls: n.parent, name: access.name.text };
+    }
+  }
+  return undefined;
+}
+
 /** True for a static class member or a `static { … }` block. */
 function isStatic(member: ts.Node): boolean {
   if (ts.isClassStaticBlockDeclaration(member)) return true;
   const modifiers = ts.canHaveModifiers(member) ? ts.getModifiers(member) : undefined;
   return modifiers?.some((m) => m.kind === ts.SyntaxKind.StaticKeyword) ?? false;
+}
+
+/**
+ * True for an expression that can't hold a client (M9.7o): a literal, a template, an object,
+ * array, function, or class expression, `new` (of a class {@link collectSdkFacts} didn't trace
+ * to an SDK), a unary operator, or a binary or conditional one, whose value-carrying operands
+ * are judged on their own.
+ */
+function holdsNoClient(e: ts.Expression): boolean {
+  switch (e.kind) {
+    case ts.SyntaxKind.NullKeyword:
+    case ts.SyntaxKind.TrueKeyword:
+    case ts.SyntaxKind.FalseKeyword:
+      return true;
+    default:
+      return (
+        ts.isLiteralExpression(e) ||
+        ts.isNoSubstitutionTemplateLiteral(e) ||
+        ts.isTemplateExpression(e) ||
+        ts.isObjectLiteralExpression(e) ||
+        ts.isArrayLiteralExpression(e) ||
+        ts.isFunctionExpression(e) ||
+        ts.isArrowFunction(e) ||
+        ts.isClassExpression(e) ||
+        ts.isNewExpression(e) ||
+        ts.isTypeOfExpression(e) ||
+        ts.isVoidExpression(e) ||
+        ts.isDeleteExpression(e) ||
+        ts.isPrefixUnaryExpression(e) ||
+        ts.isPostfixUnaryExpression(e) ||
+        ts.isBinaryExpression(e) ||
+        ts.isConditionalExpression(e)
+      );
+  }
 }
 
 /** True for the `undefined` identifier. */
