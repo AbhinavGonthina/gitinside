@@ -401,9 +401,11 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       `${llm}#LocalModel.chat -> route:typed-sdk-base/POST /v1/chat/completions heuristic`,
       `${llm}#routedChat -> ${at}:43:34 unresolved DYNAMIC_URL`,
     ]);
-    // `lastFastChat` reads a mock's calls, so `fastChat` is groq's only caller.
+    // `lastFastChat` reads a mock's calls, so `fastChat` is groq's only caller. `relay`'s env
+    // base is OpenAI's host in `.env.example`, though the repo serves the same path (M9.7e).
     expect(links(g, "external_call")).toEqual([
       `${llm}#fastChat -> external:ext/api.groq.com exact`,
+      `symbol:typed-sdk-base/src/upstream.ts#relay -> external:ext/api.openai.com heuristic`,
     ]);
   });
 
