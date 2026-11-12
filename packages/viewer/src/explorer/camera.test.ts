@@ -183,6 +183,53 @@ describe("camera", () => {
       // An unmeasured minimap (0 × 0, hidden) is no obstacle.
       expect(frameHop(camera, near, canvas, { x: 0, y: 0, width: 0, height: 0 })).toBe(camera);
     });
+
+    it("centers a hop as without the minimap when no room beside it holds the hop at the lowest zoom (M9.7f)", () => {
+      // 400 × 300 with the minimap in its corner: above it is 53px of room,
+      // left of it 120px, and the hop needs 100px and 250px at 25%.
+      const tiny = { width: 400, height: 300 };
+      const map = { x: 184, y: 144, width: 200, height: 140 };
+      const rect = { x: 0, y: 0, width: 1000, height: 400 };
+      const camera = { zoom: 1, x: 0, y: 0 };
+      expect(frameHop(camera, rect, tiny, map)).toEqual(frameHop(camera, rect, tiny));
+    });
+  });
+
+  describe("a hop below a band over the canvas's top (M9.7f)", () => {
+    // The first-visit hint's card: its bottom plus a gap, 202px down.
+    const band = 202;
+    const top = (c: { zoom: number; x: number; y: number }, r: { y: number }) => r.y * c.zoom + c.y;
+
+    it("fits a hop that fills the canvas's height below the band", () => {
+      const camera = { zoom: 1, x: 0, y: 0 };
+      const rect = { x: 0, y: 0, width: 600, height: 1200 };
+      // Without the band: centered on the margins, its top at 160.
+      expect(top(frameHop(camera, rect, canvas), rect)).toBe(HOP_MARGIN.y);
+      const c = frameHop(camera, rect, canvas, undefined, band);
+      expect(top(c, rect)).toBeGreaterThanOrEqual(band);
+      expect((rect.y + rect.height) * c.zoom + c.y).toBeLessThanOrEqual(
+        canvas.height - HOP_MARGIN.y,
+      );
+    });
+
+    it("moves a camera whose hop is on the canvas but under the band, and leaves one below it alone", () => {
+      const camera = { zoom: 1, x: 0, y: 0 };
+      const under = { x: 100, y: 170, width: 300, height: 100 };
+      expect(frameHop(camera, under, canvas)).toBe(camera);
+      const c = frameHop(camera, under, canvas, undefined, band);
+      expect(top(c, under)).toBeGreaterThanOrEqual(band);
+      const below = { x: 100, y: 300, width: 300, height: 100 };
+      expect(frameHop(camera, below, canvas, undefined, band)).toBe(camera);
+    });
+
+    it("ignores a band within the margin, or one that leaves under half the hop's room", () => {
+      const camera = { zoom: 1, x: 0, y: 0 };
+      const rect = { x: 0, y: 0, width: 600, height: 1200 };
+      const plain = frameHop(camera, rect, canvas);
+      expect(frameHop(camera, rect, canvas, undefined, 100)).toEqual(plain);
+      // 800 tall: the margins leave 160–640, and a band at 420 would leave 220 of 480.
+      expect(frameHop(camera, rect, canvas, undefined, 420)).toEqual(plain);
+    });
   });
 
   it("zooms around a point, keeping the diagram point under it", () => {

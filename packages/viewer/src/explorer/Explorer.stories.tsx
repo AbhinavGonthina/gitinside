@@ -250,6 +250,36 @@ export const OnboardingDrilledDeep: Story = {
   },
 };
 
+/**
+ * A first visit on a trace deep link (M9.7f): the trace's start frames its
+ * first hop below the hint's card, as the first view fits below it (on
+ * taxonomy's README link, step 1's box sat under "Tip 1 of 1"). The demo's
+ * hops are too short to have reached the card here even before the fix (the
+ * explorer is at least 640px tall); `onboarding.test.tsx` holds the red case.
+ */
+export const OnboardingTracing: Story = {
+  name: "Onboarding, tracing",
+  render: function Render() {
+    const [store] = useState(() => memoryOnboarding());
+    return <Explore onboarding={store} initialTrace="page:web//checkout" />;
+  },
+  // The step's frame is a camera move after the first fit: shoot (and check)
+  // once it has landed and its glide ended, not on the fit before it.
+  play: async ({ canvasElement }) => {
+    const gliding = () =>
+      document
+        .getAnimations()
+        .some(
+          (a) => a.effect?.getComputedTiming().iterations !== Infinity && a.playState === "running",
+        );
+    for (let tries = 0; tries < 250; tries++) {
+      if (canvasElement.querySelector(".gi-explorer[data-hand-camera]") && !gliding()) return;
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    throw new Error("The trace's first step wasn't framed");
+  },
+};
+
 // The analyzer's output for fixtures/next-server-actions (ADR-0203).
 const ACTIONS = "../../../../fixtures/next-server-actions/";
 const actionsGraph = Object.values(
