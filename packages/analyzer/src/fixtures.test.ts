@@ -410,22 +410,27 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     ]);
   });
 
-  it("sdk-branches: every write and branch of a client counts; a placeholder example host is no API (M9.7g, M9.7l)", async () => {
+  it("sdk-branches: every write and branch of a client counts; a placeholder example host is no API (M9.7g, M9.7l, M9.7m)", async () => {
     const g = await run("sdk-branches");
     const fields = "symbol:sdk-branches/src/fields.ts";
+    const lazy = "symbol:sdk-branches/src/lazy.ts";
     const sw = "symbol:sdk-branches/src/switch.js";
     const at = "unresolved:sdk-branches/src";
     // A default-built client beside an unread branch (`repoFor`, `Pluggable`), and a global
     // member no write in the file names (`sharedModels`), are unresolved too (M9.7j). So are
     // a global member whose only write stores an injected client (`assistantModels`), a member
     // of a parameter named `self` (`modelsOf`), and a three-way join with an unread branch
-    // (`issuesFor`), whatever its order (M9.7l).
+    // (`issuesFor`), whatever its order (M9.7l). A lazy `??=` getter reads what was there
+    // before: a variable a setter writes (`clientModels`); a global cached in one file and
+    // written with another base in another (`proxiedModels`) has both (M9.7m).
     expect(links(g, "http")).toEqual([
       `${fields}#Switchable.models -> ${at}/fields.ts:15:27 unresolved DYNAMIC_URL`,
       `${fields}#azureChat -> ${at}/fields.ts:42:33 unresolved NO_MATCHING_ROUTE`,
       `${fields}#issuesFor -> ${at}/fields.ts:59:29 unresolved DYNAMIC_URL`,
       `${fields}#listModels -> ${at}/fields.ts:35:27 unresolved DYNAMIC_URL`,
       `${fields}#repoFor -> ${at}/fields.ts:51:23 unresolved DYNAMIC_URL`,
+      `${lazy}#clientModels -> ${at}/lazy.ts:30:29 unresolved DYNAMIC_URL`,
+      `${lazy}#proxiedModels -> ${at}/lazy.ts:17:25 unresolved DYNAMIC_URL`,
       `${sw}#LocalOrCloud.models -> ${at}/switch.js:11:27 unresolved DYNAMIC_URL`,
       `${sw}#Pluggable.models -> ${at}/switch.js:47:27 unresolved DYNAMIC_URL`,
       `${sw}#assistantModels -> ${at}/switch.js:66:27 unresolved DYNAMIC_URL`,
@@ -435,6 +440,7 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     ]);
     expect(links(g, "external_call")).toEqual([
       `${fields}#route -> external:ext/openrouter.ai exact`,
+      `${lazy}#lazyModels -> external:ext/api.openai.com exact`,
       `${sw}#Lazy.chat -> external:ext/api.groq.com exact`,
     ]);
   });
