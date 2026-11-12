@@ -1,5 +1,5 @@
 {
-  "analyzerVersion": "0.3.5",
+  "analyzerVersion": "0.3.6",
   "edges": [
     {
       "confidence": "exact",
@@ -25,7 +25,7 @@
         {
           "column": 34,
           "file": "src/fields.ts",
-          "line": 24
+          "line": 25
         }
       ],
       "to": "external:ext/openrouter.ai"
@@ -47,62 +47,77 @@
     {
       "confidence": "unresolved",
       "from": "symbol:sdk-branches/src/fields.ts#Switchable.models",
-      "id": "http:symbol:sdk-branches/src/fields.ts#Switchable.models->unresolved:sdk-branches/src/fields.ts:14:27",
+      "id": "http:symbol:sdk-branches/src/fields.ts#Switchable.models->unresolved:sdk-branches/src/fields.ts:15:27",
       "kind": "http",
       "reason": "DYNAMIC_URL",
       "sites": [
         {
           "column": 27,
           "file": "src/fields.ts",
-          "line": 14
+          "line": 15
         }
       ],
-      "to": "unresolved:sdk-branches/src/fields.ts:14:27"
+      "to": "unresolved:sdk-branches/src/fields.ts:15:27"
     },
     {
       "confidence": "unresolved",
       "from": "symbol:sdk-branches/src/fields.ts#azureChat",
-      "id": "http:symbol:sdk-branches/src/fields.ts#azureChat->unresolved:sdk-branches/src/fields.ts:41:33",
+      "id": "http:symbol:sdk-branches/src/fields.ts#azureChat->unresolved:sdk-branches/src/fields.ts:42:33",
       "kind": "http",
       "reason": "NO_MATCHING_ROUTE",
       "sites": [
         {
           "column": 33,
           "file": "src/fields.ts",
-          "line": 41
+          "line": 42
         }
       ],
-      "to": "unresolved:sdk-branches/src/fields.ts:41:33"
+      "to": "unresolved:sdk-branches/src/fields.ts:42:33"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:sdk-branches/src/fields.ts#issuesFor",
+      "id": "http:symbol:sdk-branches/src/fields.ts#issuesFor->unresolved:sdk-branches/src/fields.ts:59:29",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 29,
+          "file": "src/fields.ts",
+          "line": 59
+        }
+      ],
+      "to": "unresolved:sdk-branches/src/fields.ts:59:29"
     },
     {
       "confidence": "unresolved",
       "from": "symbol:sdk-branches/src/fields.ts#listModels",
-      "id": "http:symbol:sdk-branches/src/fields.ts#listModels->unresolved:sdk-branches/src/fields.ts:34:27",
+      "id": "http:symbol:sdk-branches/src/fields.ts#listModels->unresolved:sdk-branches/src/fields.ts:35:27",
       "kind": "http",
       "reason": "DYNAMIC_URL",
       "sites": [
         {
           "column": 27,
           "file": "src/fields.ts",
-          "line": 34
+          "line": 35
         }
       ],
-      "to": "unresolved:sdk-branches/src/fields.ts:34:27"
+      "to": "unresolved:sdk-branches/src/fields.ts:35:27"
     },
     {
       "confidence": "unresolved",
       "from": "symbol:sdk-branches/src/fields.ts#repoFor",
-      "id": "http:symbol:sdk-branches/src/fields.ts#repoFor->unresolved:sdk-branches/src/fields.ts:50:23",
+      "id": "http:symbol:sdk-branches/src/fields.ts#repoFor->unresolved:sdk-branches/src/fields.ts:51:23",
       "kind": "http",
       "reason": "DYNAMIC_URL",
       "sites": [
         {
           "column": 23,
           "file": "src/fields.ts",
-          "line": 50
+          "line": 51
         }
       ],
-      "to": "unresolved:sdk-branches/src/fields.ts:50:23"
+      "to": "unresolved:sdk-branches/src/fields.ts:51:23"
     },
     {
       "confidence": "unresolved",
@@ -136,6 +151,21 @@
     },
     {
       "confidence": "unresolved",
+      "from": "symbol:sdk-branches/src/switch.js#assistantModels",
+      "id": "http:symbol:sdk-branches/src/switch.js#assistantModels->unresolved:sdk-branches/src/switch.js:66:27",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 27,
+          "file": "src/switch.js",
+          "line": 66
+        }
+      ],
+      "to": "unresolved:sdk-branches/src/switch.js:66:27"
+    },
+    {
+      "confidence": "unresolved",
       "from": "symbol:sdk-branches/src/switch.js#embed",
       "id": "http:symbol:sdk-branches/src/switch.js#embed->unresolved:sdk-branches/src/switch.js:33:37",
       "kind": "http",
@@ -148,6 +178,21 @@
         }
       ],
       "to": "unresolved:sdk-branches/src/switch.js:33:37"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:sdk-branches/src/switch.js#modelsOf",
+      "id": "http:symbol:sdk-branches/src/switch.js#modelsOf->unresolved:sdk-branches/src/switch.js:73:20",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 20,
+          "file": "src/switch.js",
+          "line": 73
+        }
+      ],
+      "to": "unresolved:sdk-branches/src/switch.js:73:20"
     },
     {
       "confidence": "unresolved",
@@ -183,7 +228,7 @@
       "parentId": "system:root"
     },
     {
-      "hash": "45fd2cf27d5b21974b93780ed574f2a265616e73e44ebb2c265614ecf910fedd",
+      "hash": "b364959ce25a749758fbb05bec75f2bda0bab4f9915eaaebc3d90de68cc93c87",
       "id": "file:sdk-branches/src/fields.ts",
       "kind": "file",
       "label": "fields.ts",
@@ -191,7 +236,7 @@
       "path": "src/fields.ts"
     },
     {
-      "hash": "3fa074cadf5d1a5935cdcdd0b7f9ee25ae4e38572414591285b0e6ba60ee509b",
+      "hash": "6a90c5a4859776db7e2ea88d26d0bce6ad64c6dea7827bf7e890066e41fdfc99",
       "id": "file:sdk-branches/src/switch.js",
       "kind": "file",
       "label": "switch.js",
@@ -221,9 +266,9 @@
       "requiredParams": 0,
       "source": {
         "column": 1,
-        "endLine": 16,
+        "endLine": 17,
         "file": "src/fields.ts",
-        "line": 6
+        "line": 7
       },
       "symbolKind": "class"
     },
@@ -236,9 +281,9 @@
       "requiredParams": 0,
       "source": {
         "column": 3,
-        "endLine": 15,
+        "endLine": 16,
         "file": "src/fields.ts",
-        "line": 13
+        "line": 14
       },
       "symbolKind": "method"
     },
@@ -251,9 +296,9 @@
       "requiredParams": 0,
       "source": {
         "column": 3,
-        "endLine": 11,
+        "endLine": 12,
         "file": "src/fields.ts",
-        "line": 9
+        "line": 10
       },
       "symbolKind": "method"
     },
@@ -266,9 +311,24 @@
       "requiredParams": 1,
       "source": {
         "column": 1,
-        "endLine": 45,
+        "endLine": 46,
         "file": "src/fields.ts",
-        "line": 40
+        "line": 41
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/fields.ts#issuesFor",
+      "kind": "symbol",
+      "label": "issuesFor",
+      "parentId": "file:sdk-branches/src/fields.ts",
+      "requiredParams": 3,
+      "source": {
+        "column": 1,
+        "endLine": 60,
+        "file": "src/fields.ts",
+        "line": 57
       },
       "symbolKind": "function"
     },
@@ -281,9 +341,9 @@
       "requiredParams": 0,
       "source": {
         "column": 1,
-        "endLine": 35,
+        "endLine": 36,
         "file": "src/fields.ts",
-        "line": 33
+        "line": 34
       },
       "symbolKind": "function"
     },
@@ -296,9 +356,9 @@
       "requiredParams": 3,
       "source": {
         "column": 1,
-        "endLine": 51,
+        "endLine": 52,
         "file": "src/fields.ts",
-        "line": 48
+        "line": 49
       },
       "symbolKind": "function"
     },
@@ -311,9 +371,9 @@
       "requiredParams": 1,
       "source": {
         "column": 1,
-        "endLine": 28,
+        "endLine": 29,
         "file": "src/fields.ts",
-        "line": 23
+        "line": 24
       },
       "symbolKind": "function"
     },
@@ -325,9 +385,9 @@
       "parentId": "file:sdk-branches/src/fields.ts",
       "source": {
         "column": 14,
-        "endLine": 20,
+        "endLine": 21,
         "file": "src/fields.ts",
-        "line": 20
+        "line": 21
       },
       "symbolKind": "variable"
     },
@@ -430,6 +490,20 @@
       "symbolKind": "method"
     },
     {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/switch.js#assistantModels",
+      "kind": "symbol",
+      "label": "assistantModels",
+      "parentId": "file:sdk-branches/src/switch.js",
+      "source": {
+        "column": 1,
+        "endLine": 67,
+        "file": "src/switch.js",
+        "line": 65
+      },
+      "symbolKind": "function"
+    },
+    {
       "exported": false,
       "id": "symbol:sdk-branches/src/switch.js#clientFor",
       "kind": "symbol",
@@ -459,6 +533,34 @@
     },
     {
       "exported": true,
+      "id": "symbol:sdk-branches/src/switch.js#modelsOf",
+      "kind": "symbol",
+      "label": "modelsOf",
+      "parentId": "file:sdk-branches/src/switch.js",
+      "source": {
+        "column": 1,
+        "endLine": 74,
+        "file": "src/switch.js",
+        "line": 70
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/switch.js#setAssistant",
+      "kind": "symbol",
+      "label": "setAssistant",
+      "parentId": "file:sdk-branches/src/switch.js",
+      "source": {
+        "column": 1,
+        "endLine": 61,
+        "file": "src/switch.js",
+        "line": 59
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
       "id": "symbol:sdk-branches/src/switch.js#sharedModels",
       "kind": "symbol",
       "label": "sharedModels",
@@ -480,7 +582,7 @@
     {
       "detail": "the SDK client is built with different base URLs on different branches",
       "expression": "this.ai.models.list",
-      "id": "unresolved:sdk-branches/src/fields.ts:14:27",
+      "id": "unresolved:sdk-branches/src/fields.ts:15:27",
       "kind": "unresolved",
       "label": "GET this.ai /models",
       "parentId": "service:sdk-branches/",
@@ -488,13 +590,13 @@
       "source": {
         "column": 27,
         "file": "src/fields.ts",
-        "line": 14
+        "line": 15
       }
     },
     {
       "detail": "the SDK client is built with different base URLs on different branches",
       "expression": "assistant.models.list",
-      "id": "unresolved:sdk-branches/src/fields.ts:34:27",
+      "id": "unresolved:sdk-branches/src/fields.ts:35:27",
       "kind": "unresolved",
       "label": "? assistant",
       "parentId": "service:sdk-branches/",
@@ -502,13 +604,13 @@
       "source": {
         "column": 27,
         "file": "src/fields.ts",
-        "line": 34
+        "line": 35
       }
     },
     {
       "detail": "no route matches POST to {env:AZURE_BASE_URL}/chat/completions",
       "expression": "azure.chat.completions.create",
-      "id": "unresolved:sdk-branches/src/fields.ts:41:33",
+      "id": "unresolved:sdk-branches/src/fields.ts:42:33",
       "kind": "unresolved",
       "label": "POST {env:AZURE_BASE_URL}/chat/completions",
       "parentId": "service:sdk-branches/",
@@ -516,13 +618,13 @@
       "source": {
         "column": 33,
         "file": "src/fields.ts",
-        "line": 41
+        "line": 42
       }
     },
     {
       "detail": "the SDK client is built with different base URLs on different branches",
       "expression": "github.repos.get",
-      "id": "unresolved:sdk-branches/src/fields.ts:50:23",
+      "id": "unresolved:sdk-branches/src/fields.ts:51:23",
       "kind": "unresolved",
       "label": "? github",
       "parentId": "service:sdk-branches/",
@@ -530,7 +632,21 @@
       "source": {
         "column": 23,
         "file": "src/fields.ts",
-        "line": 50
+        "line": 51
+      }
+    },
+    {
+      "detail": "the SDK client is built with different base URLs on different branches",
+      "expression": "github.rest.issues.listForRepo",
+      "id": "unresolved:sdk-branches/src/fields.ts:59:29",
+      "kind": "unresolved",
+      "label": "? github",
+      "parentId": "service:sdk-branches/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 29,
+        "file": "src/fields.ts",
+        "line": 59
       }
     },
     {
@@ -587,6 +703,34 @@
         "column": 24,
         "file": "src/switch.js",
         "line": 55
+      }
+    },
+    {
+      "detail": "the SDK client is built with different base URLs on different branches",
+      "expression": "assistant.models.list",
+      "id": "unresolved:sdk-branches/src/switch.js:66:27",
+      "kind": "unresolved",
+      "label": "GET assistant /models",
+      "parentId": "service:sdk-branches/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 27,
+        "file": "src/switch.js",
+        "line": 66
+      }
+    },
+    {
+      "detail": "the SDK client is built with different base URLs on different branches",
+      "expression": "ai.models.list",
+      "id": "unresolved:sdk-branches/src/switch.js:73:20",
+      "kind": "unresolved",
+      "label": "GET ai /models",
+      "parentId": "service:sdk-branches/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 20,
+        "file": "src/switch.js",
+        "line": 73
       }
     }
   ],
