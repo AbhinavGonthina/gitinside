@@ -1,6 +1,6 @@
 # M9 review: launch-ready
 
-**Status: draft (M9.7a, 2026-11-11).** The milestone checks pass and production works for a signed-out user. The fresh-eyes review found one high-severity bug (G1: a type annotation hides an SDK client's base, a wrong edge in TypeScript code; the JS demo pins aren't affected) and no security hole. Its 14 findings are planned as M9.7b–M9.7f (table below), and `m9` is tagged after them (M9.7z). · **Range:** `eb707b4..9cc7c5a` (M9.1a1 `0086e03`, PR #41, to M9.6, PR #84). The `m8` tag sits after PRs #41–#50 (M9.1a1–a3f merged before M8.10g), so `m8..HEAD` misses them; this review covers both parts. · **Checked at:** `9cc7c5a`
+**Status: draft (M9.7a, 2026-11-11; re-checked in M9.7z1).** The milestone checks pass and production works for a signed-out user. The fresh-eyes review found one high-severity bug (G1: a type annotation hides an SDK client's base, a wrong edge in TypeScript code; the JS demo pins aren't affected) and no security hole. Its 14 findings were fixed in M9.7b–M9.7f (table below). The re-check after them ([below](#re-check-after-the-fixes-m97z1)) passes every check, but its review and smoke test found 7 more (no high-severity ones), planned as M9.7g–M9.7i. `m9` is tagged after those (M9.7z2). · **Range:** `eb707b4..9cc7c5a` (M9.1a1 `0086e03`, PR #41, to M9.6, PR #84). The `m8` tag sits after PRs #41–#50 (M9.1a1–a3f merged before M8.10g), so `m8..HEAD` misses them; this review covers both parts. · **Checked at:** `9cc7c5a`
 
 ## What was built
 
@@ -54,8 +54,8 @@ Each cause had to become a general rule. The worst, 244 edges: `VITE_API_BASE ||
 - **Recall on unseen code is 69.0%** (batch 6), below the 80% target. One repo's `.replace(/\/+$/, "")` base accounts for 141 misses; none of batch 6's causes is fixed, so it stays unseen.
 - **The accuracy labels are Claude's** and Abhinav's 20% review (planning #1) is still open, so every accuracy number is pending review.
 - **The backtest flagged one PR's 5 breaks**, all within one service; no cross-service break was flagged, and recall isn't measured.
-- **A demo pin whose analysis fails stays stuck** (F1) and costs a GitHub call per view while it's in flight (F2), until M9.7b.
-- **SDK base reading was tested only in JS** (G1, G2): TypeScript's typed fields and branching constructions draw wrong or partial edges, until M9.7d. The demo check found the SDK gap in a JS repo, and the fixtures followed that repo's shape.
+- **SDK base reading still keeps one branch in some shapes** (H1, H2): M9.7d merged `??`, `?:`, and a factory's returns, but a JS class's separate `this.ai = …` writes, a TS field's writes beside its initializer, and an injected client (`opts.client ?? new OpenAI({ baseURL })`) still draw one branch's base, until M9.7g. The demo check found the SDK gap in a JS repo, and the fixtures followed that repo's shape; M9.7d's TS fixture didn't cover these either.
+- **A trace's whole-path frame can leave the path's end under the inspector** (H6): the README GIF's link at 1280×800 hides 3 of the trace's boxes, as it did at M9.7a, until M9.7h.
 - **anything-llm's first view** is a tall column of 50 outside APIs at 40% with the services in a corner (smoke test); readable only after breaking it down.
 - **No real screen reader** has been tried; axe covers part of WCAG.
 - **cal.diy got 16–26% slower** from 0.2.0 to 0.3.0 on the same CPU models, mostly in `imports` and `http`; the cause hasn't been looked for.
@@ -100,6 +100,27 @@ Run as a signed-out user from the laptop against production (`https://gitinside.
 - **The README GIF's link:** taxonomy with `GET /api/users/stripe` traced, step 1 of 5 in the inspector with its code (`smoke/readme-link-*.png`; F8).
 - **Images:** each pin's diagram SVG and badge `200` `image/svg+xml`.
 - **A new analysis:** `vercel/nextjs-postgres-auth-starter` through `/api/analyze` (as the form posts it): `202` queued, `done` 11 s later; its graph `0.3.1`, 50 nodes, 24 edges.
+
+## Re-check after the fixes (M9.7z1)
+
+Checked at `31298da` (M9.7f's merge, PR #90), 2026-11-11.
+
+- **Tests (local, uncached, `npx turbo run test --force --concurrency=1 --continue`, 0 cached):** 14 of 15 tasks passed; web's task died again with tinypool's "Worker exited unexpectedly" and no test summary (no assertion failed). Web alone (`pnpm --filter @gitinside/web test -- --silent`): 1,145 passed. Totals: 5,463 passed, 6 skipped. Analyzer 1,512, viewer 1,146, web 1,145, worker 868 (+1 skipped), db 272 (+5 skipped), eval 227, diff 162, bench 95, schema 36. Against M9.7a: analyzer +20, web +10, viewer +6.
+- **CI on `31298da`** (run 43137361690): `check` first failed one test, `maintenance.test.ts`'s "stops waiting when the job's signal aborts" timing out under `coverage` (the known flake in CLAUDE.md's lessons), and passed on `gh run rerun --failed`; web-e2e (with `a11y`), visual, worker-image, and deploy green.
+- **Coverage** (same run, lines / branches): analyzer 97.68% / 90.9%; diff 99.01% / 93.84%; web 97.68% / 95.85%; worker 96.48% / 94.14%; db 99.49% / 93.99%; viewer 99.33% / 94.73%; eval 98.5% / 93.69%; schema 94.8% / 88.88%; bench 100% / 92.57%. Every target met.
+- **Eval:** `pnpm eval --check` reproduced `eval/results/2026-11-11-0.3.3.md` byte for byte.
+- **Production** (`apps/web/dist/m97a-smoke.mjs`, `m97z-browser.mjs`): landing and the 4 docs pages `200`, `/dashboard` `307` to sign-in, an unknown repo `200` with the not-analyzed screen. The 3 pins' graphs are now `0.3.3` (each pin queued the current version on view, ADR-0255), with the checked counts and the same sizes: anything-llm 7,784 nodes / 12,630 edges / 873 inferred, taxonomy 529 / 542 / 29, maxun 1,525 / 2,323 / 142; their diagram SVGs and badges `200`. In Chromium each permalink laid out with no console errors (55, 5, 11 boxes). The README GIF's link no longer has the hint card over the trace's `app` box (F8 fixed), but the path's right end is under the inspector (H6, `smoke-z1/readme-link-*.png`). On anything-llm's first view the card's box overlaps three outside-API boxes' rects by 10px of their label padding; the icons and labels are clear (`smoke-z1/anything-llm-dark.png`).
+- **Fresh-eyes review** of `6f3545b..31298da` (M9.7b–f), one read-only subagent with no prior context, against SPEC.md, DESIGN.md, TESTING.md, and SECURITY.md: every fix addresses its finding (F1–F3's retry and queueing, the deep-link query's allowlist and escaping with no open redirect, G1, G4, G5, F5, F7, F8, the docs). It found no high-severity problem and no security hole, but G2 is only half fixed. H1 and H2 were checked again in `sdk.ts` in this task.
+
+| # | Severity | Finding | Plan |
+|---|---|---|---|
+| H1 | Medium (confirmed) | `traceSymbol` (`sdk.ts:793`) returns the first declaration that gives a client, so a JS class's `if (local) this.ai = new OpenAI({ baseURL: "http://localhost:11434/v1" }); else this.ai = new OpenAI();` draws only localhost; a TS field's writes are read only when it has no initializer (`sdk.ts:731`), so `private ai = new OpenAI(); … this.ai = new OpenAI({ baseURL: groq })` draws only `api.openai.com` at `exact`. A wrong edge where the bases differ, though `sdk.ts`'s header lists the JS case as unhandled | M9.7g |
+| H2 | Low-medium (confirmed) | `merged` (`sdk.ts:617`) takes the other branch when one isn't an SDK client, so an injected `opts.client ?? new OpenAI({ baseURL: groq })` draws `api.groq.com` at `exact` (a test asserts it), and branches of two packages keep the first; neither is documented | M9.7g |
+| H3 | Low (confirmed, docs) | The blog post's fixed sentence (`resolver-post.md:141`, "reads env var names only … no env value goes into the graph") is still false: `infra.ts` keeps `.env` URL values' scheme, host, and port, and since ADR-0265 an example's host is drawn for an SDK base | M9.7i (noted on #29) |
+| H4 | Low (plausible) | An example file's placeholder host (`OPENAI_BASE_URL=https://YOUR_RESOURCE.openai.azure.com`, `https://example.com/v1`) becomes an outside API at `heuristic` (`match.ts:400`): a made-up box, though no secret | M9.7g |
+| H5 | Low (confirmed) | With the stored row read first (F2), a hidden or now-private pin whose row is `done` shows "unavailable" instead of the 404 it got before; nothing leaks (`findPublishedAnalysis` returns public rows only), but it's untested | M9.7i |
+| H6 | Low-medium (seen in the smoke test) | The trace's whole-path frame on the README GIF's link leaves `prisma`, `mysql`, and `api.stripe.com` past the canvas's visible edge, under the inspector, at 1280×800 (29%) and 1440×900 (38%); it was already so at M9.7a (32%), behind F8 | M9.7h |
+| H7 | Low (confirmed) | `spreadLabels`' search start (`image/layout.ts:144`, `lengthAt(p.points, p.label)`) still takes the nearest point, so on a route passing its label's spot twice the search can start from the earlier pass; F7's length fix was the other call | M9.7h |
 
 ## Interview questions
 
