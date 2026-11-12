@@ -80,6 +80,16 @@ function near(a: Rect, b: Rect, gap: number): boolean {
   );
 }
 
+/** A polyline's length: its segments' lengths summed. */
+function polylineLength(points: readonly Point[]): number {
+  return points
+    .slice(1)
+    .reduce(
+      (sum, b, i) => sum + Math.hypot(b.x - (points[i] as Point).x, b.y - (points[i] as Point).y),
+      0,
+    );
+}
+
 /** How far along a polyline (by length) the point on it nearest `at` is. */
 function lengthAt(points: readonly Point[], at: Point): number {
   let best = Infinity;
@@ -128,7 +138,9 @@ export function spreadLabels(
     !taken.some((t) => near(r, t, LABEL_GAP)) && !boxes.some((b) => near(r, b, LABEL_GAP));
   return edges.map((p, i) => {
     const width = widths[i] ?? 0;
-    const total = lengthAt(p.points, p.points.at(-1) as Point);
+    // Summed, not `lengthAt` its end: a line that passes its end point
+    // earlier would measure short there (M9.7f).
+    const total = polylineLength(p.points);
     const start = lengthAt(p.points, p.label);
     const room = total - 2 * LABEL_END;
     const step = Math.max(6, room / (LABEL_TRIES - 1));

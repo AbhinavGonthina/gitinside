@@ -583,7 +583,8 @@ export function Explorer({
 
   // A trace's start and each step frame the current hop's two ends at a
   // readable size if they aren't both on the canvas at one (`frameHop`,
-  // M4b.15f), clear of the minimap, after the first fit and on the drawn
+  // M4b.15f), clear of the minimap and below the first-visit hint's card
+  // while it shows (M9.7f, as the first view is), after the first fit and on the drawn
   // layout: once per step, and again when Play starts or a new layout lands
   // (a drill-down mid-trace, which otherwise left both ends off the canvas,
   // M9.3c). An open frame holding an end is left out: it's the closed boxes
@@ -603,7 +604,7 @@ export function Explorer({
     const rect = boxesRect(shown.layout.boxes, ends);
     if (!rect) return;
     const { camera: now, canvas: room } = live.current;
-    const next = frameHop(now, rect, room, minimapRect());
+    const next = frameHop(now, rect, room, minimapRect(), hintBand);
     if (next !== now) moveCamera(next, "layout");
   });
 

@@ -251,6 +251,35 @@ for (const c of cases) {
     );
     expect(underHint, "the hint's card covers no box the explorer framed").toEqual([]);
 
+    // A trace step the explorer framed is below the card too, though framing
+    // it gives the camera a hand-set value (M9.7f: taxonomy's README link
+    // framed step 1 under "Tip 1 of 1").
+    const stepUnderHint = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>(".gi-explorer")].flatMap((root) => {
+        const card = root
+          .querySelector('.gi-hint[data-state="open"]')
+          ?.closest(".gi-explorer__pin")
+          ?.getBoundingClientRect();
+        if (!card) return [];
+        return [
+          ...root.querySelectorAll<HTMLElement>(
+            '.gi-drill__node:not([data-leaving]):not([data-open]) > .gi-node[data-emphasis="current"]',
+          ),
+        ]
+          .filter((n) => {
+            const r = n.getBoundingClientRect();
+            return (
+              r.left < card.right &&
+              card.left < r.right &&
+              r.top < card.bottom &&
+              card.top < r.bottom
+            );
+          })
+          .map((n) => n.getAttribute("aria-label") ?? "");
+      }),
+    );
+    expect(stepUnderHint, "the hint's card covers no trace step the explorer framed").toEqual([]);
+
     // An open popover (filters, share) sits wholly on the page, and its
     // controls fit it (M4b.10b: the share menu's Export row).
     const clipped = await page.evaluate(() =>

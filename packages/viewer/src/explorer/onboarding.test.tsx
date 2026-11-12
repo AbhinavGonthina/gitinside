@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { shopDemo } from "../shopDemo.testkit.js";
+import { READABLE_ZOOM } from "./camera.js";
 import { Explorer } from "./Explorer.js";
 import {
   browserOnboarding,
@@ -213,12 +214,12 @@ describe("Explorer onboarding", { timeout: 30_000 }, () => {
     expect(box(DB)?.hasAttribute("data-selected")).toBe(true);
   });
 
-  describe("on a measured canvas (M9.2g)", () => {
-    // Short enough that the system level's fit reaches the top inset, where
-    // the hint's card would cover boxes (pawtograder/platform at 1440 × 900).
-    const CANVAS = { width: 640, height: 400 };
-    /** The hint's pin, as a browser would lay it out: 16px down, 170px tall. */
-    const PIN = { top: 16, height: 170 };
+  /**
+   * Stubs a measured canvas of `canvas` px (jsdom lays nothing out) with the
+   * hint's pin laid out as a browser would: 16px down, 170px tall.
+   */
+  function measuredCanvas(canvas: { width: number; height: number }) {
+    const pin = { top: 16, height: 170 };
     beforeEach(() => {
       vi.stubGlobal(
         "ResizeObserver",
@@ -226,7 +227,7 @@ describe("Explorer onboarding", { timeout: 30_000 }, () => {
           constructor(private readonly report: ResizeObserverCallback) {}
           observe() {
             this.report(
-              [{ contentRect: CANVAS } as ResizeObserverEntry],
+              [{ contentRect: canvas } as ResizeObserverEntry],
               this as unknown as ResizeObserver,
             );
           }
@@ -238,27 +239,67 @@ describe("Explorer onboarding", { timeout: 30_000 }, () => {
       vi.spyOn(HTMLElement.prototype, "offsetTop", "get").mockImplementation(function (
         this: HTMLElement,
       ) {
-        return pinned(this, PIN.top);
+        return pinned(this, pin.top);
       });
       vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (
         this: HTMLElement,
       ) {
-        return pinned(this, PIN.height);
+        return pinned(this, pin.height);
       });
     });
     afterEach(() => {
       vi.unstubAllGlobals();
       vi.restoreAllMocks();
     });
+    return pin;
+  }
 
-    /** The camera drawn on the canvas, read back from its transform. */
-    const cameraOf = (container: HTMLElement) => {
-      const transform =
-        container.querySelector<HTMLElement>(".gi-explorer__drill")?.style.transform;
-      const m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(transform ?? "");
-      if (!m) throw new Error(`no camera in ${transform}`);
-      return { x: Number(m[1]), y: Number(m[2]), zoom: Number(m[3]) };
+  /** The camera drawn on the canvas, read back from its transform. */
+  const cameraOf = (container: HTMLElement) => {
+    const transform = container.querySelector<HTMLElement>(".gi-explorer__drill")?.style.transform;
+    const m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(transform ?? "");
+    if (!m) throw new Error(`no camera in ${transform}`);
+    return { x: Number(m[1]), y: Number(m[2]), zoom: Number(m[3]) };
+  };
+
+  describe("a trace deep link on a measured canvas (M9.7f)", () => {
+    // taxonomy's README link at 1280 × 800: the trace's frame of step 1 ran
+    // under "Tip 1 of 1", though the first view fits below it (M9.2g). The
+    // demo's hops are short, so a short canvas puts the centered one under.
+    const PIN = measuredCanvas({ width: 1280, height: 480 });
+    /** The tops of the current hop's ends as drawn, in canvas px. */
+    const endTops = (container: HTMLElement) => {
+      const c = cameraOf(container);
+      return [
+        ...container.querySelectorAll<HTMLElement>(
+          '.gi-drill__node:not([data-leaving]) > .gi-node[data-emphasis="current"]',
+        ),
+      ].map((el) => parseFloat((el.parentElement as HTMLElement).style.top) * c.zoom + c.y);
     };
+
+    it("frames the trace's first hop below the hint's card", async () => {
+      const { container, count } = await setup(memoryOnboarding(), { initialTrace: CHECKOUT });
+      expect(count()).toMatch(/^Tip 1 of /);
+      // The level's fit is below the card at 58%; the trace's start then
+      // zooms its first hop in to the readable zoom (a camera of its own).
+      await waitFor(
+        () =>
+          expect(container.querySelector(".gi-explorer")?.hasAttribute("data-hand-camera")).toBe(
+            true,
+          ),
+        { timeout: 10_000 },
+      );
+      expect(cameraOf(container).zoom).toBe(READABLE_ZOOM);
+      const tops = endTops(container);
+      expect(tops.length).toBeGreaterThan(0);
+      for (const top of tops) expect(top).toBeGreaterThanOrEqual(PIN.top + PIN.height + 16);
+    });
+  });
+
+  describe("on a measured canvas (M9.2g)", () => {
+    // Short enough that the system level's fit reaches the top inset, where
+    // the hint's card would cover boxes (pawtograder/platform at 1440 × 900).
+    const PIN = measuredCanvas({ width: 640, height: 400 });
     /** The top of the highest box drawn, in canvas px. */
     const topBox = (container: HTMLElement) => {
       const c = cameraOf(container);

@@ -1568,6 +1568,7 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
       "Onboarding",
       "OnboardingDrilledDeep",
       "OnboardingOverBoxes",
+      "OnboardingTracing",
       "Outline",
       "Overview",
       "Search",
@@ -1605,6 +1606,13 @@ describe("Explorer stories", { timeout: 30_000 }, () => {
     await settle();
     expect(deep.querySelector('.gi-hint[data-state="open"]')).not.toBeNull();
     expect(deep.querySelector(".gi-explorer")?.hasAttribute("data-hand-camera")).toBe(false);
+    cleanup();
+    // The hint on a trace deep link (M9.7f): the visual suite checks its card
+    // covers no step the explorer framed.
+    const { container: tracing } = render(<all.OnboardingTracing />);
+    await settle();
+    expect(tracing.querySelector('.gi-hint[data-state="open"]')).not.toBeNull();
+    expect(screen.getByText("Step 1 of 8")).toBeTruthy();
     cleanup();
     render(<all.TracingUnresolved />);
     await settle();

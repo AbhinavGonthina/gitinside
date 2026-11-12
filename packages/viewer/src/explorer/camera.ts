@@ -110,19 +110,31 @@ interface Box {
  * alone left the hop touching or under (M9.3c: taxonomy's step 2). A hop
  * that would come within {@link HOP_CLEARANCE} of it is fitted above it or
  * left of it instead, whichever keeps more zoom (above on a tie), its zoom
- * rounded down so it stays clear.
+ * rounded down so it stays clear. A room that can't hold the hop even at
+ * {@link ZOOM}'s minimum (a tiny canvas) isn't used, and with neither the
+ * hop is centered as if there were no minimap (M9.7f: the minimum zoom used
+ * to be forced on a room too small for it, under the minimap all the same).
+ * The zoom that fits the whole room is rounded down too, so it fits.
+ *
+ * `top` is a band over the canvas's top, in canvas px (the first-visit
+ * hint's card, as `belowBand` fits the first view below it): the hop's room
+ * starts below it, unless that's within the margin already or would leave
+ * under half the room (a short canvas, where the card then covers part of
+ * the hop) (M9.7f: taxonomy's README link framed step 1 under the card).
  */
-export function frameHop(camera: Camera, rect: Rect, canvas: Size, avoid?: Rect): Camera {
+export function frameHop(camera: Camera, rect: Rect, canvas: Size, avoid?: Rect, top = 0): Camera {
   if (canvas.width <= 0 || canvas.height <= 0) return camera;
   const margin = {
     x: Math.min(HOP_MARGIN.x, canvas.width / 4),
     y: Math.min(HOP_MARGIN.y, canvas.height / 4),
   };
+  const bottom = canvas.height - margin.y;
+  const below = top > margin.y && bottom - top >= (bottom - margin.y) / 2;
   const whole: Box = {
     left: margin.x,
-    top: margin.y,
+    top: below ? top : margin.y,
     right: canvas.width - margin.x,
-    bottom: canvas.height - margin.y,
+    bottom,
   };
   const blocked: Box | undefined =
     avoid && avoid.width > 0 && avoid.height > 0
@@ -133,11 +145,14 @@ export function frameHop(camera: Camera, rect: Rect, canvas: Size, avoid?: Rect)
           bottom: avoid.y + avoid.height + HOP_CLEARANCE,
         }
       : undefined;
+  /** The most zoom at which the hop fits `room`, rounded down to a hundredth so it does. */
   const fits = (room: Box) =>
-    Math.min(
-      (room.right - room.left) / Math.max(rect.width, 1),
-      (room.bottom - room.top) / Math.max(rect.height, 1),
-    );
+    Math.floor(
+      Math.min(
+        (room.right - room.left) / Math.max(rect.width, 1),
+        (room.bottom - room.top) / Math.max(rect.height, 1),
+      ) * 100,
+    ) / 100;
   const raised = Math.max(camera.zoom, READABLE_ZOOM);
   const drawn = (c: Camera): Box => ({
     left: rect.x * c.zoom + c.x,
@@ -174,7 +189,11 @@ export function frameHop(camera: Camera, rect: Rect, canvas: Size, avoid?: Rect)
   ];
   for (const room of rooms) {
     if (room.right <= room.left || room.bottom <= room.top) continue;
-    const z = Math.min(clampZoom(Math.floor(fits(room) * 100) / 100), raised);
+    // A zoom at which the hop fits a room beside the minimap draws it clear;
+    // clamping one below the minimum up to it wouldn't (M9.7f).
+    const most = fits(room);
+    if (most < ZOOM.min) continue;
+    const z = Math.min(clampZoom(most), raised);
     if (!best || z > best.zoom) best = place(room, z);
   }
   return best ?? centered;
