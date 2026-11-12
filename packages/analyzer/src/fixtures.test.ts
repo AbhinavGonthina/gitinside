@@ -415,12 +415,17 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     const fields = "symbol:sdk-branches/src/fields.ts";
     const sw = "symbol:sdk-branches/src/switch.js";
     const at = "unresolved:sdk-branches/src";
+    // A default-built client beside an unread branch (`repoFor`, `Pluggable`), and a global
+    // member no write in the file names (`sharedModels`), are unresolved too (M9.7j).
     expect(links(g, "http")).toEqual([
-      `${fields}#Switchable.models -> ${at}/fields.ts:13:27 unresolved DYNAMIC_URL`,
-      `${fields}#azureChat -> ${at}/fields.ts:40:33 unresolved NO_MATCHING_ROUTE`,
-      `${fields}#listModels -> ${at}/fields.ts:33:27 unresolved DYNAMIC_URL`,
+      `${fields}#Switchable.models -> ${at}/fields.ts:14:27 unresolved DYNAMIC_URL`,
+      `${fields}#azureChat -> ${at}/fields.ts:41:33 unresolved NO_MATCHING_ROUTE`,
+      `${fields}#listModels -> ${at}/fields.ts:34:27 unresolved DYNAMIC_URL`,
+      `${fields}#repoFor -> ${at}/fields.ts:50:23 unresolved DYNAMIC_URL`,
       `${sw}#LocalOrCloud.models -> ${at}/switch.js:11:27 unresolved DYNAMIC_URL`,
+      `${sw}#Pluggable.models -> ${at}/switch.js:47:27 unresolved DYNAMIC_URL`,
       `${sw}#embed -> ${at}/switch.js:33:37 unresolved DYNAMIC_URL`,
+      `${sw}#sharedModels -> ${at}/switch.js:55:24 unresolved DYNAMIC_URL`,
     ]);
     expect(links(g, "external_call")).toEqual([
       `${fields}#route -> external:ext/openrouter.ai exact`,

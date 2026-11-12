@@ -602,6 +602,7 @@ describe("analyze: SDK clients with a base URL (M9.1a3e2a)", () => {
       "    same.models.list.mockReset(),",
       "  ];",
       "}",
+      "(globalThis as { ai?: unknown }).ai = fallback;",
     ]);
     const graph = await analyze(dir);
     expect(outgoing(graph).filter((e) => !e.includes("-> unresolved:"))).toEqual([
@@ -687,6 +688,7 @@ describe("analyze: SDK clients with a base URL (M9.1a3e2a)", () => {
       "}",
       "const cache = globalThis as unknown as { ai?: OpenAI };",
       "const cached = cache.ai ?? new OpenAI({ baseURL: GROQ });",
+      "cache.ai = cached;",
       "const keyed = process.env.KEY && new OpenAI({ baseURL: GROQ });",
       "const pick = process.env.CLAUDE ? new Anthropic() : new OpenAI({ baseURL: GROQ });",
       "export function pay(given: unknown) {",
@@ -714,12 +716,135 @@ describe("analyze: SDK clients with a base URL (M9.1a3e2a)", () => {
       "symbol:api/src/llm.ts#pay -> api.stripe.com",
       "symbol:api/src/llm.ts#run -> api.groq.com",
     ]);
-    // By site: `Injected.list` (llm.ts:10), `pick` (23), then `make` (make.js:5).
+    // By site: `Injected.list` (llm.ts:10), `pick` (24), then `make` (make.js:5).
     const branches = "the SDK client is built with different base URLs on different branches";
     expect(unresolved(graph)).toEqual([
       ["GET this.ai /models", "DYNAMIC_URL", branches],
       ["? pick", "DYNAMIC_URL", branches],
       ["POST make(opts) /chat/completions", "DYNAMIC_URL", branches],
+    ]);
+  });
+
+  it("decides an unread branch beside every kind of client, in TS and JS (M9.7j, J1)", async () => {
+    await put("package.json", JSON.stringify({ name: "api" }));
+    await put("src/table.ts", [
+      'import OpenAI, { AzureOpenAI } from "openai";',
+      'import { Octokit } from "@octokit/rest";',
+      'import { Octokit as Kit } from "octokit";',
+      'import Stripe from "stripe";',
+      'const LOCAL = process.env.LOCAL === "1";',
+      "export function bare(given: unknown) {",
+      "  const bare = (given as OpenAI | undefined) || new OpenAI();",
+      "  return bare.models.list();",
+      "}",
+      "export function keyed(given: unknown) {",
+      '  const keyed = (given as OpenAI | undefined) ?? new OpenAI({ apiKey: "k" });',
+      "  return keyed.models.list();",
+      "}",
+      "export function gh(given: unknown) {",
+      '  const gh = (given as Octokit | undefined) ?? new Octokit({ auth: "t" });',
+      "  return gh.repos.get({} as never);",
+      "}",
+      "export function azure(given: unknown) {",
+      "  const azure = (given as AzureOpenAI | undefined) ?? new AzureOpenAI();",
+      "  return azure.models.list();",
+      "}",
+      "export function opened(given: unknown, options: object) {",
+      "  const opened = (given as OpenAI | undefined) ?? new OpenAI(options);",
+      "  return opened.models.list();",
+      "}",
+      "export function pay(given: unknown) {",
+      '  const stripe = (given as Stripe | undefined) ?? new Stripe("k");',
+      "  return stripe.refunds.create({});",
+      "}",
+      "export function plain() {",
+      "  return new OpenAI().models.list();",
+      "}",
+      "export function same() {",
+      '  const same = LOCAL ? new OpenAI() : new OpenAI({ apiKey: "k" });',
+      "  return same.models.list();",
+      "}",
+      "export function kits() {",
+      "  const kits = LOCAL ? new Octokit() : new Kit();",
+      "  return kits.repos.get({} as never);",
+      "}",
+    ]);
+    await put("src/setter.js", [
+      'const { OpenAI } = require("openai");',
+      'const { Octokit } = require("@octokit/rest");',
+      "class Chat {",
+      "  constructor() { this.ai = new OpenAI(); }",
+      "  setClient(c) { this.ai = c; }",
+      "  list() { return this.ai.models.list(); }",
+      "}",
+      "function make(opts) {",
+      "  const hub = opts.octokit ?? new Octokit({ auth: opts.token });",
+      "  return hub.repos.get({});",
+      "}",
+      "function plain() { return new OpenAI().models.list(); }",
+      "module.exports = { Chat, make, plain };",
+    ]);
+    const graph = await analyze(dir);
+    // Beside a client that reads no base (Stripe), or with no unread branch at all, calls go
+    // to the SDK's host; two default-built clients of one host are one.
+    expect(outgoing(graph).filter((e) => !e.includes("-> unresolved:"))).toEqual([
+      "symbol:api/src/setter.js#plain -> api.openai.com",
+      "symbol:api/src/table.ts#kits -> api.github.com",
+      "symbol:api/src/table.ts#pay -> api.stripe.com",
+      "symbol:api/src/table.ts#plain -> api.openai.com",
+      "symbol:api/src/table.ts#same -> api.openai.com",
+    ]);
+    // Beside a client whose export reads a base, built with or without one, an unread branch
+    // may hold a client with any base.
+    const branches = "the SDK client is built with different base URLs on different branches";
+    expect(unresolved(graph).sort()).toEqual([
+      ["? azure", "DYNAMIC_URL", branches],
+      ["? gh", "DYNAMIC_URL", branches],
+      ["? hub", "DYNAMIC_URL", branches],
+      ["GET bare /models", "DYNAMIC_URL", branches],
+      ["GET keyed /models", "DYNAMIC_URL", branches],
+      ["GET opened /models", "DYNAMIC_URL", branches],
+      ["GET this.ai /models", "DYNAMIC_URL", branches],
+    ]);
+  });
+
+  it("reads a global member as a cache only in a file that writes it (M9.7j, J3)", async () => {
+    await put("package.json", JSON.stringify({ name: "api" }));
+    await put("src/global.ts", [
+      'import OpenAI from "openai";',
+      "const g = globalThis as unknown as Record<string, unknown>;",
+      "export const cached = (g.ai as OpenAI | undefined) ?? new OpenAI();",
+      "g.ai = cached;",
+      'export const keyed = (g.k as OpenAI | undefined) ?? new OpenAI({ apiKey: "k" });',
+      'g["k"] ??= keyed;',
+      "const held = g.held as OpenAI | undefined;",
+      "export const viaConst = held || new OpenAI();",
+      "g.held ||= viaConst;",
+      "export const given = (g.given as OpenAI | undefined) ?? new OpenAI();",
+      "export async function run() {",
+      "  await cached.models.list();",
+      "  await keyed.models.list();",
+      "  await viaConst.models.list();",
+      "}",
+      "export async function read() {",
+      "  await given.models.list();",
+      "}",
+    ]);
+    await put("src/window.js", [
+      'const { OpenAI } = require("openai");',
+      "const ai = window.openai ?? new OpenAI();",
+      "function ask() { return ai.models.list(); }",
+      "module.exports = { ask };",
+    ]);
+    const graph = await analyze(dir);
+    expect(outgoing(graph).filter((e) => !e.includes("-> unresolved:"))).toEqual([
+      "symbol:api/src/global.ts#run -> api.openai.com",
+    ]);
+    // Nothing in these files caches a client there, so another may have put any client there.
+    const branches = "the SDK client is built with different base URLs on different branches";
+    expect(unresolved(graph)).toEqual([
+      ["GET given /models", "DYNAMIC_URL", branches],
+      ["GET ai /models", "DYNAMIC_URL", branches],
     ]);
   });
 
