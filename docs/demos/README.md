@@ -95,6 +95,13 @@ version (same counts and byte sizes): none of anything-llm's SDK clients is writ
 branches or beside an unread value, and no pin's example names a placeholder host for an SDK
 base. No edge needed rechecking by hand.
 
+At 0.3.5 (M9.7j, ADR-0267: an unread branch beside a client built with no base option is
+unresolved, and a global member is a cache only where its file writes it) each pin was
+analyzed again the same way (`apps/web/dist/m97j-pins.mjs`) and is again identical to the
+0.3.1 graph but for the version (same counts and byte sizes): no pin pairs an injected client
+with a default-built one or reads an SDK client off the global object. No edge needed
+rechecking by hand.
+
 ### At 0.3.0
 
 All three pins were analyzed on the site at analyzer 0.3.0 on 2026-11-10 (M9.1b2b), right
