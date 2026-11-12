@@ -231,6 +231,8 @@ export const DYNAMIC_URL_DETAIL = {
   sdkBase: "the SDK client's base URL can't be read statically",
   sdkBaseLeadingHole: "the SDK client's base URL starts with a value only known at runtime",
   sdkPath: "the SDK method's request path isn't known, so its base URL isn't matched to a route",
+  sdkBaseUnseen: "the SDK client is known only by its type, so its base URL isn't known",
+  sdkBaseBranches: "the SDK client is built with different base URLs on different branches",
 } as const;
 
 export type DynamicUrlDetail = (typeof DYNAMIC_URL_DETAIL)[keyof typeof DYNAMIC_URL_DETAIL];

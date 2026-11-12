@@ -1,0 +1,271 @@
+{
+  "analyzerVersion": "0.3.2",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:typed-sdk-base/src/llm.ts#fastChat",
+      "id": "external_call:symbol:typed-sdk-base/src/llm.ts#fastChat->external:ext/api.groq.com",
+      "kind": "external_call",
+      "sites": [
+        {
+          "column": 32,
+          "file": "src/llm.ts",
+          "line": 22
+        }
+      ],
+      "to": "external:ext/api.groq.com"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:typed-sdk-base/src/llm.ts#Embedder.embed",
+      "id": "http:symbol:typed-sdk-base/src/llm.ts#Embedder.embed->unresolved:typed-sdk-base/src/llm.ts:33:31",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 31,
+          "file": "src/llm.ts",
+          "line": 33
+        }
+      ],
+      "to": "unresolved:typed-sdk-base/src/llm.ts:33:31"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:typed-sdk-base/src/llm.ts#LocalModel.chat",
+      "id": "http:symbol:typed-sdk-base/src/llm.ts#LocalModel.chat->route:typed-sdk-base/POST /v1/chat/completions",
+      "kind": "http",
+      "label": "POST /v1/chat/completions",
+      "sites": [
+        {
+          "column": 41,
+          "file": "src/llm.ts",
+          "line": 12,
+          "request": "POST http://localhost:11434/v1/chat/completions"
+        }
+      ],
+      "to": "route:typed-sdk-base/POST /v1/chat/completions"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:typed-sdk-base/src/llm.ts#routedChat",
+      "id": "http:symbol:typed-sdk-base/src/llm.ts#routedChat->unresolved:typed-sdk-base/src/llm.ts:43:34",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 34,
+          "file": "src/llm.ts",
+          "line": 43
+        }
+      ],
+      "to": "unresolved:typed-sdk-base/src/llm.ts:43:34"
+    }
+  ],
+  "nodes": [
+    {
+      "host": "api.groq.com",
+      "id": "external:ext/api.groq.com",
+      "kind": "external",
+      "label": "api.groq.com",
+      "layer": "external",
+      "parentId": "system:root"
+    },
+    {
+      "hash": "bff2c739b17fcc39f97ecc242126662393927b88e6f47318802131e31381a459",
+      "id": "file:typed-sdk-base/src/llm.ts",
+      "kind": "file",
+      "label": "llm.ts",
+      "parentId": "module:typed-sdk-base/src",
+      "path": "src/llm.ts"
+    },
+    {
+      "hash": "9cf81b26f04eba7e3a7fc9f385db8884284dd7d9263c9a9fbec3c8e20811221a",
+      "id": "file:typed-sdk-base/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:typed-sdk-base/src",
+      "path": "src/server.ts"
+    },
+    {
+      "id": "module:typed-sdk-base/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:typed-sdk-base/",
+      "path": "src"
+    },
+    {
+      "id": "route:typed-sdk-base/POST /v1/chat/completions",
+      "kind": "route",
+      "label": "POST /v1/chat/completions",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:typed-sdk-base/src/server.ts",
+      "path": "/v1/chat/completions",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 6
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:typed-sdk-base/",
+      "kind": "service",
+      "label": "typed-sdk-base",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:typed-sdk-base/src/llm.ts#Embedder",
+      "kind": "symbol",
+      "label": "Embedder",
+      "parentId": "file:typed-sdk-base/src/llm.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 35,
+        "file": "src/llm.ts",
+        "line": 29
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:typed-sdk-base/src/llm.ts#Embedder.embed",
+      "kind": "symbol",
+      "label": "embed",
+      "parentId": "symbol:typed-sdk-base/src/llm.ts#Embedder",
+      "requiredParams": 1,
+      "source": {
+        "column": 3,
+        "endLine": 34,
+        "file": "src/llm.ts",
+        "line": 32
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:typed-sdk-base/src/llm.ts#LocalModel",
+      "kind": "symbol",
+      "label": "LocalModel",
+      "parentId": "file:typed-sdk-base/src/llm.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 17,
+        "file": "src/llm.ts",
+        "line": 4
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:typed-sdk-base/src/llm.ts#LocalModel.chat",
+      "kind": "symbol",
+      "label": "chat",
+      "parentId": "symbol:typed-sdk-base/src/llm.ts#LocalModel",
+      "requiredParams": 1,
+      "source": {
+        "column": 3,
+        "endLine": 16,
+        "file": "src/llm.ts",
+        "line": 11
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:typed-sdk-base/src/llm.ts#fastChat",
+      "kind": "symbol",
+      "label": "fastChat",
+      "parentId": "file:typed-sdk-base/src/llm.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 26,
+        "file": "src/llm.ts",
+        "line": 21
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:typed-sdk-base/src/llm.ts#lastFastChat",
+      "kind": "symbol",
+      "label": "lastFastChat",
+      "parentId": "file:typed-sdk-base/src/llm.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 52,
+        "file": "src/llm.ts",
+        "line": 50
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:typed-sdk-base/src/llm.ts#routedChat",
+      "kind": "symbol",
+      "label": "routedChat",
+      "parentId": "file:typed-sdk-base/src/llm.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 47,
+        "file": "src/llm.ts",
+        "line": 42
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "typed-sdk-base",
+      "parentId": null
+    },
+    {
+      "detail": "the SDK client is known only by its type, so its base URL isn't known",
+      "expression": "this.ai.embeddings.create",
+      "id": "unresolved:typed-sdk-base/src/llm.ts:33:31",
+      "kind": "unresolved",
+      "label": "POST this.ai /embeddings",
+      "parentId": "service:typed-sdk-base/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 31,
+        "file": "src/llm.ts",
+        "line": 33
+      }
+    },
+    {
+      "detail": "the SDK client is built with different base URLs on different branches",
+      "expression": "router.chat.completions.create",
+      "id": "unresolved:typed-sdk-base/src/llm.ts:43:34",
+      "kind": "unresolved",
+      "label": "POST router /chat/completions",
+      "parentId": "service:typed-sdk-base/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 34,
+        "file": "src/llm.ts",
+        "line": 43
+      }
+    }
+  ],
+  "repo": {
+    "name": "typed-sdk-base",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

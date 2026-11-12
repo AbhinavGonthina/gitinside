@@ -22,6 +22,7 @@ import { AnalysisError } from "./inventory.js";
 // pass through until a test sets `failing`.
 const failing = vi.hoisted(() => ({
   express: undefined as unknown,
+  matcher: undefined as unknown,
   sdk: undefined as unknown,
   symbolAt: undefined as string | undefined,
   typeAt: undefined as string | undefined,
@@ -62,6 +63,16 @@ vi.mock("./express.js", async (importOriginal) => {
     },
   };
 });
+vi.mock("./match.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./match.js")>();
+  return {
+    ...actual,
+    createRouteMatcher: (...args: Parameters<typeof actual.createRouteMatcher>) => {
+      if (failing.matcher !== undefined) throw failing.matcher;
+      return actual.createRouteMatcher(...args);
+    },
+  };
+});
 vi.mock("./sdk.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./sdk.js")>();
   return {
@@ -77,6 +88,7 @@ let dir: string;
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), "gitinside-test-"));
   failing.express = undefined;
+  failing.matcher = undefined;
   failing.sdk = undefined;
   failing.symbolAt = undefined;
   failing.typeAt = undefined;
@@ -409,6 +421,47 @@ describe("internal failures (M5.8c)", () => {
     expect(graph.edges.filter((e) => e.kind === "external_call" || e.kind === "handles")).toEqual(
       [],
     );
+  });
+
+  it("keeps the SDK stage when the HTTP stage fails, drawing based clients' calls unresolved (M9.7d, F5)", async () => {
+    await shop();
+    await put("src/llm.ts", [
+      'import OpenAI from "openai";',
+      'const groq = new OpenAI({ baseURL: "https://api.groq.com/openai/v1" });',
+      "export function ask() {",
+      "  return groq.chat.completions.create({} as never);",
+      "}",
+    ]);
+    failing.matcher = new Error("matcher");
+    const graph = await analyze(dir);
+    expect(
+      graph.warnings.filter((w) => w.code !== "TSCONFIG_MISSING").map((w) => [w.code, w.message]),
+    ).toEqual([
+      [
+        "DETECTOR_FAILED",
+        "the http stage stopped on an internal error (Error: matcher); what it finds is missing from this graph",
+      ],
+      [
+        "SDK_REQUESTS_UNMATCHED",
+        "the http stage failed, so 1 request on an SDK client built with a base URL is drawn unresolved",
+      ],
+    ]);
+    // Stripe's default-host call is drawn as before; Groq's is unresolved, not dropped.
+    expect(graph.edges.filter((e) => e.kind === "external_call").map((e) => e.id)).toEqual([
+      "external_call:symbol:shop/src/server.ts#pay->external:ext/api.stripe.com",
+    ]);
+    expect(
+      graph.nodes.flatMap((n) =>
+        n.kind === "unresolved" ? [[n.id, n.label, n.reason, n.detail]] : [],
+      ),
+    ).toEqual([
+      [
+        "unresolved:shop/src/llm.ts:4:32",
+        "POST https://api.groq.com/openai/v1/chat/completions",
+        "NO_MATCHING_ROUTE",
+        "the http stage failed, so this request wasn't matched to a route or host",
+      ],
+    ]);
   });
 
   it("treats an expression TypeScript throws on as unknown, with one warning (fixtures/checker-crash)", async () => {
