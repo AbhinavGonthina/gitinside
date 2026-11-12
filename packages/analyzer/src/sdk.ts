@@ -15,16 +15,21 @@
  *   (`Resend`), a named export ending in `Client` (`S3Client`), or one of those read from a
  *   namespace import (`new aws.S3Client()`), or a nested path a package lists
  *   (`new calendar_v3.Calendar({ auth })`, `google.calendar({ version })`). Declarations typed
- *   with such a name (`constructor(private stripe: Stripe)`) are clients too. The call that
- *   builds a client is not itself a request.
+ *   with such a name (`constructor(private stripe: Stripe)`) are clients too, when how they
+ *   were built isn't found (M9.7d): a declaration's initializer, or for an instance field
+ *   without one, its `this.<name> = …` writes in the class's members, is read first. The
+ *   call that builds a client is not itself a request.
  * - Values are traced like axios instances (`http.ts`): through variables, imports and
  *   workspace packages (taking the import's confidence), exports, CommonJS exports,
- *   `??`/`||`/`&&`, ternaries, `await`, and factory functions that return a client.
+ *   `??`/`||`/`&&`, ternaries, `await`, and factory functions that return a client. Each
+ *   branch (both sides, every `return`, every field write) is read; clients of one package
+ *   whose bases differ are one client whose base is only known at runtime (M9.7d).
  * - A request is a method call on a module value or a client, at any depth:
  *   `stripe.customers.create()`, `s3.send(cmd)`, `sgMail.send()`. Its site is the method
  *   name. The owner is the innermost symbol, or the routes of an inline Express handler;
- *   top-level calls belong to their file node, like HTTP requests. A Jest/Vitest mock method
- *   on a client path (`create.mockResolvedValue(…)`, {@link MOCK_METHODS}) isn't a request.
+ *   top-level calls belong to their file node, like HTTP requests. A chain naming a
+ *   Jest/Vitest mock method or record anywhere (`create.mockResolvedValue(…)`,
+ *   `create.mock.calls.at(-1)`, {@link MOCK_METHODS}) isn't a request.
  * - Base URLs (M9.1a3e2a, ADR-0249): a client of `openai`'s `OpenAI` (and its default
  *   export), `@anthropic-ai/sdk`'s `Anthropic`, and Octokit's `Octokit` reads the `baseURL`
  *   (Octokit: `baseUrl`) in the options object it's built with (a literal or a `const`
@@ -40,7 +45,9 @@
  *   in the table goes to a literal external host all the same, but is unresolved
  *   (`sdkPath`) for any other base. No options, or no base option, is the default host.
  *   A client known only by its type (`constructor(private ai: OpenAI)`) may have been built
- *   with any base: its calls keep the default host at `heuristic`.
+ *   with any base, and one built with different bases on different branches
+ *   (`LOCAL ? new OpenAI({ baseURL }) : new OpenAI()`) has no one base: both are unresolved
+ *   (M9.7d), never drawn to the default host or to one branch's.
  *
  * Patterns not handled:
  * - Other SDKs' endpoint options: Stripe's `host`/`port`, Twilio's `edge`/`region`,
@@ -58,9 +65,11 @@
  * - Directly called named exports that aren't clients (`import { send } from "x"; send()`),
  *   and methods on results (`(await s3.send(cmd)).Body.transformToString()`): one call
  *   per chain counts, the one on the client.
- * - Clients destructured (`const { customers } = stripe`), stored in collections, or
- *   assigned after creation without a type (`this.stripe = new Stripe()` with an untyped
- *   property).
+ * - Clients destructured (`const { customers } = stripe`) or stored in collections. A JS
+ *   field assigned in several places (`this.openai = …` in two methods) is read from its
+ *   first write only; a TypeScript field's writes are all read. Writes to a static field,
+ *   a parameter property's later writes, and a variable declared without an initializer and
+ *   assigned later (`let c: OpenAI; c = …`) aren't read: such clients are known by type.
  * - SDKs whose host depends on the account or project (Supabase, Firebase, Algolia,
  *   Salesforce), SMTP clients (nodemailer), and telemetry (Sentry, PostHog). They're not on
  *   the allowlist, so like any third-party package they get no edge (ADR-0024).
@@ -355,19 +364,24 @@ interface SdkValue {
  * Where a client's requests go when its export reads a base URL (M9.1a3e2a): `value`, the
  * option's expression and the text the SDK appends; `env`, the env var the SDK reads when no
  * option is set; `unknown`, options a spread or an unread value could set it in; `unseen`, a
- * client known only by its type. A client without one goes to the SDK's default host.
+ * client known only by its type; `branches`, a client built on several branches with bases
+ * that differ (M9.7d). A client without one goes to the SDK's default host.
  */
 type SdkBase =
   | { kind: "value"; value: ProgramExpression; suffix: string; paths: boolean }
   | { kind: "env"; name: string; suffix: string; paths: boolean }
   | { kind: "unknown"; options: ProgramExpression; paths: boolean }
-  | { kind: "unseen" };
+  | { kind: "unseen"; paths: boolean }
+  | { kind: "branches"; paths: boolean };
 
 /**
- * Jest's and Vitest's mock methods (`create.mockResolvedValue(…)`): a test configuring a
- * mocked client's method, not a request.
+ * Jest's and Vitest's mock methods (`create.mockResolvedValue(…)`) and their `mock` record
+ * (`create.mock.calls.at(-1)`): a test configuring or reading a mocked client's method, not
+ * a request. A chain naming any of them anywhere is skipped.
  */
 const MOCK_METHODS: ReadonlySet<string> = new Set([
+  "getMockName",
+  "mock",
   "mockClear",
   "mockImplementation",
   "mockImplementationOnce",
@@ -381,6 +395,7 @@ const MOCK_METHODS: ReadonlySet<string> = new Set([
   "mockReturnThis",
   "mockReturnValue",
   "mockReturnValueOnce",
+  "withImplementation",
 ]);
 
 /**
@@ -431,6 +446,16 @@ export interface SdkFacts {
   requests: SdkRequest[];
   /** Its requests on clients built with a base URL, in walk order (M9.1a3e2a). */
   http: HttpRequestFact[];
+}
+
+/** A method call on an SDK value: `stripe.customers.create` ⇒ `stripe`, [`customers`, `create`]. */
+interface SdkCall {
+  value: SdkValue;
+  names: string[];
+  /** The method name, the request's site. */
+  name: ts.Node;
+  /** The SDK value's expression (`this.ai` in `this.ai.models.list()`). */
+  receiver: ts.Expression;
 }
 
 const compareLocations = (a: SourceLocation, b: SourceLocation): number =>
@@ -578,8 +603,85 @@ export function collectSdkFacts(
   /** A client known only by its type: built somewhere unseen, so with an unseen base. */
   const typedClient = (value: SdkValue | undefined): SdkValue | undefined => {
     const client = clientOf(value);
-    const reads = value?.name ? value.pkg.bases?.has(value.name) === true : false;
-    return client && reads ? { ...client, base: { kind: "unseen" } } : client;
+    const config = value?.name ? value.pkg.bases?.get(value.name) : undefined;
+    return client && config ? { ...client, base: { kind: "unseen", paths: config.paths } } : client;
+  };
+
+  /**
+   * Two SDK values an expression may be, one per branch (`a ?? b`, `c ? a : b`, a factory's
+   * returns, a field's writes; M9.7d): either when the other isn't an SDK's, and the first
+   * when they aren't both clients of one package. Clients whose bases differ are `branches`:
+   * which one a call uses is only known at runtime.
+   */
+  const merged = (a: SdkValue | undefined, b: SdkValue | undefined): SdkValue | undefined => {
+    if (!a || !b) return a ?? b;
+    if (a.name !== null || b.name !== null || a.pkg.module !== b.pkg.module) return a;
+    const confidence = weaker(a.confidence, b.confidence);
+    if (sameBase(a.base, b.base)) return { ...a, confidence };
+    const paths = (a.base?.paths ?? true) && (b.base?.paths ?? true);
+    return { ...a, confidence, base: { kind: "branches", paths } };
+  };
+
+  /** True when two clients' bases are the same: one env var, or values read to one URL. */
+  const sameBase = (a: SdkBase | undefined, b: SdkBase | undefined): boolean => {
+    if (!a || !b) return a === b;
+    if (a.paths !== b.paths) return false;
+    switch (a.kind) {
+      case "env":
+        return b.kind === "env" && a.name === b.name && a.suffix === b.suffix;
+      case "value": {
+        if (b.kind !== "value" || a.suffix !== b.suffix) return false;
+        if (a.value.expression === b.value.expression) return true;
+        const x = normalizer.normalize({ url: a.value, baseURL: undefined });
+        const y = normalizer.normalize({ url: b.value, baseURL: undefined });
+        return x.resolved && y.resolved && x.text === y.text && x.confidence === y.confidence;
+      }
+      case "unknown":
+        return b.kind === "unknown" && a.options.expression === b.options.expression;
+      case "unseen":
+      case "branches":
+        return b.kind === a.kind;
+    }
+  };
+
+  /**
+   * The values written to instance field `declaration` (`this.<name> = …`, `??=` too) in its
+   * class's members, merged (M9.7d): a TypeScript field declared without an initializer is
+   * set this way, and only its writes say how its client was built. Nested classes and
+   * `function`s have their own `this`, so their writes aren't counted.
+   */
+  const fieldWrites = (
+    sp: ServiceProgram,
+    declaration: ts.PropertyDeclaration,
+    hops: number,
+  ): SdkValue | undefined => {
+    const name = declaration.name;
+    const cls = declaration.parent;
+    if (!ts.isIdentifier(name) || !ts.isClassLike(cls) || isStatic(declaration)) return undefined;
+    let found: SdkValue | undefined;
+    const walk = (node: ts.Node): void => {
+      if (ts.isClassLike(node) || ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node))
+        return;
+      if (
+        ts.isBinaryExpression(node) &&
+        (node.operatorToken.kind === ts.SyntaxKind.EqualsToken ||
+          node.operatorToken.kind === ts.SyntaxKind.QuestionQuestionEqualsToken)
+      ) {
+        const left = unwrap(node.left);
+        if (
+          ts.isPropertyAccessExpression(left) &&
+          left.expression.kind === ts.SyntaxKind.ThisKeyword &&
+          left.name.text === name.text
+        ) {
+          found = merged(found, sdkOf(sp, node.right, hops + 1));
+        }
+      }
+      ts.forEachChild(node, walk);
+    };
+    for (const member of cls.members) {
+      if (!isStatic(member)) ts.forEachChild(member, walk);
+    }
+    return found;
   };
 
   /** The client a type annotation names: `Stripe`, `S3Client`, or `aws.S3Client`. */
@@ -624,10 +726,14 @@ export function collectSdkFacts(
       ts.isPropertySignature(declaration) ||
       ts.isParameter(declaration)
     ) {
-      const typed = sdkOfType(sp, declaration.type);
-      if (typed) return typed;
+      // How the value was built says more than its type, which can't name a base (M9.7d).
       const init = ts.isPropertySignature(declaration) ? undefined : declaration.initializer;
-      return init && sdkOf(sp, init, hops + 1);
+      const built = init
+        ? sdkOf(sp, init, hops + 1)
+        : ts.isPropertyDeclaration(declaration)
+          ? fieldWrites(sp, declaration, hops)
+          : undefined;
+      return built ?? sdkOfType(sp, declaration.type);
     }
     if (ts.isPropertyAssignment(declaration)) return sdkOf(sp, declaration.initializer, hops + 1);
     if (ts.isShorthandPropertyAssignment(declaration)) {
@@ -704,7 +810,7 @@ export function collectSdkFacts(
    */
   const sdkByFactory = new Map<FunctionWithBody, SdkValue | null>();
 
-  /** The first SDK value a factory function returns, no stronger than `confidence`. */
+  /** The SDK values a factory function returns, merged, no stronger than `confidence`. */
   const returnedSdk = (
     sp: ServiceProgram,
     fn: FunctionWithBody,
@@ -714,14 +820,11 @@ export function collectSdkFacts(
     let known = sdkByFactory.get(fn);
     if (known === undefined) {
       sdkByFactory.set(fn, null);
-      known = null;
+      let found: SdkValue | undefined;
       for (const returned of returnedExpressions(fn)) {
-        const found = sdkOf(sp, returned, hops + 1);
-        if (found) {
-          known = found;
-          break;
-        }
+        found = merged(found, sdkOf(sp, returned, hops + 1));
       }
+      known = found ?? null;
       sdkByFactory.set(fn, known);
     }
     return viaImport({ confidence }, known ?? undefined);
@@ -745,7 +848,7 @@ export function collectSdkFacts(
         op === ts.SyntaxKind.BarBarToken ||
         op === ts.SyntaxKind.AmpersandAmpersandToken
       ) {
-        return sdkOf(sp, e.left, hops + 1) ?? sdkOf(sp, e.right, hops + 1);
+        return merged(sdkOf(sp, e.left, hops + 1), sdkOf(sp, e.right, hops + 1));
       }
       if (op === ts.SyntaxKind.EqualsToken || op === ts.SyntaxKind.QuestionQuestionEqualsToken) {
         return sdkOf(sp, e.right, hops + 1);
@@ -753,7 +856,7 @@ export function collectSdkFacts(
       return undefined;
     }
     if (ts.isConditionalExpression(e)) {
-      return sdkOf(sp, e.whenTrue, hops + 1) ?? sdkOf(sp, e.whenFalse, hops + 1);
+      return merged(sdkOf(sp, e.whenTrue, hops + 1), sdkOf(sp, e.whenFalse, hops + 1));
     }
     if (ts.isNewExpression(e))
       return constructed(sp, sdkOf(sp, e.expression, hops + 1), e.arguments);
@@ -806,10 +909,7 @@ export function collectSdkFacts(
    * (`stripe.customers.create` ⇒ `stripe`, [`customers`, `create`]). The shortest SDK prefix
    * of the callee counts, and at least one name must follow it.
    */
-  const requestOf = (
-    sp: ServiceProgram,
-    call: ts.CallExpression,
-  ): { value: SdkValue; names: string[]; name: ts.Node } | undefined => {
+  const requestOf = (sp: ServiceProgram, call: ts.CallExpression): SdkCall | undefined => {
     const callee = unwrap(call.expression);
     if (!ts.isPropertyAccessExpression(callee)) return undefined;
     const chain: ts.PropertyAccessExpression[] = [];
@@ -824,7 +924,7 @@ export function collectSdkFacts(
       const value = sdkOf(sp, prefix, 0);
       if (!value) continue;
       const names = chain.slice(i).map((p) => p.name.text);
-      return { value, names, name: callee.name };
+      return { value, names, name: callee.name, receiver: prefix };
     }
     return undefined;
   };
@@ -839,13 +939,26 @@ export function collectSdkFacts(
    * The URL a request on a client with base `base` goes to: the base read like a `fetch`
    * URL, the SDK's suffix, then the method's `path` joined as axios joins a `baseURL`. With
    * no known path, a literal host outside the machine is still an external call, but any
-   * other base isn't matched to a route on the base alone. `shown` is what an unresolved
-   * node's label shows for the base.
+   * other base isn't matched to a route on the base alone. A client known only by its type,
+   * or built with different bases on different branches, has no one base (M9.7d). `shown` is
+   * what an unresolved node's label shows for the base: the client's own expression when its
+   * base has none.
    */
   const sdkUrl = (
-    base: Exclude<SdkBase, { kind: "unseen" }>,
+    base: SdkBase,
     path: string | undefined,
+    receiver: ts.Expression,
   ): { url: NormalizedUrl; shown: string } => {
+    if (base.kind === "unseen" || base.kind === "branches") {
+      return {
+        url: dynamic(
+          base.kind === "unseen"
+            ? DYNAMIC_URL_DETAIL.sdkBaseUnseen
+            : DYNAMIC_URL_DETAIL.sdkBaseBranches,
+        ),
+        shown: redactedText(receiver, []),
+      };
+    }
     if (base.kind === "unknown") {
       return {
         url: dynamic(DYNAMIC_URL_DETAIL.sdkBase),
@@ -888,8 +1001,8 @@ export function collectSdkFacts(
   /** A request on a client built with a base URL, as the HTTP stage reads requests. */
   const httpRequestOf = (
     call: ts.CallExpression,
-    request: { value: SdkValue; names: string[]; name: ts.Node },
-    base: Exclude<SdkBase, { kind: "unseen" }>,
+    request: SdkCall,
+    base: SdkBase,
     owners: Owners,
     file: string,
   ): HttpRequestFact => {
@@ -897,7 +1010,7 @@ export function collectSdkFacts(
     const key = (names[0] === "beta" ? names.slice(1) : names).join(".");
     const known = base.paths ? value.pkg.paths?.get(key) : undefined;
     const method = known?.[0] ?? null;
-    const { url, shown } = sdkUrl(base, known?.[1]);
+    const { url, shown } = sdkUrl(base, known?.[1], request.receiver);
     const site = locationOf(request.name, file);
     const confidence = weaker(value.confidence, value.pkg.confidence);
     const label = url.resolved
@@ -934,19 +1047,16 @@ export function collectSdkFacts(
         const skipped =
           request === undefined ||
           builds ||
-          request.names.some((n) => request.value.pkg.local.includes(n)) ||
-          MOCK_METHODS.has(request.names[request.names.length - 1] ?? "");
+          request.names.some((n) => request.value.pkg.local.includes(n) || MOCK_METHODS.has(n));
         if (request && !skipped) {
           const { pkg, base } = request.value;
-          if (base && base.kind !== "unseen") {
+          if (base) {
             http.push(httpRequestOf(node, request, base, current, file));
           } else {
-            const confidence = weaker(request.value.confidence, pkg.confidence);
             requests.push({
               owners: withFallback(current, fallback),
               host: pkg.host,
-              // A client known only by its type may have been built with another base.
-              confidence: base ? weaker(confidence, "heuristic") : confidence,
+              confidence: weaker(request.value.confidence, pkg.confidence),
               site: locationOf(request.name, file),
             });
           }
@@ -959,6 +1069,13 @@ export function collectSdkFacts(
     visit(sourceFile, NO_OWNERS);
   }
   return { service: sp.service.key, requests, http };
+}
+
+/** True for a static class member or a `static { … }` block. */
+function isStatic(member: ts.Node): boolean {
+  if (ts.isClassStaticBlockDeclaration(member)) return true;
+  const modifiers = ts.canHaveModifiers(member) ? ts.getModifiers(member) : undefined;
+  return modifiers?.some((m) => m.kind === ts.SyntaxKind.StaticKeyword) ?? false;
 }
 
 /** True for the `undefined` identifier. */

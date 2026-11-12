@@ -417,16 +417,21 @@ describe("analyze: SDK clients with a base URL (M9.1a3e2a)", () => {
       "}",
     ]);
     const graph = await analyze(dir);
-    // A client known only by its type may have been built with any base: the SDK's default
-    // host is kept, but only at `heuristic`.
-    expect(outgoing(graph)).toEqual([
-      "symbol:api/src/chat.ts#Chat.ask -> api.openai.com (heuristic)",
+    // A client known only by its type may have been built with any base, so it's unresolved
+    // rather than drawn to the SDK's default host (M9.7d).
+    expect(outgoing(graph).filter((e) => !e.includes("-> unresolved:"))).toEqual([
       "symbol:api/src/llm.js#Groq.chat -> api.groq.com",
       "symbol:api/src/llm.js#ask -> proxy.example.com",
       "symbol:api/src/llm.js#embed -> api.openai.com",
       "symbol:api/src/llm.js#repos -> github.acme.com",
     ]);
-    expect(unresolved(graph)).toEqual([]);
+    expect(unresolved(graph)).toEqual([
+      [
+        "POST this.ai /responses",
+        "DYNAMIC_URL",
+        "the SDK client is known only by its type, so its base URL isn't known",
+      ],
+    ]);
   });
 
   it("draws a base only known at runtime as unresolved, never the SDK's default host", async () => {
@@ -516,6 +521,99 @@ describe("analyze: SDK clients with a base URL (M9.1a3e2a)", () => {
         "DYNAMIC_URL",
         "the SDK client's base URL starts with a value only known at runtime",
       ],
+    ]);
+  });
+
+  it("reads a typed client's construction before its type (M9.7d, G1)", async () => {
+    await put("package.json", JSON.stringify({ name: "api" }));
+    await put("src/llm.ts", [
+      'import OpenAI from "openai";',
+      "export class Groq {",
+      "  private openai: OpenAI;",
+      "  constructor() {",
+      '    this.openai = new OpenAI({ baseURL: "https://api.groq.com/openai/v1" });',
+      "  }",
+      "  chat() { return this.openai.chat.completions.create({} as never); }",
+      "}",
+      "export class Proxy {",
+      '  private readonly ai: OpenAI = new OpenAI({ baseURL: "https://proxy.example.com/v1" });',
+      "  list() { return this.ai.models.list(); }",
+      "}",
+      'const local: OpenAI = new OpenAI({ baseURL: "https://local.example.com/v1" });',
+      "export function embed() { return local.embeddings.create({} as never); }",
+      "export class Injected {",
+      "  constructor(private readonly ai: OpenAI) {}",
+      "  ask() { return this.ai.responses.create({} as never); }",
+      "}",
+      "export class Late {",
+      "  private client!: OpenAI;",
+      "  list() { return this.client.models.list(); }",
+      "}",
+    ]);
+    const graph = await analyze(dir);
+    expect(outgoing(graph).filter((e) => !e.includes("-> unresolved:"))).toEqual([
+      "symbol:api/src/llm.ts#Groq.chat -> api.groq.com",
+      "symbol:api/src/llm.ts#Proxy.list -> proxy.example.com",
+      "symbol:api/src/llm.ts#embed -> local.example.com",
+    ]);
+    // A client known only by its type may have been built with any base (line 17, then 21).
+    const unseen = "the SDK client is known only by its type, so its base URL isn't known";
+    expect(unresolved(graph)).toEqual([
+      ["POST this.ai /responses", "DYNAMIC_URL", unseen],
+      ["GET this.client /models", "DYNAMIC_URL", unseen],
+    ]);
+  });
+
+  it("draws a client whose branches disagree on the base as unresolved, and skips mock chains (M9.7d, G2, G5)", async () => {
+    await put("package.json", JSON.stringify({ name: "api" }));
+    await put("src/llm.ts", [
+      'import OpenAI from "openai";',
+      'const LOCAL = process.env.LOCAL === "1";',
+      'const either = LOCAL ? new OpenAI({ baseURL: "https://openrouter.ai/api/v1" }) : new OpenAI();',
+      "const same = LOCAL",
+      '  ? new OpenAI({ baseURL: "https://openrouter.ai/api/v1" })',
+      '  : new OpenAI({ baseURL: "https://openrouter.ai/api/v1" });',
+      "const given = (globalThis as { ai?: unknown }).ai;",
+      'const fallback = given ?? new OpenAI({ baseURL: "https://fallback.example.com/v1" });',
+      "function make(kind: string) {",
+      '  if (kind === "groq") return new OpenAI({ baseURL: "https://api.groq.com/openai/v1" });',
+      "  return new OpenAI();",
+      "}",
+      'const made = make("x");',
+      "export class Switch {",
+      "  private ai: OpenAI;",
+      "  constructor(local: boolean) {",
+      '    if (local) this.ai = new OpenAI({ baseURL: "http://localhost:11434/v1" });',
+      "    else this.ai = new OpenAI();",
+      "  }",
+      "  list() { return this.ai.models.list(); }",
+      "}",
+      "export async function run() {",
+      "  await either.chat.completions.create({} as never);",
+      "  await same.embeddings.create({} as never);",
+      "  await fallback.models.list();",
+      "  await made.chat.completions.create({} as never);",
+      "}",
+      "export function mocks() {",
+      "  return [",
+      "    same.chat.completions.create.mock.calls.at(-1),",
+      "    same.models.list.getMockName(),",
+      "    same.embeddings.create.withImplementation(() => 1, () => undefined),",
+      "    same.models.list.mockReset(),",
+      "  ];",
+      "}",
+    ]);
+    const graph = await analyze(dir);
+    expect(outgoing(graph).filter((e) => !e.includes("-> unresolved:"))).toEqual([
+      "symbol:api/src/llm.ts#run -> fallback.example.com",
+      "symbol:api/src/llm.ts#run -> openrouter.ai",
+    ]);
+    // By site: `either` (line 23), `made` (26), then `this.ai` (20).
+    const branches = "the SDK client is built with different base URLs on different branches";
+    expect(unresolved(graph)).toEqual([
+      ["GET this.ai /models", "DYNAMIC_URL", branches],
+      ["POST either /chat/completions", "DYNAMIC_URL", branches],
+      ["POST made /chat/completions", "DYNAMIC_URL", branches],
     ]);
   });
 
