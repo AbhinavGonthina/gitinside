@@ -14,7 +14,7 @@ The single source of truth for what to do next. Mirrors [docs/ROADMAP.md](docs/R
 - After finishing a task: check it, add a 2–4 line note under **Session notes** (newest first), commit, push.
 
 ## Current task
-M9.7i Docs and pins (H3, H5)
+M9.7z2 Re-run the milestone checks after M9.7g–i, tag m9
 
 ## Needs Abhinav
 (Mirrors open `needs-abhinav` issues in gitinside-planning. Autopilot keeps working on other tasks.)
@@ -542,12 +542,14 @@ Abhinav's decision on #18: no more batch-by-batch loops. Cover the common ways R
 - [x] M9.7z1 Re-check after M9.7b–f: full suite uncached, CI coverage, `pnpm eval --check`, a fresh-eyes review of `6f3545b..31298da` (M9.7b–f), the production smoke test again; findings planned as M9.7g–i in M9-review.md {model: opus}
 - [x] M9.7g SDK branches (H1, H2, H4): every declaration and write of a client is merged, not the first one found (`traceSymbol`: a JS class's `if (local) this.ai = new OpenAI({ baseURL: localhost }) else this.ai = new OpenAI()` draws only localhost), and a TS field's writes merged with its initializer (`private ai = new OpenAI(); … this.ai = new OpenAI({ baseURL: groq })` draws only `api.openai.com`); a branch that can't be read (`opts.client ?? new OpenAI({ baseURL })`) and branches of different packages decided by rule, documented in `sdk.ts`'s header, not "the other branch at `exact`"; an example file's placeholder host (`https://YOUR_RESOURCE.openai.azure.com`, `example.com`, `<…>`) not drawn as an outside API (ADR-0265 amendment); red fixture tests first (JS and TS), `KEY_FORMAT`/`ANALYZER_VERSION` bumps, eval delta, the 3 pins re-dumped and any changed edge rechecked by hand {model: opus}
 - [x] M9.7h Viewer framing (H6, H7): the trace's whole-path frame on a deep link (`trace=`) leaves the path's right end under the inspector (taxonomy's README link at 1280×800 and 1440×900: `prisma`, `mysql`, `api.stripe.com` past the canvas's visible right edge at 29%/38%, as at M9.7a's 32%); find why (room measured with the inspector's width, or the zoom floor) and frame the whole path in the visible canvas or say what's off it; `spreadLabels`' start (`lengthAt(p.points, p.label)`) measured along the line rather than at the nearest point; red tests first, real-browser check on the README link, screenshots dark/light, baselines {model: opus}
-- [ ] M9.7i Docs and pins (H3, H5): the blog post's "reads env var names only … no env value goes into the graph" made true (`.env` URL values' scheme/host/port and, since ADR-0265, an example's host are drawn), noted on planning #29 as a factual fix; a hidden or private pin's permalink 404s as before M9.7b, not "unavailable" (`queuePin` reading the stored row first), red test first {model: opus}
+- [x] M9.7i Docs and pins (H3, H5): the blog post's "reads env var names only … no env value goes into the graph" made true (`.env` URL values' scheme/host/port and, since ADR-0265, an example's host are drawn), noted on planning #29 as a factual fix; a hidden or private pin's permalink 404s as before M9.7b, not "unavailable" (`queuePin` reading the stored row first), red test first {model: opus}
 - [ ] M9.7z2 Re-run the milestone checks after M9.7g–i (suite uncached, CI coverage, eval, a fresh-eyes review of their diff, production smoke), M9-review.md final, tag m9 on the merge commit, set STATUS: DONE {model: opus}
 
 ## Session notes
 
 (Newest first. 2–4 lines per task.)
+
+- 2026-11-11 M9.7i (`6f5e7e6`, `c7351ea`): H5: `queuePin`'s stored-row-first read (F2) answered `unavailable` for a pin whose repo is hidden but whose analysis is done; a done public row with no published analysis is now `missing` (404), asking GitHub nothing (red first in `repoView.test.ts`). A hidden pin whose row failed permanently still says `unavailable` (no GitHub call to tell it's hidden; nothing leaks). H3: the blog's env bullet now says what reaches the graph (URL scheme/host/port kept to pick datastores, an example file's host drawn for an SDK base, ADR-0265); noted on planning #29. Web 1146. No analyzer change, no eval delta.
 
 - 2026-11-11 M9.7h (`d4dd4d0`, ADR-0134 amendment): H6's cause was the hop's centering, not the room (the canvas already ends at the inspector): taxonomy's step 1 hop is tall, framed at 25–29%, and centering it left `prisma`, `mysql`, `api.stripe.com` past x=920 though the whole path fit across. `frameHop` takes the path's rect and slides a moved camera toward it per axis as far as the hop stays in its room, never lowering the zoom. H7: routed lines carry `along` (`RoutedEdge`), `lengthAt` removed. Red first (3 camera, 1 onboarding at 1000×360, 1 layout); 2 mutations red. Real browser (taxonomy's link via a scratch story on a local 0.3.4 graph): all 6 lit boxes on the canvas at 1280 and 1440, both themes. 8 trace baselines + web `trace--*` (3px). Viewer 1152, web 1145. No eval delta.
 
