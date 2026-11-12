@@ -102,6 +102,13 @@ analyzed again the same way (`apps/web/dist/m97j-pins.mjs`) and is again identic
 with a default-built one or reads an SDK client off the global object. No edge needed
 rechecking by hand.
 
+At 0.3.6 (M9.7l, ADR-0268) and 0.3.7 (M9.7m, ADR-0269: `??=`/`||=` read their left side, a
+`let`'s writes are read, and a global path's writes are read in every file of the service)
+each pin was analyzed again the same way (`apps/web/dist/m97l-pins.mjs`,
+`m97m-pins.mjs`) and is again identical to the 0.3.1 graph but for the version (same counts
+and byte sizes): no pin builds an SDK client in a compound assignment, a reassigned `let`, or
+on the global object. No edge needed rechecking by hand.
+
 ### At 0.3.0
 
 All three pins were analyzed on the site at analyzer 0.3.0 on 2026-11-10 (M9.1b2b), right

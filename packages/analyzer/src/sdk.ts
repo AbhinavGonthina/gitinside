@@ -31,14 +31,19 @@
  *   one (`opts.client || new OpenAI()`, M9.7j), it's one built with an unseen base; beside a
  *   client that reads no base (Stripe) it changes nothing (ADR-0266, ADR-0267), until a
  *   later branch whose export reads a base joins, so the result doesn't depend on branch
- *   order (`opts.gh ?? app.octokit ?? new Octokit({ auth })`, M9.7l). A member read from
- *   the global object (`globalThis`, `global`, `window`, `self` when the repo's code doesn't
- *   declare that name) is what the same file writes at that path, joined: a write holding the
- *   read itself (`globalThis.ai ?? new OpenAI(…)` beside `globalThis.ai = ai`, a module's
- *   cache) adds nothing, an injected client (`setAI(c) { globalThis.ai = c }`) is unread,
- *   and a path the file never writes is unread (ADR-0268). A self-reference
- *   (`this.ai = this.ai || new OpenAI(…)`) adds no branch, nor does `a && b`'s left side. Two
- *   values that aren't both clients keep the first.
+ *   order (`opts.gh ?? app.octokit ?? new Octokit({ auth })`, M9.7l). `x ??= y` and
+ *   `x ||= y` are `x ?? y` and `x || y` (M9.7m). A `let` or `var` is its initializer joined
+ *   with every write to it in its file, like a field. A member read from the global object
+ *   (`globalThis`, `global`, `window`, `self` when the repo's code doesn't declare that
+ *   name) is what every file of the service writes at that path, joined (ADR-0268,
+ *   ADR-0269): a write holding a read of the path (`globalThis.ai ?? new OpenAI(…)` beside
+ *   `globalThis.ai = ai`, a module's cache) adds nothing, an injected client
+ *   (`setAI(c) { globalThis.ai = c }`, `Object.assign(globalThis, { ai: c })`) is unread, and
+ *   so is a path no file writes, one written in a way the matcher can't read
+ *   (`Object.defineProperty`, a computed key, `Object.assign` from a non-literal), or one
+ *   whose parent is replaced by anything but an object literal without it. A
+ *   self-reference (`this.ai = this.ai || new OpenAI(…)`) adds no branch, nor does
+ *   `a && b`'s left side. Two values that aren't both clients keep the first.
  * - A request is a method call on a module value or a client, at any depth:
  *   `stripe.customers.create()`, `s3.send(cmd)`, `sgMail.send()`. Its site is the method
  *   name. The owner is the innermost symbol, or the routes of an inline Express handler;
@@ -81,14 +86,13 @@
  *   and methods on results (`(await s3.send(cmd)).Body.transformToString()`): one call
  *   per chain counts, the one on the client.
  * - Clients destructured (`const { customers } = stripe`) or stored in collections; a cache
- *   in a module variable or a `Map` (`cache.get(k) ?? new OpenAI(…)`), or on the global
- *   object written only in another file, is an unread branch, so such a client's base is
- *   unresolved. A global path is matched by its members' names only, so a computed key
- *   (`g[key] = c`) isn't a write it sees. A parameter's default
- *   (`constructor(client = new OpenAI({ baseURL }))`) is read as its one client, though a
- *   caller may pass another. Writes to a static field, a parameter property's later writes,
- *   and a variable declared without an initializer and assigned later
- *   (`let c: OpenAI; c = …`) aren't read: such clients are known by type.
+ *   in a `Map` (`cache.get(k) ?? new OpenAI(…)`) is an unread branch, so such a client's base
+ *   is unresolved. A stored global value holding a read of its own path is dropped whole, so
+ *   another client beside the read in it (`g.ai = env.P ? new OpenAI({ baseURL }) : ai`) is
+ *   missed (M9.7m, L4). Global writes made in another workspace package's program aren't
+ *   read. A parameter's default (`constructor(client = new OpenAI({ baseURL }))`) is read as
+ *   its one client, though a caller may pass another. Writes to a static field and a
+ *   parameter property's later writes aren't read: such clients are known by type.
  * - SDKs whose host depends on the account or project (Supabase, Firebase, Algolia,
  *   Salesforce), SMTP clients (nodemailer), and telemetry (Sentry, PostHog). They're not on
  *   the allowlist, so like any third-party package they get no edge (ADR-0024).
@@ -421,10 +425,103 @@ type Branch = SdkValue | typeof UNREAD | undefined;
 const settled = (branch: Branch): SdkValue | undefined => (branch === UNREAD ? undefined : branch);
 
 /**
- * Names of the global object; a member read from one that its file writes is a cache, not an
- * injected client.
+ * Names of the global object, when the repo's code doesn't declare them: a member read from
+ * one is what the service's files write at its path, a write holding the read being a cache
+ * (ADR-0268, M9.7m).
  */
 const GLOBAL_OBJECTS: ReadonlySet<string> = new Set(["global", "globalThis", "self", "window"]);
+
+/**
+ * A write into an object, relative to it: `set`, a value stored at a member (`g.ai = c`,
+ * `Object.assign(g, { ai: c })`); `hidden`, a member stored with a value the matcher can't
+ * read (`Object.defineProperty(g, "ai", …)`); `any`, some member it can't name (`g[key] = c`,
+ * `Object.assign(g, opts)`).
+ */
+type MemberWrite =
+  | { kind: "set"; member: string; value: ts.Expression }
+  | { kind: "hidden"; member: string }
+  | { kind: "any" };
+
+/** A {@link MemberWrite} to the global object, at a path from it. */
+type GlobalWrite =
+  | { kind: "set"; path: readonly string[]; value: ts.Expression }
+  | { kind: "hidden"; path: readonly string[] }
+  | { kind: "any"; path: readonly string[] };
+
+/** A global path as one comparable key. */
+const pathKey = (path: readonly string[]): string => JSON.stringify(path);
+
+/** True when `prefix` is a strict prefix of `path`. */
+const isPrefix = (prefix: readonly string[], path: readonly string[]): boolean =>
+  prefix.length < path.length && prefix.every((s, i) => s === path[i]);
+
+/** A literal property key's text (`"ai"`, `` `ai` ``, `1`), else `undefined`. */
+function literalKey(e: ts.Expression | undefined): string | undefined {
+  if (!e) return undefined;
+  const key = unwrap(e);
+  return ts.isStringLiteralLike(key) || ts.isNumericLiteral(key) ? key.text : undefined;
+}
+
+/**
+ * The members a call writes into its first argument: `Object.assign(x, { ai: c }, …)` (each
+ * object literal's plain properties; anything else, `any`), `Object.defineProperty(x, "ai",
+ * …)` and `Reflect.defineProperty` (`hidden`), `Object.defineProperties` (`any`), and
+ * `Reflect.set(x, "ai", c)`. A key that isn't a literal is `any`.
+ */
+function callWrites(
+  call: ts.CallExpression,
+): { target: ts.Expression; writes: MemberWrite[] } | undefined {
+  const callee = unwrap(call.expression);
+  if (!ts.isPropertyAccessExpression(callee) || !ts.isIdentifier(callee.expression)) {
+    return undefined;
+  }
+  const [target, key, value, ...rest] = call.arguments;
+  if (!target) return undefined;
+  const named = `${callee.expression.text}.${callee.name.text}`;
+  const member = literalKey(key);
+  switch (named) {
+    case "Object.assign":
+      return { target, writes: call.arguments.slice(1).flatMap(assignedMembers) };
+    case "Object.defineProperty":
+    case "Reflect.defineProperty":
+      return {
+        target,
+        writes: [member === undefined ? { kind: "any" } : { kind: "hidden", member }],
+      };
+    case "Object.defineProperties":
+      return { target, writes: [{ kind: "any" }] };
+    case "Reflect.set":
+      return {
+        target,
+        writes: [
+          member === undefined || !value || rest.length > 0
+            ? { kind: "any" }
+            : { kind: "set", member, value },
+        ],
+      };
+    default:
+      return undefined;
+  }
+}
+
+/** The members an `Object.assign` source writes: an object literal's, else `any`. */
+function assignedMembers(source: ts.Expression): MemberWrite[] {
+  const e = unwrap(source);
+  if (!ts.isObjectLiteralExpression(e)) return [{ kind: "any" }];
+  return e.properties.map((p): MemberWrite => {
+    if (ts.isShorthandPropertyAssignment(p))
+      return { kind: "set", member: p.name.text, value: p.name };
+    const name = p.name;
+    const member =
+      name && (ts.isIdentifier(name) || ts.isStringLiteralLike(name) || ts.isNumericLiteral(name))
+        ? name.text
+        : undefined;
+    if (member === undefined) return { kind: "any" };
+    return ts.isPropertyAssignment(p)
+      ? { kind: "set", member, value: p.initializer }
+      : { kind: "hidden", member };
+  });
+}
 
 /** The operators that store into a global member: `=`, `??=`, `||=`. */
 const ASSIGNMENTS: ReadonlySet<ts.SyntaxKind> = new Set([
@@ -722,9 +819,12 @@ export function collectSdkFacts(
     if (!a || !b) return a ?? b;
     if (a.name !== null || b.name !== null) return a;
     const confidence = weaker(a.confidence, b.confidence);
+    // Of two packages that agree, the one whose module sorts first, so `paths` doesn't depend
+    // on branch order (M9.7m, L7).
+    const first = compareStrings(a.pkg.module, b.pkg.module) <= 0 ? a : b;
     const agreed = (): SdkValue => {
       const base = a.base ?? b.base;
-      return base ? { ...a, confidence, base } : { ...a, confidence };
+      return base ? { ...first, confidence, base } : { ...first, confidence };
     };
     if (a.pkg.module !== b.pkg.module) {
       if (defaultHost(a.base) && defaultHost(b.base) && a.pkg.host === b.pkg.host) {
@@ -804,14 +904,22 @@ export function collectSdkFacts(
     return !(symbol && sdkBySymbol.get(symbol) === null);
   };
 
+  /** Results by service and global path ({@link pathKey}); `null` while one is being read. */
+  const globalByPath = new Map<ServiceProgram, Map<string, Branch | null>>();
+
   /**
    * For a member read from the global object (directly, through a `const` holding it, or a
-   * `const` holding the read), the branch it is: every value its file stores at that path
-   * (`g.ai = …`, `g["ai"] ??= …`), joined, where a value holding the read itself (`g.ai =
-   * cached` with `cached = g.ai ?? new OpenAI(…)`) is the module caching the client the other
-   * branches build and adds nothing. A path the file never writes may hold a client other
-   * code put there, so it's unread (M9.7j), and so is a write of a client injected from
-   * outside (`setAI(c) { globalThis.ai = c }`, M9.7l). `undefined` when it's no global read.
+   * `const` holding the read), the branch it is: every value the service's files store at
+   * that path (`g.ai = …`, `g["ai"] ??= …`), joined (M9.7m: a write in any file may be the one
+   * a call sees), where a value holding a read of the path itself (`g.ai = cached` with
+   * `cached = g.ai ?? new OpenAI(…)`) is the module caching the client the other branches
+   * build and adds nothing. A path no file writes may hold a client other code put there, so
+   * it's unread (M9.7j), and so is a write of a client injected from outside (`setAI(c) {
+   * globalThis.ai = c }`, M9.7l), a write the matcher can't read whole (`Object.assign(
+   * globalThis, …)`, `Object.defineProperty`, `Reflect.set`, a computed key), and a parent
+   * path written with anything but an object literal that lacks the member (`g.slots = { ai:
+   * c }`; `g.slots ??= {}` adds nothing). A path read while it's being read (a write reaching
+   * it through another path) is unread too. `undefined` when it's no global read.
    */
   const globalRead = (
     sp: ServiceProgram,
@@ -831,65 +939,127 @@ export function collectSdkFacts(
     if (!memberOf(e)) return undefined;
     const path = globalPath(sp, e, 0);
     if (path === undefined) return undefined;
-    const writes = globalWrites(sp, e.getSourceFile()).filter((w) => w.path === path);
-    if (writes.length === 0) return { branch: UNREAD };
-    let branch: Branch;
-    for (const { value } of writes) {
-      if (!holds(sp, value, e, 0)) branch = joined(branch, branchOf(sp, value, hops + 1));
-    }
+    const key = pathKey(path);
+    let byPath = globalByPath.get(sp);
+    if (!byPath) globalByPath.set(sp, (byPath = new Map()));
+    const known = byPath.get(key);
+    if (known !== undefined) return { branch: known ?? UNREAD };
+    byPath.set(key, null);
+    const branch = readGlobal(sp, path, hops);
+    byPath.set(key, branch);
     return { branch };
   };
 
+  /** {@link globalRead} of a path, once it's known to be one. */
+  const readGlobal = (sp: ServiceProgram, path: readonly string[], hops: number): Branch => {
+    const key = pathKey(path);
+    let seen = false;
+    let branch: Branch;
+    for (const write of globalWrites(sp)) {
+      if (write.path.length === path.length) {
+        // An `any` write at the path itself writes its members, not it.
+        if (write.kind === "any" || pathKey(write.path) !== key) continue;
+        if (write.kind === "hidden") return UNREAD;
+        seen = true;
+        if (!holds(sp, write.value, key, 0)) {
+          branch = joined(branch, branchOf(sp, write.value, hops + 1));
+        }
+      } else if (isPrefix(write.path, path)) {
+        const member = path[write.path.length] ?? "";
+        if (write.kind !== "set" || !lacks(write.value, member)) return UNREAD;
+      }
+    }
+    return seen ? branch : UNREAD;
+  };
+
+  /** True when `value` is an object literal with no spread, computed key, or `member`. */
+  const lacks = (value: ts.Expression, member: string): boolean => {
+    const e = unwrap(value);
+    return (
+      ts.isObjectLiteralExpression(e) &&
+      e.properties.every((p) => {
+        const name = p.name;
+        return (
+          name !== undefined &&
+          (ts.isIdentifier(name) || ts.isStringLiteralLike(name) || ts.isNumericLiteral(name)) &&
+          name.text !== member
+        );
+      })
+    );
+  };
+
+  /** Results of {@link holds} by service, expression, and path key; `false` while being read. */
+  const holdsByNode = new Map<ServiceProgram, Map<ts.Node, Map<string, boolean>>>();
+
   /**
-   * True when `expression`, or a variable's initializer it names (at any depth), contains the
-   * node `read`.
+   * True when `expression`, or a variable's initializer it names (at any depth, through
+   * imports too), contains a read of the global path `key`.
    */
-  const holds = (sp: ServiceProgram, expression: ts.Node, read: ts.Node, hops: number): boolean => {
+  const holds = (sp: ServiceProgram, expression: ts.Node, key: string, hops: number): boolean => {
     if (hops > MAX_HOPS) return false;
+    let byNode = holdsByNode.get(sp);
+    if (!byNode) holdsByNode.set(sp, (byNode = new Map()));
+    let byKey = byNode.get(expression);
+    if (!byKey) byNode.set(expression, (byKey = new Map()));
+    const known = byKey.get(key);
+    if (known !== undefined) return known;
+    byKey.set(key, false);
     let found = false;
     const visit = (node: ts.Node): void => {
       if (found) return;
-      if (node === read) {
-        found = true;
-        return;
+      if (ts.isExpression(node) && memberOf(node)) {
+        const path = globalPath(sp, node, 0);
+        if (path !== undefined && pathKey(path) === key) {
+          found = true;
+          return;
+        }
       }
       if (ts.isIdentifier(node)) {
-        const declaration = symbolAt(sp, node)?.declarations?.[0];
+        let symbol = symbolAt(sp, node);
+        if (symbol && symbol.flags & ts.SymbolFlags.Alias) {
+          symbol = resolver.checkerOf(sp).getAliasedSymbol(symbol);
+        }
+        const declaration = symbol?.declarations?.[0];
         found =
           declaration !== undefined &&
           ts.isVariableDeclaration(declaration) &&
           declaration.initializer !== undefined &&
-          holds(sp, declaration.initializer, read, hops + 1);
+          holds(sp, declaration.initializer, key, hops + 1);
         return;
       }
       ts.forEachChild(node, visit);
     };
     visit(expression);
+    byKey.set(key, found);
     return found;
   };
 
   /**
-   * The path of a member of the global object, from it (`globalThis.cache.ai` ⇒ `cache` then
-   * `ai`, as one key), directly or through a `const`; `""` for the global object itself. A
-   * name is the global object only when it isn't declared in the repo's code (a parameter
-   * `self`, or `var self = this`, is a local).
+   * The path of a member of the global object, from it (`globalThis.cache.ai` ⇒ `cache`,
+   * `ai`), directly, through a `const`, or through an assignment to one (`(g.s ??= {}).ai`,
+   * `const s = (g.s ??= {})`, M9.7m); `[]` for the global object itself. A name is the global
+   * object only when it isn't declared in the repo's code (a parameter `self`, or
+   * `var self = this`, is a local).
    */
   const globalPath = (
     sp: ServiceProgram,
     expression: ts.Expression,
     hops: number,
-  ): string | undefined => {
+  ): readonly string[] | undefined => {
     if (hops > MAX_HOPS) return undefined;
     const e = unwrap(expression);
     const member = memberOf(e);
     if (member) {
       const object = globalPath(sp, member.object, hops + 1);
-      return object === undefined ? undefined : `${object}/${JSON.stringify(member.name)}`;
+      return object === undefined ? undefined : [...object, member.name];
+    }
+    if (ts.isBinaryExpression(e) && ASSIGNMENTS.has(e.operatorToken.kind)) {
+      return memberOf(unwrap(e.left)) ? globalPath(sp, e.left, hops + 1) : undefined;
     }
     if (!ts.isIdentifier(e)) return undefined;
     const declarations = symbolAt(sp, e)?.declarations ?? [];
     const local = declarations.filter((d) => !d.getSourceFile().isDeclarationFile && !ambient(d));
-    if (local.length === 0) return GLOBAL_OBJECTS.has(e.text) ? "" : undefined;
+    if (local.length === 0) return GLOBAL_OBJECTS.has(e.text) ? [] : undefined;
     const declaration = local[0];
     return declaration &&
       ts.isVariableDeclaration(declaration) &&
@@ -898,29 +1068,44 @@ export function collectSdkFacts(
       : undefined;
   };
 
-  /** The values each file stores at a path of the global object (`=`, `??=`, `||=`), by file. */
-  const globalWritesByFile = new Map<
-    ts.SourceFile,
-    readonly { path: string; value: ts.Expression }[]
-  >();
+  /** Every global write in each service's files ({@link GlobalWrite}), in file then walk order. */
+  const globalWritesBySp = new Map<ServiceProgram, readonly GlobalWrite[]>();
 
-  const globalWrites = (
-    sp: ServiceProgram,
-    file: ts.SourceFile,
-  ): readonly { path: string; value: ts.Expression }[] => {
-    const known = globalWritesByFile.get(file);
+  const globalWrites = (sp: ServiceProgram): readonly GlobalWrite[] => {
+    const known = globalWritesBySp.get(sp);
     if (known) return known;
-    const writes: { path: string; value: ts.Expression }[] = [];
+    const writes: GlobalWrite[] = [];
     const walk = (node: ts.Node): void => {
       if (ts.isBinaryExpression(node) && ASSIGNMENTS.has(node.operatorToken.kind)) {
         const left = unwrap(node.left);
         const path = memberOf(left) ? globalPath(sp, left, 0) : undefined;
-        if (path !== undefined) writes.push({ path, value: node.right });
+        if (path !== undefined) writes.push({ kind: "set", path, value: node.right });
+        // `g[key] = c`: some member of `g`, which the matcher can't name.
+        if (path === undefined && ts.isElementAccessExpression(left)) {
+          const object = globalPath(sp, left.expression, 0);
+          if (object !== undefined) writes.push({ kind: "any", path: object });
+        }
+      }
+      const call = ts.isCallExpression(node) ? callWrites(node) : undefined;
+      const object = call && globalPath(sp, call.target, 0);
+      if (call && object) {
+        for (const write of call.writes) {
+          writes.push(
+            write.kind === "any"
+              ? { kind: "any", path: object }
+              : write.kind === "hidden"
+                ? { kind: "hidden", path: [...object, write.member] }
+                : { kind: "set", path: [...object, write.member], value: write.value },
+          );
+        }
       }
       ts.forEachChild(node, walk);
     };
-    walk(file);
-    globalWritesByFile.set(file, writes);
+    for (const file of sp.rootFiles) {
+      const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
+      if (sourceFile) walk(sourceFile);
+    }
+    globalWritesBySp.set(sp, writes);
     return writes;
   };
 
@@ -968,11 +1153,7 @@ export function collectSdkFacts(
     const walk = (node: ts.Node): void => {
       if (ts.isClassLike(node) || ts.isFunctionDeclaration(node) || ts.isFunctionExpression(node))
         return;
-      if (
-        ts.isBinaryExpression(node) &&
-        (node.operatorToken.kind === ts.SyntaxKind.EqualsToken ||
-          node.operatorToken.kind === ts.SyntaxKind.QuestionQuestionEqualsToken)
-      ) {
+      if (ts.isBinaryExpression(node) && ASSIGNMENTS.has(node.operatorToken.kind)) {
         const left = unwrap(node.left);
         if (
           ts.isPropertyAccessExpression(left) &&
@@ -988,6 +1169,52 @@ export function collectSdkFacts(
       if (!isStatic(member)) ts.forEachChild(member, walk);
     }
     return found;
+  };
+
+  /** Each file's assignments to a plain name (`x = …`, `x ??= …`, `x ||= …`), in walk order. */
+  const assignmentsByFile = new Map<ts.SourceFile, readonly ts.BinaryExpression[]>();
+
+  /**
+   * The values written to a `let` or `var` (`client = c`, `client ??= new OpenAI()`) in its
+   * file, joined (M9.7m): like a field's, they say how its client was built. A write holding
+   * the variable itself (`c = c || new OpenAI()`) adds nothing, since the variable is being
+   * traced. A `const` has no writes; an imported binding can't be assigned.
+   */
+  const variableWrites = (
+    sp: ServiceProgram,
+    declaration: ts.VariableDeclaration,
+    hops: number,
+  ): Branch => {
+    const list = declaration.parent;
+    if (!ts.isIdentifier(declaration.name) || !ts.isVariableDeclarationList(list)) return undefined;
+    if (list.flags & ts.NodeFlags.Const) return undefined;
+    const symbol = symbolAt(sp, declaration.name);
+    if (!symbol) return undefined;
+    const file = declaration.getSourceFile();
+    let assignments = assignmentsByFile.get(file);
+    if (!assignments) {
+      const found: ts.BinaryExpression[] = [];
+      const walk = (node: ts.Node): void => {
+        if (
+          ts.isBinaryExpression(node) &&
+          ASSIGNMENTS.has(node.operatorToken.kind) &&
+          ts.isIdentifier(unwrap(node.left))
+        ) {
+          found.push(node);
+        }
+        ts.forEachChild(node, walk);
+      };
+      walk(file);
+      assignmentsByFile.set(file, (assignments = found));
+    }
+    let written: Branch;
+    for (const assignment of assignments) {
+      const left = unwrap(assignment.left);
+      if (ts.isIdentifier(left) && symbolAt(sp, left) === symbol) {
+        written = joined(written, branchOf(sp, assignment.right, hops + 1));
+      }
+    }
+    return written;
   };
 
   /** The client a type annotation names: `Stripe`, `S3Client`, or `aws.S3Client`. */
@@ -1033,11 +1260,15 @@ export function collectSdkFacts(
       ts.isParameter(declaration)
     ) {
       // How the value was built says more than its type, which can't name a base (M9.7d);
-      // a field's writes count beside its initializer (M9.7g).
+      // a field's writes count beside its initializer (M9.7g), and so do a variable's (M9.7m).
       const init = ts.isPropertySignature(declaration) ? undefined : declaration.initializer;
       const built = joined(
         init && branchOf(sp, init, hops + 1),
-        ts.isPropertyDeclaration(declaration) ? fieldWrites(sp, declaration, hops) : undefined,
+        ts.isPropertyDeclaration(declaration)
+          ? fieldWrites(sp, declaration, hops)
+          : ts.isVariableDeclaration(declaration)
+            ? variableWrites(sp, declaration, hops)
+            : undefined,
       );
       return settled(built) ?? sdkOfType(sp, declaration.type);
     }
@@ -1156,8 +1387,13 @@ export function collectSdkFacts(
       if (op === ts.SyntaxKind.AmpersandAmpersandToken) {
         return merged(sdkOf(sp, e.left, hops + 1), sdkOf(sp, e.right, hops + 1));
       }
-      if (op === ts.SyntaxKind.EqualsToken || op === ts.SyntaxKind.QuestionQuestionEqualsToken) {
-        return sdkOf(sp, e.right, hops + 1);
+      if (op === ts.SyntaxKind.EqualsToken) return sdkOf(sp, e.right, hops + 1);
+      // `x ??= y` is `x ?? (x = y)`: the left side's value as it was, or the right (M9.7m).
+      if (
+        op === ts.SyntaxKind.QuestionQuestionEqualsToken ||
+        op === ts.SyntaxKind.BarBarEqualsToken
+      ) {
+        return settled(joined(branchOf(sp, e.left, hops + 1), branchOf(sp, e.right, hops + 1)));
       }
       return undefined;
     }
@@ -1189,6 +1425,10 @@ export function collectSdkFacts(
       return fn && target ? returnedSdk(target.sp, fn, target.confidence, hops) : undefined;
     }
     if (ts.isIdentifier(e) || ts.isPropertyAccessExpression(e)) {
+      // A global member's writes say more than its type (`g.ai.models.list()`, M9.7m).
+      const global = ts.isPropertyAccessExpression(e) ? globalRead(sp, e, hops) : undefined;
+      const written = global && settled(global.branch);
+      if (written) return written;
       const symbol = symbolAt(sp, ts.isIdentifier(e) ? e : e.name);
       const found = symbol && sdkOfSymbol(sp, symbol, hops + 1);
       if (found || !ts.isPropertyAccessExpression(e)) return found;
