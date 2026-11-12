@@ -64,15 +64,39 @@ export function urlPathPrefix(value: string): string[] | undefined {
   return ok ? segments : undefined;
 }
 
+/** Domains reserved for examples and tests (RFC 2606, RFC 6761). */
+const RESERVED_DOMAIN = /(?:^|\.)(?:example(?:\.com|\.net|\.org)?|invalid|test)$/;
+
+/** A host label that asks the reader to fill it in: `your-resource`, `yourdomain`, `xxx`. */
+const PLACEHOLDER_LABEL =
+  /^(?:your(?:-|domain|host|server|app|api|company|site|instance|resource|endpoint|org|name)|x{3,}$|changeme$)/;
+
+/**
+ * True when an example's host (lowercased, without its port) is a placeholder, not a host
+ * anything is reached at (M9.7g, ADR-0265): a label a DNS name can't hold
+ * (`your_resource.openai.azure.com`, `<your-host>`), a domain reserved for examples
+ * (`example.com`, `api.example`, `*.test`), or a fill-in label (`your-domain.com`, `xxx`).
+ */
+export function isPlaceholderHost(host: string): boolean {
+  // An IPv6 address is a real address.
+  if (host.includes(":")) return false;
+  return (
+    host.split(".").some((label) => !/^[a-z0-9-]+$/.test(label) || PLACEHOLDER_LABEL.test(label)) ||
+    RESERVED_DOMAIN.test(host)
+  );
+}
+
 /**
  * The scheme and host (with its port, an IPv6 host in brackets) of an `http(s)` URL value,
- * as `urlAuthority` reads it, or `undefined` for anything else or a host it leaves out.
+ * as `urlAuthority` reads it, or `undefined` for anything else, a host it leaves out, or a
+ * placeholder host ({@link isPlaceholderHost}).
  */
 export function urlOrigin(value: string): { scheme: string; host: string } | undefined {
   const authority = urlAuthority(value);
   if (!authority?.host || (authority.scheme !== "http" && authority.scheme !== "https")) {
     return undefined;
   }
+  if (isPlaceholderHost(authority.host)) return undefined;
   const { scheme, host, port } = authority;
   const name = host.includes(":") ? `[${host}]` : host;
   return { scheme, host: port === undefined ? name : `${name}:${port}` };
