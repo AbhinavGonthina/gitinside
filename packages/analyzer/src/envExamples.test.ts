@@ -61,21 +61,33 @@ describe("urlOrigin", () => {
   it.each([
     ["http://localhost:5000/api", { scheme: "http", host: "localhost:5000" }],
     ["HTTPS://API.OpenAI.com/v1", { scheme: "https", host: "api.openai.com" }],
-    [
-      "https://user:pass@api.example.com:8443/x?k=v",
-      { scheme: "https", host: "api.example.com:8443" },
-    ],
+    ["https://user:pass@api.acme.io:8443/x?k=v", { scheme: "https", host: "api.acme.io:8443" }],
     ["http://[::1]:3000/api", { scheme: "http", host: "[::1]:3000" }],
+    ["https://yourls.org/api", { scheme: "https", host: "yourls.org" }],
+    ["https://api.testing.dev/v1", { scheme: "https", host: "api.testing.dev" }],
   ])("%s ⇒ %j", (value, expected) => {
     expect(urlOrigin(value)).toEqual(expected);
   });
 
-  it.each([["/api"], ["//api.example.com/v1"], ["ftp://host/api"], ["http://${HOST}/api"], [""]])(
-    "%s ⇒ no origin",
-    (value) => {
-      expect(urlOrigin(value)).toBeUndefined();
-    },
-  );
+  it.each([
+    ["/api"],
+    ["//api.acme.io/v1"],
+    ["ftp://host/api"],
+    ["http://${HOST}/api"],
+    [""],
+    // Placeholders (M9.7g): no host anything is reached at.
+    ["https://YOUR_RESOURCE.openai.azure.com/openai/v1"],
+    ["https://<your-host>/v1"],
+    ["https://example.com/v1"],
+    ["https://api.example.org:8443/v1"],
+    ["https://llm.example/v1"],
+    ["http://api.test/v1"],
+    ["https://your-domain.com/api"],
+    ["https://yourdomain.com/api"],
+    ["https://xxx.openai.azure.com"],
+  ])("%s ⇒ no origin", (value) => {
+    expect(urlOrigin(value)).toBeUndefined();
+  });
 });
 
 describe("envExamples", () => {

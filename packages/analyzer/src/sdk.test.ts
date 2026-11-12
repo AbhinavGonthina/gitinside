@@ -617,6 +617,144 @@ describe("analyze: SDK clients with a base URL (M9.1a3e2a)", () => {
     ]);
   });
 
+  it("merges every write of a field, in JS and beside a TS initializer (M9.7g, H1)", async () => {
+    await put("package.json", JSON.stringify({ name: "api" }));
+    await put("src/switch.js", [
+      'const { OpenAI } = require("openai");',
+      'const GROQ = "https://api.groq.com/openai/v1";',
+      "class Switch {",
+      "  constructor(local) {",
+      '    if (local) this.ai = new OpenAI({ baseURL: "http://localhost:11434/v1" });',
+      "    else this.ai = new OpenAI();",
+      "  }",
+      "  list() { return this.ai.models.list(); }",
+      "}",
+      "class Same {",
+      "  constructor(fast) {",
+      "    if (fast) this.ai = new OpenAI({ baseURL: GROQ });",
+      "    else this.ai = new OpenAI({ baseURL: GROQ });",
+      "  }",
+      "  list() { return this.ai.models.list(); }",
+      "}",
+      "class Reset {",
+      "  constructor() { this.ai = null; }",
+      "  init() { this.ai = this.ai || new OpenAI({ baseURL: GROQ }); }",
+      "  embed() { return this.ai.embeddings.create({}); }",
+      "}",
+      "module.exports = { Switch, Same, Reset };",
+    ]);
+    await put("src/fields.ts", [
+      'import OpenAI from "openai";',
+      'const GROQ = "https://api.groq.com/openai/v1";',
+      "export class Overridden {",
+      "  private ai = new OpenAI();",
+      "  useGroq() { this.ai = new OpenAI({ baseURL: GROQ }); }",
+      "  list() { return this.ai.models.list(); }",
+      "}",
+      "export class Kept {",
+      "  private ai: OpenAI = new OpenAI({ baseURL: GROQ });",
+      "  reset() { this.ai = new OpenAI({ baseURL: GROQ }); }",
+      "  list() { return this.ai.models.list(); }",
+      "}",
+    ]);
+    const graph = await analyze(dir);
+    expect(outgoing(graph).filter((e) => !e.includes("-> unresolved:"))).toEqual([
+      "symbol:api/src/fields.ts#Kept.list -> api.groq.com",
+      "symbol:api/src/switch.js#Reset.embed -> api.groq.com",
+      "symbol:api/src/switch.js#Same.list -> api.groq.com",
+    ]);
+    // By site: `Overridden.list` (fields.ts:6), then `Switch.list` (switch.js:8).
+    const branches = "the SDK client is built with different base URLs on different branches";
+    expect(unresolved(graph)).toEqual([
+      ["GET this.ai /models", "DYNAMIC_URL", branches],
+      ["GET this.ai /models", "DYNAMIC_URL", branches],
+    ]);
+  });
+
+  it("decides unread branches and branches of two packages by rule (M9.7g, H2)", async () => {
+    await put("package.json", JSON.stringify({ name: "api" }));
+    await put("src/llm.ts", [
+      'import OpenAI from "openai";',
+      'import Anthropic from "@anthropic-ai/sdk";',
+      'import Stripe from "stripe";',
+      'const GROQ = "https://api.groq.com/openai/v1";',
+      "export class Injected {",
+      "  private ai: OpenAI;",
+      "  constructor(opts: { client?: unknown }) {",
+      "    this.ai = (opts.client as OpenAI | undefined) ?? new OpenAI({ baseURL: GROQ });",
+      "  }",
+      "  list() { return this.ai.models.list(); }",
+      "}",
+      "const cache = globalThis as unknown as { ai?: OpenAI };",
+      "const cached = cache.ai ?? new OpenAI({ baseURL: GROQ });",
+      "const keyed = process.env.KEY && new OpenAI({ baseURL: GROQ });",
+      "const pick = process.env.CLAUDE ? new Anthropic() : new OpenAI({ baseURL: GROQ });",
+      "export function pay(given: unknown) {",
+      '  const stripe = (given as Stripe | undefined) ?? new Stripe("k");',
+      "  return stripe.refunds.create({});",
+      "}",
+      "export async function run() {",
+      "  await cached.embeddings.create({} as never);",
+      "  await keyed.chat.completions.create({} as never);",
+      "  await pick.models.list();",
+      "}",
+    ]);
+    await put("src/make.js", [
+      'const { OpenAI } = require("openai");',
+      "function make(opts) {",
+      '  return opts.client || new OpenAI({ baseURL: "https://api.groq.com/openai/v1" });',
+      "}",
+      "function chat(opts) { return make(opts).chat.completions.create({}); }",
+      "module.exports = { chat };",
+    ]);
+    const graph = await analyze(dir);
+    // A client read from the global object is this same client, cached; `&&`'s left side is
+    // a condition; Stripe's host doesn't depend on how its client was built.
+    expect(outgoing(graph).filter((e) => !e.includes("-> unresolved:"))).toEqual([
+      "symbol:api/src/llm.ts#pay -> api.stripe.com",
+      "symbol:api/src/llm.ts#run -> api.groq.com",
+    ]);
+    // By site: `Injected.list` (llm.ts:10), `pick` (23), then `make` (make.js:5).
+    const branches = "the SDK client is built with different base URLs on different branches";
+    expect(unresolved(graph)).toEqual([
+      ["GET this.ai /models", "DYNAMIC_URL", branches],
+      ["? pick", "DYNAMIC_URL", branches],
+      ["POST make(opts) /chat/completions", "DYNAMIC_URL", branches],
+    ]);
+  });
+
+  it("draws no outside API for an example file's placeholder host (M9.7g, H4)", async () => {
+    await put("package.json", JSON.stringify({ name: "api" }));
+    await put(".env.example", [
+      "AZURE_BASE_URL=https://YOUR_RESOURCE.openai.azure.com/openai/v1",
+      "DOCS_BASE_URL=https://example.com/v1",
+      "HOST_BASE_URL=https://<your-host>/v1",
+      "REAL_BASE_URL=https://api.together.xyz/v1",
+    ]);
+    await put("src/llm.ts", [
+      'import OpenAI from "openai";',
+      "const azure = new OpenAI({ baseURL: process.env.AZURE_BASE_URL });",
+      "const docs = new OpenAI({ baseURL: process.env.DOCS_BASE_URL });",
+      "const host = new OpenAI({ baseURL: process.env.HOST_BASE_URL });",
+      "const real = new OpenAI({ baseURL: process.env.REAL_BASE_URL });",
+      "export async function run() {",
+      "  await azure.models.list();",
+      "  await docs.models.list();",
+      "  await host.models.list();",
+      "  await real.models.list();",
+      "}",
+    ]);
+    const graph = await analyze(dir);
+    expect(outgoing(graph).filter((e) => !e.includes("-> unresolved:"))).toEqual([
+      "symbol:api/src/llm.ts#run -> api.together.xyz (heuristic)",
+    ]);
+    expect(unresolved(graph).map(([label, reason]) => [label, reason])).toEqual([
+      ["GET {env:AZURE_BASE_URL}/models", "NO_MATCHING_ROUTE"],
+      ["GET {env:DOCS_BASE_URL}/models", "NO_MATCHING_ROUTE"],
+      ["GET {env:HOST_BASE_URL}/models", "NO_MATCHING_ROUTE"],
+    ]);
+  });
+
   it("matches a client whose base is the repo's own server to its routes", async () => {
     await put("package.json", JSON.stringify({ name: "api", dependencies: { express: "4" } }));
     await put("src/server.js", [

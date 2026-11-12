@@ -75,6 +75,7 @@ const NAMES = [
   "nested-config",
   "external-sdk",
   "typed-sdk-base",
+  "sdk-branches",
   "compose-and-env",
   "infra-test-folders",
   "fake-secrets",
@@ -406,6 +407,24 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     expect(links(g, "external_call")).toEqual([
       `${llm}#fastChat -> external:ext/api.groq.com exact`,
       `symbol:typed-sdk-base/src/upstream.ts#relay -> external:ext/api.openai.com heuristic`,
+    ]);
+  });
+
+  it("sdk-branches: every write and branch of a client counts; a placeholder example host is no API (M9.7g)", async () => {
+    const g = await run("sdk-branches");
+    const fields = "symbol:sdk-branches/src/fields.ts";
+    const sw = "symbol:sdk-branches/src/switch.js";
+    const at = "unresolved:sdk-branches/src";
+    expect(links(g, "http")).toEqual([
+      `${fields}#Switchable.models -> ${at}/fields.ts:13:27 unresolved DYNAMIC_URL`,
+      `${fields}#azureChat -> ${at}/fields.ts:40:33 unresolved NO_MATCHING_ROUTE`,
+      `${fields}#listModels -> ${at}/fields.ts:33:27 unresolved DYNAMIC_URL`,
+      `${sw}#LocalOrCloud.models -> ${at}/switch.js:11:27 unresolved DYNAMIC_URL`,
+      `${sw}#embed -> ${at}/switch.js:33:37 unresolved DYNAMIC_URL`,
+    ]);
+    expect(links(g, "external_call")).toEqual([
+      `${fields}#route -> external:ext/openrouter.ai exact`,
+      `${sw}#Lazy.chat -> external:ext/api.groq.com exact`,
     ]);
   });
 

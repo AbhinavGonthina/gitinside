@@ -1,0 +1,446 @@
+{
+  "analyzerVersion": "0.3.4",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:sdk-branches/src/switch.js#embed",
+      "id": "calls:symbol:sdk-branches/src/switch.js#embed->symbol:sdk-branches/src/switch.js#clientFor",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 10,
+          "file": "src/switch.js",
+          "line": 33
+        }
+      ],
+      "to": "symbol:sdk-branches/src/switch.js#clientFor"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:sdk-branches/src/fields.ts#route",
+      "id": "external_call:symbol:sdk-branches/src/fields.ts#route->external:ext/openrouter.ai",
+      "kind": "external_call",
+      "sites": [
+        {
+          "column": 34,
+          "file": "src/fields.ts",
+          "line": 23
+        }
+      ],
+      "to": "external:ext/openrouter.ai"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:sdk-branches/src/switch.js#Lazy.chat",
+      "id": "external_call:symbol:sdk-branches/src/switch.js#Lazy.chat->external:ext/api.groq.com",
+      "kind": "external_call",
+      "sites": [
+        {
+          "column": 37,
+          "file": "src/switch.js",
+          "line": 23
+        }
+      ],
+      "to": "external:ext/api.groq.com"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:sdk-branches/src/fields.ts#Switchable.models",
+      "id": "http:symbol:sdk-branches/src/fields.ts#Switchable.models->unresolved:sdk-branches/src/fields.ts:13:27",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 27,
+          "file": "src/fields.ts",
+          "line": 13
+        }
+      ],
+      "to": "unresolved:sdk-branches/src/fields.ts:13:27"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:sdk-branches/src/fields.ts#azureChat",
+      "id": "http:symbol:sdk-branches/src/fields.ts#azureChat->unresolved:sdk-branches/src/fields.ts:40:33",
+      "kind": "http",
+      "reason": "NO_MATCHING_ROUTE",
+      "sites": [
+        {
+          "column": 33,
+          "file": "src/fields.ts",
+          "line": 40
+        }
+      ],
+      "to": "unresolved:sdk-branches/src/fields.ts:40:33"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:sdk-branches/src/fields.ts#listModels",
+      "id": "http:symbol:sdk-branches/src/fields.ts#listModels->unresolved:sdk-branches/src/fields.ts:33:27",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 27,
+          "file": "src/fields.ts",
+          "line": 33
+        }
+      ],
+      "to": "unresolved:sdk-branches/src/fields.ts:33:27"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:sdk-branches/src/switch.js#LocalOrCloud.models",
+      "id": "http:symbol:sdk-branches/src/switch.js#LocalOrCloud.models->unresolved:sdk-branches/src/switch.js:11:27",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 27,
+          "file": "src/switch.js",
+          "line": 11
+        }
+      ],
+      "to": "unresolved:sdk-branches/src/switch.js:11:27"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:sdk-branches/src/switch.js#embed",
+      "id": "http:symbol:sdk-branches/src/switch.js#embed->unresolved:sdk-branches/src/switch.js:33:37",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 37,
+          "file": "src/switch.js",
+          "line": 33
+        }
+      ],
+      "to": "unresolved:sdk-branches/src/switch.js:33:37"
+    }
+  ],
+  "nodes": [
+    {
+      "host": "api.groq.com",
+      "id": "external:ext/api.groq.com",
+      "kind": "external",
+      "label": "api.groq.com",
+      "layer": "external",
+      "parentId": "system:root"
+    },
+    {
+      "host": "openrouter.ai",
+      "id": "external:ext/openrouter.ai",
+      "kind": "external",
+      "label": "openrouter.ai",
+      "layer": "external",
+      "parentId": "system:root"
+    },
+    {
+      "hash": "1b378aa6d3a1a96abe896d33df1135b0f2d377fef8b2e80b15433dcf835e7235",
+      "id": "file:sdk-branches/src/fields.ts",
+      "kind": "file",
+      "label": "fields.ts",
+      "parentId": "module:sdk-branches/src",
+      "path": "src/fields.ts"
+    },
+    {
+      "hash": "e7ed56dc6014e5baff1f0ac73a4f628b29c678571f98c6ab0982abc80101292c",
+      "id": "file:sdk-branches/src/switch.js",
+      "kind": "file",
+      "label": "switch.js",
+      "parentId": "module:sdk-branches/src",
+      "path": "src/switch.js"
+    },
+    {
+      "id": "module:sdk-branches/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:sdk-branches/",
+      "path": "src"
+    },
+    {
+      "id": "service:sdk-branches/",
+      "kind": "service",
+      "label": "sdk-branches",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/fields.ts#Switchable",
+      "kind": "symbol",
+      "label": "Switchable",
+      "parentId": "file:sdk-branches/src/fields.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 15,
+        "file": "src/fields.ts",
+        "line": 5
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/fields.ts#Switchable.models",
+      "kind": "symbol",
+      "label": "models",
+      "parentId": "symbol:sdk-branches/src/fields.ts#Switchable",
+      "requiredParams": 0,
+      "source": {
+        "column": 3,
+        "endLine": 14,
+        "file": "src/fields.ts",
+        "line": 12
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/fields.ts#Switchable.useGroq",
+      "kind": "symbol",
+      "label": "useGroq",
+      "parentId": "symbol:sdk-branches/src/fields.ts#Switchable",
+      "requiredParams": 0,
+      "source": {
+        "column": 3,
+        "endLine": 10,
+        "file": "src/fields.ts",
+        "line": 8
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/fields.ts#azureChat",
+      "kind": "symbol",
+      "label": "azureChat",
+      "parentId": "file:sdk-branches/src/fields.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 44,
+        "file": "src/fields.ts",
+        "line": 39
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/fields.ts#listModels",
+      "kind": "symbol",
+      "label": "listModels",
+      "parentId": "file:sdk-branches/src/fields.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 34,
+        "file": "src/fields.ts",
+        "line": 32
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/fields.ts#route",
+      "kind": "symbol",
+      "label": "route",
+      "parentId": "file:sdk-branches/src/fields.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 27,
+        "file": "src/fields.ts",
+        "line": 22
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/fields.ts#router",
+      "kind": "symbol",
+      "label": "router",
+      "parentId": "file:sdk-branches/src/fields.ts",
+      "source": {
+        "column": 14,
+        "endLine": 19,
+        "file": "src/fields.ts",
+        "line": 19
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/switch.js#Lazy",
+      "kind": "symbol",
+      "label": "Lazy",
+      "parentId": "file:sdk-branches/src/switch.js",
+      "source": {
+        "column": 1,
+        "endLine": 25,
+        "file": "src/switch.js",
+        "line": 16
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/switch.js#Lazy.chat",
+      "kind": "symbol",
+      "label": "chat",
+      "parentId": "symbol:sdk-branches/src/switch.js#Lazy",
+      "source": {
+        "column": 3,
+        "endLine": 24,
+        "file": "src/switch.js",
+        "line": 21
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/switch.js#LocalOrCloud",
+      "kind": "symbol",
+      "label": "LocalOrCloud",
+      "parentId": "file:sdk-branches/src/switch.js",
+      "source": {
+        "column": 1,
+        "endLine": 13,
+        "file": "src/switch.js",
+        "line": 4
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/switch.js#LocalOrCloud.models",
+      "kind": "symbol",
+      "label": "models",
+      "parentId": "symbol:sdk-branches/src/switch.js#LocalOrCloud",
+      "source": {
+        "column": 3,
+        "endLine": 12,
+        "file": "src/switch.js",
+        "line": 10
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": false,
+      "id": "symbol:sdk-branches/src/switch.js#clientFor",
+      "kind": "symbol",
+      "label": "clientFor",
+      "parentId": "file:sdk-branches/src/switch.js",
+      "source": {
+        "column": 1,
+        "endLine": 30,
+        "file": "src/switch.js",
+        "line": 28
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/switch.js#embed",
+      "kind": "symbol",
+      "label": "embed",
+      "parentId": "file:sdk-branches/src/switch.js",
+      "source": {
+        "column": 1,
+        "endLine": 34,
+        "file": "src/switch.js",
+        "line": 32
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "sdk-branches",
+      "parentId": null
+    },
+    {
+      "detail": "the SDK client is built with different base URLs on different branches",
+      "expression": "this.ai.models.list",
+      "id": "unresolved:sdk-branches/src/fields.ts:13:27",
+      "kind": "unresolved",
+      "label": "GET this.ai /models",
+      "parentId": "service:sdk-branches/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 27,
+        "file": "src/fields.ts",
+        "line": 13
+      }
+    },
+    {
+      "detail": "the SDK client is built with different base URLs on different branches",
+      "expression": "assistant.models.list",
+      "id": "unresolved:sdk-branches/src/fields.ts:33:27",
+      "kind": "unresolved",
+      "label": "? assistant",
+      "parentId": "service:sdk-branches/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 27,
+        "file": "src/fields.ts",
+        "line": 33
+      }
+    },
+    {
+      "detail": "no route matches POST to {env:AZURE_BASE_URL}/chat/completions",
+      "expression": "azure.chat.completions.create",
+      "id": "unresolved:sdk-branches/src/fields.ts:40:33",
+      "kind": "unresolved",
+      "label": "POST {env:AZURE_BASE_URL}/chat/completions",
+      "parentId": "service:sdk-branches/",
+      "reason": "NO_MATCHING_ROUTE",
+      "source": {
+        "column": 33,
+        "file": "src/fields.ts",
+        "line": 40
+      }
+    },
+    {
+      "detail": "the SDK client is built with different base URLs on different branches",
+      "expression": "this.ai.models.list",
+      "id": "unresolved:sdk-branches/src/switch.js:11:27",
+      "kind": "unresolved",
+      "label": "GET this.ai /models",
+      "parentId": "service:sdk-branches/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 27,
+        "file": "src/switch.js",
+        "line": 11
+      }
+    },
+    {
+      "detail": "the SDK client is built with different base URLs on different branches",
+      "expression": "clientFor(opts).embeddings.create",
+      "id": "unresolved:sdk-branches/src/switch.js:33:37",
+      "kind": "unresolved",
+      "label": "POST clientFor(opts) /embeddings",
+      "parentId": "service:sdk-branches/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 37,
+        "file": "src/switch.js",
+        "line": 33
+      }
+    }
+  ],
+  "repo": {
+    "name": "sdk-branches",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}
