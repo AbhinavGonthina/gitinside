@@ -33,17 +33,25 @@
  *   later branch whose export reads a base joins, so the result doesn't depend on branch
  *   order (`opts.gh ?? app.octokit ?? new Octokit({ auth })`, M9.7l). `x ??= y` and
  *   `x ||= y` are `x ?? y` and `x || y` (M9.7m). A `let` or `var` is its initializer joined
- *   with every write to it in its file, like a field. A member read from the global object
- *   (`globalThis`, `global`, `window`, `self` when the repo's code doesn't declare that
- *   name) is what every file of the service writes at that path, joined (ADR-0268,
- *   ADR-0269): a write holding a read of the path (`globalThis.ai ?? new OpenAI(…)` beside
- *   `globalThis.ai = ai`, a module's cache) adds nothing, an injected client
- *   (`setAI(c) { globalThis.ai = c }`, `Object.assign(globalThis, { ai: c })`) is unread, and
- *   so is a path no file writes, one written in a way the matcher can't read
- *   (`Object.defineProperty`, a computed key, `Object.assign` from a non-literal), or one
- *   whose parent is replaced by anything but an object literal without it. A
- *   self-reference (`this.ai = this.ai || new OpenAI(…)`) adds no branch, nor does
- *   `a && b`'s left side. Two values that aren't both clients keep the first.
+ *   with every write to it in its file, like a field; a write the matcher doesn't read
+ *   (`x &&= y`, a destructuring or `for … of` target) is unread (M9.7n). A member read from
+ *   the global object (`globalThis`, `global`, `window`, `self` when the repo's code doesn't
+ *   declare that name), or a global `var` read by its bare name (`declare global { var ai }`,
+ *   a script's top-level `var`, M9.7n), is what every file of the service writes at that
+ *   path, joined (ADR-0268, ADR-0269, ADR-0270), bare-name writes included: a write holding
+ *   a read of the path (`globalThis.ai ?? new OpenAI(…)` beside `globalThis.ai = ai`, a
+ *   module's cache; through a `let` only when its every value holds it) adds nothing, an
+ *   injected client (`setAI(c) { globalThis.ai = c }`, `Object.assign(globalThis, { ai: c })`)
+ *   is unread, and so is a path no file writes, one written in a way the matcher can't read
+ *   (`Object.defineProperty`, a computed key, `Object.assign` from a non-literal, a
+ *   destructuring target), or one whose parent is replaced by anything but an object literal
+ *   without it. Every path below an object the matcher can't follow is unread: the global
+ *   object (or a path) passed to a function, held by a `let`, returned, or an operand of `??`
+ *   or `?:` (`install(globalThis, c)`, M9.7n). A self-reference (`this.ai = this.ai ||
+ *   new OpenAI(…)`, a getter's result written back to what it reads) adds no branch, nor does
+ *   `a && b`'s left side; a result traced while something it reads was still being traced
+ *   is kept only until that is done (M9.7n), so it doesn't depend on which call is traced
+ *   first. Two values that aren't both clients keep the first.
  * - A request is a method call on a module value or a client, at any depth:
  *   `stripe.customers.create()`, `s3.send(cmd)`, `sgMail.send()`. Its site is the method
  *   name. The owner is the innermost symbol, or the routes of an inline Express handler;
@@ -90,7 +98,10 @@
  *   is unresolved. A stored global value holding a read of its own path is dropped whole, so
  *   another client beside the read in it (`g.ai = env.P ? new OpenAI({ baseURL }) : ai`) is
  *   missed (M9.7m, L4). Global writes made in another workspace package's program aren't
- *   read. A parameter's default (`constructor(client = new OpenAI({ baseURL }))`) is read as
+ *   read. The global object passed to anything (`jest.spyOn(window, "fetch")`) makes every
+ *   client read from it in that service unresolved, though most such calls write nothing
+ *   (M9.7n). A write of a getter's result (`g.ai = getClient()`) isn't a cache, since
+ *   function bodies aren't searched for the read: it's traced through the getter instead. A parameter's default (`constructor(client = new OpenAI({ baseURL }))`) is read as
  *   its one client, though a caller may pass another. Writes to a static field and a
  *   parameter property's later writes aren't read: such clients are known by type.
  * - SDKs whose host depends on the account or project (Supabase, Firebase, Algolia,
@@ -448,6 +459,15 @@ type GlobalWrite =
   | { kind: "hidden"; path: readonly string[] }
   | { kind: "any"; path: readonly string[] };
 
+/**
+ * A memoized result: `open` while it's being computed, at a depth of the entries being
+ * computed; once done, held `until` an entry lower on the stack (by depth and id) is done, and
+ * only for reads at least `hops` deep when it was cut off at the hop limit.
+ */
+type Slot<V> =
+  | { open: true; depth: number }
+  | { open: false; value: V; until?: { depth: number; id: number }; hops?: number };
+
 /** A global path as one comparable key. */
 const pathKey = (path: readonly string[]): string => JSON.stringify(path);
 
@@ -551,6 +571,126 @@ function memberOf(e: ts.Expression): { name: string; object: ts.Expression } | u
   }
   return undefined;
 }
+
+/**
+ * True for a file whose top-level declarations are its own: an ES module, or a JS file
+ * TypeScript binds as CommonJS (`require`, `module.exports`). Anything else is a script.
+ */
+function moduleFile(file: ts.SourceFile): boolean {
+  // `commonJsModuleIndicator` is set by TypeScript's binder but isn't in its public types.
+  const commonJs = (file as { commonJsModuleIndicator?: unknown }).commonJsModuleIndicator;
+  return ts.isExternalModule(file) || commonJs !== undefined;
+}
+
+/**
+ * True for a `var` that is a member of the global object (M9.7n, M2): one declared in
+ * `declare global { … }`, or at the top level of a script (`declare var` in a `.d.ts` too).
+ * A `let` or `const` there is global by name but no member of the global object.
+ */
+function globalVariable(declaration: ts.Declaration): boolean {
+  if (!ts.isVariableDeclaration(declaration) || !ts.isIdentifier(declaration.name)) return false;
+  const list = declaration.parent;
+  const statement = list.parent;
+  if (!ts.isVariableStatement(statement)) return false;
+  if (list.flags & (ts.NodeFlags.Let | ts.NodeFlags.Const)) return false;
+  const scope = statement.parent;
+  if (ts.isModuleBlock(scope)) return (scope.parent.flags & ts.NodeFlags.GlobalAugmentation) !== 0;
+  return ts.isSourceFile(scope) && !moduleFile(scope);
+}
+
+/** True for a `const` declaration. */
+function isConst(declaration: ts.VariableDeclaration): boolean {
+  const list = declaration.parent;
+  return ts.isVariableDeclarationList(list) && (list.flags & ts.NodeFlags.Const) !== 0;
+}
+
+/** The outermost of the parentheses and type assertions around an expression. */
+function outermost(node: ts.Node): ts.Node {
+  let n = node;
+  while (
+    ts.isParenthesizedExpression(n.parent) ||
+    ts.isAsExpression(n.parent) ||
+    ts.isSatisfiesExpression(n.parent) ||
+    ts.isNonNullExpression(n.parent) ||
+    ts.isTypeAssertionExpression(n.parent)
+  ) {
+    n = n.parent;
+  }
+  return n;
+}
+
+/**
+ * True for an identifier that reads a value: not a declaration's or property's name, not part
+ * of a type, an import, or a label.
+ */
+function valueReference(id: ts.Identifier): boolean {
+  const p = id.parent;
+  if (ts.isPropertyAccessExpression(p)) return p.expression === id;
+  if (ts.isBindingElement(p)) return false;
+  if (
+    (ts.isVariableDeclaration(p) ||
+      ts.isParameter(p) ||
+      ts.isPropertyAssignment(p) ||
+      ts.isPropertyDeclaration(p) ||
+      ts.isPropertySignature(p) ||
+      ts.isMethodDeclaration(p) ||
+      ts.isFunctionDeclaration(p) ||
+      ts.isFunctionExpression(p) ||
+      ts.isClassLike(p) ||
+      ts.isEnumMember(p) ||
+      ts.isModuleDeclaration(p)) &&
+    p.name === id
+  ) {
+    return false;
+  }
+  return !(
+    ts.isTypeQueryNode(p) ||
+    ts.isQualifiedName(p) ||
+    ts.isTypeReferenceNode(p) ||
+    ts.isImportSpecifier(p) ||
+    ts.isExportSpecifier(p) ||
+    ts.isImportClause(p) ||
+    ts.isNamespaceImport(p) ||
+    ts.isLabeledStatement(p) ||
+    ts.isBreakOrContinueStatement(p)
+  );
+}
+
+/**
+ * True when `node` is written by a destructuring assignment (`({ ai: g.ai } = deps)`,
+ * `[g.ai] = list`, `({ ai } = deps)`) or a `for … of`/`for … in` head.
+ */
+function assignmentTarget(node: ts.Node): boolean {
+  let n = node;
+  for (;;) {
+    const p = n.parent;
+    if (ts.isPropertyAssignment(p) && p.initializer === n) n = p.parent;
+    else if (ts.isShorthandPropertyAssignment(p) || ts.isSpreadAssignment(p)) n = p.parent;
+    else if (ts.isArrayLiteralExpression(p) || ts.isSpreadElement(p)) n = p;
+    else if (ts.isParenthesizedExpression(p)) n = p;
+    else if (ts.isBinaryExpression(p) && p.left === n) {
+      return p.operatorToken.kind === ts.SyntaxKind.EqualsToken;
+    } else {
+      return (ts.isForOfStatement(p) || ts.isForInStatement(p)) && p.initializer === n;
+    }
+  }
+}
+
+/**
+ * Binary operators whose result may be an operand itself (`a ?? b`, `a, b`) or that store it
+ * (`x = a`): an object used there may end up anywhere. Others (comparisons, arithmetic, `in`)
+ * yield a primitive.
+ */
+const VALUE_OPERATORS: ReadonlySet<ts.SyntaxKind> = new Set([
+  ts.SyntaxKind.QuestionQuestionToken,
+  ts.SyntaxKind.BarBarToken,
+  ts.SyntaxKind.AmpersandAmpersandToken,
+  ts.SyntaxKind.CommaToken,
+  ts.SyntaxKind.EqualsToken,
+  ts.SyntaxKind.QuestionQuestionEqualsToken,
+  ts.SyntaxKind.BarBarEqualsToken,
+  ts.SyntaxKind.AmpersandAmpersandEqualsToken,
+]);
 
 /**
  * The value a JS assignment declaration assigns (`this.ai = …`, `exports.x = …`): such a
@@ -737,6 +877,79 @@ export function collectSdkFacts(
   const { symbolAt, constObject } = createValueReader(resolver);
   const normalizer = createUrlNormalizer(resolver);
 
+  /** Ids of the {@link memo} entries being computed, by depth. */
+  const stack: number[] = [];
+  let nextId = 0;
+  /** The lowest open depth the entry being computed has seen. */
+  let lowest = Infinity;
+  /** Whether the entry being computed was cut off at {@link MAX_HOPS}. */
+  let cut = false;
+
+  /** True, noting the cut for {@link memo}, when a read is past the hop limit. */
+  const tooDeep = (hops: number): boolean => {
+    if (hops <= MAX_HOPS) return false;
+    cut = true;
+    return true;
+  };
+
+  /** True, noting it for {@link memo}, when `key`'s entry is being computed. */
+  const isOpen = <K, V>(map: Map<K, Slot<V>>, key: K): boolean => {
+    const slot = map.get(key);
+    if (!slot?.open) return false;
+    lowest = Math.min(lowest, slot.depth);
+    return true;
+  };
+
+  /**
+   * `key`'s result in `map`, computing it once (M9.7n). While it's being computed, a read of it
+   * is `cycle`: a self-reference, whose other branches the open entry counts. So a result that
+   * saw an entry lower on the stack open isn't final: it's kept only until that entry is done
+   * (M1: a getter traced from inside the variable it reads, then read again from outside), and
+   * one cut off at {@link MAX_HOPS} only for reads at least as deep (M6). `undefined` is a
+   * result like any other (M5).
+   */
+  const memo = <K, V>(
+    map: Map<K, Slot<V>>,
+    key: K,
+    hops: number,
+    cycle: V,
+    compute: () => V,
+  ): V => {
+    const slot = map.get(key);
+    if (slot?.open) {
+      lowest = Math.min(lowest, slot.depth);
+      return cycle;
+    }
+    if (
+      slot &&
+      (slot.until === undefined || stack[slot.until.depth] === slot.until.id) &&
+      (slot.hops === undefined || hops >= slot.hops)
+    ) {
+      if (slot.until) lowest = Math.min(lowest, slot.until.depth);
+      if (slot.hops !== undefined) cut = true;
+      return slot.value;
+    }
+    const outer = { lowest, cut };
+    const depth = stack.length;
+    stack.push(nextId++);
+    map.set(key, { open: true, depth });
+    lowest = Infinity;
+    cut = false;
+    const value = compute();
+    stack.pop();
+    const saw = lowest < depth ? lowest : undefined;
+    const id = saw === undefined ? undefined : stack[saw];
+    map.set(key, {
+      open: false,
+      value,
+      ...(saw !== undefined && id !== undefined ? { until: { depth: saw, id } } : {}),
+      ...(cut ? { hops } : {}),
+    });
+    lowest = Math.min(outer.lowest, saw ?? Infinity);
+    cut = outer.cut || cut;
+    return value;
+  };
+
   const moduleValue = (module: string, name: string): SdkValue | undefined => {
     const pkg = sdkPackage(module);
     return pkg && { pkg, name, confidence: pkg.confidence };
@@ -878,34 +1091,68 @@ export function collectSdkFacts(
     if (global) return global.branch;
     const found = sdkOf(sp, expression, hops);
     if (found) return found;
-    return unread(sp, expression) ? UNREAD : undefined;
+    return unread(sp, expression, hops) ? UNREAD : undefined;
   };
 
   /**
    * True when an expression not traced to an SDK may still hold a client: a name, a member, or
    * a call (`opts.client`, `getClient()`). Literals, `null`, `undefined`, objects, functions,
    * and `new` of a class that isn't an SDK's can't. Neither can the value being traced itself
-   * (`this.ai = this.ai || new OpenAI(…)`), whose other branches are already counted.
+   * (`this.ai = this.ai || new OpenAI(…)`), whose other branches are already counted, nor a
+   * call of the factory being traced (M9.7n). A module variable whose every value is seen and
+   * none may hold a client (`let client` written only with a getter's result, while that
+   * getter is traced) is nothing, not unread (M1).
    */
-  const unread = (sp: ServiceProgram, expression: ts.Expression): boolean => {
+  const unread = (sp: ServiceProgram, expression: ts.Expression, hops: number): boolean => {
     let e = unwrap(expression);
     while (ts.isAwaitExpression(e)) e = unwrap(e.expression);
+    if (ts.isCallExpression(e)) {
+      const callee = unwrap(e.expression);
+      const name = ts.isPropertyAccessExpression(callee) ? callee.name : callee;
+      const symbol = ts.isIdentifier(name) ? symbolAt(sp, name) : undefined;
+      const fn = symbol && functionOf(resolver.checkerOf(sp), symbol);
+      return !(fn && isOpen(sdkByFactory, fn));
+    }
     if (ts.isIdentifier(e)) {
       if (e.text === "undefined") return false;
-    } else if (
-      !ts.isPropertyAccessExpression(e) &&
-      !ts.isElementAccessExpression(e) &&
-      !ts.isCallExpression(e)
-    ) {
+    } else if (!ts.isPropertyAccessExpression(e) && !ts.isElementAccessExpression(e)) {
       return false;
     }
     const name = ts.isIdentifier(e) ? e : ts.isPropertyAccessExpression(e) ? e.name : undefined;
     const symbol = name && symbolAt(sp, name);
-    return !(symbol && sdkBySymbol.get(symbol) === null);
+    if (!symbol) return true;
+    if (isOpen(sdkBySymbol, symbol)) return false;
+    return (
+      !ts.isIdentifier(e) || !seenVariable(symbol) || symbolBranch(sp, symbol, hops) === UNREAD
+    );
   };
 
-  /** Results by service and global path ({@link pathKey}); `null` while one is being read. */
-  const globalByPath = new Map<ServiceProgram, Map<string, Branch | null>>();
+  /**
+   * True for a module's own `let`, `var`, or `const`: every value it holds is its initializer
+   * or a write in its file ({@link assignedValues}). Imports, parameters, fields, and global
+   * variables can be set where the matcher doesn't look.
+   */
+  const seenVariable = (symbol: ts.Symbol): boolean => {
+    if (symbol.flags & ts.SymbolFlags.Alias) return false;
+    const declarations = symbol.declarations ?? [];
+    return (
+      declarations.length > 0 &&
+      declarations.every(
+        (d) =>
+          ts.isVariableDeclaration(d) &&
+          ts.isIdentifier(d.name) &&
+          ts.isVariableDeclarationList(d.parent) &&
+          // A `for … of` head's variable holds the list's elements.
+          ts.isVariableStatement(d.parent.parent) &&
+          !d.getSourceFile().isDeclarationFile &&
+          !ambient(d) &&
+          !globalVariable(d),
+      )
+    );
+  };
+
+  /** Results by service and global path ({@link pathKey}). */
+  const globalByPath = new Map<ServiceProgram, Map<string, Slot<Branch>>>();
 
   /**
    * For a member read from the global object (directly, through a `const` holding it, or a
@@ -918,36 +1165,54 @@ export function collectSdkFacts(
    * globalThis.ai = c }`, M9.7l), a write the matcher can't read whole (`Object.assign(
    * globalThis, …)`, `Object.defineProperty`, `Reflect.set`, a computed key), and a parent
    * path written with anything but an object literal that lacks the member (`g.slots = { ai:
-   * c }`; `g.slots ??= {}` adds nothing). A path read while it's being read (a write reaching
-   * it through another path) is unread too. `undefined` when it's no global read.
+   * c }`; `g.slots ??= {}` adds nothing). So is every path below one the matcher can't follow
+   * (M9.7n, M3: the global object passed to a function, or held by a `let`; see
+   * {@link globalWrites}). A global `var` read or written by its bare name (`declare global {
+   * var ai }`, a script's top-level `var`) is its path (M2). A path read while it's being read
+   * (a write reaching it through a getter) is a self-reference, like a variable's. `undefined`
+   * when it's no global read.
    */
   const globalRead = (
     sp: ServiceProgram,
     expression: ts.Expression,
     hops: number,
   ): { branch: Branch } | undefined => {
-    if (hops > MAX_HOPS) return undefined;
+    if (tooDeep(hops)) return undefined;
     const e = unwrap(expression);
+    let path: readonly string[] | undefined;
     if (ts.isIdentifier(e)) {
-      const declaration = symbolAt(sp, e)?.declarations?.[0];
-      return declaration !== undefined &&
-        ts.isVariableDeclaration(declaration) &&
-        declaration.initializer !== undefined
-        ? globalRead(sp, declaration.initializer, hops + 1)
-        : undefined;
+      path = globalVarPath(sp, e);
+      if (path === undefined) {
+        // A `const` holding a read; a `let`'s later writes are read with its symbol (M4).
+        const declaration = symbolAt(sp, e)?.declarations?.[0];
+        return declaration !== undefined &&
+          ts.isVariableDeclaration(declaration) &&
+          isConst(declaration) &&
+          declaration.initializer !== undefined
+          ? globalRead(sp, declaration.initializer, hops + 1)
+          : undefined;
+      }
+    } else {
+      if (!memberOf(e)) return undefined;
+      path = globalPath(sp, e, 0);
+      if (path === undefined) return undefined;
     }
-    if (!memberOf(e)) return undefined;
-    const path = globalPath(sp, e, 0);
-    if (path === undefined) return undefined;
-    const key = pathKey(path);
     let byPath = globalByPath.get(sp);
     if (!byPath) globalByPath.set(sp, (byPath = new Map()));
-    const known = byPath.get(key);
-    if (known !== undefined) return { branch: known ?? UNREAD };
-    byPath.set(key, null);
-    const branch = readGlobal(sp, path, hops);
-    byPath.set(key, branch);
+    const read = path;
+    const branch = memo(byPath, pathKey(read), hops, undefined, () => readGlobal(sp, read, hops));
     return { branch };
+  };
+
+  /** `[name]` for an identifier naming a {@link globalVariable} declared in the repo's code. */
+  const globalVarPath = (sp: ServiceProgram, id: ts.Identifier): readonly string[] | undefined => {
+    const declarations = symbolAt(sp, id)?.declarations ?? [];
+    const global =
+      declarations.length > 0 &&
+      declarations.every(
+        (d) => globalVariable(d) && !sp.program.isSourceFileDefaultLibrary(d.getSourceFile()),
+      );
+    return global ? [id.text] : undefined;
   };
 
   /** {@link globalRead} of a path, once it's known to be one. */
@@ -989,64 +1254,69 @@ export function collectSdkFacts(
   };
 
   /** Results of {@link holds} by service, expression, and path key; `false` while being read. */
-  const holdsByNode = new Map<ServiceProgram, Map<ts.Node, Map<string, boolean>>>();
+  const holdsByNode = new Map<ServiceProgram, Map<ts.Node, Map<string, Slot<boolean>>>>();
 
   /**
-   * True when `expression`, or a variable's initializer it names (at any depth, through
-   * imports too), contains a read of the global path `key`.
+   * True when `expression`, or a variable it names (at any depth, through imports too),
+   * contains a read of the global path `key`. A `let` or `var` does only when its initializer
+   * and every write to it do (M9.7n, M4: `let next = g.ai; next = c` may hold `c`).
    */
   const holds = (sp: ServiceProgram, expression: ts.Node, key: string, hops: number): boolean => {
-    if (hops > MAX_HOPS) return false;
+    if (tooDeep(hops)) return false;
     let byNode = holdsByNode.get(sp);
     if (!byNode) holdsByNode.set(sp, (byNode = new Map()));
     let byKey = byNode.get(expression);
     if (!byKey) byNode.set(expression, (byKey = new Map()));
-    const known = byKey.get(key);
-    if (known !== undefined) return known;
-    byKey.set(key, false);
-    let found = false;
-    const visit = (node: ts.Node): void => {
-      if (found) return;
-      if (ts.isExpression(node) && memberOf(node)) {
-        const path = globalPath(sp, node, 0);
-        if (path !== undefined && pathKey(path) === key) {
-          found = true;
+    return memo(byKey, key, hops, false, () => {
+      let found = false;
+      const visit = (node: ts.Node): void => {
+        if (found) return;
+        if (ts.isIdentifier(node) || (ts.isExpression(node) && memberOf(node))) {
+          const path = globalPath(sp, node, 0);
+          if (path !== undefined && pathKey(path) === key) {
+            found = true;
+            return;
+          }
+        }
+        if (ts.isIdentifier(node)) {
+          let symbol = symbolAt(sp, node);
+          if (symbol && symbol.flags & ts.SymbolFlags.Alias) {
+            symbol = resolver.checkerOf(sp).getAliasedSymbol(symbol);
+          }
+          const declaration = symbol?.declarations?.[0];
+          if (declaration === undefined || !ts.isVariableDeclaration(declaration)) return;
+          const values = [
+            ...(declaration.initializer ? [declaration.initializer] : []),
+            ...(assignedValues(sp, declaration) ?? []),
+          ];
+          // A write the matcher doesn't read (`undefined`) may hold anything.
+          found =
+            values.length > 0 &&
+            values.every((v) => v !== undefined && holds(sp, v, key, hops + 1));
           return;
         }
-      }
-      if (ts.isIdentifier(node)) {
-        let symbol = symbolAt(sp, node);
-        if (symbol && symbol.flags & ts.SymbolFlags.Alias) {
-          symbol = resolver.checkerOf(sp).getAliasedSymbol(symbol);
-        }
-        const declaration = symbol?.declarations?.[0];
-        found =
-          declaration !== undefined &&
-          ts.isVariableDeclaration(declaration) &&
-          declaration.initializer !== undefined &&
-          holds(sp, declaration.initializer, key, hops + 1);
-        return;
-      }
-      ts.forEachChild(node, visit);
-    };
-    visit(expression);
-    byKey.set(key, found);
-    return found;
+        ts.forEachChild(node, visit);
+      };
+      visit(expression);
+      return found;
+    });
   };
 
   /**
    * The path of a member of the global object, from it (`globalThis.cache.ai` ⇒ `cache`,
    * `ai`), directly, through a `const`, or through an assignment to one (`(g.s ??= {}).ai`,
-   * `const s = (g.s ??= {})`, M9.7m); `[]` for the global object itself. A name is the global
-   * object only when it isn't declared in the repo's code (a parameter `self`, or
-   * `var self = this`, is a local).
+   * `const s = (g.s ??= {})`, M9.7m); `[]` for the global object itself, `[name]` for a
+   * {@link globalVariable} (M9.7n, M2). A name is the global object only when it isn't
+   * declared in the repo's code (a parameter `self`, or `var self = this`, is a local). A `let`
+   * or `var` holding it isn't followed: what it holds later is unseen, so its initializer
+   * makes the paths below unread ({@link globalWrites}).
    */
   const globalPath = (
     sp: ServiceProgram,
     expression: ts.Expression,
     hops: number,
   ): readonly string[] | undefined => {
-    if (hops > MAX_HOPS) return undefined;
+    if (tooDeep(hops)) return undefined;
     const e = unwrap(expression);
     const member = memberOf(e);
     if (member) {
@@ -1057,15 +1327,76 @@ export function collectSdkFacts(
       return memberOf(unwrap(e.left)) ? globalPath(sp, e.left, hops + 1) : undefined;
     }
     if (!ts.isIdentifier(e)) return undefined;
+    const variable = globalVarPath(sp, e);
+    if (variable) return variable;
     const declarations = symbolAt(sp, e)?.declarations ?? [];
     const local = declarations.filter((d) => !d.getSourceFile().isDeclarationFile && !ambient(d));
     if (local.length === 0) return GLOBAL_OBJECTS.has(e.text) ? [] : undefined;
     const declaration = local[0];
     return declaration &&
       ts.isVariableDeclaration(declaration) &&
+      isConst(declaration) &&
       declaration.initializer !== undefined
       ? globalPath(sp, declaration.initializer, hops + 1)
       : undefined;
+  };
+
+  /**
+   * What a use of an expression at global path `path` may write that the matcher doesn't read
+   * as a store (M9.7n, M3): nothing when it's read from (a member, a call of it, `typeof`, a
+   * comparison, a condition), stored to (the walk reads that), the target of an
+   * `Object.assign`-like call, or held by a `const` (followed by {@link globalPath}). A
+   * destructuring or `for … of` target is `hidden` at the path; a member named by a computed
+   * key, and any other use (passed to a function, held by a `let`, returned, an operand of
+   * `??` or `?:`), may reach code that writes its members, so it's `any` at the path. Widening
+   * "unread" this way, rather than following each new form, keeps a write the matcher can't
+   * see from drawing the default host.
+   */
+  const escape = (node: ts.Expression, path: readonly string[]): GlobalWrite | undefined => {
+    const n = outermost(node);
+    const p = n.parent;
+    if (
+      (ts.isPropertyAccessExpression(p) || ts.isElementAccessExpression(p)) &&
+      p.expression === n
+    ) {
+      return memberOf(p) ? undefined : { kind: "any", path };
+    }
+    if (ts.isBinaryExpression(p)) {
+      const op = p.operatorToken.kind;
+      if (p.left === n && ASSIGNMENTS.has(op)) {
+        // A store to a member or a global variable is read by the walk; the global object
+        // itself, or a `const` holding a path, reassigned isn't.
+        const e = unwrap(node);
+        const stored = memberOf(e) !== undefined || (ts.isIdentifier(e) && path.length > 0);
+        return stored ? undefined : { kind: "any", path };
+      }
+      // `g.ai &&= c` stores `c` where the matcher doesn't look.
+      if (p.left === n && op === ts.SyntaxKind.AmpersandAmpersandEqualsToken) {
+        return { kind: path.length > 0 ? "hidden" : "any", path };
+      }
+      // Comparisons, arithmetic, `in`, and a compound target (`g.n += 1`) yield no object;
+      // a comma's left side is dropped.
+      if (!VALUE_OPERATORS.has(op) || (op === ts.SyntaxKind.CommaToken && p.left === n)) {
+        return undefined;
+      }
+    }
+    if (
+      ts.isTypeOfExpression(p) ||
+      ts.isVoidExpression(p) ||
+      ts.isDeleteExpression(p) ||
+      ts.isPrefixUnaryExpression(p) ||
+      ts.isPostfixUnaryExpression(p) ||
+      ts.isExpressionStatement(p) ||
+      ((ts.isIfStatement(p) || ts.isWhileStatement(p) || ts.isDoStatement(p)) &&
+        p.expression === n) ||
+      (ts.isConditionalExpression(p) && p.condition === n) ||
+      (ts.isCallExpression(p) && p.expression === n)
+    ) {
+      return undefined;
+    }
+    if (ts.isVariableDeclaration(p) && p.initializer === n && isConst(p)) return undefined;
+    if (ts.isCallExpression(p) && p.arguments[0] === n && callWrites(p)) return undefined;
+    return { kind: assignmentTarget(n) && path.length > 0 ? "hidden" : "any", path };
   };
 
   /** Every global write in each service's files ({@link GlobalWrite}), in file then walk order. */
@@ -1074,17 +1405,56 @@ export function collectSdkFacts(
   const globalWrites = (sp: ServiceProgram): readonly GlobalWrite[] => {
     const known = globalWritesBySp.get(sp);
     if (known) return known;
+    const files: ts.SourceFile[] = [];
+    for (const file of sp.rootFiles) {
+      const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
+      if (sourceFile) files.push(sourceFile);
+    }
+    // Names that may be the global object, a global variable, or a `const` holding a path:
+    // only uses rooted at one are looked up.
+    const names = new Set(GLOBAL_OBJECTS);
+    const collect = (node: ts.Node): void => {
+      if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)) {
+        const alias =
+          isConst(node) &&
+          node.initializer !== undefined &&
+          globalPath(sp, node.initializer, 0) !== undefined;
+        if (alias || globalVariable(node)) names.add(node.name.text);
+      }
+      ts.forEachChild(node, collect);
+    };
+    for (const file of files) collect(file);
+    const rooted = (expression: ts.Expression): boolean => {
+      let e = unwrap(expression);
+      for (;;) {
+        if (ts.isPropertyAccessExpression(e) || ts.isElementAccessExpression(e)) {
+          e = unwrap(e.expression);
+        } else if (ts.isBinaryExpression(e) && ASSIGNMENTS.has(e.operatorToken.kind)) {
+          e = unwrap(e.left);
+        } else {
+          return ts.isIdentifier(e) && names.has(e.text);
+        }
+      }
+    };
     const writes: GlobalWrite[] = [];
     const walk = (node: ts.Node): void => {
+      const use = ts.isIdentifier(node)
+        ? names.has(node.text) && valueReference(node)
+        : (ts.isPropertyAccessExpression(node) ||
+            ts.isElementAccessExpression(node) ||
+            (ts.isBinaryExpression(node) && ASSIGNMENTS.has(node.operatorToken.kind))) &&
+          rooted(node);
+      const path = use && ts.isExpression(node) ? globalPath(sp, node, 0) : undefined;
+      const escaped = path && ts.isExpression(node) ? escape(node, path) : undefined;
+      if (escaped) writes.push(escaped);
       if (ts.isBinaryExpression(node) && ASSIGNMENTS.has(node.operatorToken.kind)) {
         const left = unwrap(node.left);
-        const path = memberOf(left) ? globalPath(sp, left, 0) : undefined;
-        if (path !== undefined) writes.push({ kind: "set", path, value: node.right });
-        // `g[key] = c`: some member of `g`, which the matcher can't name.
-        if (path === undefined && ts.isElementAccessExpression(left)) {
-          const object = globalPath(sp, left.expression, 0);
-          if (object !== undefined) writes.push({ kind: "any", path: object });
-        }
+        const stored = memberOf(left)
+          ? globalPath(sp, left, 0)
+          : ts.isIdentifier(left) && names.has(left.text)
+            ? globalVarPath(sp, left)
+            : undefined;
+        if (stored !== undefined) writes.push({ kind: "set", path: stored, value: node.right });
       }
       const call = ts.isCallExpression(node) ? callWrites(node) : undefined;
       const object = call && globalPath(sp, call.target, 0);
@@ -1171,48 +1541,68 @@ export function collectSdkFacts(
     return found;
   };
 
-  /** Each file's assignments to a plain name (`x = …`, `x ??= …`, `x ||= …`), in walk order. */
-  const assignmentsByFile = new Map<ts.SourceFile, readonly ts.BinaryExpression[]>();
+  /**
+   * Each file's writes to a plain name, in walk order: the value stored (`x = …`, `x ??= …`,
+   * `x ||= …`), or `undefined` for a store the matcher doesn't read (`x &&= …`, a
+   * destructuring or `for … of` target; M9.7n).
+   */
+  const assignmentsByFile = new Map<
+    ts.SourceFile,
+    readonly { name: ts.Identifier; value: ts.Expression | undefined }[]
+  >();
 
   /**
-   * The values written to a `let` or `var` (`client = c`, `client ??= new OpenAI()`) in its
-   * file, joined (M9.7m): like a field's, they say how its client was built. A write holding
-   * the variable itself (`c = c || new OpenAI()`) adds nothing, since the variable is being
-   * traced. A `const` has no writes; an imported binding can't be assigned.
+   * The values written to a `let` or `var` in its file ({@link assignmentsByFile}), or
+   * `undefined` for a `const`, which has none; an imported binding can't be assigned.
    */
-  const variableWrites = (
+  const assignedValues = (
     sp: ServiceProgram,
     declaration: ts.VariableDeclaration,
-    hops: number,
-  ): Branch => {
-    const list = declaration.parent;
-    if (!ts.isIdentifier(declaration.name) || !ts.isVariableDeclarationList(list)) return undefined;
-    if (list.flags & ts.NodeFlags.Const) return undefined;
+  ): (ts.Expression | undefined)[] | undefined => {
+    if (!ts.isIdentifier(declaration.name) || isConst(declaration)) return undefined;
+    if (!ts.isVariableDeclarationList(declaration.parent)) return undefined;
     const symbol = symbolAt(sp, declaration.name);
     if (!symbol) return undefined;
     const file = declaration.getSourceFile();
     let assignments = assignmentsByFile.get(file);
     if (!assignments) {
-      const found: ts.BinaryExpression[] = [];
+      const found: { name: ts.Identifier; value: ts.Expression | undefined }[] = [];
       const walk = (node: ts.Node): void => {
-        if (
-          ts.isBinaryExpression(node) &&
-          ASSIGNMENTS.has(node.operatorToken.kind) &&
-          ts.isIdentifier(unwrap(node.left))
-        ) {
-          found.push(node);
+        if (ts.isBinaryExpression(node)) {
+          const left = unwrap(node.left);
+          const op = node.operatorToken.kind;
+          if (ts.isIdentifier(left) && ASSIGNMENTS.has(op))
+            found.push({ name: left, value: node.right });
+          if (ts.isIdentifier(left) && op === ts.SyntaxKind.AmpersandAmpersandEqualsToken) {
+            found.push({ name: left, value: undefined });
+          }
+        } else if (ts.isIdentifier(node)) {
+          const n = outermost(node);
+          const direct = ts.isBinaryExpression(n.parent) && n.parent.left === n;
+          if (!direct && assignmentTarget(n)) found.push({ name: node, value: undefined });
         }
         ts.forEachChild(node, walk);
       };
       walk(file);
       assignmentsByFile.set(file, (assignments = found));
     }
+    return assignments.filter((a) => symbolAt(sp, a.name) === symbol).map((a) => a.value);
+  };
+
+  /**
+   * The values written to a `let` or `var` (`client = c`, `client ??= new OpenAI()`) in its
+   * file, joined (M9.7m): like a field's, they say how its client was built. A write holding
+   * the variable itself (`c = c || new OpenAI()`) adds nothing, since the variable is being
+   * traced; one the matcher doesn't read may hold any client (M9.7n).
+   */
+  const variableWrites = (
+    sp: ServiceProgram,
+    declaration: ts.VariableDeclaration,
+    hops: number,
+  ): Branch => {
     let written: Branch;
-    for (const assignment of assignments) {
-      const left = unwrap(assignment.left);
-      if (ts.isIdentifier(left) && symbolAt(sp, left) === symbol) {
-        written = joined(written, branchOf(sp, assignment.right, hops + 1));
-      }
+    for (const value of assignedValues(sp, declaration) ?? []) {
+      written = joined(written, value ? branchOf(sp, value, hops + 1) : UNREAD);
     }
     return written;
   };
@@ -1238,7 +1628,7 @@ export function collectSdkFacts(
     sp: ServiceProgram,
     declaration: ts.Declaration,
     hops: number,
-  ): SdkValue | undefined => {
+  ): Branch => {
     const binding = importBinding(declaration);
     if (binding) return moduleValue(binding.module, binding.name);
     // `const { S3Client } = require("@aws-sdk/client-s3")`.
@@ -1270,7 +1660,8 @@ export function collectSdkFacts(
             ? variableWrites(sp, declaration, hops)
             : undefined,
       );
-      return settled(built) ?? sdkOfType(sp, declaration.type);
+      // An unread value stays unread, so a variable that may hold any client says so (M9.7n).
+      return settled(built) ?? sdkOfType(sp, declaration.type) ?? built;
     }
     if (ts.isPropertyAssignment(declaration)) return sdkOf(sp, declaration.initializer, hops + 1);
     if (ts.isShorthandPropertyAssignment(declaration)) {
@@ -1284,35 +1675,26 @@ export function collectSdkFacts(
   };
 
   /**
-   * Results by symbol: `null` while a symbol is being traced, so cycles stop (and
-   * {@link unread} knows a self-reference), `false` for one traced to no SDK value.
+   * Results by symbol ({@link memo}), as branches: open while a symbol is being traced, so
+   * cycles stop and {@link unread} knows a self-reference.
    */
-  const sdkBySymbol = new Map<ts.Symbol, SdkValue | null | false>();
+  const sdkBySymbol = new Map<ts.Symbol, Slot<Branch>>();
 
-  const sdkOfSymbol = (
-    sp: ServiceProgram,
-    start: ts.Symbol,
-    hops: number,
-  ): SdkValue | undefined => {
-    if (hops > MAX_HOPS) return undefined;
-    const known = sdkBySymbol.get(start);
-    if (known !== undefined) return known === null || known === false ? undefined : known;
-    sdkBySymbol.set(start, null);
-    const result = traceSymbol(sp, start, hops);
-    sdkBySymbol.set(start, result ?? false);
-    return result;
+  const sdkOfSymbol = (sp: ServiceProgram, start: ts.Symbol, hops: number): SdkValue | undefined =>
+    settled(symbolBranch(sp, start, hops));
+
+  /** What a symbol may hold, {@link UNREAD} past the hop limit. */
+  const symbolBranch = (sp: ServiceProgram, start: ts.Symbol, hops: number): Branch => {
+    if (tooDeep(hops)) return UNREAD;
+    return memo(sdkBySymbol, start, hops, undefined, () => traceSymbol(sp, start, hops));
   };
 
-  const traceSymbol = (
-    sp: ServiceProgram,
-    start: ts.Symbol,
-    hops: number,
-  ): SdkValue | undefined => {
+  const traceSymbol = (sp: ServiceProgram, start: ts.Symbol, hops: number): Branch => {
     let symbol = start;
     if (symbol.flags & ts.SymbolFlags.Alias) {
       // The import itself first: an SDK has no declarations without `node_modules`.
       const own = symbol.declarations?.[0];
-      const direct = own && sdkOfDeclaration(sp, own, hops);
+      const direct = own && settled(sdkOfDeclaration(sp, own, hops));
       if (direct) return direct;
       const aliased = resolver.checkerOf(sp).getAliasedSymbol(symbol);
       if ((aliased.declarations ?? []).length === 0) {
@@ -1331,7 +1713,7 @@ export function collectSdkFacts(
         right ? branchOf(sp, right, hops + 1) : sdkOfDeclaration(sp, declaration, hops),
       );
     }
-    return settled(found);
+    return found;
   };
 
   /** A value reached through a workspace-package import, at that import's confidence. */
@@ -1345,7 +1727,7 @@ export function collectSdkFacts(
    * Results by factory function, like {@link sdkBySymbol}: without it, factories that each
    * return several calls of the next one are traced exponentially often.
    */
-  const sdkByFactory = new Map<FunctionWithBody, SdkValue | null>();
+  const sdkByFactory = new Map<FunctionWithBody, Slot<SdkValue | undefined>>();
 
   /** The SDK values a factory function returns, merged, no stronger than `confidence`. */
   const returnedSdk = (
@@ -1354,17 +1736,14 @@ export function collectSdkFacts(
     confidence: Confidence,
     hops: number,
   ): SdkValue | undefined => {
-    let known = sdkByFactory.get(fn);
-    if (known === undefined) {
-      sdkByFactory.set(fn, null);
+    const known = memo(sdkByFactory, fn, hops, undefined, () => {
       let found: Branch;
       for (const returned of returnedExpressions(fn)) {
         found = joined(found, branchOf(sp, returned, hops + 1));
       }
-      known = settled(found) ?? null;
-      sdkByFactory.set(fn, known);
-    }
-    return viaImport({ confidence }, known ?? undefined);
+      return settled(found);
+    });
+    return viaImport({ confidence }, known);
   };
 
   /** What an expression is when it comes from an SDK. */
@@ -1373,7 +1752,7 @@ export function collectSdkFacts(
     expression: ts.Expression,
     hops: number,
   ): SdkValue | undefined => {
-    if (hops > MAX_HOPS) return undefined;
+    if (tooDeep(hops)) return undefined;
     const e = unwrap(expression);
     if (ts.isAwaitExpression(e)) return sdkOf(sp, e.expression, hops + 1);
     const required = requiredModule(e);
@@ -1425,8 +1804,12 @@ export function collectSdkFacts(
       return fn && target ? returnedSdk(target.sp, fn, target.confidence, hops) : undefined;
     }
     if (ts.isIdentifier(e) || ts.isPropertyAccessExpression(e)) {
-      // A global member's writes say more than its type (`g.ai.models.list()`, M9.7m).
-      const global = ts.isPropertyAccessExpression(e) ? globalRead(sp, e, hops) : undefined;
+      // A global member's writes say more than its type (`g.ai.models.list()`, M9.7m), and so
+      // do a global variable's (`ai.models.list()`, M9.7n).
+      const global =
+        ts.isPropertyAccessExpression(e) || globalVarPath(sp, e)
+          ? globalRead(sp, e, hops)
+          : undefined;
       const written = global && settled(global.branch);
       if (written) return written;
       const symbol = symbolAt(sp, ts.isIdentifier(e) ? e : e.name);

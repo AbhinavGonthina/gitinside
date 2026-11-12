@@ -1,5 +1,5 @@
 {
-  "analyzerVersion": "0.3.7",
+  "analyzerVersion": "0.3.8",
   "edges": [
     {
       "confidence": "exact",
@@ -45,6 +45,51 @@
         }
       ],
       "to": "symbol:sdk-branches/src/switch.js#clientFor"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:sdk-branches/src/warm.ts#cachedModels",
+      "id": "calls:symbol:sdk-branches/src/warm.ts#cachedModels->symbol:sdk-branches/src/warm.ts#getCached",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 10,
+          "file": "src/warm.ts",
+          "line": 25
+        }
+      ],
+      "to": "symbol:sdk-branches/src/warm.ts#getCached"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:sdk-branches/src/warm.ts#sharedModels",
+      "id": "calls:symbol:sdk-branches/src/warm.ts#sharedModels->symbol:sdk-branches/src/warm.ts#getShared",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 10,
+          "file": "src/warm.ts",
+          "line": 36
+        }
+      ],
+      "to": "symbol:sdk-branches/src/warm.ts#getShared"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:sdk-branches/src/warm.ts#warm",
+      "id": "calls:symbol:sdk-branches/src/warm.ts#warm->symbol:sdk-branches/src/warm.ts#getCached",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 12,
+          "file": "src/warm.ts",
+          "line": 20
+        }
+      ],
+      "to": "symbol:sdk-branches/src/warm.ts#getCached"
     },
     {
       "confidence": "exact",
@@ -282,6 +327,51 @@
         }
       ],
       "to": "unresolved:sdk-branches/src/switch.js:55:24"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:sdk-branches/src/warm.ts#cachedModels",
+      "id": "http:symbol:sdk-branches/src/warm.ts#cachedModels->unresolved:sdk-branches/src/warm.ts:25:29",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 29,
+          "file": "src/warm.ts",
+          "line": 25
+        }
+      ],
+      "to": "unresolved:sdk-branches/src/warm.ts:25:29"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:sdk-branches/src/warm.ts#sharedModels",
+      "id": "http:symbol:sdk-branches/src/warm.ts#sharedModels->unresolved:sdk-branches/src/warm.ts:36:29",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 29,
+          "file": "src/warm.ts",
+          "line": 36
+        }
+      ],
+      "to": "unresolved:sdk-branches/src/warm.ts:36:29"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:sdk-branches/src/warm.ts#warm",
+      "id": "http:symbol:sdk-branches/src/warm.ts#warm->unresolved:sdk-branches/src/warm.ts:21:24",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 24,
+          "file": "src/warm.ts",
+          "line": 21
+        }
+      ],
+      "to": "unresolved:sdk-branches/src/warm.ts:21:24"
     }
   ],
   "nodes": [
@@ -340,6 +430,14 @@
       "label": "switch.js",
       "parentId": "module:sdk-branches/src",
       "path": "src/switch.js"
+    },
+    {
+      "hash": "7a50ce39ffffcba647b66544bbcba8fc66c466aba66a3c170dc9e7edb21a94b6",
+      "id": "file:sdk-branches/src/warm.ts",
+      "kind": "file",
+      "label": "warm.ts",
+      "parentId": "module:sdk-branches/src",
+      "path": "src/warm.ts"
     },
     {
       "id": "module:sdk-branches/src",
@@ -791,6 +889,111 @@
       "symbolKind": "function"
     },
     {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/warm.ts#cachedModels",
+      "kind": "symbol",
+      "label": "cachedModels",
+      "parentId": "file:sdk-branches/src/warm.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 26,
+        "file": "src/warm.ts",
+        "line": 24
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": false,
+      "id": "symbol:sdk-branches/src/warm.ts#getCached",
+      "kind": "symbol",
+      "label": "getCached",
+      "parentId": "file:sdk-branches/src/warm.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 16,
+        "file": "src/warm.ts",
+        "line": 14
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/warm.ts#getShared",
+      "kind": "symbol",
+      "label": "getShared",
+      "parentId": "file:sdk-branches/src/warm.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 14,
+        "endLine": 33,
+        "file": "src/warm.ts",
+        "line": 33
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/warm.ts#setCached",
+      "kind": "symbol",
+      "label": "setCached",
+      "parentId": "file:sdk-branches/src/warm.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 12,
+        "file": "src/warm.ts",
+        "line": 10
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/warm.ts#share",
+      "kind": "symbol",
+      "label": "share",
+      "parentId": "file:sdk-branches/src/warm.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 31,
+        "file": "src/warm.ts",
+        "line": 29
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/warm.ts#sharedModels",
+      "kind": "symbol",
+      "label": "sharedModels",
+      "parentId": "file:sdk-branches/src/warm.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 37,
+        "file": "src/warm.ts",
+        "line": 35
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/warm.ts#warm",
+      "kind": "symbol",
+      "label": "warm",
+      "parentId": "file:sdk-branches/src/warm.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 22,
+        "file": "src/warm.ts",
+        "line": 19
+      },
+      "symbolKind": "function"
+    },
+    {
       "id": "system:root",
       "kind": "system",
       "label": "sdk-branches",
@@ -976,6 +1179,48 @@
         "column": 20,
         "file": "src/switch.js",
         "line": 73
+      }
+    },
+    {
+      "detail": "the SDK client is built with different base URLs on different branches",
+      "expression": "cached.models.list",
+      "id": "unresolved:sdk-branches/src/warm.ts:21:24",
+      "kind": "unresolved",
+      "label": "GET cached /models",
+      "parentId": "service:sdk-branches/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 24,
+        "file": "src/warm.ts",
+        "line": 21
+      }
+    },
+    {
+      "detail": "the SDK client is built with different base URLs on different branches",
+      "expression": "getCached().models.list",
+      "id": "unresolved:sdk-branches/src/warm.ts:25:29",
+      "kind": "unresolved",
+      "label": "GET getCached() /models",
+      "parentId": "service:sdk-branches/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 29,
+        "file": "src/warm.ts",
+        "line": 25
+      }
+    },
+    {
+      "detail": "the SDK client is built with different base URLs on different branches",
+      "expression": "getShared().models.list",
+      "id": "unresolved:sdk-branches/src/warm.ts:36:29",
+      "kind": "unresolved",
+      "label": "GET getShared() /models",
+      "parentId": "service:sdk-branches/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 29,
+        "file": "src/warm.ts",
+        "line": 36
       }
     }
   ],

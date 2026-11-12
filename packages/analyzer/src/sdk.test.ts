@@ -1241,6 +1241,279 @@ describe("analyze: SDK clients with a base URL (M9.1a3e2a)", () => {
     ]);
   });
 
+  it("reads a getter written back to what it reads the same whichever call comes first (M9.7n, M1)", async () => {
+    // Each case is its own file, so what one traces first can't settle another. `warm` writes
+    // the getter's result back to the variable (or global path) the getter reads; `list`
+    // reads through the getter, before or after `warm` in the file.
+    const variable = (setter: boolean, ts: boolean): string[] => [
+      `let client${ts ? ": OpenAI | undefined" : ""};`,
+      ...(setter ? [`X function setClient(c${ts ? ": OpenAI" : ""}) { client = c; }`] : []),
+      "function getClient() { return client ?? new OpenAI(); }",
+    ];
+    // Global paths are shared by the service's files, so each case writes its own (`G.`).
+    const global = (setter: boolean, ts: boolean): string[] => [
+      ts
+        ? "const g = globalThis as unknown as Record<string, OpenAI | undefined>;"
+        : "const g = globalThis;",
+      ...(setter ? [`X function setClient(c${ts ? ": OpenAI" : ""}) { G. = c; }`] : []),
+      "function getClient() { return G. ?? new OpenAI(); }",
+    ];
+    const warm = {
+      variable: "X async function warm() { client = getClient(); return client.models.list(); }",
+      global: "X async function warm() { G. = getClient(); return G..models.list(); }",
+    };
+    const list = "X function list() { return getClient().models.list(); }";
+    const cases: string[] = [];
+    for (const lang of ["ts", "js"] as const) {
+      const ts = lang === "ts";
+      for (const kind of ["variable", "global"] as const) {
+        for (const setter of [true, false]) {
+          for (const order of ["first", "last"]) {
+            const name = `${kind}_${setter ? "injected" : "lazy"}_${order}`;
+            const fix = (line: string): string =>
+              line.replace(/^X /, ts ? "export " : "").replaceAll("G.", `g.${lang}_${name}`);
+            cases.push(`${lang}/${name}`);
+            const body = [...(kind === "variable" ? variable : global)(setter, ts)];
+            body.push(...(order === "first" ? [warm[kind], list] : [list, warm[kind]]));
+            const head = ts
+              ? 'import OpenAI from "openai";'
+              : 'const { OpenAI } = require("openai");';
+            const tail = ts ? [] : ["module.exports = { warm, list };"];
+            await put(`src/${lang}/${name}.${lang}`, [head, ...body.map(fix), ...tail]);
+          }
+        }
+      }
+    }
+    await put("package.json", JSON.stringify({ name: "api" }));
+    const graph = await analyze(dir);
+    const targets = new Map<string, string>();
+    for (const edge of graph.edges) {
+      if (edge.kind !== "external_call" && edge.kind !== "http") continue;
+      const match = /src\/(\w+)\/(\w+)\.\w+#(warm|list)$/.exec(edge.from);
+      if (!match) continue;
+      const to = edge.to.startsWith("unresolved:") ? "unresolved" : edge.to;
+      targets.set(`${match[1]}/${match[2]} ${match[3]}`, to);
+    }
+    // An injected client makes both calls unresolved in either order; with no setter, every
+    // write is the getter's own result, so both keep the default host.
+    const want = new Map<string, string>();
+    for (const c of cases) {
+      const to = c.includes("_injected_") ? "unresolved" : "external:ext/api.openai.com";
+      want.set(`${c} list`, to).set(`${c} warm`, to);
+    }
+    expect(new Map([...targets].sort())).toEqual(new Map([...want].sort()));
+  });
+
+  it("makes a service's global reads unread when its writes can't be seen (M9.7n, M2–M4)", async () => {
+    // One service per case: a write the matcher can't follow makes every read of the paths
+    // it may reach unread in that service, so the cases can't share one program.
+    const read = [
+      "export const getAI = () => (g.ai ??= new OpenAI());",
+      "export function list() { return getAI().models.list(); }",
+    ];
+    const typed = [
+      'import OpenAI from "openai";',
+      "type G = { ai?: OpenAI };",
+      "const g = globalThis as unknown as G;",
+    ];
+    const bare = ['import OpenAI from "openai";', "declare global { var ai: OpenAI | undefined }"];
+    const bareRead = [
+      "export const getAI = () => (globalThis.ai ??= new OpenAI());",
+      "export function list() { return getAI().models.list(); }",
+    ];
+    const services: Record<string, { files: Record<string, string[]>; want: string }> = {
+      // M3: the global object passed to a function, aliased by a reassigned `let`, or written
+      // through a destructuring assignment.
+      install: {
+        files: {
+          "ai.ts": [
+            ...typed,
+            "function install(t: G, c: OpenAI) { t.ai = c; }",
+            "export function setAI(c: OpenAI) { install(globalThis as unknown as G, c); }",
+            ...read,
+          ],
+        },
+        want: "unresolved",
+      },
+      reassigned: {
+        files: {
+          "ai.ts": [
+            ...typed,
+            "let t: G = {};",
+            "export function setAI(c: OpenAI) { t = globalThis as unknown as G; t.ai = c; }",
+            ...read,
+          ],
+        },
+        want: "unresolved",
+      },
+      chosen: {
+        files: {
+          "ai.ts": [
+            ...typed,
+            "const root = (typeof window === 'undefined' ? globalThis : {}) as unknown as G;",
+            "export function setAI(c: OpenAI) { root.ai = c; }",
+            ...read,
+          ],
+        },
+        want: "unresolved",
+      },
+      destructured: {
+        files: {
+          "ai.ts": [...typed, "export function setAI(deps: G) { ({ ai: g.ai } = deps); }", ...read],
+        },
+        want: "unresolved",
+      },
+      andAssigned: {
+        files: { "ai.ts": [...typed, "export function setAI(c: OpenAI) { g.ai &&= c; }", ...read] },
+        want: "unresolved",
+      },
+      // A module variable written where the matcher doesn't look.
+      variable: {
+        files: {
+          "ai.ts": [
+            'import OpenAI from "openai";',
+            "let client: OpenAI | undefined;",
+            "export function setClient(deps: { client: OpenAI }) { ({ client } = deps); }",
+            "const getClient = () => (client ??= new OpenAI());",
+            "export function list() { return getClient().models.list(); }",
+          ],
+        },
+        want: "unresolved",
+      },
+      installJs: {
+        files: {
+          "ai.js": [
+            'const { OpenAI } = require("openai");',
+            "function install(t, c) { t.ai = c; }",
+            "function setAI(c) { install(global, c); }",
+            "const getAI = () => (globalThis.ai ??= new OpenAI());",
+            "function list() { return getAI().models.list(); }",
+            "module.exports = { setAI, list };",
+          ],
+        },
+        want: "unresolved",
+      },
+      // Reads and uses that can't write the path keep the default host.
+      plain: {
+        files: {
+          "ai.ts": [
+            ...typed,
+            "export const hasGlobal = typeof globalThis !== 'undefined' && 'ai' in globalThis;",
+            "export function show() { console.log(g.ai, globalThis === undefined); }",
+            "export function cache() { g.ai = g.ai ?? new OpenAI(); }",
+            ...read,
+          ],
+        },
+        want: "external:ext/api.openai.com",
+      },
+      // M2: a global written by its bare name, or destructured into it.
+      bare: {
+        files: { "ai.ts": [...bare, "export function setAI(c: OpenAI) { ai = c; }", ...bareRead] },
+        want: "unresolved",
+      },
+      bareDestructured: {
+        files: {
+          "ai.ts": [
+            ...bare,
+            "export function setAI(deps: { ai: OpenAI }) { ({ ai } = deps); }",
+            ...bareRead,
+          ],
+        },
+        want: "unresolved",
+      },
+      bareCache: {
+        files: {
+          "ai.ts": [...bare, "export function warm() { ai = ai ?? new OpenAI(); }", ...bareRead],
+        },
+        want: "external:ext/api.openai.com",
+      },
+      // A JS script's top-level `var` is a global; a CommonJS module's is the module's own.
+      script: {
+        files: {
+          "setup.js": ["var ai;", "function setAI(c) { ai = c; }"],
+          "ai.js": [
+            'const { OpenAI } = require("openai");',
+            "const getAI = () => (globalThis.ai ??= new OpenAI());",
+            "function list() { return getAI().models.list(); }",
+            "module.exports = { list };",
+          ],
+        },
+        want: "unresolved",
+      },
+      module: {
+        files: {
+          "setup.js": ["var ai;", "function setAI(c) { ai = c; }", "module.exports = { setAI };"],
+          "ai.js": [
+            'const { OpenAI } = require("openai");',
+            "const getAI = () => (globalThis.ai ??= new OpenAI());",
+            "function list() { return getAI().models.list(); }",
+            "module.exports = { list };",
+          ],
+        },
+        want: "external:ext/api.openai.com",
+      },
+      // M4: a `let` that held the read, then an injected client, written to the path.
+      letInjected: {
+        files: {
+          "ai.ts": [
+            ...typed,
+            "let next = g.ai;",
+            "export function setAI(c: OpenAI) { next = c; g.ai = next; }",
+            ...read,
+          ],
+        },
+        want: "unresolved",
+      },
+      letCache: {
+        files: {
+          "ai.ts": [
+            ...typed,
+            "let next = g.ai;",
+            "export function warm() { next = g.ai ?? new OpenAI(); g.ai = next; }",
+            ...read,
+          ],
+        },
+        want: "external:ext/api.openai.com",
+      },
+    };
+    await put(
+      "package.json",
+      JSON.stringify({ name: "root", private: true, workspaces: ["svc/*"] }),
+    );
+    for (const [name, { files }] of Object.entries(services)) {
+      await put(`svc/${name}/package.json`, JSON.stringify({ name }));
+      for (const [file, lines] of Object.entries(files))
+        await put(`svc/${name}/src/${file}`, lines);
+    }
+    const graph = await analyze(dir);
+    const targets = new Map<string, string>();
+    for (const edge of graph.edges) {
+      if (edge.kind !== "external_call" && edge.kind !== "http") continue;
+      const match = /^symbol:(\w+)\/src\/ai\.\w+#list$/.exec(edge.from);
+      if (match?.[1] !== undefined) {
+        targets.set(match[1], edge.to.startsWith("unresolved:") ? "unresolved" : edge.to);
+      }
+    }
+    const want = new Map(Object.entries(services).map(([name, s]) => [name, s.want]));
+    expect(new Map([...targets].sort())).toEqual(new Map([...want].sort()));
+  });
+
+  it("reads a value again from shallower when a deeper read was cut off at the hop limit (M9.7n, M6)", async () => {
+    await put("package.json", JSON.stringify({ name: "api" }));
+    const aliases = Array.from({ length: 10 }, (_, i) => `const c${i + 1} = c${i};`);
+    await put("src/chain.ts", [
+      'import OpenAI from "openai";',
+      'const c0 = new OpenAI({ baseURL: "https://api.groq.com/openai/v1" });',
+      ...aliases,
+      "export function deep() { return c10.models.list(); }",
+      "export function shallow() { return c4.models.list(); }",
+    ]);
+    const graph = await analyze(dir);
+    expect(outgoing(graph).filter((e) => e.includes("#shallow"))).toEqual([
+      "symbol:api/src/chain.ts#shallow -> api.groq.com",
+    ]);
+  });
+
   it("draws no outside API for an example file's placeholder host (M9.7g, H4)", async () => {
     await put("package.json", JSON.stringify({ name: "api" }));
     await put(".env.example", [
