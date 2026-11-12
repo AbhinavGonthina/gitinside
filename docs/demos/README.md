@@ -118,6 +118,15 @@ was analyzed again the same way (`apps/web/dist/m97n-pins.mjs`) and is again ide
 removed, or changed. No pin reads an SDK client through a getter written back to what it
 reads, or off the global object. No edge needed rechecking by hand.
 
+At 0.3.10 (M9.7p, ADR-0272: a property holding an SDK client is trusted only when every
+store to it is seen, `new` of a wrapper or a repo class is unread, and a parameter's default
+is joined with what callers pass) each pin was analyzed again the same way
+(`apps/web/dist/m97p-pins.mjs`) and is again identical to the 0.3.1 graph but for the
+version: 7,784 / 529 / 1,525 nodes, 12,630 (873) / 542 (29) / 2,323 (142) edges, and
+10,560,748 / 439,848 / 1,999,970 bytes (one more than 0.3.1's each, for the version's extra
+digit), with no node or edge added, removed, or changed. No pin's SDK client is a property
+stored from outside its declarations. No edge needed rechecking by hand.
+
 ### At 0.3.0
 
 All three pins were analyzed on the site at analyzer 0.3.0 on 2026-11-10 (M9.1b2b), right

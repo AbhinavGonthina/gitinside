@@ -63,6 +63,23 @@
  *   namespace's member), a binding pattern from the global object (`const { slots } =
  *   globalThis`), and a stored value joining the read with anything else (`g.ai = g.ai ?? c`
  *   is `c`; `g.ai = g.ai ?? new OpenAI()` stays a cache).
+ * - Properties under the same rule (M9.7p, ADR-0272): a property whose declarations hold a
+ *   client (a class field, public or `#private`, instance or static; an object literal's
+ *   member; a parameter property; a CommonJS export) also holds every value the service's
+ *   files store at a member of its name, unless the store's symbol is provably another one (a
+ *   different object literal's member, or another class's that neither derives from): another
+ *   file's `s.ai = c`, a subclass's `this.ai = c`, `this["ai"] = c`, `config.ai = c`,
+ *   `require("./a").ai = c`, a store through a type's member (`t.ai = c` with `t: { ai?:
+ *   OpenAI }`) or on an untyped value. A store the matcher can't read (a destructuring target,
+ *   `&&=`, `Object.defineProperty`) is unread, and so is the property when an object whose type
+ *   has it is written at a member the matcher can't name (`Object.assign(this, deps)`,
+ *   `this[key] = c`). An object literal's member read from something that may be a copy (a
+ *   parameter, a call's result such as `Object.assign({}, defaults, opts)`, a literal with a
+ *   spread the matcher can't read) is unread too, and `this.<name>` in an object literal's
+ *   method reads its own member. `new` of a class the repo declares (a wrapper, a subclass of
+ *   an SDK's), or of a library's with an argument that may hold a client (`new Proxy(c, {})`),
+ *   is unread; a constructor joined with an unread one (`opts.Ctor ?? OpenAI`) builds a client
+ *   with an unread base; a parameter's default is joined with what a caller may pass.
  * - A request is a method call on a module value or a client, at any depth:
  *   `stripe.customers.create()`, `s3.send(cmd)`, `sgMail.send()`. Its site is the method
  *   name. The owner is the innermost symbol, or the routes of an inline Express handler;
@@ -111,9 +128,14 @@
  *   in a file that imports it, makes every client read from it in that service unresolved,
  *   though most such uses write nothing (M9.7n, M9.7o). A JS field written only by a
  *   destructuring (`({ ai: this.ai = new OpenAI() } = deps)`) is never declared, so its calls
- *   draw nothing. A parameter's default (`constructor(client = new OpenAI({ baseURL }))`) is read as
- *   its one client, though a caller may pass another. Writes to a static field and a
- *   parameter property's later writes aren't read: such clients are known by type.
+ *   draw nothing, and a JS subclass's `this.ai` read sees only the subclass's own stores (its
+ *   field is its own), so with only an injected client there it draws nothing either. Stores
+ *   made in another workspace package's program aren't read, nor is a store at a member the
+ *   matcher can't name on an `any` value (`Object.assign(anything, opts)`, `o[key] = c` with
+ *   `o: any`, a function constructor's `Object.assign(this, opts)`): counting those would make
+ *   every property in the service unread. A property that holds no client by its
+ *   declarations (`ai: undefined as OpenAI | undefined`, later `config.ai = new OpenAI()`)
+ *   isn't read further, so its calls draw nothing.
  * - SDKs whose host depends on the account or project (Supabase, Firebase, Algolia,
  *   Salesforce), SMTP clients (nodemailer), and telemetry (Sentry, PostHog). They're not on
  *   the allowlist, so like any third-party package they get no edge (ADR-0024).
@@ -155,7 +177,9 @@ import {
   expressionText,
   MAX_HOPS,
   objectProperty,
+  ownProperty,
   redactedText,
+  spreadLacks,
   weaker,
   type ProgramExpression,
 } from "./values.js";
@@ -468,6 +492,107 @@ type GlobalWrite =
   | { kind: "set"; path: readonly string[]; value: ts.Expression }
   | { kind: "hidden"; path: readonly string[] }
   | { kind: "any"; path: readonly string[] };
+
+/**
+ * A store into a member named `name` of `object` (M9.7p): `access` is the member access stored
+ * to, when there is one; `value` is what's stored, `undefined` for a store the matcher can't
+ * read.
+ */
+interface MemberStore {
+  name: string;
+  object: ts.Expression;
+  access: ts.Expression | undefined;
+  value: ts.Expression | undefined;
+}
+
+/** A service's {@link MemberStore}s by member name, and objects written at unnamed members. */
+interface MemberStores {
+  named: ReadonlyMap<string, readonly MemberStore[]>;
+  unnamed: readonly ts.Expression[];
+}
+
+/**
+ * What a property declaration belongs to (M9.7p): a class (its instances, or the class itself
+ * for a static) or an object literal. `undefined` for anything else (a type's member, a
+ * CommonJS export).
+ */
+type MemberOwner =
+  | { kind: "class"; node: ts.ClassLikeDeclaration; static: boolean }
+  | { kind: "object"; node: ts.ObjectLiteralExpression };
+
+function memberOwner(declaration: ts.Declaration): MemberOwner | undefined {
+  const parent = declaration.parent as ts.Node | undefined;
+  if (!parent) return undefined;
+  const member =
+    ts.isPropertyDeclaration(declaration) ||
+    ts.isMethodDeclaration(declaration) ||
+    ts.isGetAccessorDeclaration(declaration) ||
+    ts.isSetAccessorDeclaration(declaration);
+  if (member && ts.isClassLike(parent)) {
+    return { kind: "class", node: parent, static: isStatic(declaration) };
+  }
+  if (
+    ts.isParameter(declaration) &&
+    ts.isConstructorDeclaration(parent) &&
+    ts.isClassLike(parent.parent)
+  ) {
+    return { kind: "class", node: parent.parent, static: false };
+  }
+  if (
+    (member ||
+      ts.isPropertyAssignment(declaration) ||
+      ts.isShorthandPropertyAssignment(declaration)) &&
+    ts.isObjectLiteralExpression(parent)
+  ) {
+    return { kind: "object", node: parent };
+  }
+  const field = thisField(declaration);
+  return field && { kind: "class", node: field.cls, static: false };
+}
+
+/**
+ * True for a property whose declarations hold values (M9.7p): a class field, an object
+ * literal's member, a parameter property, or a JS assignment (`this.ai = …`, `exports.ai =
+ * …`), not only a type's members or methods.
+ */
+function valueProperty(symbol: ts.Symbol): boolean {
+  if (!(symbol.flags & ts.SymbolFlags.Property)) return false;
+  return (symbol.declarations ?? []).some(
+    (d) =>
+      ts.isPropertyDeclaration(d) ||
+      ts.isPropertyAssignment(d) ||
+      ts.isShorthandPropertyAssignment(d) ||
+      ts.isParameter(d) ||
+      ts.isBinaryExpression(d) ||
+      ts.isPropertyAccessExpression(d) ||
+      ts.isElementAccessExpression(d),
+  );
+}
+
+/**
+ * The object literal `this` is in a method of (`{ ai, list() { return this.ai… } }`, a
+ * `list: function () {}` too; arrows see their parent's `this`), M9.7p, P8.
+ */
+function thisObject(node: ts.Node): ts.ObjectLiteralExpression | undefined {
+  for (let n = node.parent as ts.Node | undefined; n; n = n.parent) {
+    if (ts.isArrowFunction(n)) continue;
+    if (
+      ts.isMethodDeclaration(n) ||
+      ts.isGetAccessorDeclaration(n) ||
+      ts.isSetAccessorDeclaration(n)
+    ) {
+      return ts.isObjectLiteralExpression(n.parent) ? n.parent : undefined;
+    }
+    if (ts.isFunctionExpression(n)) {
+      const p = n.parent;
+      return ts.isPropertyAssignment(p) && ts.isObjectLiteralExpression(p.parent)
+        ? p.parent
+        : undefined;
+    }
+    if (ts.isFunctionLike(n) || ts.isClassLike(n) || ts.isSourceFile(n)) return undefined;
+  }
+  return undefined;
+}
 
 /**
  * A memoized result: `open` while it's being computed, at a depth of the entries being
@@ -1010,7 +1135,10 @@ export function collectSdkFacts(
     const client = clientOf(value);
     const config = value?.name ? value.pkg.bases?.get(value.name) : undefined;
     const base = client && config && baseOf(sp, config, args?.[0]);
-    return base ? { ...client, base } : client;
+    const built = base ? { ...client, base } : client;
+    // A constructor joined with an unread one (`opts.Ctor ?? OpenAI`) may be a subclass or
+    // another SDK's, built with any base (M9.7p, P6).
+    return built && value?.unread ? withUnread(built) : built;
   };
 
   /** A client known only by its type: built somewhere unseen, so with an unseen base. */
@@ -1067,7 +1195,8 @@ export function collectSdkFacts(
    * later branch that reads a base is `branches` too.
    */
   const withUnread = (value: SdkValue): SdkValue => {
-    if (value.name !== null) return value;
+    // An export keeps the fact, so a client it builds does too ({@link constructed}).
+    if (value.name !== null) return { ...value, unread: true };
     const { base } = value;
     if (!base) return { ...value, unread: true };
     const kind = base.kind === "unseen" ? "unseen" : "branches";
@@ -1109,7 +1238,8 @@ export function collectSdkFacts(
    * positively known to hold none): a name, a member, a call (`opts.client`, `getClient()`),
    * `this`, a computed member, and any form not listed here. Literals, `null`, `undefined`,
    * templates, objects, arrays, functions, classes, unary and binary operators (whose operands
-   * {@link valueOf} already joined), and `new` of a class that isn't an SDK's can't. Neither can
+   * {@link valueOf} already joined), and `new` of a library class that isn't an SDK's with no
+   * argument that may hold one (`new Map()`) can't (M9.7p, P5). Neither can
    * the value being traced itself (`this.ai = this.ai || new OpenAI(…)`), whose other branches
    * are already counted, nor a call of the factory being traced (M9.7n). A module variable
    * whose every value is seen and none may hold a client (`let client` written only with a
@@ -1119,6 +1249,14 @@ export function collectSdkFacts(
     let e = unwrap(expression);
     while (ts.isAwaitExpression(e)) e = unwrap(e.expression);
     if (holdsNoClient(e)) return false;
+    if (ts.isNewExpression(e)) {
+      // A class the repo declares may extend or wrap a client, and a library's (`new Proxy(c,
+      // {})`) may wrap its arguments' (M9.7p, P5).
+      return (
+        repoDeclared(sp, e.expression) ||
+        (e.arguments ?? []).some((a) => branchOf(sp, a, hops + 1) !== undefined)
+      );
+    }
     if (ts.isCallExpression(e)) {
       const callee = unwrap(e.expression);
       const name = ts.isPropertyAccessExpression(callee) ? callee.name : callee;
@@ -1138,6 +1276,17 @@ export function collectSdkFacts(
     return (
       !ts.isIdentifier(e) || !seenVariable(symbol) || symbolBranch(sp, symbol, hops) === UNREAD
     );
+  };
+
+  /** True when a name (through imports) is declared in the repo's code, not a library's types. */
+  const repoDeclared = (sp: ServiceProgram, expression: ts.Expression): boolean => {
+    const e = unwrap(expression);
+    const name = ts.isPropertyAccessExpression(e) ? e.name : e;
+    let symbol = symbolAt(sp, name);
+    if (symbol && symbol.flags & ts.SymbolFlags.Alias) {
+      symbol = resolver.checkerOf(sp).getAliasedSymbol(symbol);
+    }
+    return (symbol?.declarations ?? []).some((d) => !d.getSourceFile().isDeclarationFile);
   };
 
   /**
@@ -1651,6 +1800,162 @@ export function collectSdkFacts(
     return written;
   };
 
+  /** Each service's {@link MemberStores}, walked once. */
+  const memberStoresBySp = new Map<ServiceProgram, MemberStores>();
+
+  /**
+   * Every store into an object's member in a service's files (M9.7p): by member name, a member
+   * access stored to (`s.ai = c`, `this["ai"] ??= c`, `require("./a").ai = c`), an
+   * `Object.assign`-like call's named member, or a store the matcher can't read (`&&=`, a
+   * destructuring or `for … of` target, `Object.defineProperty`), whose value is `undefined`;
+   * and the objects written at a member it can't name (`o[key] = c`, `Object.assign(o, opts)`).
+   */
+  const memberStores = (sp: ServiceProgram): MemberStores => {
+    const known = memberStoresBySp.get(sp);
+    if (known) return known;
+    const named = new Map<string, MemberStore[]>();
+    const unnamed: ts.Expression[] = [];
+    const add = (store: MemberStore): void => {
+      const list = named.get(store.name);
+      if (list) list.push(store);
+      else named.set(store.name, [store]);
+    };
+    const target = (access: ts.Expression, value: ts.Expression | undefined): void => {
+      const member = memberOf(access);
+      if (member) add({ name: member.name, object: member.object, access, value });
+      else if (ts.isElementAccessExpression(access)) unnamed.push(access.expression);
+    };
+    const walk = (node: ts.Node): void => {
+      if (ts.isBinaryExpression(node)) {
+        const op = node.operatorToken.kind;
+        const left = unwrap(node.left);
+        if (ASSIGNMENTS.has(op)) target(left, assignmentTarget(node) ? undefined : node.right);
+        else if (op === ts.SyntaxKind.AmpersandAmpersandEqualsToken) target(left, undefined);
+      } else if (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node)) {
+        const n = outermost(node);
+        const direct = ts.isBinaryExpression(n.parent) && n.parent.left === n;
+        if (!direct && assignmentTarget(n)) target(node, undefined);
+      } else if (ts.isCallExpression(node)) {
+        const call = callWrites(node);
+        for (const write of call?.writes ?? []) {
+          if (!call) break;
+          if (write.kind === "any") unnamed.push(call.target);
+          else {
+            const value = write.kind === "set" ? write.value : undefined;
+            add({ name: write.member, object: call.target, access: undefined, value });
+          }
+        }
+      }
+      ts.forEachChild(node, walk);
+    };
+    for (const file of sp.rootFiles) {
+      const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
+      if (sourceFile) walk(sourceFile);
+    }
+    const stores = { named, unnamed };
+    memberStoresBySp.set(sp, stores);
+    return stores;
+  };
+
+  /** The property an object's type has by `name`, if any (`undefined` for `any`). */
+  const propertyOfType = (
+    sp: ServiceProgram,
+    object: ts.Expression,
+    name: string,
+  ): ts.Symbol | undefined => {
+    const checker = resolver.checkerOf(sp);
+    const type = checker.getNonNullableType(checker.getTypeAtLocation(object));
+    return type.flags & ts.TypeFlags.Any ? undefined : checker.getPropertyOfType(type, name);
+  };
+
+  /** The symbol a member store writes: `undefined` when it isn't known. */
+  const storedSymbol = (sp: ServiceProgram, store: MemberStore): ts.Symbol | undefined =>
+    store.access && ts.isPropertyAccessExpression(store.access)
+      ? symbolAt(sp, store.access.name)
+      : propertyOfType(sp, store.object, store.name);
+
+  /**
+   * True when a class derives from another, at any depth (`class Svc extends Base`), through
+   * the checker's base types.
+   */
+  const derives = (
+    sp: ServiceProgram,
+    sub: ts.ClassLikeDeclaration,
+    sup: ts.ClassLikeDeclaration,
+  ): boolean => {
+    const checker = resolver.checkerOf(sp);
+    const symbol = sub.name ? checker.getSymbolAtLocation(sub.name) : undefined;
+    let types: ts.Type[] = [
+      symbol ? checker.getDeclaredTypeOfSymbol(symbol) : checker.getTypeAtLocation(sub),
+    ];
+    for (let depth = 0; depth <= MAX_HOPS && types.length > 0; depth++) {
+      const bases = types.flatMap((t) => (t.isClassOrInterface() ? checker.getBaseTypes(t) : []));
+      if (bases.some((b) => b.symbol?.declarations?.includes(sup))) return true;
+      types = bases;
+    }
+    return false;
+  };
+
+  /**
+   * True when a store to symbol `stored` may write property `property` (M9.7p): the same
+   * symbol, or one the matcher can't tell apart from it. A member of a class (`this.ai`, a
+   * static, a JS field) and one of an object literal are apart from each other, from another
+   * literal's, from the other side of static and instance, and from another class's unless one
+   * class derives from the other. A store whose symbol isn't known (`s.ai = c` on `any` or an
+   * untyped JS value) or is a type's member (`t.ai` with `t: { ai?: OpenAI }`, which any
+   * object may be passed as) may write it.
+   */
+  const mayWrite = (sp: ServiceProgram, stored: ts.Symbol, property: ts.Symbol): boolean => {
+    if (stored === property) return true;
+    const own = property.declarations ?? [];
+    const other = stored.declarations ?? [];
+    if (own.length === 0 || other.length === 0) return true;
+    for (const a of own) {
+      for (const b of other) {
+        const x = memberOwner(a);
+        const y = memberOwner(b);
+        if (!x || !y) return true;
+        if (x.kind === "object" && y.kind === "object") {
+          if (x.node === y.node) return true;
+        } else if (x.kind === "class" && y.kind === "class" && x.static === y.static) {
+          if (x.node === y.node || derives(sp, x.node, y.node) || derives(sp, y.node, x.node)) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  };
+
+  /**
+   * The values the service's files store at property `property` named `name`, joined (M9.7p,
+   * P2–P4, P7): a class field's, a static's, an object literal member's, or a CommonJS
+   * export's, wherever the store is (another file's `s.ai = c`, a subclass's `this.ai = c`,
+   * `config.ai = c`, `require("./a").ai = c`), each store that {@link mayWrite} it, and
+   * {@link UNREAD} for one the matcher can't read or an object written at a member it can't
+   * name whose type has the property (`Object.assign(this, deps)`, `this[key] = c`). Stores
+   * into `any` at an unnamed member aren't counted (see the file comment).
+   */
+  const propertyWrites = (
+    sp: ServiceProgram,
+    property: ts.Symbol,
+    name: string,
+    hops: number,
+  ): Branch => {
+    const { named, unnamed } = memberStores(sp);
+    for (const object of unnamed) {
+      const stored = propertyOfType(sp, object, name);
+      if (stored && mayWrite(sp, stored, property)) return UNREAD;
+    }
+    let found: Branch;
+    for (const store of named.get(name) ?? []) {
+      const stored = storedSymbol(sp, store);
+      if (stored && !mayWrite(sp, stored, property)) continue;
+      found = joined(found, store.value ? branchOf(sp, store.value, hops + 1) : UNREAD);
+    }
+    return found;
+  };
+
   /** The client a type annotation names: `Stripe`, `S3Client`, or `aws.S3Client`. */
   const sdkOfType = (sp: ServiceProgram, type: ts.TypeNode | undefined): SdkValue | undefined => {
     if (!type || !ts.isTypeReferenceNode(type)) return undefined;
@@ -1696,8 +2001,10 @@ export function collectSdkFacts(
       // How the value was built says more than its type, which can't name a base (M9.7d);
       // a field's writes count beside its initializer (M9.7g), and so do a variable's (M9.7m).
       const init = ts.isPropertySignature(declaration) ? undefined : declaration.initializer;
+      // A parameter's default is one value; a caller may pass any other (M9.7p, P7).
+      const passed = ts.isParameter(declaration) && init ? UNREAD : undefined;
       const built = joined(
-        init && branchOf(sp, init, hops + 1),
+        joined(init && branchOf(sp, init, hops + 1), passed),
         ts.isPropertyDeclaration(declaration)
           ? fieldWrites(sp, declaration, hops)
           : ts.isVariableDeclaration(declaration)
@@ -1776,6 +2083,11 @@ export function collectSdkFacts(
         found,
         right ? branchOf(sp, right, hops + 1) : sdkOfDeclaration(sp, declaration, hops),
       );
+    }
+    // A property holding a client is trusted only with every store to it seen (M9.7p). A
+    // property that holds none by its declarations isn't read further.
+    if (settled(found) && valueProperty(symbol)) {
+      found = joined(found, propertyWrites(sp, symbol, symbol.name, hops));
     }
     return found;
   };
@@ -1889,8 +2201,13 @@ export function collectSdkFacts(
           : undefined;
       const written = global && settled(global.branch);
       if (written) return written;
-      const symbol = symbolAt(sp, ts.isIdentifier(e) ? e : e.name);
-      const found = symbol && symbolBranch(sp, symbol, hops + 1);
+      const symbol =
+        symbolAt(sp, ts.isIdentifier(e) ? e : e.name) ??
+        (ts.isPropertyAccessExpression(e) ? thisMember(sp, e) : undefined);
+      let found = symbol && symbolBranch(sp, symbol, hops + 1);
+      if (symbol && ts.isPropertyAccessExpression(e) && settled(found)) {
+        if (copiedMember(sp, e.expression, e.name.text, symbol)) found = joined(found, UNREAD);
+      }
       if (settled(found) || !ts.isPropertyAccessExpression(e)) return found;
       const object = unwrap(e.expression);
       // `pay.stripe` where `pay` is a namespace import of a workspace package.
@@ -1910,6 +2227,73 @@ export function collectSdkFacts(
       return { ...base, name: base.name === null ? null : memberPath(base.name, e.name.text) };
     }
     return undefined;
+  };
+
+  /**
+   * For `this.<name>` in an object literal's method, where `this` has no type (`{ ai: new
+   * OpenAI(), list() { return this.ai… } }`), the literal's last property of that name (M9.7p,
+   * P8), so its calls are drawn, or unresolved, rather than silently missed.
+   */
+  const thisMember = (
+    sp: ServiceProgram,
+    e: ts.PropertyAccessExpression,
+  ): ts.Symbol | undefined => {
+    if (e.expression.kind !== ts.SyntaxKind.ThisKeyword) return undefined;
+    const object = thisObject(e);
+    const name = e.name.text;
+    const member = object?.properties
+      .filter(ts.isPropertyAssignment)
+      .filter(
+        (p) => (ts.isIdentifier(p.name) || ts.isStringLiteralLike(p.name)) && p.name.text === name,
+      )
+      .at(-1);
+    return member && resolver.checkerOf(sp).getSymbolAtLocation(member.name);
+  };
+
+  /**
+   * True when a member of an object literal is read from a value that may not be that object
+   * (M9.7p, P3): a parameter, a call's result (`Object.assign({}, defaults, opts)`), or a
+   * literal whose spreads or computed keys the matcher can't read (`{ ...defaults, ...opts }`),
+   * since their type names the original's member whatever the value holds. A class's members
+   * are trusted by type; `require()` and imports are the module itself.
+   */
+  const copiedMember = (
+    sp: ServiceProgram,
+    receiver: ts.Expression,
+    name: string,
+    symbol: ts.Symbol,
+  ): boolean => {
+    if (!(symbol.declarations ?? []).some((d) => memberOwner(d)?.kind === "object")) return false;
+    let r = unwrap(receiver);
+    for (let hops = 0; hops <= MAX_HOPS && ts.isIdentifier(r); hops++) {
+      const d = symbolAt(sp, r)?.declarations?.[0];
+      if (d && ts.isParameter(d)) return true;
+      if (!d || !ts.isVariableDeclaration(d) || !isConst(d) || !d.initializer) return false;
+      r = unwrap(d.initializer);
+    }
+    if (ts.isObjectLiteralExpression(r)) return opaqueMember(sp, r, name, 0);
+    return ts.isCallExpression(r) && requiredModule(r) === undefined;
+  };
+
+  /**
+   * True when an object literal's member `name` may come from a value the matcher doesn't
+   * read: a spread of anything but a `const` object literal (read the same way) that
+   * {@link spreadLacks} it, or a computed key, method, or accessor that may be it.
+   */
+  const opaqueMember = (
+    sp: ServiceProgram,
+    object: ts.ObjectLiteralExpression,
+    name: string,
+    hops: number,
+  ): boolean => {
+    if (hops > MAX_HOPS) return true;
+    return object.properties.some((p) => {
+      if (!ts.isSpreadAssignment(p)) return ownProperty(sp, p, name) === null;
+      const inner = constObject(sp, p.expression, hops + 1);
+      return inner
+        ? opaqueMember(inner.sp, inner.expression, name, hops + 1)
+        : !spreadLacks(sp, p.expression, name);
+    });
   };
 
   /**
@@ -2111,9 +2495,9 @@ function isStatic(member: ts.Node): boolean {
 
 /**
  * True for an expression that can't hold a client (M9.7o): a literal, a template, an object,
- * array, function, or class expression, `new` (of a class {@link collectSdkFacts} didn't trace
- * to an SDK), a unary operator, or a binary or conditional one, whose value-carrying operands
- * are judged on their own.
+ * array, function, or class expression, a unary operator, or a binary or conditional one, whose
+ * value-carrying operands are judged on their own. `new` is judged by its class and arguments
+ * (M9.7p, P5).
  */
 function holdsNoClient(e: ts.Expression): boolean {
   switch (e.kind) {
@@ -2131,7 +2515,6 @@ function holdsNoClient(e: ts.Expression): boolean {
         ts.isFunctionExpression(e) ||
         ts.isArrowFunction(e) ||
         ts.isClassExpression(e) ||
-        ts.isNewExpression(e) ||
         ts.isTypeOfExpression(e) ||
         ts.isVoidExpression(e) ||
         ts.isDeleteExpression(e) ||
