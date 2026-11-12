@@ -1,5 +1,5 @@
 {
-  "analyzerVersion": "0.3.9",
+  "analyzerVersion": "0.3.10",
   "edges": [
     {
       "confidence": "exact",
@@ -115,6 +115,20 @@
           "column": 25,
           "file": "src/lazy.ts",
           "line": 9
+        }
+      ],
+      "to": "external:ext/api.openai.com"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:sdk-branches/src/properties.ts#helper.models",
+      "id": "external_call:symbol:sdk-branches/src/properties.ts#helper.models->external:ext/api.openai.com",
+      "kind": "external_call",
+      "sites": [
+        {
+          "column": 28,
+          "file": "src/properties.ts",
+          "line": 40
         }
       ],
       "to": "external:ext/api.openai.com"
@@ -251,6 +265,36 @@
         }
       ],
       "to": "unresolved:sdk-branches/src/lazy.ts:17:25"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:sdk-branches/src/properties.ts#Assistant.models",
+      "id": "http:symbol:sdk-branches/src/properties.ts#Assistant.models->unresolved:sdk-branches/src/properties.ts:8:27",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 27,
+          "file": "src/properties.ts",
+          "line": 8
+        }
+      ],
+      "to": "unresolved:sdk-branches/src/properties.ts:8:27"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:sdk-branches/src/properties.ts#settingsModels",
+      "id": "http:symbol:sdk-branches/src/properties.ts#settingsModels->unresolved:sdk-branches/src/properties.ts:33:30",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 30,
+          "file": "src/properties.ts",
+          "line": 33
+        }
+      ],
+      "to": "unresolved:sdk-branches/src/properties.ts:33:30"
     },
     {
       "confidence": "unresolved",
@@ -473,6 +517,14 @@
       "label": "lazy.ts",
       "parentId": "module:sdk-branches/src",
       "path": "src/lazy.ts"
+    },
+    {
+      "hash": "12b96e35d90af1a6bd8d0d3e8b8557f869595697ed4822af3e5488e26fdb0d21",
+      "id": "file:sdk-branches/src/properties.ts",
+      "kind": "file",
+      "label": "properties.ts",
+      "parentId": "module:sdk-branches/src",
+      "path": "src/properties.ts"
     },
     {
       "hash": "ccbd6b85e4a9fb99c014ca1564a967e143f3765398438370fe158643806cf614",
@@ -755,6 +807,140 @@
         "endLine": 25,
         "file": "src/lazy.ts",
         "line": 23
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/properties.ts#Assistant",
+      "kind": "symbol",
+      "label": "Assistant",
+      "parentId": "file:sdk-branches/src/properties.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 10,
+        "file": "src/properties.ts",
+        "line": 4
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/properties.ts#Assistant.models",
+      "kind": "symbol",
+      "label": "models",
+      "parentId": "symbol:sdk-branches/src/properties.ts#Assistant",
+      "requiredParams": 0,
+      "source": {
+        "column": 3,
+        "endLine": 9,
+        "file": "src/properties.ts",
+        "line": 7
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/properties.ts#Recorder",
+      "kind": "symbol",
+      "label": "Recorder",
+      "parentId": "file:sdk-branches/src/properties.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 23,
+        "file": "src/properties.ts",
+        "line": 17
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/properties.ts#Recorder.record",
+      "kind": "symbol",
+      "label": "record",
+      "parentId": "symbol:sdk-branches/src/properties.ts#Recorder",
+      "requiredParams": 1,
+      "source": {
+        "column": 3,
+        "endLine": 22,
+        "file": "src/properties.ts",
+        "line": 20
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/properties.ts#configure",
+      "kind": "symbol",
+      "label": "configure",
+      "parentId": "file:sdk-branches/src/properties.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 30,
+        "file": "src/properties.ts",
+        "line": 28
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/properties.ts#helper",
+      "kind": "symbol",
+      "label": "helper",
+      "parentId": "file:sdk-branches/src/properties.ts",
+      "source": {
+        "column": 14,
+        "endLine": 42,
+        "file": "src/properties.ts",
+        "line": 37
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/properties.ts#helper.models",
+      "kind": "symbol",
+      "label": "models",
+      "parentId": "symbol:sdk-branches/src/properties.ts#helper",
+      "requiredParams": 0,
+      "source": {
+        "column": 3,
+        "endLine": 41,
+        "file": "src/properties.ts",
+        "line": 39
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/properties.ts#plugIn",
+      "kind": "symbol",
+      "label": "plugIn",
+      "parentId": "file:sdk-branches/src/properties.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 14,
+        "file": "src/properties.ts",
+        "line": 12
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/properties.ts#settingsModels",
+      "kind": "symbol",
+      "label": "settingsModels",
+      "parentId": "file:sdk-branches/src/properties.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 34,
+        "file": "src/properties.ts",
+        "line": 32
       },
       "symbolKind": "function"
     },
@@ -1246,6 +1432,34 @@
         "column": 29,
         "file": "src/lazy.ts",
         "line": 30
+      }
+    },
+    {
+      "detail": "the SDK client is built with different base URLs on different branches",
+      "expression": "settings.llm.models.list",
+      "id": "unresolved:sdk-branches/src/properties.ts:33:30",
+      "kind": "unresolved",
+      "label": "GET settings.llm /models",
+      "parentId": "service:sdk-branches/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 30,
+        "file": "src/properties.ts",
+        "line": 33
+      }
+    },
+    {
+      "detail": "the SDK client is built with different base URLs on different branches",
+      "expression": "this.ai.models.list",
+      "id": "unresolved:sdk-branches/src/properties.ts:8:27",
+      "kind": "unresolved",
+      "label": "GET this.ai /models",
+      "parentId": "service:sdk-branches/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 27,
+        "file": "src/properties.ts",
+        "line": 8
       }
     },
     {
