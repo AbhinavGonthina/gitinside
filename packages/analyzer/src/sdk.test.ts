@@ -1982,6 +1982,567 @@ describe("analyze: SDK clients with a base URL (M9.1a3e2a)", () => {
     },
   );
 
+  it(
+    "trusts a property only when every store to it is seen (M9.7p, P1–P8)",
+    {
+      timeout: 120_000,
+    },
+    async () => {
+      // The M9.7z7 review's repros as rows, each in its own service, plus JS twins and
+      // controls whose correct edges must stay. Every service's one request is `list`.
+      const H = 'import OpenAI from "openai";';
+      const J = 'const { OpenAI } = require("openai");';
+      const typed = [H, "type G = { ai?: OpenAI };", "const g = globalThis as unknown as G;"];
+      const lazy = "export const getAI = () => (g.ai ??= new OpenAI());";
+      const LIST = "export function list() { return getAI().models.list(); }";
+      const svc = (...body: string[]): string[] => [
+        H,
+        "export class Svc {",
+        ...body.map((line) => `  ${line}`),
+        "  list() { return this.ai.models.list(); }",
+        "}",
+      ];
+      const jsSvc = (...body: string[]): string[] => [
+        J,
+        "class Svc {",
+        ...body.map((line) => `  ${line}`),
+        "  list() { return this.ai.models.list(); }",
+        "}",
+        "module.exports = { Svc };",
+      ];
+      const config = (...body: string[]): string[] => [
+        H,
+        "const config = { ai: new OpenAI() };",
+        ...body,
+        "export function list() { return config.ai.models.list(); }",
+      ];
+      const OPENAI = "external:ext/api.openai.com";
+      const services: Record<string, { files: Record<string, string[]>; want: string }> = {
+        // P1: a `#private` field's stores are read like a public one's.
+        p1: {
+          files: {
+            "ai.ts": [
+              H,
+              "export class Svc {",
+              "  #ai = new OpenAI();",
+              "  setAI(c: OpenAI) { this.#ai = c; }",
+              "  list() { return this.#ai.models.list(); }",
+              "}",
+            ],
+          },
+          want: "unresolved",
+        },
+        p1public: {
+          files: { "ai.ts": svc("ai = new OpenAI();", "setAI(c: OpenAI) { this.ai = c; }") },
+          want: "unresolved",
+        },
+        p1ctl: {
+          files: {
+            "ai.ts": [
+              H,
+              "export class Svc {",
+              "  #ai = new OpenAI();",
+              "  list() { return this.#ai.models.list(); }",
+              "}",
+            ],
+          },
+          want: OPENAI,
+        },
+        p1js: {
+          files: {
+            "ai.js": [
+              J,
+              "class Svc {",
+              "  #ai = new OpenAI();",
+              "  setAI(c) { this.#ai = c; }",
+              "  list() { return this.#ai.models.list(); }",
+              "}",
+              "module.exports = { Svc };",
+            ],
+          },
+          want: "unresolved",
+        },
+        // P2: a field stored outside its own class's `this.<name>` stores.
+        p2outside: {
+          files: {
+            "ai.ts": svc("ai = new OpenAI();"),
+            "setup.ts": [
+              H,
+              'import { Svc } from "./ai";',
+              "export function inject(s: Svc, c: OpenAI) { s.ai = c; }",
+            ],
+          },
+          want: "unresolved",
+        },
+        p2outsidejs: {
+          files: {
+            "ai.js": jsSvc("constructor() { this.ai = new OpenAI(); }"),
+            "setup.js": ["function inject(s, c) { s.ai = c; }", "module.exports = { inject };"],
+          },
+          want: "unresolved",
+        },
+        p2ctl: { files: { "ai.ts": svc("ai = new OpenAI();") }, want: OPENAI },
+        p2jsctl: {
+          files: { "ai.js": jsSvc("constructor() { this.ai = new OpenAI(); }") },
+          want: OPENAI,
+        },
+        // Stores to another class's or another object's member of the same name are apart.
+        p2unrelated: {
+          files: {
+            "ai.ts": svc("ai = new OpenAI();"),
+            "other.ts": [
+              H,
+              "export class Other { ai?: OpenAI; }",
+              "export function inject(o: Other, c: OpenAI) { o.ai = c; }",
+              "const box = { ai: null as OpenAI | null };",
+              "export function put(c: OpenAI) { box.ai = c; }",
+            ],
+          },
+          want: OPENAI,
+        },
+        p2unrelatedjs: {
+          files: {
+            "ai.js": jsSvc("constructor() { this.ai = new OpenAI(); }"),
+            "other.js": [
+              "class Other { constructor(c) { this.ai = c; } }",
+              "module.exports = { Other };",
+            ],
+          },
+          want: OPENAI,
+        },
+        p2sub: {
+          files: {
+            "ai.ts": [
+              H,
+              "class Base { ai = new OpenAI(); }",
+              "export class Svc extends Base {",
+              "  constructor(c: OpenAI) { super(); this.ai = c; }",
+              "  list() { return this.ai.models.list(); }",
+              "}",
+            ],
+          },
+          want: "unresolved",
+        },
+        p2subctl: {
+          files: {
+            "ai.ts": [
+              H,
+              "class Base { ai = new OpenAI(); }",
+              "export class Svc extends Base {",
+              "  list() { return this.ai.models.list(); }",
+              "}",
+            ],
+          },
+          want: OPENAI,
+        },
+        // The base class reads a field a subclass also stores (in JS that store declares the
+        // subclass's own field).
+        p2base: {
+          files: {
+            "ai.ts": [
+              H,
+              "export class Base {",
+              "  ai = new OpenAI();",
+              "  list() { return this.ai.models.list(); }",
+              "}",
+              "export class Svc extends Base {",
+              "  constructor(c: OpenAI) { super(); this.ai = c; }",
+              "}",
+            ],
+          },
+          want: "unresolved",
+        },
+        p2subjs: {
+          files: {
+            "ai.js": [
+              J,
+              "class Base {",
+              "  constructor() { this.ai = new OpenAI(); }",
+              "  list() { return this.ai.models.list(); }",
+              "}",
+              "class Svc extends Base {",
+              "  constructor(c) { super(); this.ai = c; }",
+              "}",
+              "module.exports = { Svc };",
+            ],
+          },
+          want: "unresolved",
+        },
+        p2subjsctl: {
+          files: {
+            "ai.js": [
+              J,
+              "class Base {",
+              "  constructor() { this.ai = new OpenAI(); }",
+              "  list() { return this.ai.models.list(); }",
+              "}",
+              "class Svc extends Base {",
+              "  constructor(c) { super(); this.other = c; }",
+              "}",
+              "module.exports = { Svc };",
+            ],
+          },
+          want: OPENAI,
+        },
+        p2assign: {
+          files: {
+            "ai.ts": svc(
+              "ai = new OpenAI();",
+              "constructor(deps: { ai?: OpenAI }) { Object.assign(this, deps); }",
+            ),
+          },
+          want: "unresolved",
+        },
+        p2assignjs: {
+          files: {
+            "ai.js": jsSvc(
+              "constructor(deps) { this.ai = new OpenAI(); Object.assign(this, deps); }",
+            ),
+          },
+          want: "unresolved",
+        },
+        p2element: {
+          files: { "ai.ts": svc("ai = new OpenAI();", 'setAI(c: OpenAI) { this["ai"] = c; }') },
+          want: "unresolved",
+        },
+        p2computed: {
+          files: {
+            "ai.ts": svc("ai = new OpenAI();", 'set(key: "ai", c: OpenAI) { this[key] = c; }'),
+          },
+          want: "unresolved",
+        },
+        p2destructure: {
+          files: {
+            "ai.ts": svc("ai = new OpenAI();"),
+            "setup.ts": [
+              H,
+              'import { Svc } from "./ai";',
+              "export function inject(s: Svc, deps: { ai: OpenAI }) { ({ ai: s.ai } = deps); }",
+            ],
+          },
+          want: "unresolved",
+        },
+        // P3: a module object's member, stored, assigned into, or read from a copy.
+        p3: {
+          files: { "ai.ts": config("export function setAI(c: OpenAI) { config.ai = c; }") },
+          want: "unresolved",
+        },
+        p3ctl: { files: { "ai.ts": config() }, want: OPENAI },
+        p3assign: {
+          files: {
+            "ai.ts": config(
+              "export function configure(o: Partial<typeof config>) { Object.assign(config, o); }",
+            ),
+          },
+          want: "unresolved",
+        },
+        p3assignliteral: {
+          files: {
+            "ai.ts": config(
+              "export function setAI(c: OpenAI) { Object.assign(config, { ai: c }); }",
+            ),
+          },
+          want: "unresolved",
+        },
+        p3and: {
+          files: { "ai.ts": config("export function swap(c: OpenAI) { config.ai &&= c; }") },
+          want: "unresolved",
+        },
+        p3pass: {
+          files: {
+            "ai.ts": config(
+              "function install(t: { ai?: OpenAI }, c: OpenAI) { t.ai = c; }",
+              "export function setAI(c: OpenAI) { install(config, c); }",
+            ),
+          },
+          want: "unresolved",
+        },
+        p3js: {
+          files: {
+            "ai.js": [
+              J,
+              "const config = { ai: new OpenAI() };",
+              "function setAI(c) { config.ai = c; }",
+              "function list() { return config.ai.models.list(); }",
+              "module.exports = { setAI, list };",
+            ],
+          },
+          want: "unresolved",
+        },
+        p3spread: {
+          files: {
+            "ai.ts": [
+              H,
+              "const defaults = { ai: new OpenAI() };",
+              "export function list(opts: Partial<typeof defaults>) {",
+              "  const cfg = { ...defaults, ...opts };",
+              "  return cfg.ai.models.list();",
+              "}",
+            ],
+          },
+          want: "unresolved",
+        },
+        p3spreadctl: {
+          files: {
+            "ai.ts": [
+              H,
+              "const defaults = { ai: new OpenAI() };",
+              "export function list() {",
+              "  const cfg = { ...defaults };",
+              "  return cfg.ai.models.list();",
+              "}",
+            ],
+          },
+          want: OPENAI,
+        },
+        p3copy: {
+          files: {
+            "ai.ts": [
+              H,
+              "const defaults = { ai: new OpenAI() };",
+              "export function list(opts: Partial<typeof defaults>) {",
+              "  const cfg = Object.assign({}, defaults, opts);",
+              "  return cfg.ai.models.list();",
+              "}",
+            ],
+          },
+          want: "unresolved",
+        },
+        p3param: {
+          files: {
+            "ai.ts": [
+              H,
+              "const config = { ai: new OpenAI() };",
+              "export function list(cfg: typeof config) { return cfg.ai.models.list(); }",
+            ],
+          },
+          want: "unresolved",
+        },
+        // P4: a CommonJS export stored by an importer.
+        p4: {
+          files: {
+            "ai.js": [
+              J,
+              "exports.ai = new OpenAI();",
+              "exports.list = () => exports.ai.models.list();",
+            ],
+            "b.js": ['const a = require("./ai");', "exports.setAI = (c) => { a.ai = c; };"],
+          },
+          want: "unresolved",
+        },
+        p4inline: {
+          files: {
+            "ai.js": [
+              J,
+              "exports.ai = new OpenAI();",
+              "exports.list = () => exports.ai.models.list();",
+            ],
+            "b.js": ['exports.setAI = (c) => { require("./ai").ai = c; };'],
+          },
+          want: "unresolved",
+        },
+        p4ctl: {
+          files: {
+            "ai.js": [
+              J,
+              "exports.ai = new OpenAI();",
+              "exports.list = () => exports.ai.models.list();",
+            ],
+          },
+          want: OPENAI,
+        },
+        // P5: a `new` of a class that isn't an SDK's may hold its arguments' client, and a
+        // class the repo declares may wrap or extend one.
+        p5proxy: {
+          files: {
+            "ai.ts": [
+              ...typed,
+              "export function setAI(c: OpenAI) { g.ai = new Proxy(c, {}); }",
+              lazy,
+              LIST,
+            ],
+          },
+          want: "unresolved",
+        },
+        p5wrapper: {
+          files: {
+            "ai.ts": [
+              ...typed,
+              "class Traced { constructor(private inner: OpenAI) {} get models() { return this.inner.models; } }",
+              "export function setAI(c: OpenAI) { g.ai = new Traced(c) as unknown as OpenAI; }",
+              lazy,
+              LIST,
+            ],
+          },
+          want: "unresolved",
+        },
+        p5subclass: {
+          files: {
+            "ai.ts": [
+              ...typed,
+              'class Groq extends OpenAI { constructor() { super({ baseURL: "https://api.groq.com/openai/v1" }); } }',
+              "export function useGroq() { g.ai = new Groq(); }",
+              lazy,
+              LIST,
+            ],
+          },
+          want: "unresolved",
+        },
+        p5ctl: {
+          files: {
+            "ai.ts": [...typed, "export function reset() { g.ai = new OpenAI(); }", lazy, LIST],
+          },
+          want: OPENAI,
+        },
+        // P6: a constructor joined with an unread one keeps the mark.
+        p6: {
+          files: {
+            "ai.ts": [
+              H,
+              "export function list(opts: { Ctor?: typeof OpenAI }) {",
+              "  const C = opts.Ctor ?? OpenAI;",
+              "  return new C().models.list();",
+              "}",
+            ],
+          },
+          want: "unresolved",
+        },
+        p6js: {
+          files: {
+            "ai.js": [
+              J,
+              "function list(opts) { const C = opts.Ctor || OpenAI; return new C().models.list(); }",
+              "module.exports = { list };",
+            ],
+          },
+          want: "unresolved",
+        },
+        p6ctl: {
+          files: {
+            "ai.ts": [
+              H,
+              "export function list() {",
+              "  const C = OpenAI;",
+              "  return new C().models.list();",
+              "}",
+            ],
+          },
+          want: OPENAI,
+        },
+        // P7: a static field's stores, and a parameter's default beside what callers pass.
+        p7static: {
+          files: {
+            "ai.ts": [
+              H,
+              "export class Svc {",
+              "  static ai = new OpenAI();",
+              "  static setAI(c: OpenAI) { Svc.ai = c; }",
+              "  static list() { return Svc.ai.models.list(); }",
+              "}",
+            ],
+          },
+          want: "unresolved",
+        },
+        p7staticctl: {
+          files: {
+            "ai.ts": [
+              H,
+              "export class Svc {",
+              "  static ai = new OpenAI();",
+              "  static list() { return Svc.ai.models.list(); }",
+              "}",
+            ],
+          },
+          want: OPENAI,
+        },
+        // An instance field's stores don't reach a static of the same name.
+        p7staticapart: {
+          files: {
+            "ai.ts": [
+              H,
+              "export class Svc {",
+              "  static ai = new OpenAI();",
+              "  ai?: OpenAI;",
+              "  set(c: OpenAI) { this.ai = c; }",
+              "  static list() { return Svc.ai.models.list(); }",
+              "}",
+            ],
+          },
+          want: OPENAI,
+        },
+        p7default: {
+          files: {
+            "ai.ts": [
+              H,
+              "export function list(c = new OpenAI()) { return c.models.list(); }",
+              "export const viaProxy = (c: OpenAI) => list(c);",
+            ],
+          },
+          want: "unresolved",
+        },
+        // P8: an object literal's method reads its own member through `this`.
+        p8: {
+          files: {
+            "ai.ts": [
+              H,
+              "export const svc = {",
+              "  ai: new OpenAI(),",
+              "  setAI(c: OpenAI) { this.ai = c; },",
+              "  list() { return this.ai.models.list(); },",
+              "};",
+            ],
+          },
+          want: "unresolved",
+        },
+        p8ctl: {
+          files: {
+            "ai.ts": [
+              H,
+              "export const svc = {",
+              "  ai: new OpenAI(),",
+              "  list() { return this.ai.models.list(); },",
+              "};",
+            ],
+          },
+          want: OPENAI,
+        },
+        p8js: {
+          files: {
+            "ai.js": [
+              J,
+              "const svc = {",
+              "  ai: new OpenAI(),",
+              "  list: function () { return this.ai.models.list(); },",
+              "};",
+              "module.exports = { svc };",
+            ],
+          },
+          want: OPENAI,
+        },
+      };
+      await put(
+        "package.json",
+        JSON.stringify({ name: "root", private: true, workspaces: ["svc/*"] }),
+      );
+      for (const [name, { files }] of Object.entries(services)) {
+        await put(`svc/${name}/package.json`, JSON.stringify({ name }));
+        for (const [file, lines] of Object.entries(files))
+          await put(`svc/${name}/src/${file}`, lines);
+      }
+      const graph = await analyze(dir);
+      const targets = new Map<string, string>();
+      for (const edge of graph.edges) {
+        if (edge.kind !== "external_call" && edge.kind !== "http") continue;
+        const match = /^symbol:(\w+)\/src\/ai\.\w+#(?:\w+\.)?list$/.exec(edge.from);
+        if (match?.[1] !== undefined) {
+          targets.set(match[1], edge.to.startsWith("unresolved:") ? "unresolved" : edge.to);
+        }
+      }
+      const want = new Map(Object.entries(services).map(([name, s]) => [name, s.want]));
+      expect(new Map([...targets].sort())).toEqual(new Map([...want].sort()));
+    },
+  );
+
   it("reads a value again from shallower when a deeper read was cut off at the hop limit (M9.7n, M6)", async () => {
     await put("package.json", JSON.stringify({ name: "api" }));
     const aliases = Array.from({ length: 10 }, (_, i) => `const c${i + 1} = c${i};`);
