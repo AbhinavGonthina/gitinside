@@ -1,5 +1,5 @@
 {
-  "analyzerVersion": "0.3.8",
+  "analyzerVersion": "0.3.9",
   "edges": [
     {
       "confidence": "exact",
@@ -132,6 +132,20 @@
         }
       ],
       "to": "external:ext/api.groq.com"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:sdk-branches/src/traced.js#builtModels",
+      "id": "external_call:symbol:sdk-branches/src/traced.js#builtModels->external:ext/api.openai.com",
+      "kind": "external_call",
+      "sites": [
+        {
+          "column": 24,
+          "file": "src/traced.js",
+          "line": 32
+        }
+      ],
+      "to": "external:ext/api.openai.com"
     },
     {
       "confidence": "unresolved",
@@ -330,6 +344,51 @@
     },
     {
       "confidence": "unresolved",
+      "from": "symbol:sdk-branches/src/traced.js#adoptedModels",
+      "id": "http:symbol:sdk-branches/src/traced.js#adoptedModels->unresolved:sdk-branches/src/traced.js:26:55",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 55,
+          "file": "src/traced.js",
+          "line": 26
+        }
+      ],
+      "to": "unresolved:sdk-branches/src/traced.js:26:55"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:sdk-branches/src/traced.js#injectedModels",
+      "id": "http:symbol:sdk-branches/src/traced.js#injectedModels->unresolved:sdk-branches/src/traced.js:17:45",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 45,
+          "file": "src/traced.js",
+          "line": 17
+        }
+      ],
+      "to": "unresolved:sdk-branches/src/traced.js:17:45"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:sdk-branches/src/traced.js#pickModels",
+      "id": "http:symbol:sdk-branches/src/traced.js#pickModels->unresolved:sdk-branches/src/traced.js:6:42",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 42,
+          "file": "src/traced.js",
+          "line": 6
+        }
+      ],
+      "to": "unresolved:sdk-branches/src/traced.js:6:42"
+    },
+    {
+      "confidence": "unresolved",
       "from": "symbol:sdk-branches/src/warm.ts#cachedModels",
       "id": "http:symbol:sdk-branches/src/warm.ts#cachedModels->unresolved:sdk-branches/src/warm.ts:25:29",
       "kind": "http",
@@ -430,6 +489,14 @@
       "label": "switch.js",
       "parentId": "module:sdk-branches/src",
       "path": "src/switch.js"
+    },
+    {
+      "hash": "8b83b0b2674001a9144c8e19b74aaf5b2fc0d0e050edc9a88df08acc8cc0bf37",
+      "id": "file:sdk-branches/src/traced.js",
+      "kind": "file",
+      "label": "traced.js",
+      "parentId": "module:sdk-branches/src",
+      "path": "src/traced.js"
     },
     {
       "hash": "7a50ce39ffffcba647b66544bbcba8fc66c466aba66a3c170dc9e7edb21a94b6",
@@ -890,6 +957,90 @@
     },
     {
       "exported": true,
+      "id": "symbol:sdk-branches/src/traced.js#adopt",
+      "kind": "symbol",
+      "label": "adopt",
+      "parentId": "file:sdk-branches/src/traced.js",
+      "source": {
+        "column": 1,
+        "endLine": 23,
+        "file": "src/traced.js",
+        "line": 21
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/traced.js#adoptedModels",
+      "kind": "symbol",
+      "label": "adoptedModels",
+      "parentId": "file:sdk-branches/src/traced.js",
+      "source": {
+        "column": 1,
+        "endLine": 27,
+        "file": "src/traced.js",
+        "line": 25
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/traced.js#builtModels",
+      "kind": "symbol",
+      "label": "builtModels",
+      "parentId": "file:sdk-branches/src/traced.js",
+      "source": {
+        "column": 1,
+        "endLine": 33,
+        "file": "src/traced.js",
+        "line": 30
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/traced.js#inject",
+      "kind": "symbol",
+      "label": "inject",
+      "parentId": "file:sdk-branches/src/traced.js",
+      "source": {
+        "column": 1,
+        "endLine": 14,
+        "file": "src/traced.js",
+        "line": 12
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/traced.js#injectedModels",
+      "kind": "symbol",
+      "label": "injectedModels",
+      "parentId": "file:sdk-branches/src/traced.js",
+      "source": {
+        "column": 1,
+        "endLine": 18,
+        "file": "src/traced.js",
+        "line": 16
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/traced.js#pickModels",
+      "kind": "symbol",
+      "label": "pickModels",
+      "parentId": "file:sdk-branches/src/traced.js",
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "src/traced.js",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
       "id": "symbol:sdk-branches/src/warm.ts#cachedModels",
       "kind": "symbol",
       "label": "cachedModels",
@@ -1179,6 +1330,48 @@
         "column": 20,
         "file": "src/switch.js",
         "line": 73
+      }
+    },
+    {
+      "detail": "the SDK client is built with different base URLs on different branches",
+      "expression": "(injected ??= new OpenAI()).models.list",
+      "id": "unresolved:sdk-branches/src/traced.js:17:45",
+      "kind": "unresolved",
+      "label": "GET injected ??= new OpenAI() /models",
+      "parentId": "service:sdk-branches/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 45,
+        "file": "src/traced.js",
+        "line": 17
+      }
+    },
+    {
+      "detail": "the SDK client is built with different base URLs on different branches",
+      "expression": "(globalThis.adopted ??= new OpenAI()).models.list",
+      "id": "unresolved:sdk-branches/src/traced.js:26:55",
+      "kind": "unresolved",
+      "label": "GET globalThis.adopted ??= new OpenAI() /models",
+      "parentId": "service:sdk-branches/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 55,
+        "file": "src/traced.js",
+        "line": 26
+      }
+    },
+    {
+      "detail": "the SDK client is built with different base URLs on different branches",
+      "expression": "(client ?? new OpenAI()).models.list",
+      "id": "unresolved:sdk-branches/src/traced.js:6:42",
+      "kind": "unresolved",
+      "label": "GET client ?? new OpenAI() /models",
+      "parentId": "service:sdk-branches/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 42,
+        "file": "src/traced.js",
+        "line": 6
       }
     },
     {

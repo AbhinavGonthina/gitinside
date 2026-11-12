@@ -1498,6 +1498,490 @@ describe("analyze: SDK clients with a base URL (M9.1a3e2a)", () => {
     expect(new Map([...targets].sort())).toEqual(new Map([...want].sort()));
   });
 
+  it(
+    "trusts a client only when every value that can reach it is traced (M9.7o, N1–N4, L4)",
+    {
+      timeout: 120_000,
+    },
+    async () => {
+      // The M9.7z6 review's 28 repros as rows, each in its own service, plus JS twins and
+      // controls whose correct edges must stay.
+      const H = 'import OpenAI from "openai";';
+      const J = 'const { OpenAI } = require("openai");';
+      const LIST = "export function list() { return getAI().models.list(); }";
+      const JLIST = [
+        "function list() { return getAI().models.list(); }",
+        "module.exports = { list };",
+      ];
+      const typed = [H, "type G = { ai?: OpenAI };", "const g = globalThis as unknown as G;"];
+      const lazy = "export const getAI = () => (g.ai ??= new OpenAI());";
+      const jsLazy = "const getAI = () => (globalThis.ai ??= new OpenAI());";
+      const alias = [H, "export const G = globalThis as unknown as { ai?: OpenAI };"];
+      const inline = (opts: string, client: string, op = "??"): string[] => [
+        H,
+        `export function list(${opts}) {`,
+        `  const client = ${client};`,
+        `  return (client ${op} new OpenAI()).models.list();`,
+        "}",
+      ];
+      const jsInline = (opts: string, client: string, op = "??"): string[] => [
+        J,
+        `function list(${opts}) {`,
+        `  const client = ${client};`,
+        `  return (client ${op} new OpenAI()).models.list();`,
+        "}",
+        "module.exports = { list };",
+      ];
+      const both = "opts: { ai?: OpenAI; fallback?: OpenAI }";
+      const ab = "opts: { a?: OpenAI; b?: OpenAI }";
+      const OPENAI = "external:ext/api.openai.com";
+      const services: Record<string, { files: Record<string, string[]>; want: string }> = {
+        // M1–M4, re-checked.
+        m1: {
+          files: {
+            "ai.ts": [
+              H,
+              "let client: OpenAI | undefined;",
+              "export function setClient(c: OpenAI) { client = c; }",
+              "function getClient() { return client ?? new OpenAI(); }",
+              "export async function warm() { client = getClient(); return client.models.list(); }",
+              "export function list() { return getClient().models.list(); }",
+            ],
+          },
+          want: "unresolved",
+        },
+        m2: {
+          files: {
+            "ai.ts": [
+              H,
+              "declare global { var openai: OpenAI | undefined }",
+              "export function setAI(c: OpenAI) { openai = c; }",
+              "export const getAI = () => (globalThis.openai ??= new OpenAI());",
+              LIST,
+            ],
+          },
+          want: "unresolved",
+        },
+        m3: {
+          files: {
+            "ai.ts": [
+              ...typed,
+              "function install(t: G, c: OpenAI) { t.ai = c; }",
+              "export function setAI(c: OpenAI) { install(globalThis as unknown as G, c); }",
+              lazy,
+              LIST,
+            ],
+          },
+          want: "unresolved",
+        },
+        m4: {
+          files: {
+            "ai.ts": [
+              ...typed,
+              "let next = g.ai;",
+              "export function setAI(c: OpenAI) { next = c; g.ai = next; }",
+              lazy,
+              LIST,
+            ],
+          },
+          want: "unresolved",
+        },
+        // N1: a join of unread values is unread, inline or held by a `const` or `let`.
+        n1: { files: { "ai.ts": inline(both, "opts.ai ?? opts.fallback") }, want: "unresolved" },
+        n1ctl: { files: { "ai.ts": inline(both, "opts.ai") }, want: "unresolved" },
+        n1cond: {
+          files: { "ai.ts": inline(`flag: boolean, ${ab}`, "flag ? opts.a : opts.b") },
+          want: "unresolved",
+        },
+        n1let: {
+          files: {
+            "ai.ts": [
+              H,
+              "let client: OpenAI | undefined;",
+              `export function setClient(${ab}) { client = opts.a ?? opts.b; }`,
+              "const getAI = () => (client ??= new OpenAI());",
+              LIST,
+            ],
+          },
+          want: "unresolved",
+        },
+        n1letctl: {
+          files: {
+            "ai.ts": [
+              H,
+              "let client: OpenAI | undefined;",
+              `export function setClient(${ab}) { client = opts.a; }`,
+              "const getAI = () => (client ??= new OpenAI());",
+              LIST,
+            ],
+          },
+          want: "unresolved",
+        },
+        n1chain: {
+          files: {
+            "ai.ts": [
+              H,
+              `export function list(${ab}) {`,
+              "  return (opts.a ?? opts.b ?? new OpenAI()).models.list();",
+              "}",
+            ],
+          },
+          want: "unresolved",
+        },
+        n1js: {
+          files: { "ai.js": jsInline("opts", "opts.ai ?? opts.fallback") },
+          want: "unresolved",
+        },
+        n1jsctl: { files: { "ai.js": jsInline("opts", "opts.ai") }, want: "unresolved" },
+        n1jscond: {
+          files: { "ai.js": jsInline("flag, opts", "flag ? opts.a : opts.b", "||") },
+          want: "unresolved",
+        },
+        n1jschain: {
+          files: {
+            "ai.js": [
+              J,
+              "function list(opts) {",
+              "  return (opts.a ?? opts.b ?? new OpenAI()).models.list();",
+              "}",
+              "module.exports = { list };",
+            ],
+          },
+          want: "unresolved",
+        },
+        n1anyts: {
+          files: { "ai.ts": inline("opts: any", "opts.ai ?? opts.fallback") },
+          want: "unresolved",
+        },
+        n1jscomma: { files: { "ai.js": jsInline("opts", "(0, opts.ai)") }, want: "unresolved" },
+        n1jsand: { files: { "ai.js": jsInline("opts", "opts.on && opts.ai") }, want: "unresolved" },
+        n1jsfactory: {
+          files: {
+            "ai.js": [
+              J,
+              "function pick(opts) { return opts.a ?? opts.b; }",
+              "function list(opts) { return (pick(opts) ?? new OpenAI()).models.list(); }",
+              "module.exports = { list };",
+            ],
+          },
+          want: "unresolved",
+        },
+        n1jsobject: {
+          files: {
+            "ai.js": [
+              J,
+              "function list(opts) {",
+              "  const deps = { client: opts.a ?? opts.b };",
+              "  return (deps.client ?? new OpenAI()).models.list();",
+              "}",
+              "module.exports = { list };",
+            ],
+          },
+          want: "unresolved",
+        },
+        // Controls: values that are all traced keep the default host.
+        n1jsbuilt: {
+          files: { "ai.js": jsInline("flag", "flag ? new OpenAI() : new OpenAI()") },
+          want: OPENAI,
+        },
+        n1jsnull: { files: { "ai.js": jsInline("flag", "flag ? null : undefined") }, want: OPENAI },
+        // N2: a destructuring default writes whatever the source holds.
+        n2var: {
+          files: {
+            "ai.ts": [
+              H,
+              "let client: OpenAI | undefined;",
+              "export function setClient(deps: { ai?: OpenAI }) { ({ ai: client = new OpenAI() } = deps); }",
+              "const getAI = () => (client ??= new OpenAI());",
+              LIST,
+            ],
+          },
+          want: "unresolved",
+        },
+        n2varctl: {
+          files: {
+            "ai.ts": [
+              H,
+              "let client: OpenAI | undefined;",
+              "const getAI = () => (client ??= new OpenAI());",
+              LIST,
+            ],
+          },
+          want: OPENAI,
+        },
+        n2arr: {
+          files: {
+            "ai.ts": [
+              H,
+              "let client: OpenAI | undefined;",
+              "export function setClient(list: OpenAI[]) { [client = new OpenAI()] = list; }",
+              "const getAI = () => (client ??= new OpenAI());",
+              LIST,
+            ],
+          },
+          want: "unresolved",
+        },
+        n2glob: {
+          files: {
+            "ai.ts": [
+              ...typed,
+              "export function setAI(deps: G) { ({ ai: g.ai = new OpenAI() } = deps); }",
+              lazy,
+              LIST,
+            ],
+          },
+          want: "unresolved",
+        },
+        n2js: {
+          files: {
+            "ai.js": [
+              J,
+              "let client;",
+              "function setClient(deps) { ({ ai: client = new OpenAI() } = deps); }",
+              "const getAI = () => (client ??= new OpenAI());",
+              "function list() { return getAI().models.list(); }",
+              "module.exports = { setClient, list };",
+            ],
+          },
+          want: "unresolved",
+        },
+        n2field: {
+          files: {
+            "ai.js": [
+              J,
+              "class AI {",
+              "  constructor(deps) { this.ai = new OpenAI(); ({ ai: this.ai } = deps); }",
+              "  list() { return this.ai.models.list(); }",
+              "}",
+              "module.exports = { AI };",
+            ],
+          },
+          want: "unresolved",
+        },
+        // A JS field only a destructuring writes is never declared, so no client is seen.
+        n2fieldDefault: {
+          files: {
+            "ai.js": [
+              J,
+              "class AI {",
+              "  constructor(deps) { ({ ai: this.ai = new OpenAI() } = deps); }",
+              "  list() { return this.ai.models.list(); }",
+              "}",
+              "module.exports = { AI };",
+            ],
+          },
+          want: "none",
+        },
+        n2fieldctl: {
+          files: {
+            "ai.js": [
+              J,
+              "class AI {",
+              "  constructor() { this.ai = new OpenAI(); }",
+              "  list() { return this.ai.models.list(); }",
+              "}",
+              "module.exports = { AI };",
+            ],
+          },
+          want: OPENAI,
+        },
+        // N3: any use of an imported alias of the global object, named or namespace.
+        n3: {
+          files: {
+            "globals.ts": alias,
+            "setup.ts": [
+              H,
+              'import { G } from "./globals";',
+              "export function setAI(c: OpenAI) { G.ai = c; }",
+            ],
+            "ai.ts": [...typed, lazy, LIST],
+          },
+          want: "unresolved",
+        },
+        n3ctl: {
+          files: { "globals.ts": alias, "ai.ts": [...typed, lazy, LIST] },
+          want: OPENAI,
+        },
+        n3pass: {
+          files: {
+            "globals.ts": alias,
+            "setup.ts": [
+              H,
+              'import { G } from "./globals";',
+              "function install(t: { ai?: OpenAI }, c: OpenAI) { t.ai = c; }",
+              "export function setAI(c: OpenAI) { install(G, c); }",
+            ],
+            "ai.ts": [...typed, lazy, LIST],
+          },
+          want: "unresolved",
+        },
+        n3ns: {
+          files: {
+            "globals.ts": alias,
+            "setup.ts": [
+              H,
+              'import * as globals from "./globals";',
+              "export function setAI(c: OpenAI) { globals.G.ai = c; }",
+            ],
+            "ai.ts": [...typed, lazy, LIST],
+          },
+          want: "unresolved",
+        },
+        n3renamed: {
+          files: {
+            "globals.ts": alias,
+            "setup.ts": [
+              H,
+              'import { G as Slots } from "./globals";',
+              "export function setAI(c: OpenAI) { Slots.ai = c; }",
+            ],
+            "ai.ts": [...typed, lazy, LIST],
+          },
+          want: "unresolved",
+        },
+        n3both: {
+          files: {
+            "globals.ts": alias,
+            "setup.ts": [
+              H,
+              'import { G } from "./globals";',
+              "export function setAI(c: OpenAI) { G.ai = c; }",
+            ],
+            "ai.ts": [
+              H,
+              'import { G } from "./globals";',
+              "export const getAI = () => (G.ai ??= new OpenAI());",
+              LIST,
+            ],
+          },
+          want: "unresolved",
+        },
+        n3js: {
+          files: {
+            "globals.js": ["const G = globalThis;", "module.exports = { G };"],
+            "setup.js": [
+              'const { G } = require("./globals");',
+              "function setAI(c) { G.ai = c; }",
+              "module.exports = { setAI };",
+            ],
+            "ai.js": [J, jsLazy, ...JLIST],
+          },
+          want: "unresolved",
+        },
+        // N4: a binding pattern from the global object.
+        n4: {
+          files: {
+            "ai.ts": [
+              H,
+              "type S = { slots: { ai?: OpenAI } };",
+              "const { slots } = globalThis as unknown as S;",
+              "export function setAI(c: OpenAI) { slots.ai = c; }",
+              "const g = globalThis as unknown as S;",
+              "export const getAI = () => (g.slots.ai ??= new OpenAI());",
+              LIST,
+            ],
+          },
+          want: "unresolved",
+        },
+        n4ctl: {
+          files: {
+            "ai.ts": [
+              H,
+              "type S = { slots: { ai?: OpenAI } };",
+              "const g = globalThis as unknown as S;",
+              "export const getAI = () => (g.slots.ai ??= new OpenAI());",
+              LIST,
+            ],
+          },
+          want: OPENAI,
+        },
+        n4js: {
+          files: {
+            "ai.js": [
+              J,
+              "const { slots } = globalThis;",
+              "function setAI(c) { slots.ai = c; }",
+              "const getAI = () => (globalThis.slots.ai ??= new OpenAI());",
+              ...JLIST,
+            ],
+          },
+          want: "unresolved",
+        },
+        // L4: a stored value joining the read with anything else.
+        n5: {
+          files: {
+            "ai.ts": [
+              ...typed,
+              "export function setAI(c: OpenAI) { g.ai = g.ai ?? c; }",
+              lazy,
+              LIST,
+            ],
+          },
+          want: "unresolved",
+        },
+        n5js: {
+          files: {
+            "ai.js": [
+              J,
+              "function setAI(c) { globalThis.ai = globalThis.ai || c; }",
+              jsLazy,
+              ...JLIST,
+            ],
+          },
+          want: "unresolved",
+        },
+        n5ctl: {
+          files: {
+            "ai.ts": [
+              ...typed,
+              "export function warm() { g.ai = g.ai ?? new OpenAI(); }",
+              lazy,
+              LIST,
+            ],
+          },
+          want: OPENAI,
+        },
+        n5prisma: {
+          files: {
+            "ai.ts": [
+              ...typed,
+              "const ai = g.ai ?? new OpenAI();",
+              "if (process.env.NODE_ENV !== 'production') g.ai = ai;",
+              "export const getAI = () => ai;",
+              LIST,
+            ],
+          },
+          want: OPENAI,
+        },
+      };
+      await put(
+        "package.json",
+        JSON.stringify({ name: "root", private: true, workspaces: ["svc/*"] }),
+      );
+      for (const [name, { files }] of Object.entries(services)) {
+        await put(`svc/${name}/package.json`, JSON.stringify({ name }));
+        for (const [file, lines] of Object.entries(files))
+          await put(`svc/${name}/src/${file}`, lines);
+      }
+      const graph = await analyze(dir);
+      const targets = new Map<string, string>();
+      for (const edge of graph.edges) {
+        if (edge.kind !== "external_call" && edge.kind !== "http") continue;
+        const match = /^symbol:(\w+)\/src\/ai\.\w+#(?:AI\.)?list$/.exec(edge.from);
+        if (match?.[1] !== undefined) {
+          targets.set(match[1], edge.to.startsWith("unresolved:") ? "unresolved" : edge.to);
+        }
+      }
+      // A `none` row must draw no edge at all.
+      const want = new Map(
+        Object.entries(services)
+          .filter(([, s]) => s.want !== "none")
+          .map(([name, s]) => [name, s.want]),
+      );
+      expect(new Map([...targets].sort())).toEqual(new Map([...want].sort()));
+    },
+  );
+
   it("reads a value again from shallower when a deeper read was cut off at the hop limit (M9.7n, M6)", async () => {
     await put("package.json", JSON.stringify({ name: "api" }));
     const aliases = Array.from({ length: 10 }, (_, i) => `const c${i + 1} = c${i};`);
