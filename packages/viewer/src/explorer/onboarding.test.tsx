@@ -296,6 +296,42 @@ describe("Explorer onboarding", { timeout: 30_000 }, () => {
     });
   });
 
+  describe("a trace deep link on a narrow canvas (M9.7h)", () => {
+    // taxonomy's README link: step 1's frame centered its hop and left the
+    // path's far end off the canvas, though the whole path fit across. Here
+    // the level's fit is below 80%, so the trace zooms to it; the demo's path
+    // is then 858px wide and its first hop's box 213px: centered on the hop,
+    // the path's end ran ~250px past this canvas's right edge.
+    const CANVAS = { width: 1000, height: 360 };
+    measuredCanvas(CANVAS);
+
+    it("slides the first hop's frame so the rest of the path is on the canvas too", async () => {
+      const { container } = await setup(undefined, { initialTrace: CHECKOUT });
+      await waitFor(
+        () =>
+          expect(container.querySelector(".gi-explorer")?.hasAttribute("data-hand-camera")).toBe(
+            true,
+          ),
+        { timeout: 10_000 },
+      );
+      const c = cameraOf(container);
+      const lit = [
+        ...container.querySelectorAll<HTMLElement>(
+          '.gi-drill__node:not([data-leaving]) > .gi-node:is([data-emphasis="current"], [data-emphasis="traced"])',
+        ),
+      ].map((el) => {
+        const box = el.parentElement as HTMLElement;
+        const left = parseFloat(box.style.left) * c.zoom + c.x;
+        return { left, right: left + parseFloat(box.style.width) * c.zoom };
+      });
+      expect(lit.length).toBeGreaterThan(2);
+      for (const { left, right } of lit) {
+        expect(left).toBeGreaterThanOrEqual(0);
+        expect(right).toBeLessThanOrEqual(CANVAS.width);
+      }
+    });
+  });
+
   describe("on a measured canvas (M9.2g)", () => {
     // Short enough that the system level's fit reaches the top inset, where
     // the hint's card would cover boxes (pawtograder/platform at 1440 × 900).

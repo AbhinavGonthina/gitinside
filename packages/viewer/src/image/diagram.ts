@@ -35,6 +35,7 @@ import {
   routeEdges,
   spreadLabels,
   type PlacedEdge,
+  type RoutedEdge,
 } from "./layout.js";
 import { attrs, esc, fit, glyphMarkup, num, textWidth } from "./markup.js";
 import { paletteCss, v, type ImageTheme } from "./palette.js";
@@ -282,11 +283,11 @@ function gapRoute(from: Rect, to: Rect, a: Column, b: Column, before: number): P
  * sub-column (one per edge, outwards), {@link gapRoute} into and out of
  * wrapped sub-columns, and `routeEdges` for the rest.
  */
-function routeAll(edges: readonly ViewEdge[], placement: Placement): PlacedEdge[] {
+function routeAll(edges: readonly ViewEdge[], placement: Placement): RoutedEdge[] {
   const { boxes, slots, columns } = placement;
   const lanes = new Map<number, number>();
   const direct: ViewEdge[] = [];
-  const placed = new Map<ViewEdge, PlacedEdge>();
+  const placed = new Map<ViewEdge, RoutedEdge>();
   const firstLeft = (group: number) => columns.find((c) => c.group === group)?.left ?? 0;
   for (const e of edges) {
     const a = slots.get(e.from);
@@ -313,7 +314,7 @@ function routeAll(edges: readonly ViewEdge[], placement: Placement): PlacedEdge[
       direct.push(e);
       continue;
     }
-    placed.set(e, { view: e, points, label: pointAlong(points, 0.5) });
+    placed.set(e, { view: e, points, label: pointAlong(points, 0.5), along: 0.5 });
   }
   for (const p of routeEdges(direct, boxes)) placed.set(p.view, p);
   // Graph order, so the drawing order (and the bytes) never depend on routing.

@@ -121,8 +121,24 @@ interface Box {
  * starts below it, unless that's within the margin already or would leave
  * under half the room (a short canvas, where the card then covers part of
  * the hop) (M9.7f: taxonomy's README link framed step 1 under the card).
+ *
+ * `path` is the whole trace's boxes (their bounding box, holding the hop's):
+ * a moved camera keeps the hop's zoom but slides from the hop's center
+ * toward the path's, on each axis as far as the hop stays in its room, so
+ * a path that fits at that zoom is shown whole (M9.7h: taxonomy's README
+ * link centered its tall first hop at 25% and left `prisma`, `mysql`, and
+ * `api.stripe.com` past the canvas's edge, though the whole path fit
+ * across). The zoom is never lowered for the path: what the step reads is
+ * its hop, and the rest of the path is context.
  */
-export function frameHop(camera: Camera, rect: Rect, canvas: Size, avoid?: Rect, top = 0): Camera {
+export function frameHop(
+  camera: Camera,
+  rect: Rect,
+  canvas: Size,
+  avoid?: Rect,
+  top = 0,
+  path?: Rect,
+): Camera {
   if (canvas.width <= 0 || canvas.height <= 0) return camera;
   const margin = {
     x: Math.min(HOP_MARGIN.x, canvas.width / 4),
@@ -166,11 +182,33 @@ export function frameHop(camera: Camera, rect: Rect, canvas: Size, avoid?: Rect,
     d.bottom <= blocked.top ||
     d.left >= blocked.right ||
     d.top >= blocked.bottom;
-  /** The camera at `zoom` centered on the hop in `room`. */
+  /**
+   * Where the camera puts the diagram's origin on one axis: the hop
+   * (`at`, `length`) centered in the room (`low`–`high`), slid toward the
+   * path's center (`pathAt`, `pathLength`) until the hop meets the room's
+   * edge. A hop wider than its room (forced to the minimum zoom) stays centered.
+   */
+  const axis = (
+    low: number,
+    high: number,
+    zoom: number,
+    at: number,
+    length: number,
+    pathAt?: number,
+    pathLength?: number,
+  ) => {
+    const middle = (low + high) / 2;
+    const centered = middle - (at + length / 2) * zoom;
+    const least = low - at * zoom;
+    const most = high - (at + length) * zoom;
+    if (pathAt === undefined || pathLength === undefined || least > most) return centered;
+    return Math.min(most, Math.max(least, middle - (pathAt + pathLength / 2) * zoom));
+  };
+  /** The camera at `zoom` for the hop in `room`, slid toward the path. */
   const place = (room: Box, zoom: number): Camera => ({
     zoom,
-    x: round((room.left + room.right) / 2 - (rect.x + rect.width / 2) * zoom),
-    y: round((room.top + room.bottom) / 2 - (rect.y + rect.height / 2) * zoom),
+    x: round(axis(room.left, room.right, zoom, rect.x, rect.width, path?.x, path?.width)),
+    y: round(axis(room.top, room.bottom, zoom, rect.y, rect.height, path?.y, path?.height)),
   });
   const zoom = Math.min(clampZoom(fits(whole)), raised);
   const now = drawn(camera);
