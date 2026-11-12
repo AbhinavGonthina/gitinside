@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { Octokit } from "@octokit/rest";
 import OpenAI from "openai";
 
 /** A write beside the initializer replaces the client it built. */
@@ -41,4 +42,10 @@ export function azureChat(prompt: string) {
     model: "gpt-4o",
     messages: [{ role: "user", content: prompt }],
   });
+}
+
+/** A client the caller may pass, beside one built with only a token: either base is possible. */
+export function repoFor(given: unknown, owner: string, repo: string) {
+  const github = (given as Octokit | undefined) ?? new Octokit({ auth: process.env.GITHUB_TOKEN });
+  return github.repos.get({ owner, repo });
 }

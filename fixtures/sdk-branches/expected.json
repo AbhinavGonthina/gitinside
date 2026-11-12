@@ -1,5 +1,5 @@
 {
-  "analyzerVersion": "0.3.4",
+  "analyzerVersion": "0.3.5",
   "edges": [
     {
       "confidence": "exact",
@@ -25,7 +25,7 @@
         {
           "column": 34,
           "file": "src/fields.ts",
-          "line": 23
+          "line": 24
         }
       ],
       "to": "external:ext/openrouter.ai"
@@ -47,47 +47,62 @@
     {
       "confidence": "unresolved",
       "from": "symbol:sdk-branches/src/fields.ts#Switchable.models",
-      "id": "http:symbol:sdk-branches/src/fields.ts#Switchable.models->unresolved:sdk-branches/src/fields.ts:13:27",
+      "id": "http:symbol:sdk-branches/src/fields.ts#Switchable.models->unresolved:sdk-branches/src/fields.ts:14:27",
       "kind": "http",
       "reason": "DYNAMIC_URL",
       "sites": [
         {
           "column": 27,
           "file": "src/fields.ts",
-          "line": 13
+          "line": 14
         }
       ],
-      "to": "unresolved:sdk-branches/src/fields.ts:13:27"
+      "to": "unresolved:sdk-branches/src/fields.ts:14:27"
     },
     {
       "confidence": "unresolved",
       "from": "symbol:sdk-branches/src/fields.ts#azureChat",
-      "id": "http:symbol:sdk-branches/src/fields.ts#azureChat->unresolved:sdk-branches/src/fields.ts:40:33",
+      "id": "http:symbol:sdk-branches/src/fields.ts#azureChat->unresolved:sdk-branches/src/fields.ts:41:33",
       "kind": "http",
       "reason": "NO_MATCHING_ROUTE",
       "sites": [
         {
           "column": 33,
           "file": "src/fields.ts",
-          "line": 40
+          "line": 41
         }
       ],
-      "to": "unresolved:sdk-branches/src/fields.ts:40:33"
+      "to": "unresolved:sdk-branches/src/fields.ts:41:33"
     },
     {
       "confidence": "unresolved",
       "from": "symbol:sdk-branches/src/fields.ts#listModels",
-      "id": "http:symbol:sdk-branches/src/fields.ts#listModels->unresolved:sdk-branches/src/fields.ts:33:27",
+      "id": "http:symbol:sdk-branches/src/fields.ts#listModels->unresolved:sdk-branches/src/fields.ts:34:27",
       "kind": "http",
       "reason": "DYNAMIC_URL",
       "sites": [
         {
           "column": 27,
           "file": "src/fields.ts",
-          "line": 33
+          "line": 34
         }
       ],
-      "to": "unresolved:sdk-branches/src/fields.ts:33:27"
+      "to": "unresolved:sdk-branches/src/fields.ts:34:27"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:sdk-branches/src/fields.ts#repoFor",
+      "id": "http:symbol:sdk-branches/src/fields.ts#repoFor->unresolved:sdk-branches/src/fields.ts:50:23",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 23,
+          "file": "src/fields.ts",
+          "line": 50
+        }
+      ],
+      "to": "unresolved:sdk-branches/src/fields.ts:50:23"
     },
     {
       "confidence": "unresolved",
@@ -106,6 +121,21 @@
     },
     {
       "confidence": "unresolved",
+      "from": "symbol:sdk-branches/src/switch.js#Pluggable.models",
+      "id": "http:symbol:sdk-branches/src/switch.js#Pluggable.models->unresolved:sdk-branches/src/switch.js:47:27",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 27,
+          "file": "src/switch.js",
+          "line": 47
+        }
+      ],
+      "to": "unresolved:sdk-branches/src/switch.js:47:27"
+    },
+    {
+      "confidence": "unresolved",
       "from": "symbol:sdk-branches/src/switch.js#embed",
       "id": "http:symbol:sdk-branches/src/switch.js#embed->unresolved:sdk-branches/src/switch.js:33:37",
       "kind": "http",
@@ -118,6 +148,21 @@
         }
       ],
       "to": "unresolved:sdk-branches/src/switch.js:33:37"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:sdk-branches/src/switch.js#sharedModels",
+      "id": "http:symbol:sdk-branches/src/switch.js#sharedModels->unresolved:sdk-branches/src/switch.js:55:24",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 24,
+          "file": "src/switch.js",
+          "line": 55
+        }
+      ],
+      "to": "unresolved:sdk-branches/src/switch.js:55:24"
     }
   ],
   "nodes": [
@@ -138,7 +183,7 @@
       "parentId": "system:root"
     },
     {
-      "hash": "1b378aa6d3a1a96abe896d33df1135b0f2d377fef8b2e80b15433dcf835e7235",
+      "hash": "45fd2cf27d5b21974b93780ed574f2a265616e73e44ebb2c265614ecf910fedd",
       "id": "file:sdk-branches/src/fields.ts",
       "kind": "file",
       "label": "fields.ts",
@@ -146,7 +191,7 @@
       "path": "src/fields.ts"
     },
     {
-      "hash": "e7ed56dc6014e5baff1f0ac73a4f628b29c678571f98c6ab0982abc80101292c",
+      "hash": "3fa074cadf5d1a5935cdcdd0b7f9ee25ae4e38572414591285b0e6ba60ee509b",
       "id": "file:sdk-branches/src/switch.js",
       "kind": "file",
       "label": "switch.js",
@@ -176,9 +221,9 @@
       "requiredParams": 0,
       "source": {
         "column": 1,
-        "endLine": 15,
+        "endLine": 16,
         "file": "src/fields.ts",
-        "line": 5
+        "line": 6
       },
       "symbolKind": "class"
     },
@@ -191,9 +236,9 @@
       "requiredParams": 0,
       "source": {
         "column": 3,
-        "endLine": 14,
+        "endLine": 15,
         "file": "src/fields.ts",
-        "line": 12
+        "line": 13
       },
       "symbolKind": "method"
     },
@@ -206,9 +251,9 @@
       "requiredParams": 0,
       "source": {
         "column": 3,
-        "endLine": 10,
+        "endLine": 11,
         "file": "src/fields.ts",
-        "line": 8
+        "line": 9
       },
       "symbolKind": "method"
     },
@@ -221,9 +266,9 @@
       "requiredParams": 1,
       "source": {
         "column": 1,
-        "endLine": 44,
+        "endLine": 45,
         "file": "src/fields.ts",
-        "line": 39
+        "line": 40
       },
       "symbolKind": "function"
     },
@@ -236,9 +281,24 @@
       "requiredParams": 0,
       "source": {
         "column": 1,
-        "endLine": 34,
+        "endLine": 35,
         "file": "src/fields.ts",
-        "line": 32
+        "line": 33
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/fields.ts#repoFor",
+      "kind": "symbol",
+      "label": "repoFor",
+      "parentId": "file:sdk-branches/src/fields.ts",
+      "requiredParams": 3,
+      "source": {
+        "column": 1,
+        "endLine": 51,
+        "file": "src/fields.ts",
+        "line": 48
       },
       "symbolKind": "function"
     },
@@ -251,9 +311,9 @@
       "requiredParams": 1,
       "source": {
         "column": 1,
-        "endLine": 27,
+        "endLine": 28,
         "file": "src/fields.ts",
-        "line": 22
+        "line": 23
       },
       "symbolKind": "function"
     },
@@ -265,9 +325,9 @@
       "parentId": "file:sdk-branches/src/fields.ts",
       "source": {
         "column": 14,
-        "endLine": 19,
+        "endLine": 20,
         "file": "src/fields.ts",
-        "line": 19
+        "line": 20
       },
       "symbolKind": "variable"
     },
@@ -328,6 +388,48 @@
       "symbolKind": "method"
     },
     {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/switch.js#Pluggable",
+      "kind": "symbol",
+      "label": "Pluggable",
+      "parentId": "file:sdk-branches/src/switch.js",
+      "source": {
+        "column": 1,
+        "endLine": 49,
+        "file": "src/switch.js",
+        "line": 37
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/switch.js#Pluggable.models",
+      "kind": "symbol",
+      "label": "models",
+      "parentId": "symbol:sdk-branches/src/switch.js#Pluggable",
+      "source": {
+        "column": 3,
+        "endLine": 48,
+        "file": "src/switch.js",
+        "line": 46
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/switch.js#Pluggable.setClient",
+      "kind": "symbol",
+      "label": "setClient",
+      "parentId": "symbol:sdk-branches/src/switch.js#Pluggable",
+      "source": {
+        "column": 3,
+        "endLine": 44,
+        "file": "src/switch.js",
+        "line": 42
+      },
+      "symbolKind": "method"
+    },
+    {
       "exported": false,
       "id": "symbol:sdk-branches/src/switch.js#clientFor",
       "kind": "symbol",
@@ -356,6 +458,20 @@
       "symbolKind": "function"
     },
     {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/switch.js#sharedModels",
+      "kind": "symbol",
+      "label": "sharedModels",
+      "parentId": "file:sdk-branches/src/switch.js",
+      "source": {
+        "column": 1,
+        "endLine": 56,
+        "file": "src/switch.js",
+        "line": 54
+      },
+      "symbolKind": "function"
+    },
+    {
       "id": "system:root",
       "kind": "system",
       "label": "sdk-branches",
@@ -364,7 +480,7 @@
     {
       "detail": "the SDK client is built with different base URLs on different branches",
       "expression": "this.ai.models.list",
-      "id": "unresolved:sdk-branches/src/fields.ts:13:27",
+      "id": "unresolved:sdk-branches/src/fields.ts:14:27",
       "kind": "unresolved",
       "label": "GET this.ai /models",
       "parentId": "service:sdk-branches/",
@@ -372,13 +488,13 @@
       "source": {
         "column": 27,
         "file": "src/fields.ts",
-        "line": 13
+        "line": 14
       }
     },
     {
       "detail": "the SDK client is built with different base URLs on different branches",
       "expression": "assistant.models.list",
-      "id": "unresolved:sdk-branches/src/fields.ts:33:27",
+      "id": "unresolved:sdk-branches/src/fields.ts:34:27",
       "kind": "unresolved",
       "label": "? assistant",
       "parentId": "service:sdk-branches/",
@@ -386,13 +502,13 @@
       "source": {
         "column": 27,
         "file": "src/fields.ts",
-        "line": 33
+        "line": 34
       }
     },
     {
       "detail": "no route matches POST to {env:AZURE_BASE_URL}/chat/completions",
       "expression": "azure.chat.completions.create",
-      "id": "unresolved:sdk-branches/src/fields.ts:40:33",
+      "id": "unresolved:sdk-branches/src/fields.ts:41:33",
       "kind": "unresolved",
       "label": "POST {env:AZURE_BASE_URL}/chat/completions",
       "parentId": "service:sdk-branches/",
@@ -400,7 +516,21 @@
       "source": {
         "column": 33,
         "file": "src/fields.ts",
-        "line": 40
+        "line": 41
+      }
+    },
+    {
+      "detail": "the SDK client is built with different base URLs on different branches",
+      "expression": "github.repos.get",
+      "id": "unresolved:sdk-branches/src/fields.ts:50:23",
+      "kind": "unresolved",
+      "label": "? github",
+      "parentId": "service:sdk-branches/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 23,
+        "file": "src/fields.ts",
+        "line": 50
       }
     },
     {
@@ -429,6 +559,34 @@
         "column": 37,
         "file": "src/switch.js",
         "line": 33
+      }
+    },
+    {
+      "detail": "the SDK client is built with different base URLs on different branches",
+      "expression": "this.ai.models.list",
+      "id": "unresolved:sdk-branches/src/switch.js:47:27",
+      "kind": "unresolved",
+      "label": "GET this.ai /models",
+      "parentId": "service:sdk-branches/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 27,
+        "file": "src/switch.js",
+        "line": 47
+      }
+    },
+    {
+      "detail": "the SDK client is built with different base URLs on different branches",
+      "expression": "shared.models.list",
+      "id": "unresolved:sdk-branches/src/switch.js:55:24",
+      "kind": "unresolved",
+      "label": "GET shared /models",
+      "parentId": "service:sdk-branches/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 24,
+        "file": "src/switch.js",
+        "line": 55
       }
     }
   ],
