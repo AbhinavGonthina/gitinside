@@ -1,5 +1,5 @@
 {
-  "analyzerVersion": "0.3.2",
+  "analyzerVersion": "0.3.3",
   "edges": [
     {
       "confidence": "exact",
@@ -14,6 +14,20 @@
         }
       ],
       "to": "external:ext/api.groq.com"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:typed-sdk-base/src/upstream.ts#relay",
+      "id": "external_call:symbol:typed-sdk-base/src/upstream.ts#relay->external:ext/api.openai.com",
+      "kind": "external_call",
+      "sites": [
+        {
+          "column": 36,
+          "file": "src/upstream.ts",
+          "line": 7
+        }
+      ],
+      "to": "external:ext/api.openai.com"
     },
     {
       "confidence": "unresolved",
@@ -72,6 +86,14 @@
       "parentId": "system:root"
     },
     {
+      "host": "api.openai.com",
+      "id": "external:ext/api.openai.com",
+      "kind": "external",
+      "label": "api.openai.com",
+      "layer": "external",
+      "parentId": "system:root"
+    },
+    {
       "hash": "bff2c739b17fcc39f97ecc242126662393927b88e6f47318802131e31381a459",
       "id": "file:typed-sdk-base/src/llm.ts",
       "kind": "file",
@@ -86,6 +108,14 @@
       "label": "server.ts",
       "parentId": "module:typed-sdk-base/src",
       "path": "src/server.ts"
+    },
+    {
+      "hash": "acbc7f2d857b9cf30b649e8d4d77abf9b1dd5cf8e777da7a26b5f86576810086",
+      "id": "file:typed-sdk-base/src/upstream.ts",
+      "kind": "file",
+      "label": "upstream.ts",
+      "parentId": "module:typed-sdk-base/src",
+      "path": "src/upstream.ts"
     },
     {
       "id": "module:typed-sdk-base/src",
@@ -219,6 +249,21 @@
         "endLine": 47,
         "file": "src/llm.ts",
         "line": 42
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:typed-sdk-base/src/upstream.ts#relay",
+      "kind": "symbol",
+      "label": "relay",
+      "parentId": "file:typed-sdk-base/src/upstream.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 11,
+        "file": "src/upstream.ts",
+        "line": 6
       },
       "symbolKind": "function"
     },

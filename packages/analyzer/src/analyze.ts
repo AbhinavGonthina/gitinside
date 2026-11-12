@@ -20,7 +20,7 @@ import {
 } from "./facts.js";
 import { errorText } from "./failures.js";
 import { readDevProxies } from "./devProxy.js";
-import { readEnvPrefixes } from "./envExamples.js";
+import { readEnvExamples } from "./envExamples.js";
 import { buildFileNodes, outsideServiceWarnings } from "./files.js";
 import { createFindings, type AnalysisFindings } from "./findings.js";
 import { createHttpSiteCollector } from "./http.js";
@@ -501,7 +501,7 @@ async function analyzeRoot(
         [...express.nodes, ...next.nodes],
         workspace,
         new Set(express.listedRoutes),
-        await readEnvPrefixes(root, inventory.files),
+        await readEnvExamples(root, inventory.files),
         await readDevProxies(root, inventory.files, workspace),
         { configs: await readNextConfigs(root, inventory.files, workspace), nodes: next.nodes },
       );
