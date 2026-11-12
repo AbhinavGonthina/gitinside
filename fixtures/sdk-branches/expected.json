@@ -1,6 +1,36 @@
 {
-  "analyzerVersion": "0.3.6",
+  "analyzerVersion": "0.3.7",
   "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:sdk-branches/src/lazy.ts#clientModels",
+      "id": "calls:symbol:sdk-branches/src/lazy.ts#clientModels->symbol:sdk-branches/src/lazy.ts#getClient",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 10,
+          "file": "src/lazy.ts",
+          "line": 30
+        }
+      ],
+      "to": "symbol:sdk-branches/src/lazy.ts#getClient"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:sdk-branches/src/lazy.ts#lazyModels",
+      "id": "calls:symbol:sdk-branches/src/lazy.ts#lazyModels->symbol:sdk-branches/src/lazy.ts#getAI",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 10,
+          "file": "src/lazy.ts",
+          "line": 9
+        }
+      ],
+      "to": "symbol:sdk-branches/src/lazy.ts#getAI"
+    },
     {
       "confidence": "exact",
       "from": "symbol:sdk-branches/src/switch.js#embed",
@@ -29,6 +59,20 @@
         }
       ],
       "to": "external:ext/openrouter.ai"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:sdk-branches/src/lazy.ts#lazyModels",
+      "id": "external_call:symbol:sdk-branches/src/lazy.ts#lazyModels->external:ext/api.openai.com",
+      "kind": "external_call",
+      "sites": [
+        {
+          "column": 25,
+          "file": "src/lazy.ts",
+          "line": 9
+        }
+      ],
+      "to": "external:ext/api.openai.com"
     },
     {
       "confidence": "exact",
@@ -118,6 +162,36 @@
         }
       ],
       "to": "unresolved:sdk-branches/src/fields.ts:51:23"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:sdk-branches/src/lazy.ts#clientModels",
+      "id": "http:symbol:sdk-branches/src/lazy.ts#clientModels->unresolved:sdk-branches/src/lazy.ts:30:29",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 29,
+          "file": "src/lazy.ts",
+          "line": 30
+        }
+      ],
+      "to": "unresolved:sdk-branches/src/lazy.ts:30:29"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:sdk-branches/src/lazy.ts#proxiedModels",
+      "id": "http:symbol:sdk-branches/src/lazy.ts#proxiedModels->unresolved:sdk-branches/src/lazy.ts:17:25",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 25,
+          "file": "src/lazy.ts",
+          "line": 17
+        }
+      ],
+      "to": "unresolved:sdk-branches/src/lazy.ts:17:25"
     },
     {
       "confidence": "unresolved",
@@ -220,6 +294,14 @@
       "parentId": "system:root"
     },
     {
+      "host": "api.openai.com",
+      "id": "external:ext/api.openai.com",
+      "kind": "external",
+      "label": "api.openai.com",
+      "layer": "external",
+      "parentId": "system:root"
+    },
+    {
       "host": "openrouter.ai",
       "id": "external:ext/openrouter.ai",
       "kind": "external",
@@ -234,6 +316,22 @@
       "label": "fields.ts",
       "parentId": "module:sdk-branches/src",
       "path": "src/fields.ts"
+    },
+    {
+      "hash": "72fffc0e3c21aa12b08935ad6cfba5f742f019b9d117cfec9f185eef31a9024b",
+      "id": "file:sdk-branches/src/lazy.ts",
+      "kind": "file",
+      "label": "lazy.ts",
+      "parentId": "module:sdk-branches/src",
+      "path": "src/lazy.ts"
+    },
+    {
+      "hash": "ccbd6b85e4a9fb99c014ca1564a967e143f3765398438370fe158643806cf614",
+      "id": "file:sdk-branches/src/setup.ts",
+      "kind": "file",
+      "label": "setup.ts",
+      "parentId": "module:sdk-branches/src",
+      "path": "src/setup.ts"
     },
     {
       "hash": "6a90c5a4859776db7e2ea88d26d0bce6ad64c6dea7827bf7e890066e41fdfc99",
@@ -390,6 +488,125 @@
         "line": 21
       },
       "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/lazy.ts#clientModels",
+      "kind": "symbol",
+      "label": "clientModels",
+      "parentId": "file:sdk-branches/src/lazy.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 31,
+        "file": "src/lazy.ts",
+        "line": 29
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/lazy.ts#getAI",
+      "kind": "symbol",
+      "label": "getAI",
+      "parentId": "file:sdk-branches/src/lazy.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 14,
+        "endLine": 6,
+        "file": "src/lazy.ts",
+        "line": 6
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/lazy.ts#getClient",
+      "kind": "symbol",
+      "label": "getClient",
+      "parentId": "file:sdk-branches/src/lazy.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 14,
+        "endLine": 27,
+        "file": "src/lazy.ts",
+        "line": 27
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/lazy.ts#lazyModels",
+      "kind": "symbol",
+      "label": "lazyModels",
+      "parentId": "file:sdk-branches/src/lazy.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 10,
+        "file": "src/lazy.ts",
+        "line": 8
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/lazy.ts#proxied",
+      "kind": "symbol",
+      "label": "proxied",
+      "parentId": "file:sdk-branches/src/lazy.ts",
+      "source": {
+        "column": 14,
+        "endLine": 13,
+        "file": "src/lazy.ts",
+        "line": 13
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/lazy.ts#proxiedModels",
+      "kind": "symbol",
+      "label": "proxiedModels",
+      "parentId": "file:sdk-branches/src/lazy.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 18,
+        "file": "src/lazy.ts",
+        "line": 16
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/lazy.ts#setClient",
+      "kind": "symbol",
+      "label": "setClient",
+      "parentId": "file:sdk-branches/src/lazy.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 25,
+        "file": "src/lazy.ts",
+        "line": 23
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/setup.ts#useProxy",
+      "kind": "symbol",
+      "label": "useProxy",
+      "parentId": "file:sdk-branches/src/setup.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 8,
+        "file": "src/setup.ts",
+        "line": 6
+      },
+      "symbolKind": "function"
     },
     {
       "exported": true,
@@ -647,6 +864,34 @@
         "column": 29,
         "file": "src/fields.ts",
         "line": 59
+      }
+    },
+    {
+      "detail": "the SDK client is built with different base URLs on different branches",
+      "expression": "proxied.models.list",
+      "id": "unresolved:sdk-branches/src/lazy.ts:17:25",
+      "kind": "unresolved",
+      "label": "GET proxied /models",
+      "parentId": "service:sdk-branches/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 25,
+        "file": "src/lazy.ts",
+        "line": 17
+      }
+    },
+    {
+      "detail": "the SDK client is built with different base URLs on different branches",
+      "expression": "getClient().models.list",
+      "id": "unresolved:sdk-branches/src/lazy.ts:30:29",
+      "kind": "unresolved",
+      "label": "GET getClient() /models",
+      "parentId": "service:sdk-branches/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 29,
+        "file": "src/lazy.ts",
+        "line": 30
       }
     },
     {

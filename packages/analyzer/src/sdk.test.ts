@@ -1003,6 +1003,244 @@ describe("analyze: SDK clients with a base URL (M9.1a3e2a)", () => {
     ]);
   });
 
+  it("reads each global read form beside each write form, in TS and JS (M9.7m, L1, L2)", async () => {
+    // How the reading file reads the path, then calls a method on the client it gets.
+    const reads = new Map<string, (p: string) => string[]>([
+      [
+        "nn",
+        (p) => [
+          `const v_${p} = G.${p} ?? new OpenAI();`,
+          `X function use_${p}() { return v_${p}.models.list(); }`,
+        ],
+      ],
+      [
+        "or",
+        (p) => [
+          `const v_${p} = G.${p} || new OpenAI();`,
+          `X function use_${p}() { return v_${p}.models.list(); }`,
+        ],
+      ],
+      [
+        "nq",
+        (p) => [
+          `const get_${p} = () => (G.${p} ??= new OpenAI());`,
+          `X function use_${p}() { return get_${p}().models.list(); }`,
+        ],
+      ],
+      [
+        "oq",
+        (p) => [
+          `const get_${p} = () => (G.${p} ||= new OpenAI());`,
+          `X function use_${p}() { return get_${p}().models.list(); }`,
+        ],
+      ],
+      [
+        "held",
+        (p) => [
+          `const h_${p} = G.${p};`,
+          `const v_${p} = h_${p} ?? new OpenAI();`,
+          `X function use_${p}() { return v_${p}.models.list(); }`,
+        ],
+      ],
+    ]);
+    // What else writes the path: in the reading file, then in another file.
+    const cache = (p: string): string =>
+      `X function warm_${p}() { G.${p} = G.${p} ?? new OpenAI(); }`;
+    const writes = new Map<string, (p: string, ts: boolean) => { own: string[]; other: string[] }>([
+      ["none", () => ({ own: [], other: [] })],
+      ["cache", (p) => ({ own: [cache(p)], other: [] })],
+      [
+        "injected",
+        (p, ts) => ({
+          own: [`X function set_${p}(c${ts ? ": OpenAI" : ""}) { G.${p} = c; }`],
+          other: [],
+        }),
+      ],
+      [
+        "other",
+        (p) => ({
+          own: [cache(p)],
+          other: [`X function groq_${p}() { G.${p} = new OpenAI({ baseURL: GROQ }); }`],
+        }),
+      ],
+      [
+        "elsewhere",
+        (p) => ({ own: [], other: [`X function init_${p}() { G.${p} = new OpenAI(); }`] }),
+      ],
+      [
+        "assign",
+        (p, ts) => ({
+          own: [
+            cache(p),
+            `X function put_${p}(c${ts ? ": OpenAI" : ""}) { Object.assign(globalThis, { ${p}: c }); }`,
+          ],
+          other: [],
+        }),
+      ],
+      [
+        "unseen",
+        (p, ts) => ({
+          own: [
+            cache(p),
+            `X function def_${p}(c${ts ? ": OpenAI" : ""}) { Object.defineProperty(globalThis, "${p}", { value: c }); }`,
+          ],
+          other: [],
+        }),
+      ],
+    ]);
+    // The default host only when every write stores the read itself or a default-built client,
+    // and some write is seen: `??=`/`||=` is one.
+    const injects = new Set(["injected", "other", "assign", "unseen"]);
+    const expected = (read: string, write: string): string => {
+      if (injects.has(write)) return "unresolved";
+      if (write === "none" && read !== "nq" && read !== "oq") return "unresolved";
+      return "external:ext/api.openai.com";
+    };
+    const files = { ts: [[], []] as string[][], js: [[], []] as string[][] };
+    const cases: string[] = [];
+    for (const lang of ["ts", "js"] as const) {
+      const ts = lang === "ts";
+      const fix = (line: string): string =>
+        line.replaceAll("G.", ts ? "g." : "globalThis.").replace(/^X /, ts ? "export " : "");
+      for (const [read, readLines] of reads) {
+        for (const [write, writeLines] of writes) {
+          const p = `${lang}_${read}_${write}`;
+          cases.push(p);
+          const { own, other } = writeLines(p, ts);
+          files[lang][0]?.push(...[...readLines(p), ...own].map(fix));
+          files[lang][1]?.push(...other.map(fix));
+        }
+      }
+    }
+    const names = (lines: string[]): string =>
+      lines.flatMap((l) => /function (\w+)/.exec(l)?.[1] ?? []).join(", ");
+    await put("package.json", JSON.stringify({ name: "api" }));
+    const tsHead = [
+      'import OpenAI from "openai";',
+      'const GROQ = "https://api.groq.com/openai/v1";',
+      "const g = globalThis as unknown as Record<string, OpenAI | undefined>;",
+    ];
+    await put("src/table.ts", [...tsHead, ...(files.ts[0] ?? [])]);
+    await put("src/other.ts", [...tsHead, ...(files.ts[1] ?? [])]);
+    const jsHead = [
+      'const { OpenAI } = require("openai");',
+      'const GROQ = "https://api.groq.com/openai/v1";',
+    ];
+    for (const [i, file] of ["src/table.js", "src/other.js"].entries()) {
+      const lines = files.js[i] ?? [];
+      await put(file, [...jsHead, ...lines, `module.exports = { ${names(lines)} };`]);
+    }
+    const graph = await analyze(dir);
+    const targets = new Map<string, string>();
+    for (const edge of graph.edges) {
+      if (edge.kind !== "external_call" && edge.kind !== "http") continue;
+      const p = /#use_(\w+)$/.exec(edge.from)?.[1];
+      if (p !== undefined)
+        targets.set(p, edge.to.startsWith("unresolved:") ? "unresolved" : edge.to);
+    }
+    const want = new Map(
+      cases.map((p) => [p, expected(p.split("_")[1] ?? "", p.split("_")[2] ?? "")]),
+    );
+    expect(new Map([...targets].sort())).toEqual(new Map([...want].sort()));
+  });
+
+  it("reads a module variable's writes, and global paths the matcher can't see whole (M9.7m, L1, L3)", async () => {
+    await put("package.json", JSON.stringify({ name: "api" }));
+    await put("src/vars.ts", [
+      'import OpenAI from "openai";',
+      'const GROQ = "https://api.groq.com/openai/v1";',
+      "let client: OpenAI | undefined;",
+      "export function setClient(c: OpenAI) { client = c; }",
+      "export const getClient = () => (client ??= new OpenAI());",
+      "export function injected() { return getClient().models.list(); }",
+      "let lazy: OpenAI | undefined;",
+      "const getLazy = () => (lazy ??= new OpenAI());",
+      "export function cached() { return getLazy().models.list(); }",
+      "let groq: OpenAI;",
+      "groq = new OpenAI({ baseURL: GROQ });",
+      "export function later() { return groq.models.list(); }",
+      "let once: OpenAI | null = null;",
+      "function getOnce() { if (!once) once = new OpenAI(); return once; }",
+      "export function onced() { return getOnce().models.list(); }",
+    ]);
+    await put("src/vars.js", [
+      'const { OpenAI } = require("openai");',
+      "let client;",
+      "function setClient(c) { client = c; }",
+      "const getClient = () => (client ??= new OpenAI());",
+      "function injected() { return getClient().models.list(); }",
+      "let lazy;",
+      "const getLazy = () => (lazy ||= new OpenAI());",
+      "function cached() { return getLazy().models.list(); }",
+      "module.exports = { setClient, injected, cached };",
+    ]);
+    await put("src/paths.ts", [
+      'import OpenAI from "openai";',
+      "type Slot = { ai?: OpenAI };",
+      "type Slots = { slots?: Slot; s?: Slot; t?: Slot; cfg?: Slot; box?: Record<string, OpenAI> };",
+      "const g = globalThis as unknown as Record<string, OpenAI | undefined> & Slots;",
+      "export const a = g.a ?? new OpenAI();",
+      "Object.assign(globalThis, { a });",
+      "export function aModels() { return a.models.list(); }",
+      "export const d = g.d ?? new OpenAI();",
+      "g.d = d;",
+      'export function defineD(c: OpenAI) { Object.defineProperty(globalThis, "d", { value: c }); }',
+      "export function dModels() { return d.models.list(); }",
+      "export const r = g.r ?? new OpenAI();",
+      "g.r = r;",
+      'export function setR(c: OpenAI) { Reflect.set(globalThis, "r", c); }',
+      "export function rModels() { return r.models.list(); }",
+      "export const k = g.box?.k ?? new OpenAI();",
+      "(g.box ??= {}).k = k;",
+      "export function setAny(key: string, c: OpenAI) { (g.box ??= {})[key] = c; }",
+      "export function kModels() { return k.models.list(); }",
+      "export const o = g.cfg?.ai ?? new OpenAI();",
+      "(g.cfg ??= {}).ai = o;",
+      "export function configure(opts: Slot) { Object.assign((g.cfg ??= {}), opts); }",
+      "export function oModels() { return o.models.list(); }",
+      "export const nested = g.slots?.ai ?? new OpenAI();",
+      "(g.slots ??= {}).ai = nested;",
+      "export function reset(c: OpenAI) { g.slots = { ai: c }; }",
+      "export function nestedModels() { return nested.models.list(); }",
+      "const s = (g.s ??= {});",
+      "s.ai ??= new OpenAI();",
+      "export function setS(c: OpenAI) { s.ai = c; }",
+      "export function sModels() { return g.s?.ai?.models.list(); }",
+      "const t = (g.t ??= {});",
+      "t.ai ??= new OpenAI();",
+      "export function tModels() { return t.ai?.models.list(); }",
+    ]);
+    const graph = await analyze(dir);
+    // A variable's every write is read beside its initializer, and a write holding the
+    // variable itself is its cache; an empty object written to a parent path holds no client.
+    expect(outgoing(graph).filter((e) => !e.includes("-> unresolved:"))).toEqual([
+      "symbol:api/src/paths.ts#aModels -> api.openai.com",
+      "symbol:api/src/paths.ts#tModels -> api.openai.com",
+      "symbol:api/src/vars.js#cached -> api.openai.com",
+      "symbol:api/src/vars.ts#cached -> api.openai.com",
+      "symbol:api/src/vars.ts#later -> api.groq.com",
+      "symbol:api/src/vars.ts#onced -> api.openai.com",
+    ]);
+    // An injected client (also through `Reflect.set`), and a write the matcher can't read (a
+    // define, a computed key, an assign from a non-literal, a parent replaced), may hold any
+    // client.
+    expect(
+      outgoing(graph)
+        .filter((e) => e.includes("-> unresolved:"))
+        .map((e) => e.split(" -> ")[0])
+        .sort(),
+    ).toEqual([
+      "symbol:api/src/paths.ts#dModels",
+      "symbol:api/src/paths.ts#kModels",
+      "symbol:api/src/paths.ts#nestedModels",
+      "symbol:api/src/paths.ts#oModels",
+      "symbol:api/src/paths.ts#rModels",
+      "symbol:api/src/paths.ts#sModels",
+      "symbol:api/src/vars.js#injected",
+      "symbol:api/src/vars.ts#injected",
+    ]);
+  });
+
   it("draws no outside API for an example file's placeholder host (M9.7g, H4)", async () => {
     await put("package.json", JSON.stringify({ name: "api" }));
     await put(".env.example", [
