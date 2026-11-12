@@ -56,6 +56,15 @@ export interface PlacedEdge {
   hideLabel?: boolean;
 }
 
+/** A line the image routed itself, so it knows where along it the label is. */
+export interface RoutedEdge extends PlacedEdge {
+  /**
+   * How far along the line (0–1, by length) `label` is, so a line that
+   * passes the label's spot twice slides it from the right pass (M9.7h).
+   */
+  along: number;
+}
+
 /** A label pill's height (`labelMarkup`). */
 export const LABEL_HEIGHT = 19;
 /** Room kept between two pills, and between a pill and a box. */
@@ -90,31 +99,6 @@ function polylineLength(points: readonly Point[]): number {
     );
 }
 
-/** How far along a polyline (by length) the point on it nearest `at` is. */
-function lengthAt(points: readonly Point[], at: Point): number {
-  let best = Infinity;
-  let bestLength = 0;
-  let walked = 0;
-  for (const [i, b] of points.slice(1).entries()) {
-    const a = points[i] as Point;
-    const length = Math.hypot(b.x - a.x, b.y - a.y);
-    const f =
-      length > 0
-        ? Math.min(
-            Math.max(((at.x - a.x) * (b.x - a.x) + (at.y - a.y) * (b.y - a.y)) / length ** 2, 0),
-            1,
-          )
-        : 0;
-    const d = Math.hypot(a.x + (b.x - a.x) * f - at.x, a.y + (b.y - a.y) * f - at.y);
-    if (d < best) {
-      best = d;
-      bestLength = walked + f * length;
-    }
-    walked += length;
-  }
-  return bestLength;
-}
-
 /**
  * Keeps line labels from covering each other or a box (M9.3d): in order,
  * each pill (`widths[i]` px for `edges[i]`) stays where routing put it when
@@ -129,31 +113,32 @@ function lengthAt(points: readonly Point[], at: Point): number {
  * the image's arithmetic routing doesn't).
  */
 export function spreadLabels(
-  edges: readonly PlacedEdge[],
+  edges: readonly RoutedEdge[],
   widths: readonly number[],
   boxes: readonly Rect[],
-): PlacedEdge[] {
+): RoutedEdge[] {
   const taken: Rect[] = [];
   const clear = (r: Rect) =>
     !taken.some((t) => near(r, t, LABEL_GAP)) && !boxes.some((b) => near(r, b, LABEL_GAP));
   return edges.map((p, i) => {
     const width = widths[i] ?? 0;
-    // Summed, not `lengthAt` its end: a line that passes its end point
-    // earlier would measure short there (M9.7f).
+    // Both by length along the line, not by the nearest point to a spot: a
+    // line that passes its end or its label's spot earlier would measure
+    // short there (M9.7f) or search from the wrong pass (M9.7h).
     const total = polylineLength(p.points);
-    const start = lengthAt(p.points, p.label);
+    const start = p.along * total;
     const room = total - 2 * LABEL_END;
     const step = Math.max(6, room / (LABEL_TRIES - 1));
-    const spots = [p.label];
+    const spots = [{ at: p.label, along: p.along }];
     for (let k = 1; k < LABEL_TRIES; k++) {
       const s = start + Math.ceil(k / 2) * step * (k % 2 === 1 ? 1 : -1);
       if (s >= LABEL_END && s <= total - LABEL_END && total > 0)
-        spots.push(pointAlong(p.points, s / total));
+        spots.push({ at: pointAlong(p.points, s / total), along: s / total });
     }
-    const spot = spots.find((at) => clear(pillRect(at, width)));
+    const spot = spots.find(({ at }) => clear(pillRect(at, width)));
     if (!spot) return { ...p, hideLabel: true };
-    taken.push(pillRect(spot, width));
-    return spot === p.label ? p : { ...p, label: spot };
+    taken.push(pillRect(spot.at, width));
+    return spot.at === p.label ? p : { ...p, label: spot.at, along: spot.along };
   });
 }
 
@@ -191,7 +176,7 @@ export function pointAlong(points: readonly Point[], t: number): Point {
 export function routeEdges(
   edges: readonly ViewEdge[],
   boxes: ReadonlyMap<string, Rect>,
-): PlacedEdge[] {
+): RoutedEdge[] {
   const pairs = new Map<string, ViewEdge[]>();
   for (const e of edges) {
     const key = e.from < e.to ? `${e.from}|${e.to}` : `${e.to}|${e.from}`;
@@ -199,7 +184,7 @@ export function routeEdges(
     if (list) list.push(e);
     else pairs.set(key, [e]);
   }
-  const out: PlacedEdge[] = [];
+  const out: RoutedEdge[] = [];
   for (const e of edges) {
     const a = boxes.get(e.from);
     const b = boxes.get(e.to);
@@ -209,7 +194,8 @@ export function routeEdges(
     const i = group.indexOf(e);
     const offset = (i - (group.length - 1) / 2) * PARALLEL_GAP;
     const points = route(a, b, offset).map((p) => ({ x: round(p.x), y: round(p.y) }));
-    out.push({ view: e, points, label: pointAlong(points, (i + 1) / (group.length + 1)) });
+    const along = (i + 1) / (group.length + 1);
+    out.push({ view: e, points, label: pointAlong(points, along), along });
   }
   return out;
 }
