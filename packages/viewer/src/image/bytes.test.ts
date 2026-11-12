@@ -159,7 +159,7 @@ const EXPECTED: Record<string, string[]> = {
   "swr-fetchers": ["bba1e337e7b53ccd", "694d35429918cdd4", "8f4ab8aea9ed9036"],
   "syntax-error": ["55396ca32388bd0f", "9cb7f0340d7cb270", "7b0e096375125e04"],
   "tanstack-query-key": ["ce2f1fe99c5ed702", "8347e6264b3b78cd", "3ca62f021db8f439"],
-  "typed-sdk-base": ["b9264ba3e80a9d1e", "dd41e3cba8bdc4c9", "160d1ff802fb07e0"],
+  "typed-sdk-base": ["d86565c2f8cc02b9", "c340edb86ac4a278", "29179be6a0362eea"],
   "url-alternatives": ["6cbdfe701f1334a7", "db8ab97b3b62d5e5", "97cd61834becbd45"],
   "vite-proxy": ["15ba3d02005de3a2", "57a83cf2e36f652f", "7f1dc03c6619878c"],
   "workspace-root-files": ["fdbc469bea2d70c7", "0e720004c4d99d39", "6b8780fa3237d923"],

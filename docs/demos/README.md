@@ -83,6 +83,11 @@ same way and compared with the 0.3.1 graph above, node by node and edge by edge
 version differs (same counts and byte sizes). All three pins are JavaScript, so no edge
 changed and none needed rechecking by hand.
 
+At 0.3.3 (M9.7e, ADR-0265: an SDK client's env base goes to the outside host its example env
+file names) each pin was analyzed again the same way (`apps/web/dist/m97e-pins.mjs`) and is
+again identical to the 0.3.1 graph but for the version: anything-llm's five example env files
+and taxonomy's one change no edge, and maxun has none. No edge needed rechecking by hand.
+
 ### At 0.3.0
 
 All three pins were analyzed on the site at analyzer 0.3.0 on 2026-11-10 (M9.1b2b), right

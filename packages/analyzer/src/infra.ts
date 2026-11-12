@@ -20,9 +20,9 @@
  *   `KEY=value`, optionally `export KEY=value`, with `#` comments and quoted values, including
  *   quoted values that span lines. Only the key and, when the value is a URL, its scheme,
  *   host, and port are kept; the rest of the value (credentials, paths, query) is discarded
- *   at parse time and nothing read from a value is ever written into the graph. (Example
- *   env files also give the route matcher a URL path, never written either: `envExamples.ts`,
- *   ADR-0202.)
+ *   at parse time and nothing read from a value is ever written into the graph here. (Example
+ *   env files also give the route matcher a URL path, never written either, and a host,
+ *   drawn only for an SDK client's env base: `envExamples.ts`, ADR-0202, ADR-0265.)
  * - Prisma links: a datasource with `url = env("KEY")` is the compose service whose host
  *   name is the URL's host and whose engine matches (`exact`), else the one publishing the
  *   URL's port (or the engine's default port) on a loopback host (`heuristic`). The env files

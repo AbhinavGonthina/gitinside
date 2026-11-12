@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EXAMPLE_ENV_FILE, envPrefixes, urlPathPrefix } from "./envExamples.js";
+import { EXAMPLE_ENV_FILE, envExamples, urlOrigin, urlPathPrefix } from "./envExamples.js";
 
 describe("EXAMPLE_ENV_FILE", () => {
   it.each([
@@ -57,38 +57,85 @@ describe("urlPathPrefix", () => {
   });
 });
 
-describe("envPrefixes", () => {
-  const prefixes = envPrefixes([
+describe("urlOrigin", () => {
+  it.each([
+    ["http://localhost:5000/api", { scheme: "http", host: "localhost:5000" }],
+    ["HTTPS://API.OpenAI.com/v1", { scheme: "https", host: "api.openai.com" }],
+    [
+      "https://user:pass@api.example.com:8443/x?k=v",
+      { scheme: "https", host: "api.example.com:8443" },
+    ],
+    ["http://[::1]:3000/api", { scheme: "http", host: "[::1]:3000" }],
+  ])("%s ⇒ %j", (value, expected) => {
+    expect(urlOrigin(value)).toEqual(expected);
+  });
+
+  it.each([["/api"], ["//api.example.com/v1"], ["ftp://host/api"], ["http://${HOST}/api"], [""]])(
+    "%s ⇒ no origin",
+    (value) => {
+      expect(urlOrigin(value)).toBeUndefined();
+    },
+  );
+});
+
+describe("envExamples", () => {
+  const examples = envExamples([
     { file: ".env.example", text: "API_URL=http://localhost:4000/root\nSHARED_API_URL=/shared" },
     {
       file: "client/.env.example",
-      text: "# copy to .env\nVITE_SERVER_BASE_URL=http://localhost:5000/api\nAPI_URL=http://localhost:5000\nTOKEN_API_URL='http://h/${X}'",
+      text: "# copy to .env\nVITE_SERVER_BASE_URL=http://localhost:5000/api\nAPI_URL=http://localhost:5000\nTOKEN_API_URL='http://h/${X}'\nBAD_API_URL=not a url",
     },
     { file: "admin/.env.example", text: "VITE_API_URL=http://localhost:5000/api" },
     { file: "admin/.env.sample", text: "VITE_API_URL=http://localhost:5000/admin" },
     { file: "twice/.env.example", text: "VITE_API_URL=/a\nVITE_API_URL=/b" },
     { file: "same/.env.example", text: "VITE_API_URL=/a" },
     { file: "same/.env.sample", text: 'VITE_API_URL="http://localhost:1/a"' },
+    {
+      file: "ports/.env.example",
+      text: "VITE_API_URL=http://localhost:3000/api\nVITE_API_URL=http://localhost:5000/api",
+    },
+    { file: "proxy/.env.example", text: "UPSTREAM_BASE_URL=https://api.openai.com/v1" },
   ]);
+  const path = (name: string, file: string) => examples(name, file)?.path;
 
   it("reads the nearest folder's example value above the calling file", () => {
-    expect(prefixes("VITE_SERVER_BASE_URL", "client/src/app/api.ts")).toEqual(["api"]);
-    expect(prefixes("VITE_SERVER_BASE_URL", "client/api.ts")).toEqual(["api"]);
-    expect(prefixes("SHARED_API_URL", "client/src/api.ts")).toEqual(["shared"]);
-    expect(prefixes("API_URL", "server/src/api.ts")).toEqual(["root"]);
-    expect(prefixes("API_URL", "api.ts")).toEqual(["root"]);
+    expect(examples("VITE_SERVER_BASE_URL", "client/src/app/api.ts")).toEqual({
+      path: ["api"],
+      origin: { scheme: "http", host: "localhost:5000" },
+    });
+    expect(path("VITE_SERVER_BASE_URL", "client/api.ts")).toEqual(["api"]);
+    expect(examples("SHARED_API_URL", "client/src/api.ts")).toEqual({ path: ["shared"] });
+    expect(path("API_URL", "server/src/api.ts")).toEqual(["root"]);
+    expect(path("API_URL", "api.ts")).toEqual(["root"]);
+    expect(examples("UPSTREAM_BASE_URL", "proxy/src/llm.ts")).toEqual({
+      path: ["v1"],
+      origin: { scheme: "https", host: "api.openai.com" },
+    });
   });
 
-  it("lets the nearest folder decide, even when it gives no path", () => {
-    expect(prefixes("API_URL", "client/src/api.ts")).toBeUndefined();
-    expect(prefixes("TOKEN_API_URL", "client/src/api.ts")).toBeUndefined();
+  it("lets the nearest folder decide, even when it gives no path (ADR-0202's M9.1a3)", () => {
+    // A URL with no path is an empty prefix, not "no prefix": it can replace a fallback's path.
+    expect(examples("API_URL", "client/src/api.ts")).toEqual({
+      path: [],
+      origin: { scheme: "http", host: "localhost:5000" },
+    });
+    // An unusable path keeps the origin alone, and a value that isn't a URL gives nothing.
+    expect(examples("TOKEN_API_URL", "client/src/api.ts")).toEqual({
+      origin: { scheme: "http", host: "h" },
+    });
+    expect(examples("BAD_API_URL", "client/src/api.ts")).toBeUndefined();
   });
 
   it("gives nothing for a key outside the file's folders or with differing paths", () => {
-    expect(prefixes("VITE_SERVER_BASE_URL", "server/src/api.ts")).toBeUndefined();
-    expect(prefixes("VITE_SERVER_BASE_URL", "clientele/api.ts")).toBeUndefined();
-    expect(prefixes("VITE_API_URL", "admin/src/api.ts")).toBeUndefined();
-    expect(prefixes("VITE_API_URL", "twice/src/api.ts")).toBeUndefined();
-    expect(prefixes("VITE_API_URL", "same/src/api.ts")).toEqual(["a"]);
+    expect(path("VITE_SERVER_BASE_URL", "server/src/api.ts")).toBeUndefined();
+    expect(path("VITE_SERVER_BASE_URL", "clientele/api.ts")).toBeUndefined();
+    expect(examples("VITE_API_URL", "admin/src/api.ts")).toEqual({
+      origin: { scheme: "http", host: "localhost:5000" },
+    });
+    expect(examples("VITE_API_URL", "twice/src/api.ts")).toBeUndefined();
+    // A root-relative value has no origin, so the folder's values give none.
+    expect(examples("VITE_API_URL", "same/src/api.ts")).toEqual({ path: ["a"] });
+    // Different origins, one path: the path still counts.
+    expect(examples("VITE_API_URL", "ports/src/api.ts")).toEqual({ path: ["api"] });
   });
 });
