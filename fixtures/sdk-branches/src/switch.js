@@ -55,4 +55,31 @@ function sharedModels() {
   return shared.models.list();
 }
 
-module.exports = { LocalOrCloud, Lazy, embed, Pluggable, sharedModels };
+/** The only write to `globalThis.openai` stores a client the caller injects, not a cache. */
+function setAssistant(client) {
+  globalThis.openai = client;
+}
+
+const assistant = globalThis.openai ?? new OpenAI();
+
+function assistantModels() {
+  return assistant.models.list();
+}
+
+/** `self` is the caller's object here, not the global one. */
+function modelsOf(self) {
+  const ai = self.openai ?? new OpenAI();
+  self.openai = ai;
+  return ai.models.list();
+}
+
+module.exports = {
+  LocalOrCloud,
+  Lazy,
+  embed,
+  Pluggable,
+  sharedModels,
+  setAssistant,
+  assistantModels,
+  modelsOf,
+};

@@ -29,10 +29,15 @@
  *   not traced to an SDK (`opts.client ?? new OpenAI({ baseURL })`, a parameter) may hold any
  *   client: beside a client whose export reads a base, built with a base option or without
  *   one (`opts.client || new OpenAI()`, M9.7j), it's one built with an unseen base; beside a
- *   client that reads no base (Stripe) it changes nothing (ADR-0266, ADR-0267). A member read
- *   from the global object that the same file writes (`globalThis.ai ?? new OpenAI(…)` beside
- *   `globalThis.ai = …`, a module's cache) and a self-reference
- *   (`this.ai = this.ai || new OpenAI(…)`) add no branch, nor does `a && b`'s left side. Two
+ *   client that reads no base (Stripe) it changes nothing (ADR-0266, ADR-0267), until a
+ *   later branch whose export reads a base joins, so the result doesn't depend on branch
+ *   order (`opts.gh ?? app.octokit ?? new Octokit({ auth })`, M9.7l). A member read from
+ *   the global object (`globalThis`, `global`, `window`, `self` when the repo's code doesn't
+ *   declare that name) is what the same file writes at that path, joined: a write holding the
+ *   read itself (`globalThis.ai ?? new OpenAI(…)` beside `globalThis.ai = ai`, a module's
+ *   cache) adds nothing, an injected client (`setAI(c) { globalThis.ai = c }`) is unread,
+ *   and a path the file never writes is unread (ADR-0268). A self-reference
+ *   (`this.ai = this.ai || new OpenAI(…)`) adds no branch, nor does `a && b`'s left side. Two
  *   values that aren't both clients keep the first.
  * - A request is a method call on a module value or a client, at any depth:
  *   `stripe.customers.create()`, `s3.send(cmd)`, `sgMail.send()`. Its site is the method
@@ -78,7 +83,8 @@
  * - Clients destructured (`const { customers } = stripe`) or stored in collections; a cache
  *   in a module variable or a `Map` (`cache.get(k) ?? new OpenAI(…)`), or on the global
  *   object written only in another file, is an unread branch, so such a client's base is
- *   unresolved. A parameter's default
+ *   unresolved. A global path is matched by its members' names only, so a computed key
+ *   (`g[key] = c`) isn't a write it sees. A parameter's default
  *   (`constructor(client = new OpenAI({ baseURL }))`) is read as its one client, though a
  *   caller may pass another. Writes to a static field, a parameter property's later writes,
  *   and a variable declared without an initializer and assigned later
@@ -371,6 +377,12 @@ interface SdkValue {
   confidence: Confidence;
   /** For a client of an export in {@link SdkPackage.bases}, where its requests go. */
   base?: SdkBase;
+  /**
+   * True when an unread branch was joined into this value (M9.7l): beside a client that reads
+   * no base it changes nothing yet, but a later branch's client whose export reads a base
+   * makes the join `branches`, whatever order the branches come in.
+   */
+  unread?: boolean;
 }
 
 /**
@@ -420,6 +432,19 @@ const ASSIGNMENTS: ReadonlySet<ts.SyntaxKind> = new Set([
   ts.SyntaxKind.QuestionQuestionEqualsToken,
   ts.SyntaxKind.BarBarEqualsToken,
 ]);
+
+/** True for a declaration under a `declare` (`declare global { var ai: OpenAI }`). */
+function ambient(node: ts.Node): boolean {
+  for (let n: ts.Node | undefined = node; n; n = n.parent) {
+    if (
+      ts.canHaveModifiers(n) &&
+      ts.getModifiers(n)?.some((m) => m.kind === ts.SyntaxKind.DeclareKeyword)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
 
 /** The member an access names and the object it's read from: `g.ai`, `g["ai"]`. */
 function memberOf(e: ts.Expression): { name: string; object: ts.Expression } | undefined {
@@ -684,18 +709,46 @@ export function collectSdkFacts(
    * differ, so none is listed.
    */
   const merged = (a: SdkValue | undefined, b: SdkValue | undefined): SdkValue | undefined => {
+    const value = mergedValues(a, b);
+    return value && (a?.unread || b?.unread) ? withUnread(value) : value;
+  };
+
+  /**
+   * {@link merged} without the unread fact. Bases that agree keep whichever is set, so a
+   * `default` one beside a client of an export that reads none (`app.octokit ??
+   * new Octokit({ auth })`) stays `default` in either order (M9.7l).
+   */
+  const mergedValues = (a: SdkValue | undefined, b: SdkValue | undefined): SdkValue | undefined => {
     if (!a || !b) return a ?? b;
     if (a.name !== null || b.name !== null) return a;
     const confidence = weaker(a.confidence, b.confidence);
+    const agreed = (): SdkValue => {
+      const base = a.base ?? b.base;
+      return base ? { ...a, confidence, base } : { ...a, confidence };
+    };
     if (a.pkg.module !== b.pkg.module) {
       if (defaultHost(a.base) && defaultHost(b.base) && a.pkg.host === b.pkg.host) {
-        return { ...a, confidence };
+        return agreed();
       }
       return { ...a, confidence, base: { kind: "branches", paths: false } };
     }
-    if (sameBase(a.base, b.base)) return { ...a, confidence };
+    if (sameBase(a.base, b.base)) return agreed();
     const paths = (a.base?.paths ?? true) && (b.base?.paths ?? true);
     return { ...a, confidence, base: { kind: "branches", paths } };
+  };
+
+  /**
+   * A client joined with an unread branch, which may hold a client built with any base: one
+   * whose export reads a base is then `branches` (an unseen base beside its own, unless that
+   * is already unseen); one that reads none keeps its SDK's host, but carries the fact so a
+   * later branch that reads a base is `branches` too.
+   */
+  const withUnread = (value: SdkValue): SdkValue => {
+    if (value.name !== null) return value;
+    const { base } = value;
+    if (!base) return { ...value, unread: true };
+    const kind = base.kind === "unseen" ? "unseen" : "branches";
+    return { ...value, base: { kind, paths: base.paths }, unread: true };
   };
 
   /**
@@ -704,24 +757,25 @@ export function collectSdkFacts(
    * `opts.client ?? new OpenAI({ baseURL })`, M9.7g). Beside a client whose export reads a
    * base, built with one or not (`opts.client || new OpenAI()`, M9.7j), it's a client built
    * with an unseen base, so the two are `branches`; beside a client that reads no base it
-   * changes nothing, since that client's calls go to its SDK's host however it was built.
+   * changes nothing, since that client's calls go to its SDK's host however it was built,
+   * until a branch that reads a base joins (M9.7l: `opts.gh ?? app.octokit ??
+   * new Octokit({ auth })` in any order).
    */
   const joined = (a: Branch, b: Branch): Branch => {
     if (a !== UNREAD && b !== UNREAD) return merged(a, b);
     const other = a === UNREAD ? b : a;
     if (other === undefined || other === UNREAD) return UNREAD;
-    if (other.name !== null || !other.base) return other;
-    return merged(other, { ...other, base: { kind: "unseen", paths: other.base.paths } });
+    return withUnread(other);
   };
 
   /**
    * What one branch is: an SDK value, {@link UNREAD}, or nothing an SDK call can be made on.
    * A member read from the global object (`globalThis.ai ?? new OpenAI(…)`, also through a
-   * `const` holding `globalThis as …`) that the file also writes is a module's cache of the
-   * client the other branches build, so it adds nothing, typed or not (M9.7j).
+   * `const` holding `globalThis as …`) is what its file writes there ({@link globalRead}).
    */
   const branchOf = (sp: ServiceProgram, expression: ts.Expression, hops: number): Branch => {
-    if (fromGlobal(sp, expression, hops)) return undefined;
+    const global = globalRead(sp, expression, hops);
+    if (global) return global.branch;
     const found = sdkOf(sp, expression, hops);
     if (found) return found;
     return unread(sp, expression) ? UNREAD : undefined;
@@ -751,66 +805,123 @@ export function collectSdkFacts(
   };
 
   /**
-   * True for a member read from the global object (directly, through a `const` holding it,
-   * or a `const` holding the read) that its file also writes (`g.ai = client`,
-   * `g["ai"] ??= …`): the file caches its client there. A member no write in the file names
-   * may hold a client other code put there (M9.7j).
+   * For a member read from the global object (directly, through a `const` holding it, or a
+   * `const` holding the read), the branch it is: every value its file stores at that path
+   * (`g.ai = …`, `g["ai"] ??= …`), joined, where a value holding the read itself (`g.ai =
+   * cached` with `cached = g.ai ?? new OpenAI(…)`) is the module caching the client the other
+   * branches build and adds nothing. A path the file never writes may hold a client other
+   * code put there, so it's unread (M9.7j), and so is a write of a client injected from
+   * outside (`setAI(c) { globalThis.ai = c }`, M9.7l). `undefined` when it's no global read.
    */
-  const fromGlobal = (sp: ServiceProgram, expression: ts.Expression, hops: number): boolean => {
-    if (hops > MAX_HOPS) return false;
+  const globalRead = (
+    sp: ServiceProgram,
+    expression: ts.Expression,
+    hops: number,
+  ): { branch: Branch } | undefined => {
+    if (hops > MAX_HOPS) return undefined;
     const e = unwrap(expression);
     if (ts.isIdentifier(e)) {
       const declaration = symbolAt(sp, e)?.declarations?.[0];
-      return (
-        declaration !== undefined &&
+      return declaration !== undefined &&
         ts.isVariableDeclaration(declaration) &&
-        declaration.initializer !== undefined &&
-        fromGlobal(sp, declaration.initializer, hops + 1)
-      );
+        declaration.initializer !== undefined
+        ? globalRead(sp, declaration.initializer, hops + 1)
+        : undefined;
     }
-    const member = memberOf(e);
-    return (
-      member !== undefined &&
-      onGlobal(sp, member.object, 0) &&
-      globalWrites(sp, e.getSourceFile()).has(member.name)
-    );
+    if (!memberOf(e)) return undefined;
+    const path = globalPath(sp, e, 0);
+    if (path === undefined) return undefined;
+    const writes = globalWrites(sp, e.getSourceFile()).filter((w) => w.path === path);
+    if (writes.length === 0) return { branch: UNREAD };
+    let branch: Branch;
+    for (const { value } of writes) {
+      if (!holds(sp, value, e, 0)) branch = joined(branch, branchOf(sp, value, hops + 1));
+    }
+    return { branch };
   };
 
-  /** True for the global object or a member of it, directly or through a `const`. */
-  const onGlobal = (sp: ServiceProgram, expression: ts.Expression, hops: number): boolean => {
+  /**
+   * True when `expression`, or a variable's initializer it names (at any depth), contains the
+   * node `read`.
+   */
+  const holds = (sp: ServiceProgram, expression: ts.Node, read: ts.Node, hops: number): boolean => {
     if (hops > MAX_HOPS) return false;
-    const e = unwrap(expression);
-    if (ts.isPropertyAccessExpression(e) || ts.isElementAccessExpression(e)) {
-      return onGlobal(sp, e.expression, hops + 1);
-    }
-    if (!ts.isIdentifier(e)) return false;
-    if (GLOBAL_OBJECTS.has(e.text)) return true;
-    const declaration = symbolAt(sp, e)?.declarations?.[0];
-    return (
-      declaration !== undefined &&
-      ts.isVariableDeclaration(declaration) &&
-      declaration.initializer !== undefined &&
-      onGlobal(sp, declaration.initializer, hops + 1)
-    );
+    let found = false;
+    const visit = (node: ts.Node): void => {
+      if (found) return;
+      if (node === read) {
+        found = true;
+        return;
+      }
+      if (ts.isIdentifier(node)) {
+        const declaration = symbolAt(sp, node)?.declarations?.[0];
+        found =
+          declaration !== undefined &&
+          ts.isVariableDeclaration(declaration) &&
+          declaration.initializer !== undefined &&
+          holds(sp, declaration.initializer, read, hops + 1);
+        return;
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(expression);
+    return found;
   };
 
-  /** The global members each file assigns (`=`, `??=`, `||=`), by file. */
-  const globalWritesByFile = new Map<ts.SourceFile, Set<string>>();
+  /**
+   * The path of a member of the global object, from it (`globalThis.cache.ai` ⇒ `cache` then
+   * `ai`, as one key), directly or through a `const`; `""` for the global object itself. A
+   * name is the global object only when it isn't declared in the repo's code (a parameter
+   * `self`, or `var self = this`, is a local).
+   */
+  const globalPath = (
+    sp: ServiceProgram,
+    expression: ts.Expression,
+    hops: number,
+  ): string | undefined => {
+    if (hops > MAX_HOPS) return undefined;
+    const e = unwrap(expression);
+    const member = memberOf(e);
+    if (member) {
+      const object = globalPath(sp, member.object, hops + 1);
+      return object === undefined ? undefined : `${object}/${JSON.stringify(member.name)}`;
+    }
+    if (!ts.isIdentifier(e)) return undefined;
+    const declarations = symbolAt(sp, e)?.declarations ?? [];
+    const local = declarations.filter((d) => !d.getSourceFile().isDeclarationFile && !ambient(d));
+    if (local.length === 0) return GLOBAL_OBJECTS.has(e.text) ? "" : undefined;
+    const declaration = local[0];
+    return declaration &&
+      ts.isVariableDeclaration(declaration) &&
+      declaration.initializer !== undefined
+      ? globalPath(sp, declaration.initializer, hops + 1)
+      : undefined;
+  };
 
-  const globalWrites = (sp: ServiceProgram, file: ts.SourceFile): ReadonlySet<string> => {
+  /** The values each file stores at a path of the global object (`=`, `??=`, `||=`), by file. */
+  const globalWritesByFile = new Map<
+    ts.SourceFile,
+    readonly { path: string; value: ts.Expression }[]
+  >();
+
+  const globalWrites = (
+    sp: ServiceProgram,
+    file: ts.SourceFile,
+  ): readonly { path: string; value: ts.Expression }[] => {
     const known = globalWritesByFile.get(file);
     if (known) return known;
-    const names = new Set<string>();
+    const writes: { path: string; value: ts.Expression }[] = [];
     const walk = (node: ts.Node): void => {
       if (ts.isBinaryExpression(node) && ASSIGNMENTS.has(node.operatorToken.kind)) {
-        const member = memberOf(unwrap(node.left));
-        if (member && onGlobal(sp, member.object, 0)) names.add(member.name);
+        const left = unwrap(node.left);
+        const path = memberOf(left) ? globalPath(sp, left, 0) : undefined;
+        if (path !== undefined) writes.push({ path, value: node.right });
       }
       ts.forEachChild(node, walk);
     };
     walk(file);
-    globalWritesByFile.set(file, names);
-    return names;
+    globalWritesByFile.set(file, writes);
+    return writes;
   };
 
   /**

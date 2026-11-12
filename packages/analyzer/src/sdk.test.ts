@@ -848,6 +848,161 @@ describe("analyze: SDK clients with a base URL (M9.1a3e2a)", () => {
     ]);
   });
 
+  it("joins branches to one answer in every order, pairs and three-way (M9.7l, K2)", async () => {
+    // U: a caller's client; N: App's client (reads no base); D: built with only a token;
+    // V: built with a GitHub Enterprise base.
+    const kinds = new Map([
+      ["U", "opts.gh"],
+      ["N", "app.octokit"],
+      ["D", "new Kit({ auth: opts.token })"],
+      ["V", 'new Kit({ baseUrl: "https://github.acme.com/api/v3" })'],
+    ]);
+    const orders: string[] = [];
+    const permute = (left: string[], taken: string): void => {
+      if (taken.length >= 2) orders.push(taken);
+      if (taken.length === 3) return;
+      for (const k of left)
+        permute(
+          left.filter((x) => x !== k),
+          taken + k,
+        );
+    };
+    permute([...kinds.keys()], "");
+    const branch = (k: string, ts: boolean): string => {
+      const text = kinds.get(k) ?? k;
+      return ts && k === "U" ? `(${text} as Kit | undefined)` : text;
+    };
+    // Every base a client may have is the default host only when no branch reads another:
+    // App's client beside a token-built one, or beside a caller's client.
+    const defaultHost = (order: string): boolean =>
+      [...order].sort().join("") === "DN" || [...order].sort().join("") === "NU";
+    const chain = (order: string, ts: boolean): string =>
+      [...order].map((k) => branch(k, ts)).join(" ?? ");
+    await put("package.json", JSON.stringify({ name: "api" }));
+    await put("src/table.ts", [
+      'import { App, Octokit as Kit } from "octokit";',
+      'const app = new App({ appId: 1, privateKey: "k" });',
+      ...orders.map(
+        (o) =>
+          `export function f_${o}(opts: { gh?: unknown; token?: string }) { const gh = ${chain(o, true)}; return gh.rest.repos.get({} as never); }`,
+      ),
+    ]);
+    await put("src/table.js", [
+      'const { App, Octokit: Kit } = require("octokit");',
+      'const app = new App({ appId: 1, privateKey: "k" });',
+      ...orders.map(
+        (o) =>
+          `function f_${o}(opts) { const gh = ${chain(o, false)}; return gh.rest.repos.get({}); }`,
+      ),
+      `module.exports = { ${orders.map((o) => `f_${o}`).join(", ")} };`,
+    ]);
+    await put("src/fields.js", [
+      'const { App, Octokit: Kit } = require("octokit");',
+      'const app = new App({ appId: 1, privateKey: "k" });',
+      ...orders.map((o) => {
+        const writes = [...o].map(
+          (k, i) => `${i === 0 ? "" : "else "}if (pick === ${i}) this.gh = ${branch(k, false)};`,
+        );
+        return `class C_${o} { constructor(opts, pick) { ${writes.join(" ")} } get() { return this.gh.rest.repos.get({}); } }`;
+      }),
+      `module.exports = { ${orders.map((o) => `C_${o}`).join(", ")} };`,
+    ]);
+    const graph = await analyze(dir);
+    const targets = new Map<string, string[]>();
+    for (const edge of graph.edges) {
+      if (edge.kind !== "external_call" && edge.kind !== "http") continue;
+      const from = /#(?:f_|C_)(\w+?)(?:\.get)?$/.exec(edge.from)?.[1];
+      const file = /src\/(\w+\.\w+)#/.exec(edge.from)?.[1];
+      if (from === undefined || file === undefined) continue;
+      const key = `${file} ${from}`;
+      const to = edge.to.startsWith("unresolved:") ? "unresolved" : edge.to;
+      targets.set(key, [...(targets.get(key) ?? []), to].sort());
+    }
+    const expected = new Map<string, string[]>();
+    for (const file of ["fields.js", "table.js", "table.ts"]) {
+      for (const o of orders) {
+        expected.set(`${file} ${o}`, [
+          defaultHost(o) ? "external:ext/api.github.com" : "unresolved",
+        ]);
+      }
+    }
+    expect(new Map([...targets].sort())).toEqual(new Map([...expected].sort()));
+    // Every unresolved one is so because its branches disagree.
+    expect(new Set(unresolved(graph).map(([, reason, detail]) => `${reason} ${detail}`))).toEqual(
+      new Set([
+        "DYNAMIC_URL the SDK client is built with different base URLs on different branches",
+      ]),
+    );
+  });
+
+  it("reads a global member by what the file writes to its path (M9.7l, K1)", async () => {
+    await put("package.json", JSON.stringify({ name: "api" }));
+    await put("src/global.ts", [
+      'import OpenAI from "openai";',
+      "type Slots = { openai?: OpenAI; ai?: OpenAI; cache?: { ai?: OpenAI }; built?: OpenAI; groq?: OpenAI; inline?: OpenAI };",
+      "const g = globalThis as unknown as Slots;",
+      "export function setAI(c: OpenAI) { g.openai = c; }",
+      "export const injected = g.openai ?? new OpenAI();",
+      "export const nested = g.ai ?? new OpenAI();",
+      "(g.cache as { ai?: OpenAI }).ai = nested;",
+      "export function init() { g.built = new OpenAI(); }",
+      "export const built = g.built ?? new OpenAI();",
+      'export function useGroq() { g.groq = new OpenAI({ baseURL: "https://api.groq.com/openai/v1" }); }',
+      "export const groq = g.groq ?? new OpenAI();",
+      "declare const self: { held?: OpenAI };",
+      "export const kept = self.held ?? new OpenAI();",
+      "self.held = kept;",
+      "export function keptModels() { return kept.models.list(); }",
+      "export function initInline() { g.inline = g.inline ?? new OpenAI(); }",
+      "export const inline = g.inline ?? new OpenAI();",
+      "export function inlineModels() { return inline.models.list(); }",
+      "export function injectedModels() { return injected.models.list(); }",
+      "export function nestedModels() { return nested.models.list(); }",
+      "export function builtModels() { return built.models.list(); }",
+      "export function groqModels() { return groq.models.list(); }",
+    ]);
+    await put("src/inject.js", [
+      'const { OpenAI } = require("openai");',
+      "function setAI(c) { globalThis.openai = c; }",
+      "const ai = globalThis.openai ?? new OpenAI();",
+      "function ask() { return ai.models.list(); }",
+      "function local(self) {",
+      "  const own = self.client ?? new OpenAI();",
+      "  self.client = own;",
+      "  return own.models.list();",
+      "}",
+      "function Holder() {",
+      "  var self = this;",
+      "  self.list = function list() {",
+      "    const held = self.ai ?? new OpenAI();",
+      "    self.ai = held;",
+      "    return held.models.list();",
+      "  };",
+      "}",
+      "module.exports = { setAI, ask, local, Holder };",
+    ]);
+    const graph = await analyze(dir);
+    // A global member written only with a client the other branch builds, or with itself
+    // (`g.inline = g.inline ?? …`), is that client; an ambient `declare const self` names the
+    // global object.
+    expect(outgoing(graph).filter((e) => !e.includes("-> unresolved:"))).toEqual([
+      "symbol:api/src/global.ts#builtModels -> api.openai.com",
+      "symbol:api/src/global.ts#inlineModels -> api.openai.com",
+      "symbol:api/src/global.ts#keptModels -> api.openai.com",
+    ]);
+    // An injected client, a write to another path, a different base, and a member of an
+    // object that isn't the global (a parameter, a `var self = this`) may hold any client.
+    const branches = "the SDK client is built with different base URLs on different branches";
+    expect(unresolved(graph).sort()).toEqual([
+      ["GET ai /models", "DYNAMIC_URL", branches],
+      ["GET groq /models", "DYNAMIC_URL", branches],
+      ["GET held /models", "DYNAMIC_URL", branches],
+      ["GET injected /models", "DYNAMIC_URL", branches],
+      ["GET nested /models", "DYNAMIC_URL", branches],
+      ["GET own /models", "DYNAMIC_URL", branches],
+    ]);
+  });
+
   it("draws no outside API for an example file's placeholder host (M9.7g, H4)", async () => {
     await put("package.json", JSON.stringify({ name: "api" }));
     await put(".env.example", [
