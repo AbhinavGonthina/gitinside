@@ -1,4 +1,4 @@
 {
   "name": "sdk-branches",
-  "dependencies": { "@anthropic-ai/sdk": "0.30", "@octokit/rest": "21", "openai": "6" }
+  "dependencies": { "@anthropic-ai/sdk": "0.30", "@octokit/rest": "21", "octokit": "4", "openai": "6" }
 }
