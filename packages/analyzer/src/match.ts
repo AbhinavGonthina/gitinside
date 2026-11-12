@@ -16,7 +16,11 @@
  *    tried in front of the request's first, then the request alone (`envExamples.ts`,
  *    ADR-0202); the path is never written into the graph. When the code's fallback gave the
  *    URL leading segments (`VITE_API_BASE || "/api"`), the example's path replaces those
- *    instead of going in front of them, as a set env var replaces the fallback (M9.1a3). A literal loopback host (`localhost`, `127.0.0.1`,
+ *    instead of going in front of them, as a set env var replaces the fallback (M9.1a3); an
+ *    example URL with no path replaces them with nothing. An SDK client's env base whose
+ *    example value names a host outside the repo is an external call to that host
+ *    (`heuristic`, whatever the var's name), never matched to a route (ADR-0265); a `fetch`
+ *    base's example host isn't read so. A literal loopback host (`localhost`, `127.0.0.1`,
  *    `[::1]`, `0.0.0.0`, `*.localhost`, any port) is `heuristic` against every service; any
  *    other literal host is an external API and is never matched to a route.
  *    A root-relative request from an app with a dev proxy (Vite's `server.proxy`, CRA's
@@ -104,7 +108,7 @@ import {
   type UnresolvedReason,
 } from "@gitinside/schema";
 import { formatProxyPath, proxyRequest, type DevProxies } from "./devProxy.js";
-import type { EnvPrefixes } from "./envExamples.js";
+import type { EnvExamples } from "./envExamples.js";
 import { fileNodeId, withinService } from "./files.js";
 import { rewriteRequest, type NextConfigs } from "./nextConfig.js";
 import type { UrlBase } from "./url.js";
@@ -142,8 +146,13 @@ export type RouteMatch =
       detail: string;
     };
 
-/** The parts of an {@link HttpRequest} the matcher reads. */
-export type MatchInput = Pick<HttpRequest, "file" | "method" | "url" | "confidence">;
+/**
+ * The parts of an {@link HttpRequest} the matcher reads; `call` only for its client (an SDK
+ * request's env base is read differently, ADR-0265).
+ */
+export type MatchInput = Pick<HttpRequest, "file" | "method" | "url" | "confidence"> & {
+  call?: Pick<HttpRequest["call"], "client">;
+};
 
 /** Matches requests against the repo's routes. */
 export interface RouteMatcher {
@@ -269,8 +278,8 @@ const bucketOf = (segments: readonly RouteSegment[]): string => {
 /**
  * Build a matcher over the `route` nodes in `nodes` (other kinds are ignored). The first node
  * with a given ID wins, as in graph assembly. Routes in `listed` (`ExpressRoutes.listedRoutes`)
- * match at `heuristic` at best. `envPrefix` gives an env base's path from example env files
- * (`envExamples.ts`, ADR-0202), `devProxy` the dev proxy a calling file's app sends
+ * match at `heuristic` at best. `envExample` gives an env base's path and origin from example
+ * env files (`envExamples.ts`, ADR-0202, ADR-0265), `devProxy` the dev proxy a calling file's app sends
  * root-relative requests through (`devProxy.ts`, ADR-0204), and `next` the Next apps'
  * `basePath` and rewrites (`nextConfig.ts`, ADR-0206).
  */
@@ -278,7 +287,7 @@ export function createRouteMatcher(
   nodes: readonly GraphNode[],
   workspace: Workspace,
   listed: ReadonlySet<string> = new Set(),
-  envPrefix: EnvPrefixes = () => undefined,
+  envExample: EnvExamples = () => undefined,
   devProxy: DevProxies = () => undefined,
   next: NextApps = NO_NEXT_APPS,
 ): RouteMatcher {
@@ -383,6 +392,16 @@ export function createRouteMatcher(
       const { base, segments } = url.pattern;
       if (base.kind === "host" && !isLoopbackHost(base.host)) {
         return { kind: "external", scheme: base.scheme, host: base.host };
+      }
+      // An SDK client is a client of someone's API, so an example value naming a host outside
+      // the repo (`UPSTREAM_BASE_URL=https://api.openai.com/v1`) is where it goes, even when the
+      // repo serves the same path itself (an OpenAI-compatible proxy). `fetch` bases aren't
+      // read so: their examples often name the repo's own deployed server (ADR-0265).
+      if (base.kind === "env" && request.call?.client === "sdk") {
+        const origin = envExample(base.name, request.file)?.origin;
+        if (origin && !mayBeInRepo(origin.host)) {
+          return { kind: "external", ...origin, confidence: "heuristic" };
+        }
       }
       if (base.kind === "env" && !reachesRepo(base)) {
         return {
@@ -546,7 +565,7 @@ export function createRouteMatcher(
       // here, so the detail below and every graph string are built without it. A set env var
       // replaces the code's fallback, so the example's path takes the place of the fallback's
       // segments rather than going in front of them (`|| "/api"` and `…/api` are one `/api`).
-      const prefix = base.kind === "env" ? envPrefix(base.name, request.file) : undefined;
+      const prefix = base.kind === "env" ? envExample(base.name, request.file)?.path : undefined;
       const replaced = base.kind === "env" ? (base.fallbackSegments ?? 0) : 0;
       const prefixed =
         prefix && (prefix.length > 0 || replaced > 0)

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Confidence, GraphNode, HttpMethod } from "@gitinside/schema";
 import { analyze } from "./analyze.js";
 import { serializeGraph } from "./assemble.js";
+import { envExamples } from "./envExamples.js";
 import {
   alignSegments,
   buildHttpEdges,
@@ -551,7 +552,9 @@ describe("createRouteMatcher", () => {
       new Set(),
       (name, file) => {
         asked.push(`${name} ${file}`);
-        return name === "VITE_SERVER_BASE_URL" || name === "ANALYTICS" ? ["api"] : undefined;
+        return name === "VITE_SERVER_BASE_URL" || name === "ANALYTICS"
+          ? { path: ["api"] }
+          : undefined;
       },
     );
     const from = (spec: string) => show(prefixed.match(request(spec)));
@@ -590,8 +593,13 @@ describe("createRouteMatcher", () => {
       ],
       workspace,
       new Set(),
-      (name) =>
-        name === "VITE_API_BASE" ? ["api"] : name === "VITE_ROOT_API_URL" ? [] : undefined,
+      // What `envExamples` reads from the files, not a stub (M9.7e, G4).
+      envExamples([
+        {
+          file: "apps/web/.env.example",
+          text: "VITE_API_BASE='http://localhost:3001/api'\nVITE_ROOT_API_URL=http://localhost:3001",
+        },
+      ]),
     );
     const from = (name: string, fallback: string, path: string) => {
       const result = toUrlPattern([
@@ -623,6 +631,75 @@ describe("createRouteMatcher", () => {
     expect(from("VITE_API_BASE", "http://localhost:3001", "/admin/users")).toBe(
       "heuristic route:api/GET /api/admin/users",
     );
+  });
+
+  it("sends an SDK client's env base to the outside host its example names, never a route (ADR-0265)", () => {
+    // An OpenAI-compatible proxy: it serves `POST /v1/chat/completions` and calls upstream
+    // through `new OpenAI({ baseURL: process.env.UPSTREAM_BASE_URL })` (review finding G3).
+    const proxy = createRouteMatcher(
+      [route("api", "POST /v1/chat/completions"), route("api", "POST /api/users")],
+      workspace,
+      new Set(),
+      envExamples([
+        {
+          file: "apps/api/.env.example",
+          text: [
+            "UPSTREAM_BASE_URL=https://user:pw@API.OpenAI.com:443/v1",
+            "LOCAL_BASE_URL=http://localhost:11434/v1",
+            "COMPOSE_BASE_URL=http://api:4000/v1",
+            "OPENAI_HOST=https://api.groq.com/openai/v1",
+            "SITE_API_URL=https://example.vercel.app/api",
+          ].join("\n"),
+        },
+      ]),
+    );
+    const from = (spec: string, client: "sdk" | "fetch") =>
+      show(proxy.match({ ...request(spec, "apps/api/src/llm.ts"), call: { client } }));
+    // Credentials dropped, lowercased; `externalHost` drops the default port when drawing.
+    expect(
+      proxy.match({
+        ...request("POST {env:UPSTREAM_BASE_URL}/chat/completions", "apps/api/src/llm.ts"),
+        call: { client: "sdk" },
+      }),
+    ).toEqual({
+      kind: "external",
+      scheme: "https",
+      host: "api.openai.com:443",
+      confidence: "heuristic",
+    });
+    // Whatever the var's name: the example names the host.
+    expect(from("POST {env:OPENAI_HOST}/chat/completions", "sdk")).toBe("external api.groq.com");
+    // A loopback or single-label host may be the repo's own server, so it's matched as before.
+    expect(from("POST {env:LOCAL_BASE_URL}/chat/completions", "sdk")).toBe(
+      "heuristic route:api/POST /v1/chat/completions",
+    );
+    expect(from("POST {env:COMPOSE_BASE_URL}/chat/completions", "sdk")).toBe(
+      "heuristic route:api/POST /v1/chat/completions",
+    );
+    // A `fetch` base's example host is often the repo's own deployment: matched as before.
+    expect(from("POST {env:UPSTREAM_BASE_URL}/chat/completions", "fetch")).toBe(
+      "heuristic route:api/POST /v1/chat/completions",
+    );
+    expect(from("POST {env:SITE_API_URL}/users", "fetch")).toBe(
+      "heuristic route:api/POST /api/users",
+    );
+    // A request with no `call` reads like `fetch`.
+    expect(
+      show(
+        proxy.match(
+          request("POST {env:UPSTREAM_BASE_URL}/chat/completions", "apps/api/src/llm.ts"),
+        ),
+      ),
+    ).toBe("heuristic route:api/POST /v1/chat/completions");
+    // Outside the example's folder, nothing is known about the var.
+    expect(
+      show(
+        proxy.match({
+          ...request("POST {env:UPSTREAM_BASE_URL}/chat/completions"),
+          call: { client: "sdk" },
+        }),
+      ),
+    ).toBe("NO_MATCHING_ROUTE: no route matches POST to {env:UPSTREAM_BASE_URL}/chat/completions");
   });
 
   it("matches a request sent through a dev proxy by the path the proxy sends (ADR-0204)", () => {
