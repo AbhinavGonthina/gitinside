@@ -33,4 +33,26 @@ function embed(opts, input) {
   return clientFor(opts).embeddings.create({ input });
 }
 
-module.exports = { LocalOrCloud, Lazy, embed };
+/** Built with no options, but a setter may swap in a client with any base. */
+class Pluggable {
+  constructor() {
+    this.ai = new OpenAI();
+  }
+
+  setClient(client) {
+    this.ai = client;
+  }
+
+  models() {
+    return this.ai.models.list();
+  }
+}
+
+/** Nothing here caches a client on `window`, so another script may have put any one there. */
+const shared = window.openai ?? new OpenAI();
+
+function sharedModels() {
+  return shared.models.list();
+}
+
+module.exports = { LocalOrCloud, Lazy, embed, Pluggable, sharedModels };

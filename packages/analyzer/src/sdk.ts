@@ -27,9 +27,11 @@
  *   base is only known at runtime (M9.7d), and so are clients of two packages, unless
  *   neither reads a base and both go to one host. A branch that is a name, member, or call
  *   not traced to an SDK (`opts.client ?? new OpenAI({ baseURL })`, a parameter) may hold any
- *   client: beside a client whose export reads a base, it's one built with an unseen base;
- *   beside any other client it changes nothing (ADR-0266). A member read from the global
- *   object (`globalThis.ai ?? new OpenAI(…)`, a module's cache) and a self-reference
+ *   client: beside a client whose export reads a base, built with a base option or without
+ *   one (`opts.client || new OpenAI()`, M9.7j), it's one built with an unseen base; beside a
+ *   client that reads no base (Stripe) it changes nothing (ADR-0266, ADR-0267). A member read
+ *   from the global object that the same file writes (`globalThis.ai ?? new OpenAI(…)` beside
+ *   `globalThis.ai = …`, a module's cache) and a self-reference
  *   (`this.ai = this.ai || new OpenAI(…)`) add no branch, nor does `a && b`'s left side. Two
  *   values that aren't both clients keep the first.
  * - A request is a method call on a module value or a client, at any depth:
@@ -74,8 +76,9 @@
  *   and methods on results (`(await s3.send(cmd)).Body.transformToString()`): one call
  *   per chain counts, the one on the client.
  * - Clients destructured (`const { customers } = stripe`) or stored in collections; a cache
- *   in a module variable or a `Map` (`cache.get(k) ?? new OpenAI(…)`) is an unread branch,
- *   so such a client's base is unresolved. A parameter's default
+ *   in a module variable or a `Map` (`cache.get(k) ?? new OpenAI(…)`), or on the global
+ *   object written only in another file, is an unread branch, so such a client's base is
+ *   unresolved. A parameter's default
  *   (`constructor(client = new OpenAI({ baseURL }))`) is read as its one client, though a
  *   caller may pass another. Writes to a static field, a parameter property's later writes,
  *   and a variable declared without an initializer and assigned later
@@ -375,14 +378,26 @@ interface SdkValue {
  * option's expression and the text the SDK appends; `env`, the env var the SDK reads when no
  * option is set; `unknown`, options a spread or an unread value could set it in; `unseen`, a
  * client known only by its type; `branches`, a client built on several branches with bases
- * that differ (M9.7d). A client without one goes to the SDK's default host.
+ * that differ (M9.7d); `default`, a client built with no base option, so it goes to the SDK's
+ * default host, though another client of its export may not (M9.7j). A client without one
+ * reads no base at all and goes to the SDK's default host however it was built.
  */
 type SdkBase =
   | { kind: "value"; value: ProgramExpression; suffix: string; paths: boolean }
   | { kind: "env"; name: string; suffix: string; paths: boolean }
   | { kind: "unknown"; options: ProgramExpression; paths: boolean }
   | { kind: "unseen"; paths: boolean }
-  | { kind: "branches"; paths: boolean };
+  | { kind: "branches"; paths: boolean }
+  | { kind: "default"; paths: boolean };
+
+/** A base the HTTP stage reads: any but `default`. */
+type ReadBase = Exclude<SdkBase, { kind: "default" }>;
+
+/** True when a client's calls go to its SDK's default host: no base, or a `default` one. */
+const defaultHost = (
+  base: SdkBase | undefined,
+): base is { kind: "default"; paths: boolean } | undefined =>
+  base === undefined || base.kind === "default";
 
 /** A branch whose value isn't traced to an SDK but may hold any client (M9.7g). */
 const UNREAD = "unread";
@@ -393,8 +408,27 @@ type Branch = SdkValue | typeof UNREAD | undefined;
 /** A joined value once every branch is in: an unread one alone is no SDK value. */
 const settled = (branch: Branch): SdkValue | undefined => (branch === UNREAD ? undefined : branch);
 
-/** Names of the global object; a member read from one is a cache, not an injected client. */
+/**
+ * Names of the global object; a member read from one that its file writes is a cache, not an
+ * injected client.
+ */
 const GLOBAL_OBJECTS: ReadonlySet<string> = new Set(["global", "globalThis", "self", "window"]);
+
+/** The operators that store into a global member: `=`, `??=`, `||=`. */
+const ASSIGNMENTS: ReadonlySet<ts.SyntaxKind> = new Set([
+  ts.SyntaxKind.EqualsToken,
+  ts.SyntaxKind.QuestionQuestionEqualsToken,
+  ts.SyntaxKind.BarBarEqualsToken,
+]);
+
+/** The member an access names and the object it's read from: `g.ai`, `g["ai"]`. */
+function memberOf(e: ts.Expression): { name: string; object: ts.Expression } | undefined {
+  if (ts.isPropertyAccessExpression(e)) return { name: e.name.text, object: e.expression };
+  if (ts.isElementAccessExpression(e) && ts.isStringLiteralLike(e.argumentExpression)) {
+    return { name: e.argumentExpression.text, object: e.expression };
+  }
+  return undefined;
+}
 
 /**
  * The value a JS assignment declaration assigns (`this.ai = …`, `exports.x = …`): such a
@@ -600,14 +634,11 @@ export function collectSdkFacts(
     sp: ServiceProgram,
     config: ClientBase,
     options: ts.Expression | undefined,
-  ): SdkBase | undefined => {
+  ): SdkBase => {
     const { paths } = config;
-    const fallback: SdkBase | undefined = config.env && {
-      kind: "env",
-      name: config.env.name,
-      suffix: config.env.suffix ?? "",
-      paths,
-    };
+    const fallback: SdkBase = config.env
+      ? { kind: "env", name: config.env.name, suffix: config.env.suffix ?? "", paths }
+      : { kind: "default", paths };
     if (!options) return fallback;
     const unknown: SdkBase = { kind: "unknown", options: { sp, expression: options }, paths };
     const e = unwrap(options);
@@ -657,7 +688,9 @@ export function collectSdkFacts(
     if (a.name !== null || b.name !== null) return a;
     const confidence = weaker(a.confidence, b.confidence);
     if (a.pkg.module !== b.pkg.module) {
-      if (!a.base && !b.base && a.pkg.host === b.pkg.host) return { ...a, confidence };
+      if (defaultHost(a.base) && defaultHost(b.base) && a.pkg.host === b.pkg.host) {
+        return { ...a, confidence };
+      }
       return { ...a, confidence, base: { kind: "branches", paths: false } };
     }
     if (sameBase(a.base, b.base)) return { ...a, confidence };
@@ -669,9 +702,9 @@ export function collectSdkFacts(
    * Two branches merged like {@link merged}, where a branch may be {@link UNREAD}: a value
    * that isn't traced to an SDK but may hold any client (`opts.client` in
    * `opts.client ?? new OpenAI({ baseURL })`, M9.7g). Beside a client whose export reads a
-   * base, it's a client built with an unseen base, so the two are `branches`; beside any other
-   * client it changes nothing, since that client's calls go to its SDK's host however it was
-   * built.
+   * base, built with one or not (`opts.client || new OpenAI()`, M9.7j), it's a client built
+   * with an unseen base, so the two are `branches`; beside a client that reads no base it
+   * changes nothing, since that client's calls go to its SDK's host however it was built.
    */
   const joined = (a: Branch, b: Branch): Branch => {
     if (a !== UNREAD && b !== UNREAD) return merged(a, b);
@@ -684,8 +717,8 @@ export function collectSdkFacts(
   /**
    * What one branch is: an SDK value, {@link UNREAD}, or nothing an SDK call can be made on.
    * A member read from the global object (`globalThis.ai ?? new OpenAI(…)`, also through a
-   * `const` holding `globalThis as …`) is a module's cache of the client the other branches
-   * build, so it adds nothing, typed or not.
+   * `const` holding `globalThis as …`) that the file also writes is a module's cache of the
+   * client the other branches build, so it adds nothing, typed or not (M9.7j).
    */
   const branchOf = (sp: ServiceProgram, expression: ts.Expression, hops: number): Branch => {
     if (fromGlobal(sp, expression, hops)) return undefined;
@@ -717,12 +750,38 @@ export function collectSdkFacts(
     return !(symbol && sdkBySymbol.get(symbol) === null);
   };
 
-  /** True for a member read from the global object, directly or through a `const`. */
+  /**
+   * True for a member read from the global object (directly, through a `const` holding it,
+   * or a `const` holding the read) that its file also writes (`g.ai = client`,
+   * `g["ai"] ??= …`): the file caches its client there. A member no write in the file names
+   * may hold a client other code put there (M9.7j).
+   */
   const fromGlobal = (sp: ServiceProgram, expression: ts.Expression, hops: number): boolean => {
     if (hops > MAX_HOPS) return false;
     const e = unwrap(expression);
+    if (ts.isIdentifier(e)) {
+      const declaration = symbolAt(sp, e)?.declarations?.[0];
+      return (
+        declaration !== undefined &&
+        ts.isVariableDeclaration(declaration) &&
+        declaration.initializer !== undefined &&
+        fromGlobal(sp, declaration.initializer, hops + 1)
+      );
+    }
+    const member = memberOf(e);
+    return (
+      member !== undefined &&
+      onGlobal(sp, member.object, 0) &&
+      globalWrites(sp, e.getSourceFile()).has(member.name)
+    );
+  };
+
+  /** True for the global object or a member of it, directly or through a `const`. */
+  const onGlobal = (sp: ServiceProgram, expression: ts.Expression, hops: number): boolean => {
+    if (hops > MAX_HOPS) return false;
+    const e = unwrap(expression);
     if (ts.isPropertyAccessExpression(e) || ts.isElementAccessExpression(e)) {
-      return fromGlobal(sp, e.expression, hops + 1);
+      return onGlobal(sp, e.expression, hops + 1);
     }
     if (!ts.isIdentifier(e)) return false;
     if (GLOBAL_OBJECTS.has(e.text)) return true;
@@ -731,13 +790,36 @@ export function collectSdkFacts(
       declaration !== undefined &&
       ts.isVariableDeclaration(declaration) &&
       declaration.initializer !== undefined &&
-      fromGlobal(sp, declaration.initializer, hops + 1)
+      onGlobal(sp, declaration.initializer, hops + 1)
     );
   };
 
-  /** True when two clients' bases are the same: one env var, or values read to one URL. */
+  /** The global members each file assigns (`=`, `??=`, `||=`), by file. */
+  const globalWritesByFile = new Map<ts.SourceFile, Set<string>>();
+
+  const globalWrites = (sp: ServiceProgram, file: ts.SourceFile): ReadonlySet<string> => {
+    const known = globalWritesByFile.get(file);
+    if (known) return known;
+    const names = new Set<string>();
+    const walk = (node: ts.Node): void => {
+      if (ts.isBinaryExpression(node) && ASSIGNMENTS.has(node.operatorToken.kind)) {
+        const member = memberOf(unwrap(node.left));
+        if (member && onGlobal(sp, member.object, 0)) names.add(member.name);
+      }
+      ts.forEachChild(node, walk);
+    };
+    walk(file);
+    globalWritesByFile.set(file, names);
+    return names;
+  };
+
+  /**
+   * True when two clients' bases are the same: the default host (an export of one package
+   * that reads no base beside one built without it, `App` and `Octokit`), one env var, or
+   * values read to one URL.
+   */
   const sameBase = (a: SdkBase | undefined, b: SdkBase | undefined): boolean => {
-    if (!a || !b) return a === b;
+    if (defaultHost(a) || defaultHost(b)) return defaultHost(a) && defaultHost(b);
     if (a.paths !== b.paths) return false;
     switch (a.kind) {
       case "env":
@@ -1060,7 +1142,7 @@ export function collectSdkFacts(
    * base has none.
    */
   const sdkUrl = (
-    base: SdkBase,
+    base: ReadBase,
     path: string | undefined,
     receiver: ts.Expression,
   ): { url: NormalizedUrl; shown: string } => {
@@ -1117,7 +1199,7 @@ export function collectSdkFacts(
   const httpRequestOf = (
     call: ts.CallExpression,
     request: SdkCall,
-    base: SdkBase,
+    base: ReadBase,
     owners: Owners,
     file: string,
   ): HttpRequestFact => {
@@ -1165,7 +1247,7 @@ export function collectSdkFacts(
           request.names.some((n) => request.value.pkg.local.includes(n) || MOCK_METHODS.has(n));
         if (request && !skipped) {
           const { pkg, base } = request.value;
-          if (base) {
+          if (!defaultHost(base)) {
             http.push(httpRequestOf(node, request, base, current, file));
           } else {
             requests.push({
