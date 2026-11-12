@@ -614,7 +614,7 @@ async function findView(ref: RepoRef & { sha?: string }, deps: RepoViewDeps): Pr
  * pinned commit is queued as check-on-view queues a newer one ({@link queueHead}: its limits,
  * charged to the repo), so the gallery's links work however far the default branch has moved.
  * `queued` opens the job's progress page. A name GitHub doesn't show, or shows as another repo,
- * is `missing`; a commit that can't be queued now (GitHub or the queue down, a failure that would
+ * is `missing`, as is a finished analysis of a hidden repo (H5); a commit that can't be queued now (GitHub or the queue down, a failure that would
  * fail again, `permanentFailure`, a limit) is `unavailable`. Any other failure is queued again
  * (F1, M9.7b). The stored row is read before GitHub is asked, and GitHub's answer is remembered
  * a minute (`pinRepo`, F2).
@@ -655,10 +655,13 @@ async function queuePin(
 ): Promise<RepoView> {
   const { db } = deps;
   const unavailable: RepoView = { status: "unavailable" };
+  const missing: RepoView = { status: "missing" };
   const key = { providerRepoId: pin.providerRepoId, sha: pin.sha };
+  // A finished public analysis that isn't published belongs to a hidden repo (`hideRepo`): a
+  // 404, as when GitHub was asked first (H5). A private viewer's was served before this.
   const published = async () => {
     const latest = await findPublishedAnalysis(db, key);
-    return latest === undefined ? unavailable : ready(latest, { state: "pinned" });
+    return latest === undefined ? missing : ready(latest, { state: "pinned" });
   };
   // The stored row first (F2): a finished or permanently failed pin costs no GitHub call.
   const existing = await findAnalysisToQueue(
@@ -675,9 +678,9 @@ async function queuePin(
   const resolved = await pinRepo(ref, deps);
   if (!resolved.ok) {
     const gone = resolved.code === "REPO_NOT_FOUND" || resolved.code === "REPO_UNAVAILABLE";
-    return gone ? { status: "missing" } : unavailable;
+    return gone ? missing : unavailable;
   }
-  if (resolved.repo.providerRepoId !== pin.providerRepoId) return { status: "missing" };
+  if (resolved.repo.providerRepoId !== pin.providerRepoId) return missing;
   const head = { ...resolved.repo, sha: pin.sha };
   const inFlight = existing?.status === "queued" || existing?.status === "running";
   const next = await queueHead(head, inFlight, deps, deps.github);
