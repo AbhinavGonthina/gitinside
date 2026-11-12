@@ -11,6 +11,7 @@ import {
   failAnalysis,
   findPublishedAnalysis,
   findSession,
+  hideRepo,
   installations,
   queueAnalysis,
   rateLimits,
@@ -310,6 +311,17 @@ describe("viewRepo", () => {
       });
       expect(tasks.google.tasks).toEqual([]);
       expect(await rows()).toEqual([]);
+    });
+
+    it("is a 404 once its repo is hidden, though its analysis is done, never asking GitHub (H5)", async () => {
+      await done(NEW);
+      const [stored] = await t.db.select({ id: repos.id }).from(repos);
+      await hideRepo(t.db, stored!.id);
+      expect(await viewRepo({ owner: "acme", repo: "shop", sha: NEW }, deps)).toEqual({
+        status: "missing",
+      });
+      expect(gh.requests).toEqual([]);
+      expect(tasks.google.tasks).toEqual([]);
     });
 
     it("is unavailable when it can't be queued: GitHub down, no queue, a permanent failure, the repo's limit", async () => {
