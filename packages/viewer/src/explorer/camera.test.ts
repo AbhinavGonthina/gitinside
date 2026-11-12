@@ -232,6 +232,67 @@ describe("camera", () => {
     });
   });
 
+  describe("a hop with the rest of its path (M9.7h)", () => {
+    /** Where a rect is drawn at `c`, in canvas px. */
+    const drawn = (c: { zoom: number; x: number; y: number }, r: typeof hop) => ({
+      left: r.x * c.zoom + c.x,
+      top: r.y * c.zoom + c.y,
+      right: (r.x + r.width) * c.zoom + c.x,
+      bottom: (r.y + r.height) * c.zoom + c.y,
+    });
+    // As taxonomy's README link: a tall first hop at the bottom left of a
+    // path that runs right, to boxes the hop's own frame left off the canvas.
+    const hop = { x: 0, y: 0, width: 400, height: 1800 };
+    const path = { x: 0, y: -100, width: 3000, height: 1900 };
+    const camera = { zoom: 1, x: 0, y: 0 };
+
+    it("shows the whole path across at the hop's zoom when it fits, the hop still in its room", () => {
+      const plain = frameHop(camera, hop, canvas);
+      expect(drawn(plain, path).right).toBeGreaterThan(canvas.width);
+      const c = frameHop(camera, hop, canvas, undefined, 0, path);
+      expect(c.zoom).toBe(plain.zoom);
+      const p = drawn(c, path);
+      expect(p.left).toBeGreaterThanOrEqual(HOP_MARGIN.x);
+      expect(p.right).toBeLessThanOrEqual(canvas.width - HOP_MARGIN.x);
+      expect((p.left + p.right) / 2).toBeCloseTo(canvas.width / 2, 1);
+      // Too tall to fit at this zoom: slid up only until the hop's bottom
+      // meets its room's.
+      const h = drawn(c, hop);
+      expect(h.top).toBeGreaterThanOrEqual(HOP_MARGIN.y);
+      expect(h.bottom).toBeCloseTo(canvas.height - HOP_MARGIN.y, 1);
+      expect(p.top).toBeGreaterThan(drawn(plain, path).top);
+    });
+
+    it("slides toward a path too long to fit only until the hop meets its room's edge", () => {
+      const short = { x: 0, y: 0, width: 400, height: 200 };
+      const c = frameHop({ zoom: 0.4, x: 0, y: 0 }, short, canvas, undefined, 0, {
+        ...short,
+        width: 4000,
+      });
+      expect(c.zoom).toBe(READABLE_ZOOM);
+      expect(drawn(c, short).left).toBeCloseTo(HOP_MARGIN.x, 1);
+    });
+
+    it("leaves a camera alone that already shows the hop, as without the path", () => {
+      const near = { x: 100, y: 200, width: 400, height: 200 };
+      expect(frameHop(camera, near, canvas, undefined, 0, { ...near, width: 3000 })).toBe(camera);
+    });
+
+    it("keeps the slid hop clear of the minimap", () => {
+      const minimap = { x: 784, y: 644, width: 200, height: 140 };
+      // Centered, this hop is clear of the minimap; slid right toward the
+      // path, it would run under it, so it's fitted above it instead.
+      const tall = { x: 0, y: 0, width: 300, height: 470 };
+      const left = { x: -600, y: 0, width: 900, height: 470 };
+      const c = frameHop(camera, tall, canvas, minimap, 0, left);
+      const h = drawn(c, tall);
+      expect(h.bottom <= minimap.y - HOP_CLEARANCE || h.right <= minimap.x - HOP_CLEARANCE).toBe(
+        true,
+      );
+      expect(drawn(c, left).left).toBeGreaterThan(drawn(frameHop(camera, tall, canvas), left).left);
+    });
+  });
+
   it("zooms around a point, keeping the diagram point under it", () => {
     const start = { zoom: 0.8, x: 40, y: -12 };
     const at = { x: 610, y: 333 };
