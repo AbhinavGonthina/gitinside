@@ -587,8 +587,9 @@ export function Explorer({
   // while it shows (M9.7f, as the first view is), after the first fit and on the drawn
   // layout: once per step, and again when Play starts or a new layout lands
   // (a drill-down mid-trace, which otherwise left both ends off the canvas,
-  // M9.3c). An open frame holding an end is left out: it's the closed boxes
-  // that light up.
+  // M9.3c). The camera slides toward the rest of the path as far as the hop
+  // stays framed, so a path that fits is shown whole (M9.7h). An open frame
+  // holding an end is left out: it's the closed boxes that light up.
   const [playAsked, setPlayAsked] = useState(0);
   const framedHop = useRef<{ key: string; drawn: Shown["view"] } | null>(null);
   useEffect(() => {
@@ -600,11 +601,12 @@ export function Explorer({
     if (!settled || shown?.view !== view) return;
     if (framedHop.current?.key === key && framedHop.current.drawn === shown.view) return;
     framedHop.current = { key, drawn: shown.view };
-    const ends = [...hopBoxes].filter((id) => !view.byId.get(id)?.open);
-    const rect = boxesRect(shown.layout.boxes, ends);
+    const closed = (ids: Set<string>) => [...ids].filter((id) => !view.byId.get(id)?.open);
+    const rect = boxesRect(shown.layout.boxes, closed(hopBoxes));
     if (!rect) return;
+    const whole = boxesRect(shown.layout.boxes, closed(pathBoxes));
     const { camera: now, canvas: room } = live.current;
-    const next = frameHop(now, rect, room, minimapRect(), hintBand);
+    const next = frameHop(now, rect, room, minimapRect(), hintBand, whole);
     if (next !== now) moveCamera(next, "layout");
   });
 

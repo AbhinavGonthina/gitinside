@@ -8,12 +8,13 @@ import { shopDemo } from "../shopDemo.testkit.js";
 import {
   imageNodeSize,
   LABEL_GAP,
+  LABEL_HEIGHT,
   PARALLEL_GAP,
   pointAlong,
   route,
   routeEdges,
   spreadLabels,
-  type PlacedEdge,
+  type RoutedEdge,
 } from "./layout.js";
 
 const index = buildHierarchy(shopDemo());
@@ -115,13 +116,14 @@ describe("spreadLabels", () => {
   const { edges } = buildView(index, []);
   const view = edges[0];
   if (!view) throw new Error("shop-demo has top-level edges");
-  const line = (y: number, length = 300): PlacedEdge => ({
+  const line = (y: number, length = 300): RoutedEdge => ({
     view,
     points: [
       { x: 0, y },
       { x: length, y },
     ],
     label: { x: length / 2, y },
+    along: 0.5,
   });
 
   it("keeps a clear spot, and slides a taken one along its line to the nearest clear spot", () => {
@@ -150,7 +152,7 @@ describe("spreadLabels", () => {
   it("measures a line that passes its own end point earlier by its whole length (M9.7f)", () => {
     // Right 300, down 100, back left 150, up 100: the end (150, 0) is also
     // on the first segment, 150px in, but the line is 650px long.
-    const hook: PlacedEdge = {
+    const hook: RoutedEdge = {
       view,
       points: [
         { x: 0, y: 0 },
@@ -160,6 +162,7 @@ describe("spreadLabels", () => {
         { x: 150, y: 0 },
       ],
       label: { x: 200, y: 100 },
+      along: 500 / 650,
     };
     // A box over the label's spot: the nearest clear one is further along the
     // bottom stretch, toward (300, 100).
@@ -167,6 +170,29 @@ describe("spreadLabels", () => {
     expect(p?.hideLabel).toBeUndefined();
     expect(p?.label.y).toBe(100);
     expect(p?.label.x).toBeGreaterThanOrEqual(240 + LABEL_GAP + 15);
+  });
+
+  it("searches from where the label is along its line, not from an earlier pass over its spot (M9.7h)", () => {
+    // Right 300, down 100, back left 150, up 200: the label (150, 0) is 650px
+    // along, on the last stretch, and the first stretch crosses it 150px in.
+    const cross: RoutedEdge = {
+      view,
+      points: [
+        { x: 0, y: 0 },
+        { x: 300, y: 0 },
+        { x: 300, y: 100 },
+        { x: 150, y: 100 },
+        { x: 150, y: -100 },
+      ],
+      label: { x: 150, y: 0 },
+      along: 650 / 750,
+    };
+    // A box over the label's spot: the nearest clear spot is up or down the
+    // last stretch, not along the first one.
+    const [p] = spreadLabels([cross], [30], [{ x: 120, y: -10, width: 60, height: 20 }]);
+    expect(p?.hideLabel).toBeUndefined();
+    expect(p?.label.x).toBe(150);
+    expect(Math.abs(p?.label.y ?? 0)).toBeGreaterThan(10 + LABEL_GAP + LABEL_HEIGHT / 2);
   });
 });
 
