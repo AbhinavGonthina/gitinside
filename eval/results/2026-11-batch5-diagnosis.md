@@ -1,6 +1,6 @@
 # Held-out batch 5: why 170 labels are missed and 20 predictions are wrong (M5C.8c)
 
-Diagnosis of held-out batch 5's first and only blind measurement, in [`2026-11-05-0.2.0.md` at `334aa0b`](https://github.com/AbhinavGonthina/gitinside/blob/334aa0b/eval/results/2026-11-05-0.2.0.md#held-out-batch-5-unseen) (GitInside `42e1549`, after the M5C.7 fixes; labels committed in M5C.8b1–b4, before the analyzer first ran on any of the 16 repos). Precision is 93.5% (290 of 310 predicted routes), below the 95% floor. Recall is 63.0% (290 of 460 real targets), below the 80% target. 6 of 16 repos are mapped completely (37.5%). All 60 `null` labels got no route (58 abstentions, 2 sites with no prediction).
+Diagnosis of held-out batch 5's first and only blind measurement, in [`2026-11-05-0.2.0.md` at `ad64a5e`](https://github.com/AbhinavGonthina/gitinside/blob/ad64a5e/eval/results/2026-11-05-0.2.0.md#held-out-batch-5-unseen) (GitInside `7a3c57e`, after the M5C.7 fixes; labels committed in M5C.8b1–b4, before the analyzer first ran on any of the 16 repos). Precision is 93.5% (290 of 310 predicted routes), below the 95% floor. Recall is 63.0% (290 of 460 real targets), below the 80% target. 6 of 16 repos are mapped completely (37.5%). All 60 `null` labels got no route (58 abstentions, 2 sites with no prediction).
 
 | Repo | Labels | TP | FP | FN | Precision | Recall | Causes |
 |---|---:|---:|---:|---:|---:|---:|---|

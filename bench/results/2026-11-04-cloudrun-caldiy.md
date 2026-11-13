@@ -1,7 +1,7 @@
 # 1-vCPU analysis benchmark: calcom/cal.diy (2026-11-04)
 
 - **Repo:** https://github.com/calcom/cal.diy at `2eb48eccd8aca8a0c0ffabf28cf92e298b33ecee`
-- **Analyzer:** 0.2.0 (gitinside `d47f4638b45f33ed1cef17a5b27e47c835b515f2`)
+- **Analyzer:** 0.2.0 (gitinside `8518d6e8b05a79b16a9dc70c1787fd42fc2ff570`)
 - **Method:** the worker image (`apps/worker/Dockerfile`, 85.9 MB gzipped) started 3 times, a fresh container per run, as Cloud Run starts an instance: `docker run --cpus 1 --memory 4g --memory-swap 4g`, `/tmp` in memory, the image's user and working directory. Each run pipes GitHub's tarball (downloaded once, outside the container) into the image's `extractTarball` under `/tmp/jobs`, then the image's sandboxed `runAnalysis` with production's limits and no fact cache (a first analysis). Not included: Cloud Tasks dispatch, Cloud Run's cold start, the download, and the upload.
 - **Host:** GitHub Actions Linux runner: INTEL(R) XEON(R) PLATINUM 8573C (4 host cores; the container's cgroup allows 1 vCPU), Node v22.18.0 in the image
 - **Tarball:** 155 MiB gzipped (162.6 MB), downloaded in 7.7 s; 203 MiB unpacked, 7,703 files

@@ -1,6 +1,6 @@
 # Held-out batch 6: why 234 labels are missed and none is wrong (M9.2c)
 
-Diagnosis of held-out batch 6's first and only blind measurement, the final eval of the launch analyzer, in [`2026-11-10-0.3.0.md` at `9f72a55`](https://github.com/AbhinavGonthina/gitinside/blob/9f72a55/eval/results/2026-11-10-0.3.0.md#held-out-batch-6-unseen) (GitInside `7f6d5b9`, analyzer 0.3.0; labels committed in M9.2b1–b4, before the analyzer first ran on any of the 16 repos). Precision is 100.0% (521 of 521 predicted routes), above the 95% floor. Recall is 69.0% (521 of 755 real targets), below the 80% target. 6 of 16 repos are mapped completely (37.5%). All 35 `null` labels got no route (23 abstentions, 12 sites with no prediction).
+Diagnosis of held-out batch 6's first and only blind measurement, the final eval of the launch analyzer, in [`2026-11-10-0.3.0.md` at `77f77af`](https://github.com/AbhinavGonthina/gitinside/blob/77f77af/eval/results/2026-11-10-0.3.0.md#held-out-batch-6-unseen) (GitInside `e522dd7`, analyzer 0.3.0; labels committed in M9.2b1–b4, before the analyzer first ran on any of the 16 repos). Precision is 100.0% (521 of 521 predicted routes), above the 95% floor. Recall is 69.0% (521 of 755 real targets), below the 80% target. 6 of 16 repos are mapped completely (37.5%). All 35 `null` labels got no route (23 abstentions, 12 sites with no prediction).
 
 | Repo | Labels | TP | FP | FN | Precision | Recall | Causes |
 |---|---:|---:|---:|---:|---:|---:|---|
@@ -25,7 +25,7 @@ This note explains the misses. It changes no score, no label, and starts no fix.
 
 ## Method
 
-- After the scored run (committed first, as `9f72a55`), analyzed each checkout in `eval/.repos/` at its pinned commit with the built `analyze()` (the scratch `eval/dist/m92c-diag.mjs`), and listed the services, routes, unresolved nodes (reason, expression, detail), `http` edges with their sites, and warnings.
+- After the scored run (committed first, as `77f77af`), analyzed each checkout in `eval/.repos/` at its pinned commit with the built `analyze()` (the scratch `eval/dist/m92c-diag.mjs`), and listed the services, routes, unresolved nodes (reason, expression, detail), `http` edges with their sites, and warnings.
 - Read the code at each missed site and at the helper, base, or client it goes through, and compared it with the analyzer's documented "not handled" lists and the ADRs.
 - Reproduced AA, AB, AC, AD, and AH in minimal repos (one Express server and one client file each, the scratch `eval/dist/m92c-repro.mjs`), each beside the nearest form that is read, to confirm the cause, not only the symptom.
 - Counted each miss under exactly one cause; the FN column sums to 234. There is no FP.

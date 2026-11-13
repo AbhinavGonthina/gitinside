@@ -1,6 +1,6 @@
 # Held-out batch 2: why 20 labels are missed (M5A.4a3)
 
-Diagnosis of held-out batch 2's first and only blind measurement, in [`2026-11-01-0.1.0.md`](2026-11-01-0.1.0.md#held-out-batch-2-unseen) (GitInside `9269d15`): precision 45.8% (11 of 24 predicted routes), recall 35.5% (11 of 31 real targets), 13 false positives, 20 false negatives, both `null` labels correctly abstained.
+Diagnosis of held-out batch 2's first and only blind measurement, in [`2026-11-01-0.1.0.md`](2026-11-01-0.1.0.md#held-out-batch-2-unseen) (GitInside `57d83c3`): precision 45.8% (11 of 24 predicted routes), recall 35.5% (11 of 31 real targets), 13 false positives, 20 false negatives, both `null` labels correctly abstained.
 
 This note explains the misses; it changes no score and starts no fix. M5A's rule for this batch is that its misses don't become M5A fixes (PROGRESS.md M5A.4a3). If a later milestone fixes either pattern, it needs its own fixture written from the pattern's general form, and batch 2 then counts as seen (ADR-0168).
 
@@ -39,7 +39,7 @@ With B1 (M5B.1, ADR-0191) and B2 (M5B.2, ADR-0193) fixed, batch 2 scores precisi
 - **What the code does.** `pages/api/following.ts` serves the request inside `if (req.method !== "POST" && req.method !== "DELETE" && req.method !== "PUT") { … }`, so every method except those three reaches the body (the label is `ALL`, as EVALUATION.md §1 labels a handler that doesn't pick one method).
 - **What the analyzer does.** `next.ts` collects the methods compared with `req.method` and makes one route per method, so the file gets `POST`, `DELETE`, and `PUT`, the three methods the guard *excludes*, and no route the `GET` could match.
 - **General form (B3).** A `req.method !==` comparison (or a negated `===`) whose block serves the request means "every method but these". A fix reads the comparison's polarity, as a fixture written from that form, not from this repo; planned as M5B.2c.
-- **After M5B.2c (ADR-0195).** A negated test whose block does more than answer now leaves the handler open, so `following.ts` is one `ALL` route and the hook matches it. Batch 2 scores precision 100.0% (31/31) and recall 100.0% (31/31) ([`2026-11-03-0.1.0.md`](2026-11-03-0.1.0.md#held-out-batch-2-unseen), at `cde8aac`). Batch 2 has now been fixed against, so these are seen numbers, not a generalization result (M5B.4).
+- **After M5B.2c (ADR-0195).** A negated test whose block does more than answer now leaves the handler open, so `following.ts` is one `ALL` route and the hook matches it. Batch 2 scores precision 100.0% (31/31) and recall 100.0% (31/31) ([`2026-11-03-0.1.0.md`](2026-11-03-0.1.0.md#held-out-batch-2-unseen), at `54dda8e`). Batch 2 has now been fixed against, so these are seen numbers, not a generalization result (M5B.4).
 
 ## Other observations (not scored)
 

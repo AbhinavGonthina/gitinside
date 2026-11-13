@@ -1,7 +1,7 @@
 # Analysis benchmark: calcom (2026-10-26)
 
 - **Repo:** https://github.com/calcom/cal.com at `0f19cc46ef6b6426ee398c670575b3c96be7af9e`
-- **Analyzer:** 0.1.0 (gitinside `c5c3da463628cbfd200408a838627928ff42c0b2`)
+- **Analyzer:** 0.1.0 (gitinside `060c11b819ff71909eb2988baa9d76aeac1f428d`)
 - **Method:** 1 warm-up run, then 5 measured runs, each in a fresh Node process (EVALUATION.md §2).
 - **Machine:** dev machine: 13th Gen Intel(R) Core(TM) i7-13700H (20 logical cores), 15.6 GiB RAM, win32 10.0.26300, Node v22.13.0
 - **Graphs identical across runs:** yes

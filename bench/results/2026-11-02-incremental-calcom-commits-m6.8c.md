@@ -1,7 +1,7 @@
 # Incremental analysis benchmark: calcom (2026-11-02)
 
 - **Repo:** https://github.com/calcom/cal.com at `0f19cc46ef6b6426ee398c670575b3c96be7af9e`
-- **Analyzer:** 0.1.0 (gitinside `7179ebbb91dcd5df348f1c3a09d6fc2d33e85236`)
+- **Analyzer:** 0.1.0 (gitinside `9892d4cc68792eb031c985d1e3f2172b3325bbea`)
 - **Method:** the 10 first-parent commits ending at the pinned SHA are replayed (EVALUATION.md §2: the diff of consecutive real commits, applied one at a time). 1 cold warm-up run at the commit before them (`1251ba5be567d26a7f922452fe7797642376476e`), then one cold run there filling a disk fact cache (`openDiskCache`). Each commit is then checked out in turn and analyzed twice, each run a fresh Node process: with no cache (cold) and with the cache (warm), in alternating order. The cache is never reset, so each warm run reuses what the previous commit's warm run stored. Opening the cache is part of the warm time.
 - **Machine:** dev machine: 13th Gen Intel(R) Core(TM) i7-13700H (20 logical cores), 15.6 GiB RAM, win32 10.0.26300, Node v22.13.0
 - **Filling the cache:** 29,131 ms, 113 entries written, 7 MiB on disk.
@@ -64,7 +64,7 @@ Raw per-run numbers are in the JSON file next to this report.
 
 ## Observations (hand-written, not generated)
 
-- **What changed since M6.8b's report** (`2026-11-02-incremental-calcom-commits-m6.8b.md`): each distinct set of observed inputs is stored once (gitinside `180c759`, ADR-0180); the run was at `7179ebb`, which adds only the edits benchmark's report. Same commits, same machine; every warm graph is its cold pair's bytes. Saved with the `-m6.8c` suffix.
+- **What changed since M6.8b's report** (`2026-11-02-incremental-calcom-commits-m6.8b.md`): each distinct set of observed inputs is stored once (gitinside `eb1995d`, ADR-0180); the run was at `9892d4c`, which adds only the edits benchmark's report. Same commits, same machine; every warm graph is its cold pair's bytes. Saved with the `-m6.8c` suffix.
 - **Median 0.94× (M6.8b: 0.91×, M6.8: 0.84×), still not parity.** Eight of the nine source-changing commits are 0.86–0.98×; `6bfe2df9d1` is 0.84× (44.3 s warm, with 15.5 s in `programs`, the slowest of any run here, likely noise on this laptop). The locale-JSON commit `0f19cc46ef` reuses everything: 4.01×.
 - **Where the rest goes:** per re-collected warm run, 0.9–1.6 s outside every stage (storing 88–90 service entries and their few new inputs sets; M6.8b's report measured 1.8–2.4 s on the edits) and 0.4–2.2 s more in `programs` than its cold pair (median ≈ 0.9 s: keys and reading the entries found). The detector stages are within noise of cold. M6.8c2 profiles those two parts.
 - **Memory:** the fully reused commit peaks at 284 MiB (M6.8b: 587 MiB).

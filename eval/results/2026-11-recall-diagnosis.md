@@ -6,7 +6,7 @@ This document explains the misses; it changes no score. The fixes are M5A.3a–j
 
 ## Method
 
-- Analyzed each checkout in `eval/.repos/<owner>__<name>` at its pinned commit with the built `analyze()` (GitInside `8cba613`; the analyzer is unchanged since the report's `6367d83`). A scratch script dumped every service, route node, unresolved node (reason + expression), `http`/`external_call` edge with its sites, and warning.
+- Analyzed each checkout in `eval/.repos/<owner>__<name>` at its pinned commit with the built `analyze()` (GitInside `2290833`; the analyzer is unchanged since the report's `e5e7ef0`). A scratch script dumped every service, route node, unresolved node (reason + expression), `http`/`external_call` edge with its sites, and warning.
 - Read every missed call site in the checkout and traced it by hand: the import chain to the HTTP client, how the URL and base are built, and the route it should reach. Then compared that with what the dump shows and with the code that decides it (`workspace.ts`, `http.ts`, `wrappers.ts`, `url.ts`, `match.ts`, `express.ts`).
 - Each label is listed under **every** cause that blocks it. Many labels need two or more fixes before they turn into true positives, so the per-cause counts add up to more than 110. The "alone" column counts the labels that fixing that cause by itself would turn into true positives.
 

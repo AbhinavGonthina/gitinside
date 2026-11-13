@@ -1,8 +1,8 @@
 # Lazy programs: partial warm runs vs cold, before and after M6.7e3 (2026-11-02)
 
 - **Question:** how much time does building a reused service's program only when a collected service needs it (M6.7e3, ADR-0177) save over M6.7e2, which reused clean services' facts but still built every program?
-- **Builds compared:** `e2` = gitinside `8ad7e51` (M6.7e2), built in a scratch worktree; `e3` = `d10eca9` plus M6.7e3's changes (uncommitted while measuring).
-- **Folders:** `fixtures/shop-demo` (2 services, 13 source files), and this repo's own tree at `8ad7e51` (9 services; `node_modules`, `dist`, `.git`, and the eval/bench checkouts left out).
+- **Builds compared:** `e2` = gitinside `9a78b4f` (M6.7e2), built in a scratch worktree; `e3` = `79986ef` plus M6.7e3's changes (uncommitted while measuring).
+- **Folders:** `fixtures/shop-demo` (2 services, 13 source files), and this repo's own tree at `9a78b4f` (9 services; `node_modules`, `dist`, `.git`, and the eval/bench checkouts left out).
 - **Method:** scratch scripts (not committed), one Node process per build and folder, in-memory cache, after 3 (shop-demo) or 1 (this repo) warm-up runs. For each edited file, each iteration: fill a fresh cache from the original tree, append `export const benchEdit = 1;` to the file, time a cold run (no cache), then a warm run with the cache (checked to give the cold bytes), restore the file. Medians over the iterations. A separate cold-only script times 5 plain runs of this repo's tree.
 - **Machine:** dev machine (13th Gen Intel i7-13700H, 20 logical cores, 15.6 GiB RAM, Windows 11), Node v22.13.0, other programs open. Times are milliseconds.
 

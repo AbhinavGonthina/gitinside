@@ -494,7 +494,7 @@ describe("inspector", () => {
     expect(texts()).toEqual(plain);
 
     // A cold load is Shiki's core, its regex engine, the grammar, and the
-    // grammar's warm-up (885cbef): well over waitFor's 1 s default here.
+    // grammar's warm-up (adb6a5f): well over waitFor's 1 s default here.
     await waitFor(() => expect(figure.getAttribute("data-syntax")).toBe("done"), {
       timeout: 10_000,
     });

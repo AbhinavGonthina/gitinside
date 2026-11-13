@@ -1,7 +1,7 @@
 # Stress benchmark: vscode (2026-10-31)
 
 - **Repo:** https://github.com/microsoft/vscode at `11ba54a90a0ff8720cf47c086f5a9948eef9cf2c`
-- **Analyzer:** 0.1.0 (gitinside `035f02781715b10b29803ec14864608bb8cae5b9`)
+- **Analyzer:** 0.1.0 (gitinside `5a12e58813d97d7b05903adde23e86de7c902a22`)
 - **Method:** the repo's tarball downloaded like the worker does, extracted with the worker's extractor, then analyzed once in a fresh Node process per run, with production's limits lifted (size, entries, source files; heap 12,288 MB instead of 3,072 MB; no time limit). Parse only: nothing in the repo is installed or run.
 - **Machine:** dev machine: 13th Gen Intel(R) Core(TM) i7-13700H (20 logical cores), 15.6 GiB RAM, win32 10.0.26300, Node v22.13.0
 

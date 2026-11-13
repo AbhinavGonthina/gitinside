@@ -1,6 +1,6 @@
 # Walkthrough: the graph diff
 
-> D11.2. The graph diff is the part of GitInside that takes two analyzed commits (a PR's base and head) and says what changed in the architecture: which routes, files, and functions were added, removed, changed, or moved, and which connections the change **broke** (a client still POSTs to a route that is now PUT). It powers `gitinside diff`, the viewer's diff mode, and the PR bot (M8.6). This document walks through every function in the order the data flows, explains why each one exists, and goes line by line through the tricky parts. Line numbers are as of commit `cee37b0`; function names are stable, so search by name if a line has moved.
+> D11.2. The graph diff is the part of GitInside that takes two analyzed commits (a PR's base and head) and says what changed in the architecture: which routes, files, and functions were added, removed, changed, or moved, and which connections the change **broke** (a client still POSTs to a route that is now PUT). It powers `gitinside diff`, the viewer's diff mode, and the PR bot (M8.6). This document walks through every function in the order the data flows, explains why each one exists, and goes line by line through the tricky parts. Line numbers are as of commit `c5fb674`; function names are stable, so search by name if a line has moved.
 
 **Files, in reading order**
 

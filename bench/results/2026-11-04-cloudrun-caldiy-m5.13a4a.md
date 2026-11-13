@@ -1,11 +1,11 @@
 # Shared source files on 1 vCPU: calcom/cal.diy before and after ADR-0197 (M5.13a4a, 2026-11-04)
 
 - **Repo:** https://github.com/calcom/cal.diy at `2eb48eccd8aca8a0c0ffabf28cf92e298b33ecee` (5,075 source files, 113 services)
-- **Before:** gitinside `bd5cfea` (branch `ci/m5.13a4a-before`), plus M5.13a3's report at `d47f463` (same analyzer code: only docs changed between them). **After:** gitinside `97ae155` (ADR-0197) and `4560e4d` (eval report only on top).
+- **Before:** gitinside `e19589d` (branch `ci/m5.13a4a-before`), plus M5.13a3's report at `8518d6e` (same analyzer code: only docs changed between them). **After:** gitinside `c13c7a6` (ADR-0197) and `ced783e` (eval report only on top).
 - **Method:** the "Benchmark (1 vCPU)" workflow (`.github/workflows/bench-cloudrun.yml`, M5.13a3) unchanged: the worker image built on the runner, 3 cold analyses per workflow run, each in a fresh `docker run --cpus 1 --memory 4g` container with `/tmp` in memory, through the image's extractor and sandboxed runner, no fact cache. 7 workflow runs before, 6 after, all dispatched on 2026-11-04 between 05:53 and 06:52 UTC.
 - **Raw output:** each workflow run's artifact is committed unchanged next to this file as `2026-11-04-cloudrun-caldiy-m5.13a4a-<before|after>-<cpu>[-n].{md,json}`; M5.13a3's is `2026-11-04-cloudrun-caldiy.{md,json}`. The tables below are copied from them.
 
-## Parses (local, analyzer build at `97ae155`)
+## Parses (local, analyzer build at `c13c7a6`)
 
 Scratch script `bench/dist/m513a4-parses.mjs` (the analyzer's inventory, workspace, and `buildServicePrograms`, every program built, distinct `SourceFile` objects counted per repo path):
 
@@ -19,9 +19,9 @@ Before the change every load was a parse: 7,636 (1.48 per file, `2026-11-04-cald
 
 | | Runs | Final heap (child) | Peak RSS (child) | Container memory peak |
 |---|---:|---:|---:|---:|
-| Before (`bd5cfea`) | 18 | 1,975–1,985 MiB | 2,111–2,123 MiB | 2,394–2,413 MiB |
-| Before (`d47f463`, M5.13a3) | 3 | 1,974–1,979 MiB | 2,110–2,115 MiB | 2,393–2,406 MiB |
-| After (`97ae155`) | 18 | 1,802–1,808 MiB | 1,938–1,972 MiB | 2,217–2,255 MiB |
+| Before (`e19589d`) | 18 | 1,975–1,985 MiB | 2,111–2,123 MiB | 2,394–2,413 MiB |
+| Before (`8518d6e`, M5.13a3) | 3 | 1,974–1,979 MiB | 2,110–2,115 MiB | 2,393–2,406 MiB |
+| After (`c13c7a6`) | 18 | 1,802–1,808 MiB | 1,938–1,972 MiB | 2,217–2,255 MiB |
 
 Graphs: the same SHA-256 (`041b1f48bdf8…`) in all 39 runs, before and after.
 

@@ -1,6 +1,6 @@
 # Walkthrough: the cross-service resolver
 
-> D11.1. The resolver is the part of the analyzer that turns `fetch("/api/users/" + id)` in one package into an arrow to `GET /api/users/:id` in another, with a confidence level, or into an `unresolved` node that says why it couldn't. This document walks through every function in the order the data flows, explains why each one exists, and goes line by line through the tricky parts. Line numbers are as of commit `3542fe3`; function names are stable, so search by name if a line has moved.
+> D11.1. The resolver is the part of the analyzer that turns `fetch("/api/users/" + id)` in one package into an arrow to `GET /api/users/:id` in another, with a confidence level, or into an `unresolved` node that says why it couldn't. This document walks through every function in the order the data flows, explains why each one exists, and goes line by line through the tricky parts. Line numbers are as of commit `1ffa841`; function names are stable, so search by name if a line has moved.
 
 **Files, in reading order**
 

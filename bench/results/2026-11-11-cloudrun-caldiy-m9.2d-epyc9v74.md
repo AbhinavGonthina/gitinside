@@ -1,7 +1,7 @@
 # 1-vCPU analysis benchmark: calcom/cal.diy (2026-11-11)
 
 - **Repo:** https://github.com/calcom/cal.diy at `2eb48eccd8aca8a0c0ffabf28cf92e298b33ecee`
-- **Analyzer:** 0.3.0 (gitinside `14c27784856e47ab9898d3607910975dda68455f`)
+- **Analyzer:** 0.3.0 (gitinside `d17b3b706bb15ecd76e847b358b535510cc99b23`)
 - **Method:** the worker image (`apps/worker/Dockerfile`, 85.1 MB gzipped) started 5 times, a fresh container per run, as Cloud Run starts an instance: `docker run --cpus 1 --memory 4g --memory-swap 4g`, `/tmp` in memory, the image's user and working directory. Each run pipes GitHub's tarball (downloaded once, outside the container) into the image's `extractTarball` under `/tmp/jobs`, then the image's sandboxed `runAnalysis` with production's limits and no fact cache (a first analysis). Not included: Cloud Tasks dispatch, Cloud Run's cold start, the download, and the upload.
 - **Host:** GitHub Actions Linux runner: AMD EPYC 9V74 80-Core Processor (4 host cores; the container's cgroup allows 1 vCPU), Node v22.18.0 in the image
 - **Tarball:** 155 MiB gzipped (162.6 MB), downloaded in 7.1 s; 203 MiB unpacked, 7,703 files
@@ -45,5 +45,5 @@ Raw numbers are in the JSON file next to this report.
 
 ## Observations (hand-written, not generated)
 
-- **The launch analyzer (0.3.0, M9.2d)** at `14c2778`, from the "Benchmark (1 vCPU)" workflow's run `42932692858` (UTC date 2026-11-11). Its twin run on another CPU model is `2026-11-11-cloudrun-caldiy-m9.2d-epyc9v45.md`.
-- **49.4 s median analysis (49.1–49.9 s), within the 60 s budget.** M5.13a5 measured 42.6 s on this CPU model at 0.2.0 (`626ba13`, 32 MiB semi-space, now the default), so this is +16%. Two runners of one model have differed by up to 13% (M5.13a4a), so only part of this is clearly the code. Most of it is in `imports` (2.4–2.7 → 5.7–7.4 s) and `http` (6.3–8.9 → 9.1–9.3 s); `programs` held at 10.8–11.4 s. `2026-11-10-analysis-calcom.md` has the comparison.
+- **The launch analyzer (0.3.0, M9.2d)** at `d17b3b7`, from the "Benchmark (1 vCPU)" workflow's run `42932692858` (UTC date 2026-11-11). Its twin run on another CPU model is `2026-11-11-cloudrun-caldiy-m9.2d-epyc9v45.md`.
+- **49.4 s median analysis (49.1–49.9 s), within the 60 s budget.** M5.13a5 measured 42.6 s on this CPU model at 0.2.0 (`b7e5a59`, 32 MiB semi-space, now the default), so this is +16%. Two runners of one model have differed by up to 13% (M5.13a4a), so only part of this is clearly the code. Most of it is in `imports` (2.4–2.7 → 5.7–7.4 s) and `http` (6.3–8.9 → 9.1–9.3 s); `programs` held at 10.8–11.4 s. `2026-11-10-analysis-calcom.md` has the comparison.

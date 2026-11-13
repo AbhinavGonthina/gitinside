@@ -1,7 +1,7 @@
 # Incremental analysis benchmark: calcom (2026-11-02)
 
 - **Repo:** https://github.com/calcom/cal.com at `0f19cc46ef6b6426ee398c670575b3c96be7af9e`
-- **Analyzer:** 0.1.0 (gitinside `53c1e118ab078cea3c8163bd626cf0a0fd6f4371`)
+- **Analyzer:** 0.1.0 (gitinside `97f35d38e67364388ffbdf1221a51710ce01e963`)
 - **Method:** the 10 first-parent commits ending at the pinned SHA are replayed (EVALUATION.md §2: the diff of consecutive real commits, applied one at a time). 1 cold warm-up run at the commit before them (`1251ba5be567d26a7f922452fe7797642376476e`), then one cold run there filling a disk fact cache (`openDiskCache`). Each commit is then checked out in turn and analyzed twice, each run a fresh Node process: with no cache (cold) and with the cache (warm), in alternating order. The cache is never reset, so each warm run reuses what the previous commit's warm run stored. Opening the cache is part of the warm time.
 - **Machine:** dev machine: 13th Gen Intel(R) Core(TM) i7-13700H (20 logical cores), 15.6 GiB RAM, win32 10.0.26300, Node v22.13.0
 - **Filling the cache:** 36,561 ms, 113 entries written, 2 MiB on disk.
@@ -64,7 +64,7 @@ Raw per-run numbers are in the JSON file next to this report.
 
 ## Observations (hand-written, not generated)
 
-- **What changed since M6.8c1's report** (`2026-11-02-incremental-calcom-commits-m6.8c.md`): every run reads each repo file once, side by side, and shares it between the cache keys, the compiler hosts, and the file nodes (gitinside `c973c1f`); observed inputs are stored in parts by owning service, each distinct part once (`1b495e8`, ADR-0181). The run was at `53c1e11`, which adds only the edits benchmark's report. Same commits; every warm graph is its cold pair's bytes. Saved with the `-m6.8c2` suffix.
+- **What changed since M6.8c1's report** (`2026-11-02-incremental-calcom-commits-m6.8c.md`): every run reads each repo file once, side by side, and shares it between the cache keys, the compiler hosts, and the file nodes (gitinside `1b91524`); observed inputs are stored in parts by owning service, each distinct part once (`81df32b`, ADR-0181). The run was at `97f35d3`, which adds only the edits benchmark's report. Same commits; every warm graph is its cold pair's bytes. Saved with the `-m6.8c2` suffix.
 - **Median 0.99× (M6.8c1: 0.94×, M6.8b: 0.91×, M6.8: 0.84×).** The nine source-changing commits are 0.96–1.01×; warm is 0.04–1.6 s behind cold on seven of them and ahead on two (`b0a34f21c9`, `54343aa685`). The locale-JSON commit `0f19cc46ef` reuses everything: 5.27× (M6.8c1: 4.01×).
 - **The laptop ran slower during this benchmark than while profiling:** cold took 34.6–36.3 s here (M6.8c1's report: 27.9–38.0 s), though the shared reader cut one cold run of `6bfe2df` from 29.0 to 22.1 s when measured back to back (the edits report's first cold runs were 21.8–26.1 s, then rose to ~35 s). The code was the same for every run here, so compare cold and warm within a pair, not across reports.
 - **Where the rest goes:** 0.72–0.85 s per re-collected warm run outside every stage (storing 88–90 service entries and 1–8 new inputs parts; M6.8c1: 0.9–1.6 s storing 88 entries plus whole inputs sets), and `programs` −0.3 to +0.8 s against its cold pair (keys, reading 112 entries and ~198 parts). The detector stages are within noise of cold.

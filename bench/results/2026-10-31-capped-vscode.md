@@ -2,7 +2,7 @@
 
 - **Repo:** https://github.com/microsoft/vscode at `11ba54a90a0ff8720cf47c086f5a9948eef9cf2c` (the tree `pnpm bench:stress` extracted, M5.16a), and cal.com from `pnpm bench` for comparison
 - **Method:** `pnpm bench:capped <folder>...` (`bench/src/capped.ts`): each folder through the worker's own sandboxed runner (`runAnalysis`: 3,072 MB heap, 5 min, no network), one after another, nothing else running. "Source" is what the inventory keeps (`.ts .tsx .js .jsx .mjs .cjs .prisma`, after the ignore, 2 MB, and generated-file rules). Times are from the parent: they include starting the child.
-- **Code:** gitinside `e6409e9` plus M5.16b's changes (uncommitted while measuring). The calibration runs had `MAX_SOURCE_MB` raised to 1,000 so folders over 50 reached the parser; the "with the limit" runs used the committed 50.
+- **Code:** gitinside `c0bf6dc` plus M5.16b's changes (uncommitted while measuring). The calibration runs had `MAX_SOURCE_MB` raised to 1,000 so folders over 50 reached the parser; the "with the limit" runs used the committed 50.
 - **Machine:** dev machine: 13th Gen Intel(R) Core(TM) i7-13700H (20 logical cores), 15.6 GiB RAM, Windows 11, Node v22.13.0
 - **Runs:** one per folder. Raw lines are below; nothing was rounded beyond what `capped.ts` prints.
 

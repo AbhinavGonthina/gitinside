@@ -1,7 +1,7 @@
 # Incremental analysis benchmark: calcom (2026-11-10)
 
 - **Repo:** https://github.com/calcom/cal.com at `0f19cc46ef6b6426ee398c670575b3c96be7af9e`
-- **Analyzer:** 0.3.0 (gitinside `4f65dcfd7ea198c73b63621ffe2301e0235b4002`)
+- **Analyzer:** 0.3.0 (gitinside `5f184e45b096cee9c70caf47209c7e04f2cecbf5`)
 - **Method:** the 10 first-parent commits ending at the pinned SHA are replayed (EVALUATION.md §2: the diff of consecutive real commits, applied one at a time). 1 cold warm-up run at the commit before them (`1251ba5be567d26a7f922452fe7797642376476e`), then one cold run there filling a disk fact cache (`openDiskCache`). Each commit is then checked out in turn and analyzed twice, each run a fresh Node process: with no cache (cold) and with the cache (warm), in alternating order. The cache is never reset, so each warm run reuses what the previous commit's warm run stored. Opening the cache is part of the warm time.
 - **Machine:** dev machine: 13th Gen Intel(R) Core(TM) i7-13700H (20 logical cores), 15.6 GiB RAM, win32 10.0.26300, Node v22.13.0
 - **Filling the cache:** 109,510 ms, 114 entries written, 2 MiB on disk.
@@ -64,7 +64,7 @@ Raw per-run numbers are in the JSON file next to this report.
 
 ## Observations (hand-written, not generated)
 
-- **The launch analyzer (0.3.0, M9.2d), run at `4f65dcf`.** These are the same 10 commits as M6.8's replays, and every warm graph is its cold pair's bytes.
+- **The launch analyzer (0.3.0, M9.2d), run at `5f184e4`.** These are the same 10 commits as M6.8's replays, and every warm graph is its cold pair's bytes.
 - **Median 1.02×** (M6.8c2: 0.99×). Seven of the nine source-changing commits are 0.99–1.03×, each re-collecting 89–90 services, as a shared-package edit does. Warm spends 1.8–2.1 s per re-collected run outside every stage (M6.8c2: 0.72–0.85 s). The locale-JSON commit `0f19cc46ef` reuses everything: 8.5 s warm, 11.90× (M6.8c2: 6.6 s, 5.27×).
 - **Two pairs are machine noise, not cache behavior.** The cold runs of `1dbaf8e7b4` (87.7 s) and `6bfe2df9d1` (33.6 s) were much faster than the other eight (101.3–104.5 s). That's where the 0.88× and 0.31× come from. In `6bfe2df9d1`'s cold run every compiler stage was about 3–4× faster than the median: `programs` 6.0 s against 22.1 s, `calls` 5.7 s against 22.3 s, `http` 7.7 s against 25.9 s. Its warm pair took 109.8 s, on the same code and commit. The laptop briefly ran at a speed it didn't hold for the rest of the session. So the other runs here (and in this session's other analysis reports) are about 3× slower than the machine can be.
 - **Memory:** the fully reused commit peaks at 204 MiB (M6.8c2: 190 MiB), and the other warm runs at up to 2,159 MiB.
