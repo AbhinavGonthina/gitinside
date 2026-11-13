@@ -15,7 +15,7 @@ import {
 } from "react";
 import type { Rect } from "../chrome/describe.js";
 import { DiagramEdge, EdgeLabel } from "../edges/DiagramEdge.js";
-import type { PlacedEdge } from "../layout/elk.js";
+import { BANDS, type PlacedEdge } from "../layout/elk.js";
 import type { LayoutCache } from "../layout/engine.js";
 import { changeCounts, frameCounts, viewEdgeLabelSize } from "../layout/size.js";
 import type { DiffCounts, DiffMarks } from "../model/diff.js";
@@ -717,6 +717,15 @@ export function DrillCanvas({
           className="gi-drill__stage"
           style={{ width: shown.layout.width, height: shown.layout.height }}
         >
+          {shown.layout.bands && (
+            <div className="gi-drill__bands" aria-hidden="true">
+              {shown.layout.bands.map(({ band, x }) => (
+                <span key={band} className="gi-drill__band" style={{ left: x }}>
+                  {BANDS[band]?.label}
+                </span>
+              ))}
+            </div>
+          )}
           <div
             className="gi-drill__boxes"
             role="tree"

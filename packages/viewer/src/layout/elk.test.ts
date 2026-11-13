@@ -7,6 +7,8 @@ import { buildHierarchy } from "../model/hierarchy.js";
 import { buildView, type GraphView } from "../model/view.js";
 import { shopDemo } from "../shopDemo.testkit.js";
 import {
+  bandOf,
+  BANDS,
   ELK_OPTIONS,
   elkGraph,
   LAYOUT_PAD,
@@ -102,6 +104,80 @@ describe("layoutInput", () => {
     expect(input.edges.map((e) => e.id)).toEqual(view.edges.map((e) => e.id));
     for (const e of input.edges) expect(e.label.width).toBeGreaterThan(0);
     expect(structuredClone(input)).toEqual(input);
+  });
+});
+
+describe("bands (the M10.3 prototype, M10-design A1)", () => {
+  it("gives each top-level node its layer's band only when asked, Backend without a layer", () => {
+    const view = buildView(index, API_OPEN);
+    expect(layoutInput(index, view).nodes.some((n) => n.band !== undefined)).toBe(false);
+    const banded = layoutInput(index, view, undefined, { bands: true });
+    const bandOfId = new Map(banded.nodes.map((n) => [n.id, n.band]));
+    expect(bandOfId.get("service:web/")).toBe(0);
+    expect(bandOfId.get("service:api/")).toBe(1);
+    expect(bandOfId.get("datastore:infra/db")).toBe(3);
+    expect(bandOfId.get("external:ext/api.stripe.com")).toBe(4);
+    // Inside an open service, nothing is banded.
+    expect(bandOfId.get("route:api/GET /api/orders")).toBeUndefined();
+    expect(BANDS.map((b) => b.label)).toEqual([
+      "Frontend",
+      "Backend",
+      "Queues and jobs",
+      "Data",
+      "Outside",
+    ]);
+    expect(bandOf(undefined)).toBe(1);
+    expect(bandOf("infra")).toBe(2);
+  });
+
+  it("partitions the root only for a banded input", () => {
+    const plain = elkGraph(layoutInput(index, buildView(index, [])));
+    expect(plain.layoutOptions?.["elk.partitioning.activate"]).toBeUndefined();
+    expect(plain.children?.some((c) => c.layoutOptions?.["elk.partitioning.partition"])).toBe(
+      false,
+    );
+    const banded = elkGraph(layoutInput(index, buildView(index, []), undefined, { bands: true }));
+    expect(banded.layoutOptions?.["elk.partitioning.activate"]).toBe("true");
+    const db = banded.children?.find((c) => c.id === "datastore:infra/db");
+    expect(db?.layoutOptions?.["elk.partitioning.partition"]).toBe("3");
+  });
+
+  it("puts unconnected nodes in band order left to right, where ELK alone stacks them", async () => {
+    const node = (id: string, band: number) => ({ id, parent: null, width: 120, height: 48, band });
+    const input: LayoutInput = {
+      // Listed against band order, with no edges: ELK alone puts all three in one column.
+      nodes: [node("outside", 4), node("data", 3), node("web", 0)],
+      edges: [],
+    };
+    const unbanded = await runLayout(elk, {
+      nodes: input.nodes.map(({ band: _, ...n }) => n),
+      edges: [],
+    });
+    expect(new Set(unbanded.boxes.map((b) => b.x)).size).toBe(1);
+    expect(unbanded.bands).toBeUndefined();
+
+    const result = await runLayout(elk, input);
+    const x = (id: string) => boxOf(result, id).x;
+    expect(x("web")).toBeLessThan(x("data"));
+    expect(x("data")).toBeLessThan(x("outside"));
+    expect(result.bands).toEqual([
+      { band: 0, x: x("web") },
+      { band: 3, x: x("data") },
+      { band: 4, x: x("outside") },
+    ]);
+  });
+
+  it("keeps the bands in order with a service open, every datastore right of every service", async () => {
+    for (const open of STATES) {
+      const view = buildView(index, open);
+      const result = await runLayout(elk, layoutInput(index, view, undefined, { bands: true }));
+      const right = (id: string) => boxOf(result, id).x + boxOf(result, id).width;
+      const left = (id: string) => boxOf(result, id).x;
+      expect(right("service:web/")).toBeLessThanOrEqual(left("service:api/"));
+      expect(right("service:api/")).toBeLessThanOrEqual(left("datastore:infra/db"));
+      expect(right("datastore:infra/db")).toBeLessThanOrEqual(left("external:ext/api.stripe.com"));
+      expect(result.bands?.map((b) => b.band)).toEqual([0, 1, 3, 4]);
+    }
   });
 });
 

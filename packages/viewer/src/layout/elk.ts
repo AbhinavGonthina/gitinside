@@ -1,3 +1,4 @@
+import type { Layer } from "@gitinside/schema";
 import type { ELK, ElkExtendedEdge, ElkNode, LayoutOptions } from "elkjs/lib/elk-api.js";
 import type { Rect } from "../chrome/describe.js";
 import type { Point } from "../edges/geometry.js";
@@ -28,6 +29,8 @@ import { FRAME_PAD, openHeader, viewEdgeLabelSize, viewNodeSize, type Size } fro
  * cost minutes. They stay deterministic (fixed seed). A service's
  * routes and pages go in its first column (ELK's `FIRST` layer constraint;
  * partitions are ignored across levels of a compound graph), then its folders.
+ * In the M10.3 prototype the top level's nodes are partitioned into bands
+ * ({@link BANDS}); that works with nodes open, since they're all the root's.
  */
 
 /** One visible node as the layout sees it. */
@@ -42,6 +45,41 @@ export interface LayoutNode {
   header?: number;
   /** A route or page at its service's first level: kept in the service's first column. */
   entry?: boolean;
+  /**
+   * A top-level node's band, an index into {@link BANDS} (M10.3a, prototype only): ELK keeps
+   * the bands in order left to right (`elk.partitioning`). Unset outside the prototype.
+   */
+  band?: number;
+}
+
+/**
+ * The prototype's bands (M10.3a, M10-design A1), left to right as a request travels. A
+ * top-level node's band is its layer's; a node without a layer goes to Backend.
+ */
+export const BANDS = [
+  { layer: "frontend", label: "Frontend" },
+  { layer: "backend", label: "Backend" },
+  { layer: "infra", label: "Queues and jobs" },
+  { layer: "data", label: "Data" },
+  { layer: "external", label: "Outside" },
+] as const satisfies readonly { layer: Layer; label: string }[];
+
+/** The band of a node in `layer` (Backend without one). */
+export function bandOf(layer: Layer | undefined): number {
+  const band = BANDS.findIndex((b) => b.layer === (layer ?? "backend"));
+  return band === -1 ? 1 : band;
+}
+
+/** Where a band starts on the canvas: the left edge of its leftmost top-level box. */
+export interface PlacedBand {
+  band: number;
+  x: number;
+}
+
+/** Options for {@link layoutInput}. */
+export interface LayoutInputOptions {
+  /** Lay the top level out in {@link BANDS} (the M10.3 prototype's A1). */
+  bands?: boolean | undefined;
 }
 
 /** One drawn edge as the layout sees it, with its label's size. */
@@ -74,6 +112,8 @@ export interface LayoutResult {
   edges: PlacedEdge[];
   width: number;
   height: number;
+  /** The bands drawn, in order, when the input has them (prototype only). */
+  bands?: PlacedBand[];
 }
 
 /** Space around the whole diagram. */
@@ -128,6 +168,9 @@ function rootOptions(input: LayoutInput): LayoutOptions {
     ...ELK_OPTIONS,
     ...(items > MODEL_ORDER_LIMIT ? { "elk.layered.considerModelOrder.strategy": "NONE" } : {}),
     ...(items > THOROUGHNESS_LIMIT ? { "elk.layered.thoroughness": "1" } : {}),
+    ...(input.nodes.some((n) => n.band !== undefined)
+      ? { "elk.partitioning.activate": "true" }
+      : {}),
   };
 }
 
@@ -137,11 +180,13 @@ function rootOptions(input: LayoutInput): LayoutOptions {
  * it around its children), and each edge's label size. In diff mode
  * (`marks`) a closed box makes room for its change badges and a pill for its
  * state's word or what broke, and both for what Base and Head draw instead.
+ * With `options.bands` (the prototype), each top-level node gets its band.
  */
 export function layoutInput(
   index: HierarchyIndex,
   view: GraphView,
   marks?: DiffMarks | undefined,
+  options: LayoutInputOptions = {},
 ): LayoutInput {
   const nodes = view.nodes.map((n): LayoutNode => {
     const size = viewNodeSize(index, n, marks);
@@ -153,6 +198,7 @@ export function layoutInput(
       height: header ?? size.height,
       ...(header === undefined ? {} : { header }),
       ...(n.section === "entries" ? { entry: true } : {}),
+      ...(options.bands && n.parent === null ? { band: bandOf(n.node.layer) } : {}),
     };
   });
   const edges = view.edges.map((e) => ({
@@ -177,6 +223,7 @@ export function elkGraph(input: LayoutInput): ElkNode {
       options["elk.nodeSize.minimum"] = `(${n.width},${n.height})`;
     }
     if (n.entry) options["elk.layered.layering.layerConstraint"] = "FIRST";
+    if (n.band !== undefined) options["elk.partitioning.partition"] = String(n.band);
     const node: ElkNode = {
       id: n.id,
       width: n.width,
@@ -310,7 +357,21 @@ export function readLayout(input: LayoutInput, out: ElkNode): LayoutResult {
     };
   });
 
-  return { boxes, edges, width: round(out.width ?? 0), height: round(out.height ?? 0) };
+  const result: LayoutResult = {
+    boxes,
+    edges,
+    width: round(out.width ?? 0),
+    height: round(out.height ?? 0),
+  };
+  const starts = new Map<number, number>();
+  for (const [i, n] of input.nodes.entries()) {
+    const box = boxes[i];
+    if (n.band === undefined || !box) continue;
+    starts.set(n.band, Math.min(starts.get(n.band) ?? Infinity, box.x));
+  }
+  if (starts.size > 0)
+    result.bands = [...starts].map(([band, x]) => ({ band, x })).sort((a, b) => a.band - b.band);
+  return result;
 }
 
 /**
