@@ -208,6 +208,8 @@ export {
 } from "./layout/size.js";
 export type { Size, SizeContext } from "./layout/size.js";
 export {
+  BANDS,
+  bandOf,
   ELK_OPTIONS,
   elkGraph,
   LAYOUT_PAD,
@@ -220,8 +222,10 @@ export {
 export type {
   LayoutEdge,
   LayoutInput,
+  LayoutInputOptions,
   LayoutNode,
   LayoutResult,
+  PlacedBand,
   PlacedEdge,
 } from "./layout/elk.js";
 export {
@@ -321,7 +325,7 @@ export type { EmptyStateProps, WarningListProps } from "./chrome/EmptyState.js";
 export { groupWarnings, hasSourceFiles, WARNING_TITLES, warningCount } from "./model/warnings.js";
 export type { WarningGroup } from "./model/warnings.js";
 export { EXPORT_NOTES, Explorer } from "./explorer/Explorer.js";
-export type { ExplorerDiff, ExplorerProps } from "./explorer/Explorer.js";
+export type { ExplorerDesign, ExplorerDiff, ExplorerProps } from "./explorer/Explorer.js";
 export type { UiIconName } from "./chrome/uiIcons.js";
 export type {
   NodeCount,

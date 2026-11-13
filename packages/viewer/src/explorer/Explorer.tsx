@@ -180,7 +180,16 @@ export interface ExplorerProps {
    * that version doesn't have `initialSelected` or `initialTrace`.
    */
   initialVersion?: DiffView | undefined;
+  /**
+   * Which design to draw (M10.3): `"current"` (default) is the shipped explorer; `"prototype"` is
+   * the M10 redesign under review at the design gate, only for the website's unlinked
+   * `/prototype` page until Abhinav approves it. So far it lays the top level out in bands.
+   */
+  design?: ExplorerDesign | undefined;
 }
+
+/** The explorer's designs: the shipped one, and the M10 redesign under review (M10.3). */
+export type ExplorerDesign = "current" | "prototype";
 
 /** What diff mode compares `graph` (the head) with. */
 export interface ExplorerDiff {
@@ -279,6 +288,7 @@ export function Explorer({
   cullFrom,
   diff: compare,
   initialVersion = "overlay",
+  design = "current",
 }: ExplorerProps) {
   // Diff mode (M6.9b): both versions in one graph, drawn with their states.
   const compareBase = compare?.base;
@@ -326,9 +336,10 @@ export function Explorer({
     setEngine(made);
     return () => made.dispose();
   }, [layoutWorker]);
+  const bands = design === "prototype";
   const cache = useMemo(
-    () => engine && createLayoutCache(index, engine, undefined, marks),
-    [index, engine, marks],
+    () => engine && createLayoutCache(index, engine, undefined, marks, { bands }),
+    [index, engine, marks, bands],
   );
   // The filters (M4b.8b): nodes and confidence levels, and connection kinds (imports off).
   const [filters, setFilters] = useState<Filters>(initialFilters);
