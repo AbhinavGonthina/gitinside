@@ -219,6 +219,90 @@ export function firstView(shown: Shown, canvas: Size): Camera {
   };
 }
 
+/**
+ * The prototype's first view kept clear of the canvas's overlays (M10.3c2, M10-design A9):
+ * `overlays` are their boxes in canvas px (the hint line, the toolbar, a chip). On an axis where
+ * the level fits the canvas, its boxes are inside {@link FIT_INSET}, clear of them, and the camera
+ * stays; on one where it doesn't (a hub framed at 80%), boxes run under the edges, so the camera
+ * moves along it to the nearest place (by the sum of the two moves, then the smaller vertical
+ * one, then the smaller horizontal one) where no box meets an overlay, staying inside the diagram
+ * and keeping `keep` (the hub) inside the insets, or with no `keep` within a quarter of the
+ * canvas. The camera as given when there's no such place.
+ */
+export function clearOfOverlays(
+  camera: Camera,
+  layout: Size & { boxes: readonly Rect[] },
+  canvas: Size,
+  overlays: readonly Rect[],
+  keep?: Rect,
+): Camera {
+  const live = overlays.filter((o) => o.width > 0 && o.height > 0);
+  const { zoom } = camera;
+  const meets = (x: number, y: number) =>
+    layout.boxes.some((b) => {
+      const left = b.x * zoom + x;
+      const top = b.y * zoom + y;
+      return live.some(
+        (o) =>
+          left < o.x + o.width &&
+          left + b.width * zoom > o.x &&
+          top < o.y + o.height &&
+          top + b.height * zoom > o.y,
+      );
+    });
+  if (live.length === 0 || !meets(camera.x, camera.y)) return camera;
+  /**
+   * Where one axis may go: the camera's own place, and, inside the diagram and with `keep` still
+   * clear of the edges, those bounds and just past each span that puts a box under an overlay.
+   */
+  const places = (axis: "x" | "y") => {
+    const [size, room, inset, start, length] =
+      axis === "x"
+        ? ([layout.width, canvas.width, FIT_INSET.x, "x", "width"] as const)
+        : ([layout.height, canvas.height, FIT_INSET.y, "y", "height"] as const);
+    const now = camera[axis];
+    if (size * zoom <= room - 2 * inset) return [now];
+    const reach = room / 4;
+    const low = Math.max(
+      room - inset - size * zoom,
+      keep ? inset - keep[start] * zoom : now - reach,
+    );
+    const high = Math.min(
+      inset,
+      keep ? room - inset - (keep[start] + keep[length]) * zoom : now + reach,
+    );
+    const ends = live.flatMap((o) =>
+      layout.boxes.flatMap((b) => [
+        Math.floor(o[start] - (b[start] + b[length]) * zoom),
+        Math.ceil(o[start] + o[length] - b[start] * zoom),
+      ]),
+    );
+    const inside = [low, high, ...ends].filter((p) => p >= low && p <= high);
+    return [...new Set([now, ...inside.map(Math.round)])];
+  };
+  const ys = places("y");
+  const xs = places("x");
+  // A level of hundreds of boxes (cal.diy's 113 services) would try too many: it stays.
+  if (xs.length * ys.length > MAX_CLEAR_TRIES) return camera;
+  const tries = ys.flatMap((y) => xs.map((x) => ({ x, y })));
+  const away = (p: { x: number; y: number }) =>
+    [
+      Math.abs(p.x - camera.x) + Math.abs(p.y - camera.y),
+      Math.abs(p.y - camera.y),
+      p.y,
+      p.x,
+    ] as const;
+  tries.sort((a, b) => {
+    const [ka, kb] = [away(a), away(b)];
+    return ka[0] - kb[0] || ka[1] - kb[1] || ka[2] - kb[2] || ka[3] - kb[3];
+  });
+  const best = tries.find((p) => !meets(p.x, p.y));
+  return best ? { zoom, ...best } : camera;
+}
+
+/** Most camera places {@link clearOfOverlays} tries. */
+const MAX_CLEAR_TRIES = 20_000;
+
 /** The node broken down last that the drawn view still has open (`order`: the order they were opened in). */
 export function lastOpened(order: readonly string[], shown: Shown | undefined): string | undefined {
   if (!shown) return undefined;

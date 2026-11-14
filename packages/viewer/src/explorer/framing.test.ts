@@ -11,6 +11,7 @@ import {
   autoCamera,
   belowBand,
   boxesRect,
+  clearOfOverlays,
   entriesRect,
   firstView,
   fitLevel,
@@ -320,5 +321,106 @@ describe("fitLevel", () => {
     expect(lastOpened([WEB, API, "module:api/src"], shown)).toBe(API);
     expect(lastOpened([], shown)).toBeUndefined();
     expect(lastOpened([API], undefined)).toBeUndefined();
+  });
+});
+
+describe("clearOfOverlays (M10.3c2)", () => {
+  const canvas = { width: 1000, height: 800 };
+  // A toolbar at the bottom right and a hint at the bottom left, as the prototype draws them.
+  const toolbar = { x: 740, y: 748, width: 244, height: 36 };
+  const hint = { x: 16, y: 748, width: 380, height: 36 };
+  // A tall level: columns of 100px boxes 60px apart, 2,000px tall.
+  const boxes = [0, 1, 2].flatMap((col) =>
+    Array.from({ length: 12 }, (_, row) => ({
+      x: col * 400,
+      y: row * 160 + 20,
+      width: 240,
+      height: 100,
+    })),
+  );
+  const tall = { width: 1040, height: 1940, boxes };
+  const under = (c: Camera, o: Rect) =>
+    boxes.some((b) => {
+      const l = b.x * c.zoom + c.x;
+      const t = b.y * c.zoom + c.y;
+      const r = l + b.width * c.zoom;
+      const bottom = t + b.height * c.zoom;
+      return l < o.x + o.width && r > o.x && t < o.y + o.height && bottom > o.y;
+    });
+
+  it("moves a camera that puts a box under an overlay to the nearest clear place", () => {
+    const camera = { zoom: 0.8, x: 0, y: -600 };
+    expect(under(camera, toolbar)).toBe(true);
+    const clear = clearOfOverlays(camera, tall, canvas, [toolbar, hint]);
+    expect(clear.zoom).toBe(0.8);
+    expect(clear.x).toBe(0);
+    expect(under(clear, toolbar) || under(clear, hint)).toBe(false);
+    expect(Math.abs(clear.y - camera.y)).toBeLessThanOrEqual(canvas.height / 4);
+    // The nearest: one px closer is blocked.
+    const closer = { ...clear, y: clear.y + Math.sign(camera.y - clear.y) };
+    expect(under(closer, toolbar) || under(closer, hint)).toBe(true);
+  });
+
+  it("leaves a camera alone when nothing is under an overlay, a level that fits, or no overlays", () => {
+    const clear = clearOfOverlays({ zoom: 0.8, x: 0, y: -600 }, tall, canvas, [toolbar]);
+    expect(clearOfOverlays(clear, tall, canvas, [toolbar])).toEqual(clear);
+    const short = { width: 1040, height: 500, boxes: boxes.slice(0, 3) };
+    const fit = { zoom: 0.8, x: 0, y: 600 };
+    expect(clearOfOverlays(fit, short, canvas, [toolbar])).toBe(fit);
+    const camera = { zoom: 0.8, x: 0, y: -600 };
+    expect(clearOfOverlays(camera, tall, canvas, [])).toBe(camera);
+    // Unmeasured overlays (jsdom's 0 × 0) count as none.
+    expect(clearOfOverlays(camera, tall, canvas, [{ ...toolbar, width: 0, height: 0 }])).toBe(
+      camera,
+    );
+  });
+
+  it("with a box to keep, goes as far as that box stays inside the insets", () => {
+    // Only the left column, rows 120px apart: the hint's row is clear only between rows.
+    const left = boxes.filter((b) => b.x === 0);
+    const level = { ...tall, boxes: left.map((b) => ({ ...b, height: 116 })) };
+    const camera = { zoom: 1, x: 0, y: -400 };
+    const hub = level.boxes[5] as Rect;
+    const kept = clearOfOverlays(camera, level, canvas, [hint], hub);
+    const onScreen = (c: Camera) =>
+      hub.y * c.zoom + c.y >= FIT_INSET.y &&
+      (hub.y + hub.height) * c.zoom + c.y <= canvas.height - FIT_INSET.y;
+    expect(onScreen(kept)).toBe(true);
+    const blocked = (c: Camera) =>
+      level.boxes.some((b) => {
+        const t = b.y * c.zoom + c.y;
+        return t < hint.y + hint.height && t + b.height * c.zoom > hint.y;
+      });
+    expect(blocked(camera)).toBe(true);
+    expect(blocked(kept)).toBe(false);
+    // A box to keep that can't stay inside anywhere clear: as given.
+    const huge = { x: 0, y: 0, width: 10, height: 1900 };
+    expect(clearOfOverlays(camera, level, canvas, [hint], huge)).toBe(camera);
+  });
+
+  it("moves sideways when the level is wider than the canvas and no height is clear", () => {
+    // A column as tall as the level under the toolbar, in a level wider than the canvas.
+    const wide = {
+      width: 2000,
+      height: 1940,
+      boxes: [{ x: 1000, y: 0, width: 200, height: 1940 }],
+    };
+    const camera = { zoom: 1, x: -300, y: -600 };
+    const moved = clearOfOverlays(camera, wide, canvas, [toolbar]);
+    expect(moved.y).toBe(camera.y);
+    expect(moved.x).not.toBe(camera.x);
+    const left = 1000 + moved.x;
+    expect(left + 200 <= toolbar.x || left >= toolbar.x + toolbar.width).toBe(true);
+  });
+
+  it("stays inside the diagram, and as given when no place within reach is clear", () => {
+    // A wall: one box as tall as the level under the toolbar's columns.
+    const wall = { width: 1040, height: 1940, boxes: [{ x: 800, y: 0, width: 240, height: 1940 }] };
+    const camera = { zoom: 0.8, x: 0, y: -600 };
+    expect(clearOfOverlays(camera, wall, canvas, [toolbar])).toBe(camera);
+    // At the diagram's bottom the camera can't move further up.
+    const bottom = { zoom: 0.8, x: 0, y: canvas.height - FIT_INSET.y - tall.height * 0.8 };
+    const moved = clearOfOverlays(bottom, tall, canvas, [toolbar]);
+    expect(moved.y).toBeGreaterThanOrEqual(bottom.y);
   });
 });

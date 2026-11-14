@@ -2,9 +2,12 @@ import type { ArchitectureGraph } from "@gitinside/schema";
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { codeShop } from "../model/codeLines.testkit.js";
+import { withTestFiles } from "../model/filterSamples.js";
+import { DEFAULT_FILTERS } from "../model/filters.js";
 import { groupedShop } from "../model/groups.testkit.js";
 import { shopDemo } from "../shopDemo.testkit.js";
 import { Explorer } from "./Explorer.js";
+import { memoryOnboarding } from "./onboarding.js";
 
 // The M10 redesign under review (M10.3): `design="prototype"` only, the shipped explorer unchanged.
 
@@ -32,6 +35,23 @@ async function drawn(design?: "current" | "prototype") {
 }
 
 const grouped = groupedShop();
+
+const WARNING = { code: "SYNTAX_ERROR", message: "';' expected.", file: "apps/web/lib/cart.ts" };
+const CACHE = "datastore:infra/cache";
+
+/** shop-demo's one datastore, to copy as one nothing connects to. */
+function dbNode() {
+  const db = graph.nodes.find((n) => n.id === "datastore:infra/db");
+  if (db?.kind !== "datastore") throw new Error("shop-demo has no datastore");
+  return db;
+}
+
+async function layoutDone(container: HTMLElement) {
+  await waitFor(
+    () => expect(container.querySelector(".gi-drill")?.getAttribute("data-layout")).toBe("done"),
+    { timeout: 10_000 },
+  );
+}
 
 async function drawnWith(g: ArchitectureGraph, design: "current" | "prototype") {
   const view = render(<Explorer graph={g} design={design} />);
@@ -231,6 +251,130 @@ describe("Explorer's prototype design (M10.3a)", { timeout: 30_000 }, () => {
       container.querySelector('.gi-explorer__canvas nav[aria-label="Drill-down path"]'),
     ).not.toBeNull();
     view.unmount();
+  });
+
+  it("keeps the canvas to three overlays: no default filter chip or warnings chip, one toolbar, one hint line (M10.3c2)", async () => {
+    // Tests hidden by default and a warning: the shipped design draws a chip for each.
+    const noisy = { ...withTestFiles(graph), warnings: [WARNING] };
+    const shipped = render(<Explorer graph={noisy} onboarding={memoryOnboarding()} />);
+    await layoutDone(shipped.container);
+    expect(shipped.container.querySelectorAll(".gi-status")).toHaveLength(2);
+    expect(shipped.container.querySelector(".gi-hint")).not.toBeNull();
+    shipped.unmount();
+
+    const { container } = render(
+      <Explorer graph={noisy} design="prototype" onboarding={memoryOnboarding()} />,
+    );
+    await layoutDone(container);
+    expect(container.querySelectorAll(".gi-status")).toHaveLength(0);
+    expect(container.querySelector(".gi-hint")).toBeNull();
+    expect(container.querySelector(".gi-hint-line")?.textContent).toBe(
+      "Double-click a box to break it down · T to trace a request",
+    );
+    const pin = (place: string) =>
+      container.querySelector<HTMLElement>(`.gi-explorer__pin[data-place="${place}"]`);
+    expect(pin("top-right")?.children).toHaveLength(0);
+    expect(pin("bottom-left")?.querySelector(".gi-hint-line")).not.toBeNull();
+    const toolbar = pin("bottom-right")?.querySelector<HTMLElement>('[role="group"]');
+    expect(toolbar?.getAttribute("aria-label")).toBe("View");
+    const names = [...(toolbar?.querySelectorAll("button") ?? [])].map((b) =>
+      b.getAttribute("aria-label"),
+    );
+    expect(names).toEqual(["Zoom out", "Zoom in", "Fit to screen", "Minimap", "Legend"]);
+    // Nothing is on, so no chips: the hint and the toolbar are the only overlays.
+    const drawn = [...container.querySelectorAll<HTMLElement>(".gi-explorer__pin")].filter(
+      (p) => p.children.length > 0,
+    );
+    expect(drawn.map((p) => p.dataset.place)).toEqual(["bottom-left", "bottom-right"]);
+    // The minimap waits to be asked for; the legend opens from "?".
+    expect(container.querySelector(".gi-minimap")).toBeNull();
+    const button = (name: string) =>
+      toolbar?.querySelector<HTMLButtonElement>(`button[aria-label="${name}"]`) as HTMLElement;
+    fireEvent.click(button("Minimap"));
+    expect(container.querySelector(".gi-minimap")).not.toBeNull();
+    expect(button("Minimap").getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(button("Legend"));
+    await waitFor(() => expect(container.querySelector(".gi-legend")).not.toBeNull());
+    expect(button("Legend").getAttribute("aria-expanded")).toBe("true");
+    // Its close button puts focus back on "?".
+    const close = container.querySelector<HTMLButtonElement>(
+      '.gi-legend button[aria-label="Close legend"]',
+    );
+    close?.focus();
+    fireEvent.click(close as HTMLButtonElement);
+    expect(document.activeElement).toBe(button("Legend"));
+    fireEvent.click(button("Minimap"));
+    expect(container.querySelector(".gi-minimap")).toBeNull();
+  });
+
+  it("draws a filter chip for a filter the reader set (M10.3c2)", async () => {
+    const { container } = render(
+      <Explorer
+        graph={withTestFiles(graph)}
+        design="prototype"
+        initialFilters={{ ...DEFAULT_FILTERS, layers: ["data"] }}
+      />,
+    );
+    await layoutDone(container);
+    const chips = container.querySelectorAll(".gi-status");
+    expect(chips).toHaveLength(1);
+    expect(chips[0]?.textContent).toMatch(/^1 filter · /);
+  });
+
+  it("ends the hint line for good at the first search or break-down, not a selection (M10.3c2)", async () => {
+    for (const action of ["search", "break down"] as const) {
+      const store = memoryOnboarding();
+      const view = render(<Explorer graph={graph} design="prototype" onboarding={store} />);
+      const { container } = view;
+      await layoutDone(container);
+      const web = [...container.querySelectorAll<HTMLElement>(".gi-drill__node")]
+        .find((n) => n.dataset.nodeId === "service:web/")
+        ?.querySelector<HTMLElement>(":scope > .gi-node") as HTMLElement;
+      fireEvent.click(web);
+      expect(container.querySelector('.gi-hint-line[data-state="open"]')).not.toBeNull();
+      expect(store.done()).toBe(false);
+      if (action === "search") fireEvent.keyDown(web, { key: "k", ctrlKey: true });
+      else await act(() => fireEvent.keyDown(web, { key: "Enter" }));
+      expect(store.done()).toBe(true);
+      expect(container.querySelector('.gi-hint-line[data-state="open"]')).toBeNull();
+      view.unmount();
+    }
+  });
+
+  it("shows no hint line to a reader who's done with the hints", async () => {
+    const { container } = render(
+      <Explorer graph={graph} design="prototype" onboarding={memoryOnboarding(true)} />,
+    );
+    await layoutDone(container);
+    expect(container.querySelector(".gi-hint-line")).toBeNull();
+  });
+
+  it("captions a datastore no connection reaches, in the prototype only (M10.3c2)", async () => {
+    const withCache: ArchitectureGraph = {
+      ...graph,
+      nodes: [...graph.nodes, { ...dbNode(), id: CACHE, label: "cache", engine: "redis" }],
+    };
+    const caption = (container: HTMLElement, id: string) =>
+      [...container.querySelectorAll<HTMLElement>(".gi-drill__node")]
+        .find((n) => n.dataset.nodeId === id)
+        ?.querySelector(".gi-node__caption")?.textContent;
+    const proto = render(<Explorer graph={withCache} design="prototype" />);
+    await layoutDone(proto.container);
+    expect(caption(proto.container, CACHE)).toBe("Not linked to code");
+    expect(caption(proto.container, "datastore:infra/db")).toBeUndefined();
+    // Read with the box's description, as the subtitle is.
+    const card = [...proto.container.querySelectorAll<HTMLElement>(".gi-drill__node")]
+      .find((n) => n.dataset.nodeId === CACHE)
+      ?.querySelector<HTMLElement>(":scope > .gi-node");
+    const described = card?.getAttribute("aria-describedby") ?? "";
+    expect(proto.container.ownerDocument.getElementById(described)?.textContent).toContain(
+      "Not linked to code",
+    );
+    proto.unmount();
+    const shipped = render(<Explorer graph={withCache} />);
+    await layoutDone(shipped.container);
+    expect(caption(shipped.container, CACHE)).toBeUndefined();
+    shipped.unmount();
   });
 
   it("draws no bands in the shipped design", async () => {

@@ -112,6 +112,20 @@
   overflow-wrap: anywhere;
 }
 
+/*
+ * An unlinked datastore's caption (M10.3c2, M10-design A4), under its name behind a dotted rule:
+ * 4px + 1px + 3px + a 16px line, the `CAPTION_ROW` the layout gives it.
+ */
+.gi-node__caption {
+  margin-top: 4px;
+  padding-top: 3px;
+  border-top: 1px dotted var(--text-muted);
+  color: var(--text-muted);
+  font-size: var(--font-size-12);
+  line-height: 16px;
+  white-space: nowrap;
+}
+
 .gi-node[data-wrap] .gi-node__scope {
   color: var(--text-muted);
   font-weight: var(--font-weight-regular);

@@ -15,7 +15,7 @@ import { EmptyState, WarningList } from "../chrome/EmptyState.js";
 import { FiltersPopover } from "../chrome/FiltersPopover.js";
 import { ShareMenu } from "../chrome/ShareMenu.js";
 import { viewExport, type ViewExport } from "../export/files.js";
-import { Breadcrumbs, Legend, Minimap, ZoomControls } from "../chrome/overlays.js";
+import { Breadcrumbs, CanvasToolbar, Legend, Minimap, ZoomControls } from "../chrome/overlays.js";
 import { DIFF_VIEWS, TopBar, type CommitStatus, type DiffView } from "../chrome/TopBar.js";
 import { buildDiffOverlay, DiffMismatchError, diffMarks, versionGraph } from "../model/diff.js";
 import {
@@ -73,10 +73,25 @@ import { ChangesSection, movesNote } from "./changes.js";
 import { encodeState, withState, type ExplorerState } from "./deepLink.js";
 import { DrillCanvas, toggledBetween, type BoxLook, type LineLook } from "./DrillCanvas.js";
 import { useDrill, type Expansion } from "./drill.js";
-import { autoCamera, belowBand, boxesRect, fitLevel, lastOpened } from "./framing.js";
+import {
+  autoCamera,
+  belowBand,
+  boxesRect,
+  clearOfOverlays,
+  fitLevel,
+  hubOf,
+  lastOpened,
+} from "./framing.js";
 import { useCanvasGestures, type CameraMotion } from "./gestures.js";
 import { useGlideSpan } from "./glide.js";
-import { hintSteps, OnboardingHint, type HintStep, type OnboardingStore } from "./onboarding.js";
+import {
+  HintLine,
+  hintLine,
+  hintSteps,
+  OnboardingHint,
+  type HintStep,
+  type OnboardingStore,
+} from "./onboarding.js";
 import { NodePanel, TracePanel, WARNINGS_SECTION } from "./panels.js";
 import { traceChoices, TracePicker } from "./picker.js";
 import { SearchPalette, searchEntries } from "./search.js";
@@ -190,7 +205,10 @@ export interface ExplorerProps {
    * view fitted at 70% or more, else on the hub at 80%, and cards whose names wrap rather than
    * end in "…", with a count row and role on every service and logos on a host group's tile;
    * and one bar for the whole page, with the drill-down path in it (`home`, `commitStatus`,
-   * `topBarEnd`).
+   * `topBarEnd`); on the canvas, at most three overlays (M10.3c2): status chips only for what's
+   * on (no filter chip for the default hiding, no warnings chip), one bottom-right toolbar
+   * (zoom, fit, the minimap's toggle, the legend), and a one-line first-visit hint instead of
+   * the tip cards, with hairlines instead of the soft shadow; unlinked datastores captioned.
    */
   design?: ExplorerDesign | undefined;
   /**
@@ -441,6 +459,9 @@ export function Explorer({
   }, []);
   const [legend, setLegend] = useState(false);
   const legendState = usePresence(legend);
+  // The prototype's minimap is off until the reader turns it on (M10.3c2), so the first view
+  // has no overlay over a box.
+  const [minimapOn, setMinimapOn] = useState(false);
   const [announcement, setAnnouncement] = useState("");
   const [shown, setShown] = useState<Shown>();
   // Export (M4b.10b): what's drawn, at the layout it was drawn at. In diff
@@ -494,15 +515,20 @@ export function Explorer({
   // While the first-visit hint shows, that camera fits below its card
   // (`belowBand`, M9.2g): the card's bottom plus a gap, in canvas px.
   const [hintBand, setHintBand] = useState(0);
-  const auto = useMemo(
-    () =>
-      belowBand(canvas, hintBand, (room) =>
-        overview && shown
-          ? fitLevel(shown.layout, room)
-          : autoCamera(shown, room, focus, { firstView: prototype }),
-      ),
-    [overview, shown, canvas, focus, hintBand, prototype],
-  );
+  // The prototype's overlays on the canvas (M10.3c2), which its first view keeps boxes out
+  // from under: measured before paint, in canvas px.
+  const [overlayRects, setOverlayRects] = useState<readonly Rect[]>([]);
+  const auto = useMemo(() => {
+    const picked = belowBand(canvas, hintBand, (room) =>
+      overview && shown
+        ? fitLevel(shown.layout, room)
+        : autoCamera(shown, room, focus, { firstView: prototype }),
+    );
+    if (!prototype || !shown || overview || focus !== undefined) return picked;
+    const hub = hubOf(shown.view);
+    const keep = hub === undefined ? undefined : shown.layout.boxes.find((b) => b.id === hub);
+    return clearOfOverlays(picked, shown.layout, canvas, overlayRects, keep);
+  }, [overview, shown, canvas, focus, hintBand, prototype, overlayRects]);
   const camera = handSet ?? auto;
   const [cameraMotion, setCameraMotion] = useState<CameraMotion>("layout");
   const live = useRef({ camera, size, canvas });
@@ -655,6 +681,29 @@ export function Explorer({
     if (next !== now) moveCamera(next, "layout");
   });
 
+  // The prototype's overlays (chips, the hint line, the toolbar; not the minimap or legend the
+  // reader opens): measured after every render, kept when unchanged.
+  useLayoutEffect(() => {
+    if (!prototype) return;
+    const on = canvasRef.current?.getBoundingClientRect();
+    if (!on) return;
+    const rects = [
+      ...(rootRef.current?.querySelectorAll(
+        '.gi-explorer__pin > :is(.gi-status, .gi-explorer__diff, .gi-hint-line:not([data-state="closing"]), .gi-toolbar)',
+      ) ?? []),
+    ].map((el) => {
+      const at = el.getBoundingClientRect();
+      return {
+        x: Math.round(at.left - on.left),
+        y: Math.round(at.top - on.top),
+        width: Math.round(at.width),
+        height: Math.round(at.height),
+      };
+    });
+    const key = (list: readonly Rect[]) => JSON.stringify(list);
+    setOverlayRects((now) => (key(now) === key(rects) ? now : rects));
+  });
+
   /** Where the minimap is on the canvas, in canvas px (0 × 0 when it isn't drawn). */
   function minimapRect(): Rect {
     const map = rootRef.current?.querySelector(".gi-minimap");
@@ -715,6 +764,8 @@ export function Explorer({
   // the explorer opened with, after mount, so a server render (no storage)
   // matches the first client one. Kept while the last one plays its exit.
   const [hints, setHints] = useState<{ steps: readonly HintStep[]; at: number } | null>(null);
+  // The prototype's one line instead (M10.3c2, `hintLine`).
+  const [hintParts, setHintParts] = useState<readonly string[] | null>(null);
   const [hintsOn, setHintsOn] = useState(false);
   const hintState = usePresence(hintsOn);
   const hintStart = useRef({
@@ -729,11 +780,18 @@ export function Explorer({
     if (hintsChecked.current || !onboarding) return;
     hintsChecked.current = true;
     if (onboarding.done()) return;
+    if (prototype) {
+      const parts = hintLine(hintStart.current);
+      if (parts.length === 0) return;
+      setHintParts(parts);
+      setHintsOn(true);
+      return;
+    }
     const steps = hintSteps(hintStart.current);
     if (steps.length === 0) return;
     setHints({ steps, at: 0 });
     setHintsOn(true);
-  }, [onboarding]);
+  }, [onboarding, prototype]);
 
   // The card's room (`hintBand`): measured before paint, so the first fit is
   // already below it; the tallest of its tips so far, so Next doesn't move
@@ -777,8 +835,15 @@ export function Explorer({
     setHintsOn(false);
   }
 
-  /** The reader did what a hint says: if it's the one showing, it moves on. */
-  function hintDone(step: HintStep) {
+  /**
+   * The reader did what a hint says: if it's the one showing, it moves on. The prototype's line
+   * goes, for good, at the first break-down, trace, or search (M10-design B2).
+   */
+  function hintDone(step: HintStep | "search") {
+    if (prototype) {
+      if (hintsOn && step !== "select") endHints(true);
+      return;
+    }
     if (hintsOn && hints?.steps[hints.at] === step) nextHint();
   }
 
@@ -1040,6 +1105,7 @@ export function Explorer({
     else if (!picking) {
       rememberOpener();
       setSearching(true);
+      hintDone("search");
     }
   }
 
@@ -1110,7 +1176,9 @@ export function Explorer({
   /** Closes the legend; focus inside it goes back to the button that opened it. */
   function closeLegend() {
     const root = rootRef.current;
-    const toggle = root?.querySelector<HTMLElement>(".gi-explorer__map .gi-overlay button");
+    const toggle = root?.querySelector<HTMLElement>(
+      prototype ? "[data-legend-opener]" : ".gi-explorer__map .gi-overlay button",
+    );
     if (root?.querySelector(".gi-legend")?.contains(document.activeElement)) toggle?.focus();
     setLegend(false);
   }
@@ -1260,6 +1328,17 @@ export function Explorer({
     fromBase(overlay?.edgesIn.head, step === null ? undefined : steps[step]?.edge.id),
   );
   const hint = hints?.steps[hints.at];
+  const minimap = (
+    <Minimap
+      nodes={minimapNodes}
+      viewport={
+        canvas.width > 0
+          ? visibleRect(camera, canvas)
+          : { x: 0, y: 0, width: size.width, height: size.height }
+      }
+      onNavigate={(p) => moveCamera(centerOn(live.current.camera, p, live.current.canvas), "none")}
+    />
+  );
 
   /** The popover, under what opened it (the top bar's button, or the canvas's chip or button). */
   const filtersPopover = () =>
@@ -1330,6 +1409,7 @@ export function Explorer({
       ref={rootRef}
       className="gi-explorer"
       data-bare={topBar ? undefined : ""}
+      data-design={prototype ? "prototype" : undefined}
       data-layout-runs-in={runsIn}
       data-settled={settled ? "" : undefined}
       data-hand-camera={handSet ? "" : undefined}
@@ -1431,7 +1511,8 @@ export function Explorer({
                 Tracing <code>{traceName(path.start)}</code>
               </StatusChip>
             )}
-            {filtered.size > 0 || linesOff > 0 ? (
+            {/* The prototype's chip is for what the reader set, never the default hiding. */}
+            {(prototype ? barFilterCount > 0 : filtered.size > 0 || linesOff > 0) ? (
               <StatusChip exitLabel="Clear filters" onExit={clearFilters}>
                 <button
                   type="button"
@@ -1440,7 +1521,7 @@ export function Explorer({
                   aria-expanded={filtering}
                   onClick={() => toggleFilters("canvas")}
                 >
-                  {filtersText(filterCount, filtered.size, linesOff)}
+                  {filtersText(prototype ? barFilterCount : filterCount, filtered.size, linesOff)}
                 </button>
               </StatusChip>
             ) : (
@@ -1466,12 +1547,14 @@ export function Explorer({
             data-place="top-right"
             onClick={(e) => e.stopPropagation()}
           >
-            <ZoomControls
-              zoom={camera.zoom}
-              onZoomIn={() => zoomBy(1)}
-              onZoomOut={() => zoomBy(-1)}
-              onFit={fitView}
-            />
+            {!prototype && (
+              <ZoomControls
+                zoom={camera.zoom}
+                onZoomIn={() => zoomBy(1)}
+                onZoomOut={() => zoomBy(-1)}
+                onFit={fitView}
+              />
+            )}
             {filtersFrom === "top" && filtersPopover()}
           </div>
           <div
@@ -1479,8 +1562,12 @@ export function Explorer({
             data-place="bottom-left"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Not while tracing: the inspector is the trace's then. */}
-            {graph.warnings.length > 0 && !tracing && (
+            {prototype && hintState && hintParts && (
+              <HintLine parts={hintParts} state={hintState} />
+            )}
+            {/* Not while tracing: the inspector is the trace's then. Not in the prototype: its
+                panel lists them (M10-design A8). */}
+            {!prototype && graph.warnings.length > 0 && !tracing && (
               <StatusChip className="gi-explorer__warnings">
                 <button type="button" className="gi-status__open" onClick={showWarnings}>
                   {warningCount(graph.warnings.length)}
@@ -1502,30 +1589,36 @@ export function Explorer({
                 onClose={closeLegend}
               />
             )}
-            <div className="gi-explorer__map">
-              <div className="gi-overlay">
-                <Button
-                  variant="quiet"
-                  size="sm"
-                  icon="legend"
-                  aria-expanded={legend}
-                  onClick={() => setLegend(!legend)}
-                >
-                  Legend
-                </Button>
+            {prototype ? (
+              <>
+                {minimapOn && minimap}
+                <CanvasToolbar
+                  zoom={camera.zoom}
+                  onZoomIn={() => zoomBy(1)}
+                  onZoomOut={() => zoomBy(-1)}
+                  onFit={fitView}
+                  minimap={minimapOn}
+                  onMinimap={() => setMinimapOn(!minimapOn)}
+                  legend={legend}
+                  onLegend={() => setLegend(!legend)}
+                />
+              </>
+            ) : (
+              <div className="gi-explorer__map">
+                <div className="gi-overlay">
+                  <Button
+                    variant="quiet"
+                    size="sm"
+                    icon="legend"
+                    aria-expanded={legend}
+                    onClick={() => setLegend(!legend)}
+                  >
+                    Legend
+                  </Button>
+                </div>
+                {minimap}
               </div>
-              <Minimap
-                nodes={minimapNodes}
-                viewport={
-                  canvas.width > 0
-                    ? visibleRect(camera, canvas)
-                    : { x: 0, y: 0, width: size.width, height: size.height }
-                }
-                onNavigate={(p) =>
-                  moveCamera(centerOn(live.current.camera, p, live.current.canvas), "none")
-                }
-              />
-            </div>
+            )}
           </div>
         </div>
         {tracing ? (

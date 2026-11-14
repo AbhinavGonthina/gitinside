@@ -21,6 +21,11 @@ import type { NodeCount, NodeText } from "./describe.js";
  * - **A host group's tile:** a closed group of outside hosts is a circle tile with up to 4 of its
  *   members' logos (distinct brands, members by most lines first), not a folder.
  *
+ * - **An unlinked datastore's caption** (M10.3c2, M10-design A4): a datastore no connection of
+ *   any kind reaches or leaves (wanderlust's and maxun's compose databases, which no detector
+ *   links to code yet) says "Not linked to code" under its name. It's never moved toward a
+ *   service it might belong to.
+ *
  * Names wrap rather than end in "…" ({@link nameLines}); the shared `@scope/` stays in the name,
  * muted (nodes.css).
  *
@@ -39,7 +44,12 @@ export interface CardLook {
   counts?: readonly NodeCount[];
   /** A closed host group's logo tile: up to {@link MAX_LOGOS} members with distinct brands. */
   logos?: readonly GraphNode[];
+  /** A line under the subtitle, set apart by a dotted rule: {@link UNLINKED_CAPTION}. */
+  caption?: string;
 }
+
+/** What an unlinked datastore's card says (M10-design A4). */
+export const UNLINKED_CAPTION = "Not linked to code";
 
 /** Most logos a host group's tile shows (a 2×2 grid). */
 export const MAX_LOGOS = 4;
@@ -52,6 +62,8 @@ interface ServiceFacts {
   used: ReadonlySet<string>;
   /** Service labels held by more than one service. */
   duplicates: ReadonlySet<string>;
+  /** Nodes some connection starts or ends at. */
+  linked: ReadonlySet<string>;
 }
 
 const FACTS = new WeakMap<HierarchyIndex, ServiceFacts>();
@@ -61,7 +73,10 @@ function factsOf(index: HierarchyIndex): ServiceFacts {
   if (known) return known;
   const hosts = new Map<string, Set<string>>();
   const used = new Set<string>();
+  const linked = new Set<string>();
   for (const e of index.graph.edges) {
+    linked.add(e.from);
+    linked.add(e.to);
     const from = index.service.get(e.from);
     if (!from) continue;
     if (index.byId.get(e.to)?.kind === "external") {
@@ -83,6 +98,7 @@ function factsOf(index: HierarchyIndex): ServiceFacts {
     hosts: new Map([...hosts].map(([id, set]) => [id, set.size])),
     used,
     duplicates,
+    linked,
   };
   FACTS.set(index, facts);
   return facts;
@@ -166,6 +182,9 @@ export function cardLook(index: HierarchyIndex, node: GraphNode): CardLook | und
   }
   if (isHostGroup(node)) {
     return { subtitle: { text: "Outside hosts" }, counts: [], logos: groupLogos(index, node.id) };
+  }
+  if (node.kind === "datastore" && !factsOf(index).linked.has(node.id)) {
+    return { caption: UNLINKED_CAPTION };
   }
   return undefined;
 }
