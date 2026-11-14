@@ -1,7 +1,7 @@
 import { compareStrings } from "@gitinside/schema";
 import type { Confidence, EdgeKind, GraphEdge, GraphNode, NodeKind } from "@gitinside/schema";
 import { filtersKey, hiddenNodes, NO_FILTERS, type Filters } from "./filters.js";
-import { type HierarchyIndex } from "./hierarchy.js";
+import { isEntry, type HierarchyIndex } from "./hierarchy.js";
 
 /**
  * What the canvas shows for one expansion state (M4b.1): the visible nodes,
@@ -32,6 +32,8 @@ export interface ViewNode {
   open: boolean;
   /** Has children, so it can be broken down. */
   canOpen: boolean;
+  /** An open frame showing only a path's boxes (`ViewOptions.only`): how many it leaves out. */
+  more?: number;
 }
 
 /** One drawn edge: every graph edge of one kind between two visible nodes. */
@@ -63,7 +65,64 @@ export interface GraphView {
    * With `open` and `hidden`, all a view depends on besides the graph.
    */
   filtered: string;
+  /** The path-only key (`onlyKey`, "" when the view shows everything), for the layout cache. */
+  only: string;
   edges: readonly ViewEdge[];
+}
+
+/**
+ * A path-only view (M10.3d2, M10-design B1): inside an open frame that holds part of the path,
+ * only the boxes that draw it are drawn, unless the frame is in `whole`. Top-level boxes are
+ * always drawn.
+ */
+export interface OnlyPath {
+  /** The path's nodes (`traceNodes`). */
+  path: ReadonlySet<string>;
+  /** Frames shown whole again ("+ N more"). */
+  whole?: ReadonlySet<string>;
+}
+
+/** A key for a path-only view's effect: its path and whole frames, sorted. */
+export function onlyKey(only: OnlyPath | undefined): string {
+  if (!only) return "";
+  return JSON.stringify([
+    [...only.path].sort(compareStrings),
+    [...(only.whole ?? [])].sort(compareStrings),
+  ]);
+}
+
+/**
+ * The nodes a path-only view keeps for `open` (nodes really open): each path node and the nodes
+ * around it, except that a route or page drawn at its open service's first level (its file
+ * closed) keeps only the service around it, not the folders it's filed in, which would be drawn
+ * empty of anything on the path.
+ */
+export function pathKeep(
+  index: HierarchyIndex,
+  path: Iterable<string>,
+  open: ReadonlySet<string>,
+): Set<string> {
+  const keep = new Set<string>();
+  for (const id of path) {
+    const node = index.byId.get(id);
+    if (!node) continue;
+    keep.add(id);
+    const service = index.service.get(id);
+    const asEntry =
+      isEntry(node) &&
+      service !== undefined &&
+      open.has(service) &&
+      !(node.parentId !== null && open.has(node.parentId));
+    let up = asEntry
+      ? index.byId.get(service)
+      : node.parentId
+        ? index.byId.get(node.parentId)
+        : undefined;
+    for (; up && !keep.has(up.id); up = up.parentId ? index.byId.get(up.parentId) : undefined) {
+      keep.add(up.id);
+    }
+  }
+  return keep;
 }
 
 /** Options for `buildView`. */
@@ -72,6 +131,8 @@ export interface ViewOptions {
   hiddenKinds?: ReadonlySet<EdgeKind>;
   /** Nodes and confidence levels left off (M4b.8). Defaults to none (`NO_FILTERS`). */
   filters?: Filters;
+  /** Only a path's boxes inside the frames holding it (M10.3d2). Defaults to everything. */
+  only?: OnlyPath | undefined;
 }
 
 /** Hidden unless asked for: imports repeat the calls at every level above a file. */
@@ -142,6 +203,9 @@ export function buildView(
   const nodes: ViewNode[] = [];
   const byId = new Map<string, ViewNode>();
   const childrenOf = new Map<string, string[]>();
+  const keep = options.only && pathKeep(index, options.only.path, open);
+  /** Children a path-only frame leaves out; everything inside them is left out too. */
+  const omitted = new Set<string>();
 
   // An entry is drawn in its file when the file is open, else in its
   // service's entries section when the service is open.
@@ -162,15 +226,27 @@ export function buildView(
     if (siblings) siblings.push(n.id);
     else childrenOf.set(parent ?? index.root.id, [n.id]);
     if (!view.open) return;
-    if (n.kind === "service") {
-      for (const entry of index.entries.get(n.id) ?? []) {
-        if (!inFile(entry) && !filtered.has(entry.id)) place(entry, n.id, "entries", level + 1);
-      }
-    }
+    // A frame holding part of a path-only view's path draws only the path's boxes.
+    const trims =
+      keep !== undefined && keep.has(n.id) && !(options.only?.whole?.has(n.id) ?? false);
+    const drawn = (c: GraphNode) => {
+      if (!trims || keep.has(c.id)) return true;
+      omitted.add(c.id);
+      return false;
+    };
+    const entries =
+      n.kind === "service"
+        ? (index.entries.get(n.id) ?? []).filter((e) => !inFile(e) && !filtered.has(e.id))
+        : [];
     const kids = shownChildren(index, n.id, filtered);
     kids.sort((a, b) => rank(a) - rank(b));
+    const shownEntries = entries.filter(drawn);
+    const shownKids = kids.filter(drawn);
+    const more = entries.length - shownEntries.length + kids.length - shownKids.length;
+    if (more > 0) view.more = more;
+    for (const entry of shownEntries) place(entry, n.id, "entries", level + 1);
     // A route or page reached here is in its open file, so it's drawn there.
-    for (const child of kids) place(child, n.id, "contents", level + 1);
+    for (const child of shownKids) place(child, n.id, "contents", level + 1);
   };
   for (const top of shownChildren(index, index.root.id, filtered)) {
     place(top, null, "contents", 0);
@@ -178,6 +254,7 @@ export function buildView(
 
   const hidden = options.hiddenKinds ?? DEFAULT_HIDDEN_KINDS;
   const confidence = new Set(filters.confidence);
+  const out = leftOut(index, omitted, byId);
   return {
     nodes,
     byId,
@@ -185,6 +262,7 @@ export function buildView(
     open: [...open].sort(compareStrings),
     hidden: [...hidden].sort(compareStrings),
     filtered: filtersKey(filters),
+    only: onlyKey(options.only),
     edges: liftEdges(
       index,
       byId,
@@ -192,9 +270,35 @@ export function buildView(
         hidden.has(e.kind) ||
         confidence.has(e.confidence) ||
         filtered.has(e.from) ||
-        filtered.has(e.to),
+        filtered.has(e.to) ||
+        out(e.from) ||
+        out(e.to),
     ),
   };
+}
+
+/**
+ * Whether a node is left out of a path-only view: it or a node around it is in `omitted`, with no
+ * drawn box on the way (a route drawn at its service's first level is drawn, though its folder is
+ * left out). Its connections go rather than being drawn to the frame, which would claim the frame
+ * does them.
+ */
+function leftOut(
+  index: HierarchyIndex,
+  omitted: ReadonlySet<string>,
+  drawn: ReadonlyMap<string, ViewNode>,
+): (id: string) => boolean {
+  if (omitted.size === 0) return () => false;
+  const memo = new Map<string, boolean>();
+  const check = (id: string): boolean => {
+    const known = memo.get(id);
+    if (known !== undefined) return known;
+    const parent = index.byId.get(id)?.parentId;
+    const result = !drawn.has(id) && (omitted.has(id) || (parent ? check(parent) : false));
+    memo.set(id, result);
+    return result;
+  };
+  return check;
 }
 
 /**

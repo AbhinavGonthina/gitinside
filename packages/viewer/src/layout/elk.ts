@@ -5,7 +5,14 @@ import type { Point } from "../edges/geometry.js";
 import type { DiffMarks } from "../model/diff.js";
 import { layerOf, type HierarchyIndex } from "../model/hierarchy.js";
 import { isCodeLine, type GraphView } from "../model/view.js";
-import { FRAME_PAD, openHeader, viewEdgeLabelSize, viewNodeSize, type Size } from "./size.js";
+import {
+  FRAME_PAD,
+  MORE_FOOT,
+  openHeader,
+  viewEdgeLabelSize,
+  viewNodeSize,
+  type Size,
+} from "./size.js";
 
 /**
  * The explorer's layout (M4b.2): ELK's layered algorithm over the visible
@@ -47,6 +54,8 @@ export interface LayoutNode {
   height: number;
   /** Open nodes only: the header's height above the children. */
   header?: number;
+  /** Open nodes leaving boxes out of a path-only view (M10.3d2): room below the children for "+ N more". */
+  foot?: number;
   /** A route or page at its service's first level: kept in the service's first column. */
   entry?: boolean;
   /**
@@ -223,6 +232,7 @@ export function layoutInput(
       width: size.width,
       height: header ?? size.height,
       ...(header === undefined ? {} : { header }),
+      ...(header !== undefined && n.more ? { foot: MORE_FOOT } : {}),
       ...(n.section === "entries" ? { entry: true } : {}),
       ...(options.bands && n.parent === null ? { band: bandOf(n.node.layer) } : {}),
     };
@@ -247,7 +257,7 @@ export function elkGraph(input: LayoutInput): ElkNode {
     const options: LayoutOptions = {};
     if (n.header !== undefined) {
       options["elk.padding"] =
-        `[top=${n.header},left=${FRAME_PAD},bottom=${FRAME_PAD},right=${FRAME_PAD}]`;
+        `[top=${n.header},left=${FRAME_PAD},bottom=${FRAME_PAD + (n.foot ?? 0)},right=${FRAME_PAD}]`;
       options["elk.nodeSize.constraints"] = "MINIMUM_SIZE";
       options["elk.nodeSize.minimum"] = `(${n.width},${n.height})`;
     }

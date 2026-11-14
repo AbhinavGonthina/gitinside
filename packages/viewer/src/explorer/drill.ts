@@ -2,7 +2,13 @@ import { compareStrings } from "@gitinside/schema";
 import { useMemo, useState } from "react";
 import { ancestry, canOpen, isEntry, isWithin, type HierarchyIndex } from "../model/hierarchy.js";
 import { hiddenNodes, NO_FILTERS, type Filters } from "../model/filters.js";
-import { buildView, effectiveOpen, type GraphView, type ViewOptions } from "../model/view.js";
+import {
+  buildView,
+  effectiveOpen,
+  onlyKey,
+  type GraphView,
+  type ViewOptions,
+} from "../model/view.js";
 
 /**
  * The explorer's drill-down state (M4b.3, UX.md "Drill-down"): which nodes
@@ -106,6 +112,8 @@ export interface Drill {
    * to show it (default: the hook's).
    */
   reveal(id: string, filters?: Filters): void;
+  /** Replaces the whole state: a trace opening its path, and going back from it (M10.3d2). */
+  set(expansion: Expansion): void;
 }
 
 /**
@@ -125,13 +133,17 @@ export function useDrill(
   const openKey = JSON.stringify([...effectiveOpen(index, expansion)].sort(compareStrings));
   const hiddenKinds = options?.hiddenKinds;
   const filters = options?.filters;
+  // Keyed by what it keeps (`onlyKey`), so an equal path-only state is the same view.
+  const only = options?.only;
+  const pathKey = onlyKey(only);
   const view = useMemo(
     () =>
       buildView(index, expansion, {
         ...(hiddenKinds ? { hiddenKinds } : {}),
         ...(filters ? { filters } : {}),
+        ...(only ? { only } : {}),
       }),
-    [index, openKey, hiddenKinds, filters],
+    [index, openKey, hiddenKinds, filters, pathKey],
   );
   const filtered = useMemo(() => hiddenNodes(index, filters ?? NO_FILTERS), [index, filters]);
   return {
@@ -149,5 +161,6 @@ export function useDrill(
       const hidden = shownUnder ? hiddenNodes(index, shownUnder) : filtered;
       setExpansion((e) => revealIn(index, e, id, hidden));
     },
+    set: (next) => setExpansion(next),
   };
 }
