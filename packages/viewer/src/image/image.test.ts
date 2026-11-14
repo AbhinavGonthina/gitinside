@@ -11,6 +11,7 @@ import { BADGE_COLORS, BADGE_HEIGHT, renderBadge } from "./badge.js";
 import {
   BADGE_MESSAGE_MAX,
   badgeMessage,
+  cropWindow,
   labelPill,
   layoutTopLevel,
   MAX_ROWS,
@@ -282,6 +283,81 @@ describe("renderDiagram", () => {
     expect(svg).toContain('stroke-dasharray="0 5"');
     expect(svg).toMatch(/<circle[^>]* r="2.5"/);
     expect(svg).toContain("URL built at runtime");
+  });
+
+  describe("crop (M10.3e2a)", () => {
+    // web → api → db, plus two services with one line each: api has the most lines.
+    const hubbed = graphOf(
+      [
+        { ...service("web"), layer: "frontend" },
+        service("api"),
+        service("jobs"),
+        service("mail"),
+        datastore("db"),
+      ],
+      [edge("web", "api", "http"), edge("api", "db", "reads"), edge("jobs", "db", "writes")],
+    );
+
+    it("centers the window on the hub, the service with the most non-code lines", () => {
+      const layout = layoutTopLevel(hubbed);
+      expect(layout.hub).toBe("api");
+      const api = layout.boxes.get("api") as Rect;
+      expect(api.width).toBeLessThan(400);
+      const view = cropWindow(layout, { width: 400, height: 100 });
+      expect(view).toEqual({
+        x: Math.round(api.x + api.width / 2 - 200),
+        y: Math.round(api.y + api.height / 2 - 50),
+        width: 400,
+        height: 100,
+      });
+    });
+
+    it("keeps the hub in the middle at the drawing's edges, past them the canvas (a card shows the middle)", () => {
+      const layout = { boxes: new Map([["a", { x: 0, y: 0, width: 40, height: 40 }]]), hub: "a" };
+      expect(
+        cropWindow({ ...layout, width: 1000, height: 600 }, { width: 300, height: 200 }),
+      ).toEqual({ x: -130, y: -80, width: 300, height: 200 });
+      const far = { x: 950, y: 550, width: 41, height: 41 };
+      expect(
+        cropWindow(
+          { boxes: new Map([["a", far]]), hub: "a", width: 1000, height: 600 },
+          { width: 300, height: 200 },
+        ),
+      ).toEqual({ x: 821, y: 471, width: 300, height: 200 });
+      // A hub wider than the focus: centered on its first `focus` px, so its left edge shows.
+      const wide = { boxes: new Map([["a", { x: 100, y: 0, width: 500, height: 40 }]]), hub: "a" };
+      expect(
+        cropWindow({ ...wide, width: 1000, height: 600 }, { width: 300, height: 200, focus: 260 }),
+      ).toEqual({ x: 80, y: -80, width: 300, height: 200 });
+      expect(
+        cropWindow({ ...wide, width: 1000, height: 600 }, { width: 300, height: 200 }),
+      ).toEqual({ x: 100, y: -80, width: 300, height: 200 });
+      // No hub: the drawing's middle.
+      expect(
+        cropWindow(
+          { ...layout, hub: undefined, width: 1000, height: 600 },
+          { width: 300, height: 200 },
+        ),
+      ).toEqual({ x: 350, y: 200, width: 300, height: 200 });
+    });
+
+    it("draws the window at 100%, with no frame or footer, and the same bytes each time", () => {
+      const crop = { width: 360, height: 240 };
+      const svg = renderDiagram(hubbed, { theme: "dark", crop });
+      const doc = parse(svg);
+      const view = cropWindow(layoutTopLevel(hubbed), crop);
+      const el = doc.documentElement;
+      expect([el.getAttribute("width"), el.getAttribute("height")]).toEqual(["360", "240"]);
+      expect(el.getAttribute("viewBox")).toBe(`${view.x} ${view.y} 360 240`);
+      expect(doc.getElementsByTagName("title")[0]?.textContent).toBe("acme/demo architecture");
+      expect(el.textContent).toContain("api");
+      // The card names the repo and commit; the image doesn't repeat them.
+      expect(el.textContent).not.toContain("GitInside");
+      expect(svg).not.toContain("0123456");
+      expectVarsDefined(svg);
+      expect(renderDiagram(hubbed, { theme: "dark", crop })).toBe(svg);
+      expect(renderDiagram(hubbed, { theme: "dark" })).toContain("GitInside");
+    });
   });
 
   it("wraps a tall column into balanced sub-columns", () => {

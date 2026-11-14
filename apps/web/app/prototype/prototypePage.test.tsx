@@ -2,6 +2,7 @@ import { act, cleanup, render, screen, waitFor, within } from "@testing-library/
 import { afterEach, describe, expect, it, vi } from "vitest";
 import shopDemo from "../../../../fixtures/shop-demo/expected.json";
 import { findPrototypeRepo } from "../../lib/prototype";
+import { GALLERY_CROP } from "../../lib/prototypeImage";
 import { HostSwap } from "./HostSwap";
 import PrototypePage, { metadata } from "./page";
 import { PrototypeDiagram } from "./PrototypeDiagram";
@@ -71,6 +72,37 @@ describe("the prototype page (M10.3a)", () => {
       "/prototype?repo=shadcn-ui/taxonomy",
       "/prototype?repo=getmaxun/maxun",
     ]);
+  });
+
+  it("shows each demo pin as a crop of its image, linking its prototype page, then how it works in three steps (M10.3e2a)", async () => {
+    vi.stubGlobal("fetch", () => new Promise(() => {}));
+    const { container } = render(await page({}));
+    const gallery = screen.getByRole("region", { name: "See it on real repos" });
+    const links = within(gallery)
+      .getAllByRole("link")
+      .filter((a) => a.classList.contains("demo__link"));
+    expect(links.map((a) => a.getAttribute("href"))).toEqual([
+      "/prototype?repo=Mintplex-Labs/anything-llm",
+      "/prototype?repo=shadcn-ui/taxonomy",
+      "/prototype?repo=getmaxun/maxun",
+    ]);
+    // One image per theme, at the crop's own size (100%).
+    const images = [...(links[2] as HTMLElement).querySelectorAll("img")];
+    expect(images.map((img) => [img.dataset.themeOnly, img.getAttribute("src")])).toEqual([
+      ["dark", "/api/prototype/diagram/getmaxun/maxun?theme=dark"],
+      ["light", "/api/prototype/diagram/getmaxun/maxun?theme=light"],
+    ]);
+    expect(images[0]?.getAttribute("width")).toBe(String(GALLERY_CROP.width));
+    expect(images[0]?.getAttribute("height")).toBe(String(GALLERY_CROP.height));
+    // The shipped "What you get" list gives way to the three steps.
+    expect(container.querySelector(".landing__promises")).toBeNull();
+    const how = screen.getByRole("region", { name: "How it works" });
+    expect(
+      within(how)
+        .getAllByRole("heading", { level: 3 })
+        .map((h) => h.textContent),
+    ).toEqual(["Parse", "Link", "Draw"]);
+    expect(how.querySelector("ol")?.children).toHaveLength(3);
   });
 
   it("is a 404 for any other repo, and for a repeated `repo`", async () => {

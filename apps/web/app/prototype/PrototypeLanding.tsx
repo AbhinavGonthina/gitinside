@@ -9,19 +9,19 @@ import {
   prototypeHref,
   TOUR_REPO,
 } from "../../lib/prototype";
-import { Gallery, Promises } from "../Landing";
 import { RepoForm } from "../RepoForm";
 import { SiteFooter } from "../SiteFooter";
 import { DASHBOARD_HREF, SIGN_IN_HREF } from "../SiteHeader";
 import { HostSwap } from "./HostSwap";
+import { HowItWorks, PrototypeGallery } from "./PrototypeGallery";
 import { PrototypeHero } from "./PrototypeHero";
 
 /**
- * The prototype's landing page (M10-design §3.5, B13, B14; M10.3e1): the shipped landing with
- * a first screen that shows the product working. Beside the slogan and the field, the live
- * explorer on the hero pin plays its suggested trace; "See how it works" opens the tour's pin
- * (the tour itself comes with M10.3f); under them, the URL swap line. The gallery and what you
- * get follow as on the shipped page (their redesign is M10.3e2), then the five repos under
+ * The prototype's landing page (M10-design §3.5, B13, B14; M10.3e1, M10.3e2a): the shipped
+ * landing with a first screen that shows the product working. Beside the slogan and the field,
+ * the live explorer on the hero pin plays its suggested trace; "See how it works" opens the
+ * tour's pin (the tour itself comes with M10.3f); under them, the URL swap line. Then the gallery
+ * as readable crops of each pin, "How it works" in three columns, and the five repos under
  * review, for Abhinav's click-through.
  */
 export function PrototypeLanding({ signIn }: { signIn: SignInView }) {
@@ -60,8 +60,8 @@ export function PrototypeLanding({ signIn }: { signIn: SignInView }) {
           host={host}
           href={prototypeHref(HERO_REPO)}
         />
-        <Gallery cards={DEMO_GALLERY} />
-        <Promises />
+        <PrototypeGallery cards={DEMO_GALLERY} />
+        <HowItWorks />
         <section className="landing__review" aria-labelledby="review-title">
           <h2 id="review-title" className="gallery__title">
             Design review: the five repos

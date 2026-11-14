@@ -15,6 +15,7 @@ import {
   TILE_OUTLINES,
   type TileShape,
 } from "../icons/Icon.js";
+import { hubOf } from "../explorer/framing.js";
 import { markMarkup } from "../mark.js";
 import {
   countText,
@@ -120,6 +121,24 @@ const MONO = scaleTokens["font-mono"];
 export interface DiagramImageOptions {
   /** Default `auto`: dark, or light when the reader's system prefers it. */
   theme?: ImageTheme;
+  /**
+   * Draw only a window of this size, at 100%, around the hub ({@link cropWindow}), with no
+   * frame or footer: the prototype landing's gallery cards (M10-design §3.5, M10.3e2a), whose
+   * own text names the repo and commit. Left out, the whole top level as the README shows it.
+   */
+  crop?: CropSize;
+}
+
+/** A crop's size, and how much of it around its middle a viewer surely sees ({@link cropWindow}). */
+export interface CropSize {
+  width: number;
+  height: number;
+  /**
+   * The width around the middle that every viewer of the crop shows (a gallery card's narrowest
+   * thumbnail); default `width`. A hub wider than this is framed from its left edge, so its
+   * icon and name show whole and the rest runs off to the right, as its lines do.
+   */
+  focus?: number;
 }
 
 /** How many of each top-level kind a graph has, in drawing order, kinds with none left out. */
@@ -645,6 +664,8 @@ export interface TopLevelLayout {
   width: number;
   /** Without the footer. */
   height: number;
+  /** The service with the most non-code lines (the explorer's `hubOf`), if any. */
+  hub: string | undefined;
 }
 
 /** Lays out a graph's top level for {@link renderDiagram}. */
@@ -652,7 +673,8 @@ export function layoutTopLevel(graph: ArchitectureGraph): TopLevelLayout {
   const index = buildHierarchy(graph);
   const top = index.children.get(index.root.id) ?? [];
   // Nothing open: the top level, with edges lifted to it (imports hidden).
-  const { edges } = buildView(index, []);
+  const view = buildView(index, []);
+  const { edges } = view;
   const placement = place(index, top);
   const lines = routeAll(edges, placement);
   const routed = spreadLabels(
@@ -668,6 +690,32 @@ export function layoutTopLevel(graph: ArchitectureGraph): TopLevelLayout {
     edges: routed,
     width: Math.max(placement.width, laneRight + PAD, MIN_WIDTH),
     height: top.length > 0 ? placement.height : 2 * PAD + 40,
+    hub: hubOf(view),
+  };
+}
+
+/**
+ * The part of a {@link layoutTopLevel} drawing a crop of `size` shows: centered on the hub's
+ * box (the drawing's middle without a hub), whole pixels so lines and text stay crisp at 100%.
+ * A hub wider than `size.focus` is centered on its first `focus` px instead. The window isn't
+ * moved back inside the drawing at its edges: whoever shows the crop shows its middle (a gallery
+ * card narrower than the crop), so the hub must stay there; past the drawing's edge is the
+ * canvas color.
+ */
+export function cropWindow(
+  layout: Pick<TopLevelLayout, "boxes" | "hub" | "width" | "height">,
+  size: CropSize,
+): Rect {
+  const box = layout.hub === undefined ? undefined : layout.boxes.get(layout.hub);
+  const focus = size.focus ?? size.width;
+  const center = box
+    ? { x: box.x + Math.min(box.width, focus) / 2, y: box.y + box.height / 2 }
+    : { x: layout.width / 2, y: layout.height / 2 };
+  return {
+    x: Math.round(center.x - size.width / 2),
+    y: Math.round(center.y - size.height / 2),
+    width: size.width,
+    height: size.height,
   };
 }
 
@@ -677,7 +725,8 @@ export function layoutTopLevel(graph: ArchitectureGraph): TopLevelLayout {
  */
 export function renderDiagram(graph: ArchitectureGraph, options: DiagramImageOptions = {}): string {
   const theme = options.theme ?? "auto";
-  const { index, top, boxes, edges: routed, width, height: bodyHeight } = layoutTopLevel(graph);
+  const layout = layoutTopLevel(graph);
+  const { index, top, boxes, edges: routed, width, height: bodyHeight } = layout;
   const height = bodyHeight + FOOTER;
   const title = `${graph.repo.owner}/${graph.repo.name} architecture`;
 
@@ -692,6 +741,27 @@ export function renderDiagram(graph: ArchitectureGraph, options: DiagramImageOpt
           }),
           ...routed.map((p) => labelMarkup(p)),
         ].join("");
+
+  if (options.crop) {
+    const view = cropWindow(layout, options.crop);
+    return [
+      `<svg xmlns="http://www.w3.org/2000/svg" class="gi"${attrs({
+        width: view.width,
+        height: view.height,
+        viewBox: `${num(view.x)} ${num(view.y)} ${num(view.width)} ${num(view.height)}`,
+        role: "img",
+        "aria-labelledby": "gi-title gi-desc",
+      })}>`,
+      `<title id="gi-title">${esc(title)}</title>`,
+      `<desc id="gi-desc">${esc(summary(graph))}</desc>`,
+      `<style>${paletteCss(theme, brandsOf(top))}</style>`,
+      `<rect${attrs({ x: view.x, y: view.y, width: view.width, height: view.height })} style="fill:${v("canvas")}"/>`,
+      `<g font-family="${esc(SANS)}">`,
+      body,
+      `</g>`,
+      `</svg>`,
+    ].join("");
+  }
 
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" class="gi"${attrs({

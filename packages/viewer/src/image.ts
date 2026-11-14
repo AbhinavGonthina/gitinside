@@ -6,11 +6,12 @@ export type { BadgeOptions, BadgeTone } from "./image/badge.js";
 export {
   BADGE_MESSAGE_MAX,
   badgeMessage,
+  cropWindow,
   MAX_ROWS,
   renderDiagram,
   topLevelCounts,
 } from "./image/diagram.js";
-export type { DiagramImageOptions } from "./image/diagram.js";
+export type { CropSize, DiagramImageOptions } from "./image/diagram.js";
 export type { ImageTheme } from "./image/palette.js";
 export { MARK_NODE, MARK_PATH, markMarkup, markStroke } from "./mark.js";
 export type { MarkPaint } from "./mark.js";
