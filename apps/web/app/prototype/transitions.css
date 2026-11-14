@@ -1,0 +1,71 @@
+/*
+ * Page transitions between the prototype's pages (M10.3e2b, M10-design §4): its landing and its
+ * repo pages. Loaded by the prototype's route only (page.tsx), so the shipped site has none.
+ *
+ * - Where the browser has cross-document View Transitions, a link from one prototype page to
+ *   another (plain `<a>`s, document navigations) fades the page it leaves over `fast` with the
+ *   exit curve. Both documents must opt in, and only prototype pages load this sheet.
+ * - The arriving page's content fades in with a 4px rise over `standard`. That's a plain CSS
+ *   entrance, so it plays in every browser, and inside a View Transition too (the new page is
+ *   shown live, so its own entrance is the fade in).
+ * - The bar stays put: the landing's site header and a repo page's one bar share a name, so the
+ *   page's fade passes them by, and the new one replaces the old at once.
+ * - Reduced motion: no View Transition, and the entrance's token duration is 0ms (tokens.css).
+ */
+
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition {
+    navigation: auto;
+  }
+}
+
+/* The leaving page sits above the arriving one and fades off it. The arriving page is opaque and
+   doesn't fade, so below it the fade would never show; and the browser's own crossfade blend
+   (`plus-lighter`) would brighten the two where they overlap. */
+::view-transition-old(root) {
+  z-index: 1;
+  mix-blend-mode: normal;
+  animation: page-leave var(--duration-fast) var(--ease-exit) both;
+}
+
+::view-transition-new(root) {
+  mix-blend-mode: normal;
+  animation: none;
+}
+
+@keyframes page-leave {
+  to {
+    opacity: 0;
+  }
+}
+
+/* The bar: one per page (the loading bar and the explorer's are never drawn together). */
+body:has(> .landing[data-prototype]) > .site-header,
+.diagram-page[data-own-header] .gi-topbar {
+  view-transition-name: page-bar;
+}
+
+::view-transition-group(page-bar),
+::view-transition-old(page-bar),
+::view-transition-new(page-bar) {
+  animation: none;
+}
+
+::view-transition-old(page-bar) {
+  opacity: 0;
+}
+
+/* The content: the landing and its footer, a repo page's loading or error line (the explorer
+   that replaces it has its own first-load fade). */
+.landing[data-prototype],
+.landing[data-prototype] ~ .site-footer,
+.diagram-page[data-own-header] .diagram-page__state {
+  animation: page-enter var(--duration-standard) var(--ease-standard);
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}

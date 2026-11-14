@@ -1,4 +1,5 @@
-import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import shopDemo from "../../../../fixtures/shop-demo/expected.json";
 import { findPrototypeRepo } from "../../lib/prototype";
@@ -13,6 +14,16 @@ vi.mock("next/navigation", () => ({
     throw new Error("NEXT_NOT_FOUND");
   },
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+}));
+
+// Next's `Link` routes on the client in a browser (it prevents the click's default), but does
+// nothing without an app router; this stand-in does what it does in a browser.
+vi.mock("next/link", () => ({
+  default: ({ href, children }: { href: string; children: ReactNode }) => (
+    <a href={href} onClick={(event) => event.preventDefault()}>
+      {children}
+    </a>
+  ),
 }));
 
 vi.mock("next/headers", () => ({
@@ -32,6 +43,26 @@ afterEach(() => {
 
 const page = (query: Record<string, string | string[]>) =>
   PrototypePage({ searchParams: Promise.resolve(query) });
+
+/**
+ * Whether a click on `link` reaches the window with its default left alone: a document navigation
+ * (cross-document View Transitions run on those), not a client-side route change. The window's
+ * listener then prevents it, since jsdom can't navigate.
+ */
+function clickIsLeftToBrowser(link: HTMLElement): boolean {
+  let left = false;
+  const listener = (event: Event) => {
+    left = !event.defaultPrevented;
+    event.preventDefault();
+  };
+  window.addEventListener("click", listener);
+  try {
+    fireEvent.click(link);
+  } finally {
+    window.removeEventListener("click", listener);
+  }
+  return left;
+}
 
 describe("the prototype page (M10.3a)", () => {
   it("is never indexed", () => {
@@ -103,6 +134,17 @@ describe("the prototype page (M10.3a)", () => {
         .map((h) => h.textContent),
     ).toEqual(["Parse", "Link", "Draw"]);
     expect(how.querySelector("ol")?.children).toHaveLength(3);
+  });
+
+  it("links its prototype pages with full navigations, so the browser's page transition runs (M10.3e2b)", async () => {
+    vi.stubGlobal("fetch", () => new Promise(() => {}));
+    render(await page({}));
+    const links = screen
+      .getAllByRole("link")
+      .filter((a) => a.getAttribute("href")?.startsWith("/prototype"));
+    // The hero's two, the swap line, three gallery cards, the five repos.
+    expect(links).toHaveLength(11);
+    for (const link of links) expect(clickIsLeftToBrowser(link), link.textContent ?? "").toBe(true);
   });
 
   it("is a 404 for any other repo, and for a repeated `repo`", async () => {

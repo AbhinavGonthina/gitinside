@@ -22,7 +22,8 @@ import { PrototypeHero } from "./PrototypeHero";
  * the live explorer on the hero pin plays its suggested trace; "See how it works" opens the
  * tour's pin (the tour itself comes with M10.3f); under them, the URL swap line. Then the gallery
  * as readable crops of each pin, "How it works" in three columns, and the five repos under
- * review, for Abhinav's click-through.
+ * review, for Abhinav's click-through. Links to prototype pages are plain `<a>`s, never `Link`:
+ * cross-document View Transitions (transitions.css, M10.3e2b) run on document navigations only.
  */
 export function PrototypeLanding({ signIn }: { signIn: SignInView }) {
   const host = new URL(PROTOTYPE_GRAPH_ORIGIN).host;
@@ -72,9 +73,11 @@ export function PrototypeLanding({ signIn }: { signIn: SignInView }) {
           <ul className="notice__links">
             {PROTOTYPE_REPOS.map((r) => (
               <li key={`${r.owner}/${r.name}`}>
-                <Link href={prototypeHref(r)}>
+                {/* A document navigation, as every link between prototype pages, so the
+                    page transition runs (transitions.css). */}
+                <a href={prototypeHref(r)}>
                   {r.owner} / {r.name}
-                </Link>
+                </a>
               </li>
             ))}
           </ul>
