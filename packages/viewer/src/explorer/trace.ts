@@ -190,9 +190,12 @@ export function traceNodes(trace: Trace): Set<string> {
   return out;
 }
 
+/** Whether a request path from a node has any hop. */
+export function hasHops(index: HierarchyIndex, node: GraphNode): boolean {
+  return (hopsOf(index).get(node.id)?.length ?? 0) > 0;
+}
+
 /** Whether the explorer offers to trace from a node: a page or route with somewhere to go. */
 export function canTraceFrom(index: HierarchyIndex, node: GraphNode): boolean {
-  return (
-    (node.kind === "page" || node.kind === "route") && (hopsOf(index).get(node.id)?.length ?? 0) > 0
-  );
+  return (node.kind === "page" || node.kind === "route") && hasHops(index, node);
 }
