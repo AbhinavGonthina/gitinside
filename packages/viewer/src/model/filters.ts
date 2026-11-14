@@ -1,5 +1,6 @@
 import { compareStrings } from "@gitinside/schema";
 import type { Confidence, EdgeKind, GraphNode, Layer, NodeKind } from "@gitinside/schema";
+import { isGroup } from "./groups.js";
 import { ancestry, type HierarchyIndex } from "./hierarchy.js";
 
 /**
@@ -186,7 +187,8 @@ export function hiddenNodes(index: HierarchyIndex, filters: Filters): ReadonlySe
   const kinds = new Set<string>(f.kinds);
 
   const ruledOut = (node: GraphNode): boolean => {
-    if (node.layer && layers.has(node.layer)) return true;
+    // A group's layer only places it (M10.3b1); it goes when its members do.
+    if (node.layer && layers.has(node.layer) && !isGroup(node)) return true;
     if (kinds.has(node.kind)) return true;
     const path = repoPath(node);
     if (path === undefined) return false;
@@ -318,7 +320,7 @@ export function filterOptions(index: HierarchyIndex): FilterOptions {
       const count = counts.get(value);
       return count ? [{ value, count }] : [];
     });
-  const nodes = index.graph.nodes.filter((n) => n.id !== index.root.id);
+  const nodes = index.graph.nodes.filter((n) => n.id !== index.root.id && !isGroup(n));
   const edgeKinds = tally(index.graph.edges.map((e) => e.kind));
   const folders = new Set<string>();
   for (const n of nodes) {

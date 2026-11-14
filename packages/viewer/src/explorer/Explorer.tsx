@@ -33,6 +33,7 @@ import {
   NO_FILTERS,
   type Filters,
 } from "../model/filters.js";
+import { summarizeGraph } from "../model/groups.js";
 import {
   buildHierarchy,
   isWithin,
@@ -312,7 +313,12 @@ export function Explorer({
     );
     return lacks ? "overlay" : initialVersion;
   });
-  const graph = overlay?.graph ?? given;
+  // The prototype's system level summarizes (M10.3b1): shared packages and outside hosts grouped.
+  const summarized = useMemo(
+    () => (design === "prototype" ? summarizeGraph(given) : given),
+    [design, given],
+  );
+  const graph = overlay?.graph ?? summarized;
   const index = useMemo(() => buildHierarchy(graph), [graph]);
   /**
    * What Base or Head holds, on the overlay's IDs (M6.9c): traces, the trace

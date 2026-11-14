@@ -1,5 +1,6 @@
 import type { GraphNode, Layer, NodeKind, UnresolvedReason } from "@gitinside/schema";
 import { brandForEngine, brandForFramework, brandForHost } from "../icons/brands.js";
+import { isGroup } from "../model/groups.js";
 
 /**
  * Words and tiers for drawing a node (DESIGN_SYSTEM.md §3). Everything here is
@@ -120,8 +121,12 @@ const SYMBOL_KIND_NAMES = {
   variable: "Variable",
 } as const;
 
-/** The kind in words, as users recognize it: "Route", "Method", "External API". */
+/**
+ * The kind in words, as users recognize it: "Route", "Method", "External API". The prototype's
+ * groups (M10.3b1) are "Group": no folder in the repo.
+ */
 export function kindName(node: GraphNode): string {
+  if (isGroup(node)) return "Group";
   return node.kind === "symbol" ? SYMBOL_KIND_NAMES[node.symbolKind] : KIND_NAMES[node.kind];
 }
 

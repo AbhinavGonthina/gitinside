@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { brandForEngine, brandForFramework } from "../icons/brands.js";
 import { frameCounts } from "../layout/size.js";
 import { connectionsOf, type NodeConnection } from "../model/connections.js";
+import { groupLead, groupNote, isGroup } from "../model/groups.js";
 import type { HierarchyIndex } from "../model/hierarchy.js";
 import { REASON_TEXT } from "../nodes/describe.js";
 
@@ -149,7 +150,10 @@ function insideText(index: HierarchyIndex, id: string): string {
 function lead(index: HierarchyIndex, node: GraphNode): ReactNode {
   switch (node.kind) {
     case "system": {
-      const top = index.children.get(node.id) ?? [];
+      // Groups (the prototype's, M10.3b1) count as what they hold.
+      const top = (index.children.get(node.id) ?? []).flatMap((n) =>
+        isGroup(n) ? (index.children.get(n.id) ?? []) : [n],
+      );
       const count = (kind: GraphNode["kind"], noun: string) =>
         plural(top.filter((n) => n.kind === kind).length, noun);
       const inside = frameCounts(index, node.id).map((c) => plural(c.value, c.noun));
@@ -176,10 +180,12 @@ function lead(index: HierarchyIndex, node: GraphNode): ReactNode {
     }
     case "module":
       return (
-        <>
-          Folder <code>{node.path}</code>
-          {insideText(index, node.id)}.
-        </>
+        groupLead(index, node) ?? (
+          <>
+            Folder <code>{node.path}</code>
+            {insideText(index, node.id)}.
+          </>
+        )
       );
     case "file":
       return `File${insideText(index, node.id)}.`;
@@ -239,7 +245,16 @@ function lead(index: HierarchyIndex, node: GraphNode): ReactNode {
  * node with no connections says "Nothing else in the repo connects to it."
  */
 export function summaryOf(index: HierarchyIndex, node: GraphNode): ReactNode {
-  const first = lead(index, node);
+  // Inside a prototype group, why it's there (M10.3b1).
+  const own = lead(index, node);
+  const note = groupNote(index, node);
+  const first = note ? (
+    <>
+      {own} {note}
+    </>
+  ) : (
+    own
+  );
   if (node.id === index.root.id) return first;
   const { incoming, outgoing } = connectionsOf(index, node.id);
   // A model is stored in its datastore; a frame holding models keeps data there.

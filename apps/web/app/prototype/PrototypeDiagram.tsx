@@ -9,6 +9,7 @@ import {
   encodeState,
   Explorer,
   type ExplorerState,
+  summarizeGraph,
 } from "@gitinside/viewer";
 import { useEffect, useMemo, useState } from "react";
 import { loadGraph, type GraphLoad } from "../../lib/repoStatus";
@@ -59,8 +60,13 @@ export function PrototypeDiagram({ owner, repo, sha, graphUrl }: PrototypeDiagra
     return () => controller.abort();
   }, [graphUrl, attempt]);
 
+  // Decoded against the graph the prototype draws, its groups included (M10.3b1), so a link
+  // that opens "Shared packages" opens it again.
   const linked = useMemo(
-    () => (load?.ok ? decodeState(window.location.search, buildHierarchy(load.graph)) : undefined),
+    () =>
+      load?.ok
+        ? decodeState(window.location.search, buildHierarchy(summarizeGraph(load.graph)))
+        : undefined,
     [load],
   );
 

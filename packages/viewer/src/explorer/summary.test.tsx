@@ -1,8 +1,10 @@
 // @vitest-environment node
-import type { EdgeKind } from "@gitinside/schema";
+import type { EdgeKind, GraphNode } from "@gitinside/schema";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { connectionsOf } from "../model/connections.js";
+import { summarizeGraph } from "../model/groups.js";
+import { groupedShop } from "../model/groups.testkit.js";
 import { buildHierarchy } from "../model/hierarchy.js";
 import { shopDemo } from "../shopDemo.testkit.js";
 import { connectionSentences, listText, namesText, summaryOf } from "./summary.js";
@@ -17,6 +19,29 @@ function summary(id: string): string {
     .replace(/<\/?code>/g, "`")
     .replace(/&#x27;/g, "'");
 }
+
+describe("summaryOf in the prototype's groups (M10.3b1)", () => {
+  const grouped = buildHierarchy(summarizeGraph(groupedShop()));
+  const text = (id: string) =>
+    renderToStaticMarkup(<>{summaryOf(grouped, grouped.byId.get(id) as GraphNode)}</>).replace(
+      /&#x27;/g,
+      "'",
+    );
+
+  it("counts what groups hold in the repo overview", () => {
+    expect(text("system:root")).toMatch(/^4 services, 1 datastore and 4 outside APIs, with /);
+  });
+
+  it("leads a group with what it holds, and a member with why it's there", () => {
+    // One line each, so by host.
+    expect(text("group:hosts/ai")).toBe(
+      "3 outside hosts for AI models: api.anthropic.com, api.groq.com and api.openai.com. Called by stripe.ts in @shop/api.",
+    );
+    expect(text("service:ui/")).toBe(
+      "Service in <code>packages/ui</code>. Grouped with shared packages: no routes, pages, or requests of its own. Nothing else in the repo connects to it.",
+    );
+  });
+});
 
 describe("summaryOf", () => {
   it("leads with the kind's own facts, for every kind", () => {
