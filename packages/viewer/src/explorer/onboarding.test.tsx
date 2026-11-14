@@ -5,6 +5,7 @@ import { READABLE_ZOOM } from "./camera.js";
 import { Explorer } from "./Explorer.js";
 import {
   browserOnboarding,
+  hintLine,
   hintSteps,
   memoryOnboarding,
   ONBOARDING_KEY,
@@ -74,6 +75,28 @@ describe("hintSteps", () => {
   it("leaves out what this repo can't do", () => {
     expect(hintSteps({ ...fresh, canBreakDown: false })).toEqual(["select", "trace"]);
     expect(hintSteps({ ...fresh, canTrace: false })).toEqual(["zoom", "select"]);
+  });
+});
+
+describe("hintLine (M10.3c2)", () => {
+  const fresh = {
+    canBreakDown: true,
+    opened: false,
+    selected: false,
+    canTrace: true,
+    tracing: false,
+  };
+
+  it("says how to break down and trace, leaving out what's done or can't be done", () => {
+    expect(hintLine(fresh)).toEqual([
+      "Double-click a box to break it down",
+      "T to trace a request",
+    ]);
+    expect(hintLine({ ...fresh, selected: true })).toEqual(hintLine(fresh));
+    expect(hintLine({ ...fresh, opened: true })).toEqual(["T to trace a request"]);
+    expect(hintLine({ ...fresh, canBreakDown: false })).toEqual(["T to trace a request"]);
+    expect(hintLine({ ...fresh, tracing: true })).toEqual(["Double-click a box to break it down"]);
+    expect(hintLine({ ...fresh, canTrace: false, opened: true })).toEqual([]);
   });
 });
 

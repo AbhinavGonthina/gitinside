@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  browserOnboarding,
   buildHierarchy,
   Button,
   createGitHubSourceLoader,
@@ -37,6 +38,12 @@ const layoutWorker = () =>
     type: "module",
     name: "gitinside-layout",
   });
+
+/**
+ * Whether this browser is done with the first-visit hint: the repo page's store and key
+ * (M10-design B2 keeps both), so a reader who finished the tips there isn't shown the line.
+ */
+const onboarding = browserOnboarding();
 
 /** The page's query with the explorer's state after `repo=`, which picks the repo. */
 function prototypeQuery(owner: string, repo: string, state: string): string {
@@ -121,6 +128,7 @@ export function PrototypeDiagram({ owner, repo, sha, graphUrl, barEnd }: Prototy
               topBarEnd={barEnd}
               layoutWorker={layoutWorker}
               loadSource={loadSource}
+              onboarding={onboarding}
               initialOpen={linked.state.open}
               initialSelected={linked.state.selected}
               initialTrace={linked.state.trace}

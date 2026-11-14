@@ -29,7 +29,9 @@ export type UiIconName =
   | "commit"
   | "compare"
   | "play"
-  | "pause";
+  | "pause"
+  | "minimap"
+  | "help";
 
 /** Artwork for each interface icon. */
 export const uiIcons: Readonly<Record<UiIconName, ReactNode>> = {
@@ -80,6 +82,20 @@ export const uiIcons: Readonly<Record<UiIconName, ReactNode>> = {
     <path d="M8 6.1v11.8a1 1 0 0 0 1.53.85l9.2-5.9a1 1 0 0 0 0-1.7l-9.2-5.9A1 1 0 0 0 8 6.1Z" />
   ),
   pause: <path d="M9 6v12M15 6v12" />,
+  // A map's frame with the part in view marked inside, as the minimap draws it.
+  minimap: (
+    <>
+      <rect x="4.5" y="5.5" width="15" height="13" rx="2" />
+      <rect x="11" y="11" width="5" height="4" rx="1" />
+    </>
+  ),
+  // A question mark in a circle: what the diagram's devices mean.
+  help: (
+    <>
+      <circle cx="12" cy="12" r="7.5" />
+      <path d="M9.75 9.75a2.25 2.25 0 1 1 3.4 1.93c-.68.4-1.15.94-1.15 1.72v.35M12 16.25h.01" />
+    </>
+  ),
 };
 
 /** Every interface icon name. */

@@ -197,7 +197,9 @@ export function DiagramNode({
   const changes = changesText(counts ?? []);
   const descriptionId = useId();
   const hasSubtitle = Boolean(subtitle.text ?? subtitle.code);
-  const description = nodeDescription(subtitle, counts, fields);
+  const description = [nodeDescription(subtitle, counts, fields), card?.caption]
+    .filter(Boolean)
+    .join(", ");
   const describedBy = [rest["aria-describedby"], description ? descriptionId : undefined].filter(
     Boolean,
   );
@@ -253,6 +255,11 @@ export function DiagramNode({
           )}
         </span>
         {hasSubtitle && <Text value={subtitle} className="gi-node__subtitle" />}
+        {card?.caption && (
+          <span className="gi-node__caption" aria-hidden>
+            {card.caption}
+          </span>
+        )}
       </span>
       <Badges counts={counts} />
       {fields && (

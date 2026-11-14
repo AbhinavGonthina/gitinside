@@ -211,6 +211,11 @@ export const MIN_WRAP_WIDTH = 200;
 export const MAX_WRAP_WIDTH = 280;
 /** Height each wrapped line of a name adds: 14px and 13px names at the tight line height. */
 export const NAME_LINE = { frame: 18, icon: 17 } as const;
+/**
+ * Height an icon-first card's caption adds (M10.3c2, `.gi-node__caption`): a 4px gap, the 1px
+ * dotted rule, 3px, and one 16px line.
+ */
+export const CAPTION_ROW = 24;
 
 /**
  * A prototype box's size (M10.3b3), names wrapping rather than cut: a service's card grows to
@@ -225,10 +230,19 @@ function wrappedSize(node: GraphNode, context: SizeContext): Size | undefined {
   const subtitle = lineWidth(card?.subtitle ?? nodeSubtitle(node), 12, 12);
   if (card?.logos || nodeTier(node) === "icon") {
     const chrome = 2 + 2 * 8 + COUNTS_SLACK;
+    const caption = card?.caption ? textWidth(card.caption, 12) : 0;
     const width = Math.ceil(
-      clamp(chrome + Math.max(textWidth(name, 13), subtitle), MIN_ICON_WIDTH, MAX_ICON_WIDTH),
+      clamp(
+        chrome + Math.max(textWidth(name, 13), subtitle, caption),
+        MIN_ICON_WIDTH,
+        MAX_ICON_WIDTH,
+      ),
     );
-    return { width, height: 128 + (nameLines(name, 13, width - chrome) - 1) * NAME_LINE.icon };
+    const lines = nameLines(name, 13, width - chrome);
+    return {
+      width,
+      height: 128 + (lines - 1) * NAME_LINE.icon + (card?.caption ? CAPTION_ROW : 0),
+    };
   }
   if (node.kind !== "service" || !card) return undefined;
   const counts = context.counts ?? [];

@@ -91,6 +91,40 @@ export function hintSteps(context: HintContext): HintStep[] {
   return steps;
 }
 
+/**
+ * The prototype's one-line hint (M10.3c2, M10-design B2), in place of the tip cards: what the
+ * reader can do here, in UX.md's order, leaving out what they've already done or can't do (as
+ * {@link hintSteps} does). Empty when there's nothing to say. Selecting needs no hint: the panel
+ * beside the canvas says what a click shows.
+ */
+export function hintLine(context: HintContext): string[] {
+  const parts: string[] = [];
+  if (context.canBreakDown && !context.opened) parts.push("Double-click a box to break it down");
+  if (context.canTrace && !context.tracing) parts.push("T to trace a request");
+  return parts;
+}
+
+/** Props for {@link HintLine}. */
+export interface HintLineProps {
+  /** From {@link hintLine}. */
+  parts: readonly string[];
+  /** From `usePresence`: a closing line fades out. */
+  state: Exclude<Presence, null>;
+}
+
+/**
+ * The one-line first-visit hint (M10.3c2): muted text at the canvas's bottom left, no card and
+ * no buttons, so it never takes focus. It fades after the reader's first break-down, trace, or
+ * search, which the explorer remembers in its {@link OnboardingStore}.
+ */
+export function HintLine({ parts, state }: HintLineProps) {
+  return (
+    <p className="gi-hint-line" data-state={state} aria-hidden={state === "closing" || undefined}>
+      {parts.join(" · ")}
+    </p>
+  );
+}
+
 /** Each hint's title and words. Kept short: the canvas is the hero. */
 const HINTS: Readonly<Record<HintStep, { title: string; body: ReactNode }>> = {
   zoom: {

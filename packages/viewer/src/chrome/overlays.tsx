@@ -119,6 +119,80 @@ export function ZoomControls({
   );
 }
 
+/** Props for {@link CanvasToolbar}. */
+export interface CanvasToolbarProps extends ZoomControlsProps {
+  /** Whether the minimap is shown. */
+  minimap: boolean;
+  onMinimap?: (() => void) | undefined;
+  /** Whether the legend is open. */
+  legend: boolean;
+  onLegend?: (() => void) | undefined;
+}
+
+/**
+ * The prototype's one canvas toolbar (M10.3c2, M10-design A9), at the canvas's bottom right:
+ * zoom out, the level, zoom in, fit (keys − + 0), then the minimap's toggle and the legend
+ * behind "?". The minimap and the legend open above it.
+ */
+export function CanvasToolbar({
+  zoom,
+  onZoomIn,
+  onZoomOut,
+  onFit,
+  minimap,
+  onMinimap,
+  legend,
+  onLegend,
+  className,
+  ...rest
+}: CanvasToolbarProps) {
+  return (
+    <div
+      role="group"
+      aria-label="View"
+      {...rest}
+      className={
+        className ? `gi-overlay gi-zoom gi-toolbar ${className}` : "gi-overlay gi-zoom gi-toolbar"
+      }
+    >
+      <IconButton
+        icon="minus"
+        label="Zoom out"
+        size="sm"
+        aria-keyshortcuts="-"
+        onClick={onZoomOut}
+      />
+      <output className="gi-zoom__level" aria-label={`Zoom ${zoomText(zoom)}`}>
+        {zoomText(zoom)}
+      </output>
+      <IconButton icon="plus" label="Zoom in" size="sm" aria-keyshortcuts="+" onClick={onZoomIn} />
+      <IconButton
+        icon="fit"
+        label="Fit to screen"
+        size="sm"
+        aria-keyshortcuts="0"
+        onClick={onFit}
+      />
+      <span className="gi-overlay__divider" aria-hidden />
+      <IconButton
+        icon="minimap"
+        label="Minimap"
+        size="sm"
+        aria-pressed={minimap}
+        onClick={onMinimap}
+      />
+      <IconButton
+        icon="help"
+        label="Legend"
+        size="sm"
+        aria-expanded={legend}
+        data-legend-opener=""
+        onClick={onLegend}
+      />
+    </div>
+  );
+}
+
 /** A node as the minimap draws it: its box on the canvas and its layer. */
 export interface MinimapNode {
   id: string;

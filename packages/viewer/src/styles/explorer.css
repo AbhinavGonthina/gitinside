@@ -224,6 +224,48 @@
   margin-top: var(--space-12);
 }
 
+/*
+ * The prototype's canvas overlays (M10.3c2, M10-design A9 and B2): the chips and the toolbar sit
+ * on surface-1 with their hairline and no shadow; only popovers keep elevation 2.
+ */
+.gi-explorer[data-design="prototype"] .gi-overlay,
+.gi-explorer[data-design="prototype"] .gi-status {
+  box-shadow: none;
+}
+
+/* The minimap's toggle and the legend's "?" show they're on, as a pressed filter does. */
+.gi-toolbar .gi-button[aria-pressed="true"],
+.gi-toolbar .gi-button[aria-expanded="true"] {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/*
+ * The one-line first-visit hint: muted words on the canvas, no card, as wide as its words.
+ * It rises in like the overlays and fades out over `standard` once the reader acts.
+ */
+.gi-hint-line {
+  justify-self: start;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-13);
+  max-width: 420px;
+  /*
+   * Centered on the toolbar's row across the canvas, on the canvas's own color so a line or its
+   * pill passing behind doesn't run through the words (no border: it isn't a card).
+   */
+  margin-left: calc(-1 * var(--space-8));
+  padding: var(--space-8);
+  border-radius: var(--radius-card);
+  background: var(--canvas);
+  line-height: 20px;
+  animation: gi-rise-in var(--duration-standard) var(--ease-standard);
+}
+
+.gi-hint-line[data-state="closing"] {
+  animation: gi-fade-out var(--duration-standard) var(--ease-exit) both;
+}
+
 .gi-explorer__map {
   display: flex;
   align-items: flex-end;

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { brandForHost } from "../icons/brands.js";
 import { textWidth } from "../image/markup.js";
 import {
+  CAPTION_ROW,
   closedSize,
   MAX_FRAME_WIDTH,
   MAX_WRAP_WIDTH,
@@ -22,6 +23,7 @@ import {
   namePieces,
   serviceCounts,
   serviceRole,
+  UNLINKED_CAPTION,
 } from "./cards.js";
 
 const ROOT: GraphNode = { id: "system:root", kind: "system", label: "repo", parentId: null };
@@ -276,5 +278,43 @@ describe("prototype names wrap, never cut (M10.3b3)", () => {
       "model",
       "outside API",
     ]);
+  });
+});
+
+describe("an unlinked datastore's caption (M10.3c2)", () => {
+  const store = (name: string): GraphNode =>
+    ({
+      id: `datastore:infra/${name}`,
+      kind: "datastore",
+      label: name,
+      engine: "redis",
+      parentId: ROOT.id,
+    }) as GraphNode;
+  const srv = service("srv");
+  const g = buildHierarchy(
+    graphOf(
+      [srv, file("srv", "a.ts"), store("cache"), store("db"), store("queue")],
+      [
+        edge("stores", srv.id, "datastore:infra/db"),
+        edge("reads", "datastore:infra/queue", "file:srv/a.ts"),
+      ],
+    ),
+  );
+  const look = (id: string) => cardLook(g, g.byId.get(id) as GraphNode);
+
+  it("says 'Not linked to code' when no connection reaches or leaves it", () => {
+    expect(look("datastore:infra/cache")).toEqual({ caption: UNLINKED_CAPTION });
+    expect(UNLINKED_CAPTION).toBe("Not linked to code");
+    // A line either way is a link.
+    expect(look("datastore:infra/db")).toBeUndefined();
+    expect(look("datastore:infra/queue")).toBeUndefined();
+  });
+
+  it("gives the caption a row of its own, and room for its words", () => {
+    const n = store("cache");
+    const plain = closedSize(n, { wrap: true });
+    const captioned = closedSize(n, { wrap: true, card: { caption: UNLINKED_CAPTION } });
+    expect(captioned.height).toBe(plain.height + CAPTION_ROW);
+    expect(captioned.width).toBeGreaterThanOrEqual(textWidth(UNLINKED_CAPTION, 12) + 18);
   });
 });
