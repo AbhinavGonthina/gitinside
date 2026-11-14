@@ -122,6 +122,46 @@ describe("Explorer's prototype design (M10.3a)", { timeout: 30_000 }, () => {
     view.unmount();
   });
 
+  it("draws cards with a count row and role on every service, names that wrap (M10.3b3)", async () => {
+    const { view, box } = await drawnWith(grouped, "prototype");
+    const card = (id: string) => box(id)?.querySelector<HTMLElement>(":scope > .gi-node");
+    const services = [
+      ...view.container.querySelectorAll<HTMLElement>('.gi-node[data-kind="service"]'),
+    ];
+    expect(services.length).toBeGreaterThan(1);
+    for (const s of services) {
+      expect(s.querySelector(".gi-node__badges")).not.toBeNull();
+      expect(s.hasAttribute("data-wrap")).toBe(true);
+    }
+    expect(card("service:web/")?.querySelector(".gi-node__subtitle")?.textContent).toBe(
+      "Next.js appapps/web",
+    );
+    expect(card("service:api/")?.querySelector(".gi-node__badges")?.textContent).toContain(
+      "4 outside APIs",
+    );
+    // The shared scope stays in the name, in its own (muted) span, and the name reads whole.
+    expect(card("service:web/")?.querySelector(".gi-node__scope")?.textContent).toBe("@shop/");
+    expect(card("service:web/")?.querySelector(".gi-node__label")?.textContent).toBe("@shop/web");
+    // A host group is a circle tile with its logos, not a folder.
+    const group = card("group:hosts/ai");
+    expect(group?.dataset.tier).toBe("icon");
+    expect(group?.dataset.shape).toBe("circle");
+    expect(group?.querySelector('.gi-icon-tile[data-shape="circle"]')).not.toBeNull();
+    expect(group?.querySelectorAll(".gi-brand").length).toBeGreaterThan(0);
+    view.unmount();
+  });
+
+  it("draws the shipped cards in the shipped design", async () => {
+    const { view, box } = await drawnWith(grouped, "current");
+    const web = box("service:web/")?.querySelector<HTMLElement>(":scope > .gi-node");
+    expect(web?.hasAttribute("data-wrap")).toBe(false);
+    expect(web?.querySelector(".gi-node__subtitle")?.textContent).toBe("Next.jsapps/web");
+    expect(box("service:api/")?.querySelector(".gi-node__badges")?.textContent).not.toContain(
+      "outside",
+    );
+    view.unmount();
+  });
+
   it("draws no bands in the shipped design", async () => {
     for (const design of [undefined, "current"] as const) {
       const { bands, view } = await drawn(design);

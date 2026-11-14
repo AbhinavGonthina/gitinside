@@ -198,6 +198,19 @@
   display: none;
 }
 
+/*
+ * The prototype's wrapping names (M10.3b3) wrap only at full detail: scaled
+ * up, a service's name has room for a few characters a line, so it stays on
+ * one line as shipped.
+ */
+.gi-drill:not([data-detail="full"]) .gi-node[data-kind="service"][data-wrap] .gi-node__label {
+  white-space: nowrap;
+}
+
+.gi-drill:not([data-detail="full"]) .gi-node[data-kind="service"][data-wrap] .gi-node__label > * {
+  overflow-wrap: normal;
+}
+
 .gi-drill .gi-node .gi-node__fields {
   transition:
     background-color var(--duration-fast) var(--ease-standard),

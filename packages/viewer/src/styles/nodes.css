@@ -97,6 +97,26 @@
   line-height: var(--line-height-tight);
 }
 
+/*
+ * The prototype's names (M10.3b3, M10-design B7) wrap onto more lines instead
+ * of ending in "…": the layout sized the box for every line (`wrappedSize`),
+ * breaking after `/ . _ -` and spaces (<wbr>), or anywhere in a piece wider
+ * than the line. A scope every service shares is muted, so the part that
+ * tells them apart leads.
+ */
+.gi-node[data-wrap] .gi-node__label {
+  white-space: normal;
+}
+
+.gi-node[data-wrap] .gi-node__label > * {
+  overflow-wrap: anywhere;
+}
+
+.gi-node[data-wrap] .gi-node__scope {
+  color: var(--text-muted);
+  font-weight: var(--font-weight-regular);
+}
+
 .gi-node code {
   font-family: var(--font-mono);
   font-size: 0.95em;

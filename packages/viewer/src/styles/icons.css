@@ -72,6 +72,22 @@
 }
 
 /*
+ * A host group's tile (M10.3b3, M10-design A6): up to four of its hosts'
+ * logos, 18px in a 2×2 grid that fits inside the circle; three leave the
+ * last cell empty.
+ */
+.gi-icon-tile__logos {
+  display: grid;
+  grid-template-columns: repeat(2, 18px);
+  gap: 4px;
+  place-items: center;
+}
+
+.gi-icon-tile__logos[data-count="2"] {
+  grid-template-rows: 18px;
+}
+
+/*
  * The layer ring is a restrained accent: the layer color mixed into the
  * hairline, so it tints the tile without outshining the logo. Layer is also
  * named in the legend and inspector, so the ring is never the only signal.
