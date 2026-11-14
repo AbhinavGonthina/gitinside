@@ -36,14 +36,21 @@ const LINE = 16;
  * The canvas's corner overlays (zoom, legend, minimap, breadcrumbs) keep
  * their own pointer and wheel. Listeners are native, since React's wheel
  * listener is passive and can't stop the page from scrolling.
+ *
+ * With `pageScroll` (a canvas that's one part of a page, the landing's hero),
+ * a plain wheel is left to the page, so it scrolls past; Ctrl or ⌘ + wheel
+ * (and a pinch) still zooms.
  */
 export function useCanvasGestures(
   ref: RefObject<HTMLElement | null>,
   live: RefObject<CameraState>,
   move: (camera: Camera, motion: CameraMotion) => void,
+  { pageScroll = false }: { pageScroll?: boolean } = {},
 ): void {
   const moveRef = useRef(move);
   moveRef.current = move;
+  const pageScrollRef = useRef(pageScroll);
+  pageScrollRef.current = pageScroll;
 
   useEffect(() => {
     const el = ref.current;
@@ -57,10 +64,12 @@ export function useCanvasGestures(
 
     function onWheel(e: WheelEvent) {
       if (onOverlay(e.target)) return;
+      const zooming = e.ctrlKey || e.metaKey;
+      if (!zooming && pageScrollRef.current) return;
       e.preventDefault();
       const unit = e.deltaMode === 1 ? LINE : e.deltaMode === 2 ? live.current.canvas.height : 1;
       const { camera } = live.current;
-      if (e.ctrlKey || e.metaKey) {
+      if (zooming) {
         const zoom = camera.zoom * wheelZoomFactor(e.deltaY * unit);
         moveRef.current(zoomAt(camera, zoom, local(e)), "none");
         return;

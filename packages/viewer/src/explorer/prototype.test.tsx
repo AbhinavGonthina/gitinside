@@ -1,13 +1,14 @@
 import type { ArchitectureGraph } from "@gitinside/schema";
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { codeShop } from "../model/codeLines.testkit.js";
 import { withTestFiles } from "../model/filterSamples.js";
 import { DEFAULT_FILTERS } from "../model/filters.js";
 import { groupedShop } from "../model/groups.testkit.js";
 import { asWorker, FakeWorker } from "../layout/fakeWorker.testkit.js";
 import { shopDemo } from "../shopDemo.testkit.js";
-import { BREAKING_DELAY, Explorer } from "./Explorer.js";
+import type { ExplorerState } from "./deepLink.js";
+import { BREAKING_DELAY, Explorer, HERO_START_MS, PLAY_STEP_MS } from "./Explorer.js";
 import { memoryOnboarding } from "./onboarding.js";
 import { FactGrid } from "./overview.js";
 
@@ -850,6 +851,160 @@ describe("the prototype's panel (M10.3c3)", { timeout: 30_000 }, () => {
     const panel = panelOf(container);
     expect(headings(panel)).toEqual(["Start here", "Warnings1"]);
     expect(panel.querySelector(".gi-try, .gi-factrow, .gi-notes")).toBeNull();
+  });
+});
+
+describe("the prototype's hero (M10.3e1)", { timeout: 30_000 }, () => {
+  /** jsdom 25 has no `PointerEvent`; React's enter and leave read `relatedTarget` from one. */
+  class TestPointerEvent extends MouseEvent {}
+
+  /**
+   * The hero on a measured 800 × 480 canvas (jsdom has no `ResizeObserver`, and the explorer
+   * settles only once its canvas has a size), its reported states, and the step it's on.
+   */
+  async function hero(props: { design?: "current" | "prototype" } = {}) {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(private readonly report: ResizeObserverCallback) {}
+        observe() {
+          this.report(
+            [{ contentRect: { width: 800, height: 480 } } as ResizeObserverEntry],
+            this as unknown as ResizeObserver,
+          );
+        }
+        disconnect() {}
+      },
+    );
+    onTestFinished(() => {
+      vi.unstubAllGlobals();
+    });
+    const states: ExplorerState[] = [];
+    const view = render(
+      <Explorer
+        graph={graph}
+        design={props.design ?? "prototype"}
+        hero
+        onStateChange={(s) => states.push(s)}
+      />,
+    );
+    await layoutDone(view.container);
+    const root = view.container.querySelector<HTMLElement>(".gi-explorer") as HTMLElement;
+    await waitFor(() => expect(root.hasAttribute("data-settled")).toBe(true));
+    return { ...view, root, states, step: () => states.at(-1)?.step };
+  }
+  const tick = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms));
+
+  it("draws the canvas alone, then loops the first suggested trace, held while the pointer or focus is in", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.stubGlobal("PointerEvent", TestPointerEvent);
+    onTestFinished(() => {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    });
+    const { container, root, states, step } = await hero();
+    expect(root.hasAttribute("data-hero")).toBe(true);
+    // The whole level, fitted (shop-demo's is too wide for the hub-at-80% first view's 70%).
+    const zoom = () =>
+      Number(
+        /scale\(([\d.]+)\)/.exec(
+          container.querySelector<HTMLElement>(".gi-explorer__drill")?.style.transform ?? "",
+        )?.[1],
+      );
+    expect(zoom()).toBeLessThan(0.7);
+    for (const chrome of [
+      ".gi-topbar",
+      ".gi-inspector",
+      ".gi-breadcrumbs",
+      ".gi-explorer__filters-button",
+      ".gi-toolbar",
+    ]) {
+      expect(container.querySelector(chrome), chrome).toBeNull();
+    }
+    // The first view stays up a while before the trace starts.
+    await tick(HERO_START_MS / 2);
+    expect(states).toEqual([]);
+    await tick(HERO_START_MS / 2);
+    await waitFor(() => expect(states.at(-1)?.trace).toBe("page:web//orders"));
+    expect(step()).toBe(0);
+    await layoutDone(container);
+    // Every step in turn, then the first again: a loop, not a stop.
+    for (let i = 0; i < 6; i++) await tick(PLAY_STEP_MS);
+    expect(states.map((s) => s.step)).toEqual([0, 1, 2, 3, 4, 5, 0]);
+    // The chip says what plays; the path's frames leave boxes out, but there's no Show everything.
+    const chip = container.querySelector('.gi-status[data-tone="trace"]') as HTMLElement;
+    expect(chip.textContent).toContain("Tracing");
+    expect(container.querySelector(".gi-drill__more")).not.toBeNull();
+    expect(chip.textContent).not.toContain("Show everything");
+
+    // The pointer inside holds it; out again, it goes on.
+    fireEvent.pointerOver(root, { relatedTarget: document.body });
+    expect(root.hasAttribute("data-held")).toBe(true);
+    await tick(PLAY_STEP_MS * 3);
+    expect(step()).toBe(0);
+    fireEvent.pointerOut(root, { relatedTarget: document.body });
+    expect(root.hasAttribute("data-held")).toBe(false);
+    await tick(PLAY_STEP_MS);
+    expect(step()).toBe(1);
+
+    // So does focus inside, until it leaves the hero.
+    const box = container.querySelector<HTMLElement>(".gi-drill__node > .gi-node") as HTMLElement;
+    act(() => box.focus());
+    expect(root.hasAttribute("data-held")).toBe(true);
+    await tick(PLAY_STEP_MS * 2);
+    expect(step()).toBe(1);
+    act(() => box.blur());
+    expect(root.hasAttribute("data-held")).toBe(false);
+    await tick(PLAY_STEP_MS);
+    expect(step()).toBe(2);
+  });
+
+  it("starts its trace at once under reduced motion, on its lit path, never playing", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(prefers-reduced-motion: reduce)",
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+    onTestFinished(() => {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    });
+    const { container, states, step } = await hero();
+    await waitFor(() => expect(states.at(-1)?.trace).toBe("page:web//orders"));
+    await layoutDone(container);
+    expect(container.querySelector('.gi-node[data-emphasis="current"]')).not.toBeNull();
+    await tick(PLAY_STEP_MS * 3);
+    expect(step()).toBe(0);
+  });
+
+  it("leaves a plain wheel to the page and zooms on Ctrl + wheel; leaves Ctrl K on the page alone", async () => {
+    const { container } = await hero();
+    const canvas = container.querySelector(".gi-explorer__canvas") as HTMLElement;
+    const transform = () =>
+      container.querySelector<HTMLElement>(".gi-explorer__drill")?.style.transform;
+    const before = transform();
+    // `fireEvent` returns false when a listener called `preventDefault`.
+    expect(fireEvent.wheel(canvas, { deltaY: 120 })).toBe(true);
+    expect(transform()).toBe(before);
+    expect(fireEvent.wheel(canvas, { deltaY: -120, ctrlKey: true })).toBe(false);
+    expect(transform()).not.toBe(before);
+    expect(fireEvent.keyDown(document.body, { key: "k", ctrlKey: true })).toBe(true);
+    expect(document.querySelector(".gi-palette-scrim")).toBeNull();
+  });
+
+  it("is the whole explorer, never playing, outside the prototype", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+    const { container, root, states } = await hero({ design: "current" });
+    expect(root.hasAttribute("data-hero")).toBe(false);
+    expect(container.querySelector(".gi-topbar")).not.toBeNull();
+    expect(container.querySelector(".gi-inspector")).not.toBeNull();
+    await tick(HERO_START_MS * 2);
+    expect(states).toEqual([]);
   });
 });
 

@@ -407,6 +407,165 @@ body:has(> [data-own-header]) > .site-header {
   }
 }
 
+/*
+ * The prototype landing (M10.3e1, M10-design §3.5): wider, its first screen the pitch beside the
+ * live explorer, then the URL swap line. Nothing here reaches the shipped landing.
+ */
+.landing[data-prototype] {
+  max-width: 1200px;
+  padding-top: clamp(var(--space-32), 7vh, 72px);
+}
+
+.landing[data-prototype] .landing__hero {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: var(--space-48);
+  align-items: center;
+}
+
+.landing[data-prototype] .landing__title {
+  font-size: clamp(40px, 5vw, 56px);
+}
+
+.landing__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-16);
+  margin: var(--space-16) 0 0;
+  font-size: var(--font-size-13);
+}
+
+/* A link drawn as a button keeps the button's look, not the text links' underline. */
+.landing a.gi-button {
+  text-decoration: none;
+}
+
+.hero {
+  min-width: 0;
+  margin: 0;
+}
+
+.hero__frame {
+  position: relative;
+  height: clamp(360px, 56vh, 520px);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-tile);
+  background: var(--canvas);
+}
+
+.hero__frame .gi-explorer {
+  height: 100%;
+}
+
+/* While the graph loads: a 2px line moving along the top, as a break-down's does (B5). */
+.hero__frame[data-loading]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40%;
+  height: 2px;
+  background: var(--accent);
+  animation: hero-loading calc(var(--duration-standard) * 5) var(--ease-layout) infinite;
+}
+
+@keyframes hero-loading {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+.hero__state {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-13);
+}
+
+.hero__caption {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-4) var(--space-16);
+  margin: var(--space-8) 0 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-13);
+}
+
+.hero__repo {
+  color: var(--text);
+  font-family: var(--font-mono);
+}
+
+/* The URL swap line: GitHub's host fades out as GitInside's fades in, in one right-aligned slot. */
+.swap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-4) var(--space-12);
+  margin: var(--space-48) 0 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-14);
+}
+
+.landing a.swap__url {
+  display: inline-flex;
+  align-items: baseline;
+  min-width: 0;
+  font-family: var(--font-mono);
+  text-decoration: none;
+}
+
+.swap__hosts {
+  display: inline-grid;
+  justify-items: end;
+}
+
+.swap__host {
+  grid-area: 1 / 1;
+  transition: opacity var(--duration-layout) var(--ease-standard);
+}
+
+.swap__host[data-host="github"] {
+  color: var(--text-muted);
+}
+
+.swap__url:not([data-swapped]) .swap__host[data-host="gitinside"],
+.swap__url[data-swapped] .swap__host[data-host="github"] {
+  opacity: 0;
+}
+
+.landing a.swap__url:hover .swap__path,
+.landing a.swap__url:hover .swap__host[data-host="gitinside"] {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-underline-offset: 3px;
+}
+
+.landing__review {
+  margin: calc(var(--space-48) * 2) 0 0;
+}
+
+@media (max-width: 960px) {
+  .landing[data-prototype] .landing__hero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero__frame[data-loading]::before {
+    width: 100%;
+    animation: none;
+  }
+}
+
 /* A phone has no room for the login beside Sign out and the theme switch;
    Sign out alone still says you're signed in. */
 @media (max-width: 480px) {

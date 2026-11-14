@@ -14,6 +14,7 @@ import {
   TopBar,
 } from "@gitinside/viewer";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { PROTOTYPE_HOME } from "../../lib/prototypeLinks";
 import { loadGraph, type GraphLoad } from "../../lib/repoStatus";
 
 /** Props for {@link PrototypeDiagram}: one of `PROTOTYPE_REPOS`. */
@@ -33,7 +34,7 @@ function pinnedText(sha: string): string {
 }
 
 /** The prototype's layout worker (`layoutWorker.ts`), started only in the browser. */
-const layoutWorker = () =>
+export const layoutWorker = () =>
   new Worker(new URL("./layoutWorker.ts", import.meta.url), {
     type: "module",
     name: "gitinside-layout",
@@ -67,7 +68,7 @@ export function PrototypeDiagram({ owner, repo, sha, graphUrl, barEnd }: Prototy
       repo={{ owner, name: repo, sha }}
       actions={false}
       variant="page"
-      home="/"
+      home={PROTOTYPE_HOME}
       status={status}
       end={barEnd}
     />
@@ -123,7 +124,7 @@ export function PrototypeDiagram({ owner, repo, sha, graphUrl, barEnd }: Prototy
             <Explorer
               graph={load.graph}
               design="prototype"
-              home="/"
+              home={PROTOTYPE_HOME}
               commitStatus={status}
               topBarEnd={barEnd}
               layoutWorker={layoutWorker}

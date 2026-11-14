@@ -47,6 +47,22 @@
 }
 
 /*
+ * The landing page's hero (M10.3e1): the canvas alone, as tall as its host makes it, and a
+ * vertical swipe on a touch screen scrolls the page past it (a plain wheel does too, gestures.ts).
+ */
+.gi-explorer[data-hero] {
+  min-height: 0;
+}
+
+.gi-explorer[data-hero] .gi-explorer__main {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.gi-explorer[data-hero] .gi-explorer__canvas {
+  touch-action: pan-y;
+}
+
+/*
  * No app to draw (M4b.12b): the canvas holds one card, centered, and scrolls
  * if the card's warnings outgrow it; there's no inspector beside it.
  */

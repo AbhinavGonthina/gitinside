@@ -4,11 +4,13 @@ import { DEMO_PINS } from "@gitinside/db";
 import { describe, expect, it, vi } from "vitest";
 import {
   findPrototypeRepo,
+  HERO_REPO,
   PROTOTYPE_GRAPH_ORIGIN,
   PROTOTYPE_REPOS,
   prototypeGraphUrl,
   prototypeHref,
   prototypeRepoParam,
+  TOUR_REPO,
   upstreamGraphUrl,
 } from "./prototype";
 import {
@@ -58,10 +60,22 @@ describe("the prototype's repos (M10.3a)", () => {
     expect(findPrototypeRepo("getmaxun", undefined)).toBeUndefined();
   });
 
+  it("lead the landing with hand-checked pins: the hero and the tour (M10.3e1)", () => {
+    const pins = DEMO_PINS.map((p) => `${p.owner}/${p.name}`);
+    expect(pins).toContain(`${HERO_REPO.owner}/${HERO_REPO.name}`);
+    expect(pins).toContain(`${TOUR_REPO.owner}/${TOUR_REPO.name}`);
+    expect(TOUR_REPO.name).toBe("anything-llm");
+  });
+
   it("link the page, the proxy, and production's graph", () => {
     const maxun = findPrototypeRepo("getmaxun", "maxun");
     if (!maxun) throw new Error("no maxun");
     expect(prototypeHref(maxun)).toBe("/prototype?repo=getmaxun/maxun");
+    // An explorer state goes after `repo=`, with or without its `?`.
+    expect(prototypeHref(maxun, "?trace=page%3Ax&step=2")).toBe(
+      "/prototype?repo=getmaxun/maxun&trace=page%3Ax&step=2",
+    );
+    expect(prototypeHref(maxun, "trace=x")).toBe("/prototype?repo=getmaxun/maxun&trace=x");
     expect(prototypeGraphUrl(maxun)).toBe("/api/prototype/graph/getmaxun/maxun");
     expect(upstreamGraphUrl(maxun)).toBe(
       `${PROTOTYPE_GRAPH_ORIGIN}/api/graph/getmaxun/maxun/${maxun.sha}`,

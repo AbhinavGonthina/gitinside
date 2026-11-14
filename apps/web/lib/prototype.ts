@@ -1,4 +1,5 @@
 import { DEMO_PINS } from "@gitinside/db";
+import type { PrototypeRepo } from "./prototypeLinks";
 
 /**
  * The M10 design prototype (M10.3, `app/prototype`): the redesign Abhinav reviews at the design
@@ -10,13 +11,12 @@ import { DEMO_PINS } from "@gitinside/db";
  * diagrams whether or not it has a database.
  */
 
-/** One repo the prototype draws, at a fixed commit. */
-export interface PrototypeRepo {
-  owner: string;
-  name: string;
-  /** The commit whose stored graph is drawn: 40 lowercase hex characters. */
-  sha: string;
-}
+export {
+  PROTOTYPE_HOME,
+  prototypeGraphUrl,
+  prototypeHref,
+  type PrototypeRepo,
+} from "./prototypeLinks";
 
 /** Where the graphs are read: production, whose `/api/graph` serves every public analysis. */
 export const PROTOTYPE_GRAPH_ORIGIN = "https://gitinside.abhinavgonthina.dev";
@@ -35,6 +35,25 @@ export const PROTOTYPE_REPOS: readonly PrototypeRepo[] = [
   { owner: "documenso", name: "documenso", sha: "1e2333d534e151578ffb05394428e2a7efea5f50" },
   ...DEMO_PINS.map(({ owner, name, sha }) => ({ owner, name, sha })),
 ];
+
+/**
+ * The prototype landing's hero (M10-design B14, M10.3e1): one of the hand-checked pins, since the
+ * landing's copy says "checked by hand". Picked by measuring the two candidates' first views; see
+ * ADR-0285.
+ */
+export const HERO_REPO: PrototypeRepo = pinNamed("getmaxun", "maxun");
+
+/**
+ * Where "See how it works" goes (M10-design §3.1): anything-llm, whose chat page → server → AI
+ * model trace is the most telling one. The tour itself comes with M10.3f.
+ */
+export const TOUR_REPO: PrototypeRepo = pinNamed("Mintplex-Labs", "anything-llm");
+
+function pinNamed(owner: string, name: string): PrototypeRepo {
+  const repo = findPrototypeRepo(owner, name);
+  if (!repo) throw new Error(`${owner}/${name} isn't a prototype repo`);
+  return repo;
+}
 
 /**
  * The prototype's repo named `owner/name` (as `?repo=` spells it, any case), or undefined for
@@ -56,16 +75,6 @@ export function prototypeRepoParam(
   if (typeof value !== "string") return undefined;
   const parts = value.split("/");
   return parts.length === 2 ? findPrototypeRepo(parts[0], parts[1]) : undefined;
-}
-
-/** The prototype page of a repo: `/prototype?repo=<owner>/<name>`. */
-export function prototypeHref(repo: PrototypeRepo): string {
-  return `/prototype?repo=${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}`;
-}
-
-/** Where the page reads a repo's graph: this site's proxy of production's. */
-export function prototypeGraphUrl(repo: PrototypeRepo): string {
-  return `/api/prototype/graph/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}`;
 }
 
 /** The production graph the proxy reads for a repo. */

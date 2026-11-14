@@ -41,7 +41,7 @@ export const DEMOS_DOC_HREF =
  * past. The images are decorative (the link's name is the repo's); `lazy` keeps the hidden
  * theme's from loading.
  */
-function Gallery({ cards }: { cards: readonly DemoCard[] }) {
+export function Gallery({ cards }: { cards: readonly DemoCard[] }) {
   return (
     <section className="landing__gallery" aria-labelledby="gallery-title">
       <h2 id="gallery-title" className="gallery__title">
@@ -88,6 +88,23 @@ function Gallery({ cards }: { cards: readonly DemoCard[] }) {
   );
 }
 
+/** What you get: {@link PROMISES}, two to a row. */
+export function Promises() {
+  return (
+    <ul className="landing__promises" aria-label="What you get">
+      {PROMISES.map((p) => (
+        <li key={p.title} className="promise">
+          <span className="promise__icon" aria-hidden>
+            <Glyph name={p.glyph} size={20} />
+          </span>
+          <h2 className="promise__title">{p.title}</h2>
+          <p className="promise__text">{p.text}</p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /**
  * The landing page's content (UX.md "Website flows"): the slogan, one field, the demo gallery,
  * and what you get, then the site footer (M9.4a). `note` is a failed sign-in's or sign-out's explanation; "Sign in for private repos"
@@ -126,17 +143,7 @@ export function Landing({ signIn, note }: { signIn: SignInView; note?: string | 
           )}
         </section>
         <Gallery cards={DEMO_GALLERY} />
-        <ul className="landing__promises" aria-label="What you get">
-          {PROMISES.map((p) => (
-            <li key={p.title} className="promise">
-              <span className="promise__icon" aria-hidden>
-                <Glyph name={p.glyph} size={20} />
-              </span>
-              <h2 className="promise__title">{p.title}</h2>
-              <p className="promise__text">{p.text}</p>
-            </li>
-          ))}
-        </ul>
+        <Promises />
       </main>
       <SiteFooter />
     </>
