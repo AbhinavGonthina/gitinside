@@ -1,4 +1,6 @@
+import { compareStrings } from "@gitinside/schema";
 import type { Rect } from "../chrome/describe.js";
+import { CODE_KINDS, type GraphView } from "../model/view.js";
 import {
   fitCamera,
   keepInView,
@@ -7,7 +9,7 @@ import {
   type Camera,
   type Size,
 } from "./camera.js";
-import { FIT_INSET, fitScale } from "./fit.js";
+import { FIRST_VIEW, FIT_INSET, fitScale } from "./fit.js";
 import type { Shown } from "./transition.js";
 
 /**
@@ -147,13 +149,15 @@ export function entriesRect(shown: Shown, id: string): Rect | undefined {
  * whole box at its fit when that's readable; else at the zoom that fits its
  * name and entries (`entriesRect`), never below {@link READABLE_ZOOM}, with
  * its top-left corner at the inset (`placeRect`). The level's fit too with no
- * focus to frame.
+ * focus to frame, or with `options.firstView` (the prototype) {@link firstView}.
  */
 export function autoCamera(
   shown: Shown | undefined,
   canvas: Size,
   focus: string | undefined,
+  options: { firstView?: boolean } = {},
 ): Camera {
+  if (options.firstView && shown && focus === undefined) return firstView(shown, canvas);
   const size: Size = shown ? shown.layout : { width: 0, height: 0 };
   const frame =
     shown && focus !== undefined && fitScale(size, canvas) < READABLE_ZOOM
@@ -164,6 +168,55 @@ export function autoCamera(
   const whole = fitScale(frame, canvas);
   const zoom = whole >= READABLE_ZOOM ? whole : Math.max(READABLE_ZOOM, fitScale(entries, canvas));
   return keepInView(placeRect(frame, canvas, zoom), size, canvas);
+}
+
+/**
+ * The system level's hub (M10.3b2, M10-design A2): the top-level service with the most lines
+ * that aren't code dependency (requests, data, queues, outside calls), ties by ID
+ * (`compareStrings`). Undefined when no service has one.
+ */
+export function hubOf(view: GraphView): string | undefined {
+  const lines = new Map<string, number>();
+  for (const e of view.edges) {
+    if (CODE_KINDS.has(e.kind)) continue;
+    for (const id of new Set([e.from, e.to])) {
+      const n = view.byId.get(id);
+      if (n?.parent === null && n.node.kind === "service") lines.set(id, (lines.get(id) ?? 0) + 1);
+    }
+  }
+  let hub: [string, number] | undefined;
+  for (const entry of lines) {
+    if (!hub || entry[1] > hub[1] || (entry[1] === hub[1] && compareStrings(entry[0], hub[0]) < 0))
+      hub = entry;
+  }
+  return hub?.[0];
+}
+
+/**
+ * The prototype's first view of a level with nothing broken down (M10.3b2, M10-design A5): the
+ * level's fit ({@link fitLevel}) when it takes {@link FIRST_VIEW}`.least` (70%) or more, else the
+ * hub ({@link hubOf}) centered at {@link FIRST_VIEW}`.hub` (80%), moved back on an axis where
+ * that would show past the diagram's edge (so the canvas stays full), and the level's fit with
+ * no hub.
+ */
+export function firstView(shown: Shown, canvas: Size): Camera {
+  const fit = fitLevel(shown.layout, canvas);
+  if (canvas.width <= 0 || canvas.height <= 0 || fit.zoom >= FIRST_VIEW.least) return fit;
+  const hub = hubOf(shown.view);
+  const box = hub === undefined ? undefined : shown.layout.boxes.find((b) => b.id === hub);
+  if (!box) return fit;
+  const zoom = FIRST_VIEW.hub;
+  const axis = (room: number, inset: number, length: number, at: number) => {
+    const drawn = length * zoom;
+    if (drawn <= room - 2 * inset) return Math.round((room - drawn) / 2);
+    const centered = room / 2 - at * zoom;
+    return Math.round(Math.min(inset, Math.max(room - inset - drawn, centered)));
+  };
+  return {
+    zoom,
+    x: axis(canvas.width, FIT_INSET.x, shown.layout.width, box.x + box.width / 2),
+    y: axis(canvas.height, FIT_INSET.y, shown.layout.height, box.y + box.height / 2),
+  };
 }
 
 /** The node broken down last that the drawn view still has open (`order`: the order they were opened in). */

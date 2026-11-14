@@ -472,6 +472,7 @@ export function DrillCanvas({
 
   const stageRef = useRef<HTMLDivElement>(null);
   const linesRef = useRef<SVGSVGElement>(null);
+  const quietRef = useRef<SVGSVGElement>(null);
   const labelsRef = useRef<HTMLDivElement>(null);
   const boxEls = useRef(new Map<string, HTMLElement>());
   const leavingEls = useRef(new Map<string, HTMLElement>());
@@ -506,7 +507,7 @@ export function DrillCanvas({
       });
       for (const a of running) a.cancel();
     }
-    for (const el of [linesRef.current, labelsRef.current]) {
+    for (const el of [linesRef.current, quietRef.current, labelsRef.current]) {
       for (const a of el?.getAnimations?.() ?? []) a.cancel();
     }
     return now;
@@ -571,6 +572,7 @@ export function DrillCanvas({
         if (el) glide(el, e.from, e.from, e.to, [1, 0], "forwards");
       }
       fadeInAfter(linesRef.current);
+      fadeInAfter(quietRef.current);
       fadeInAfter(labelsRef.current);
       if (boxes.length > 0 || from.size > 0) {
         timer = setTimeout(
@@ -695,6 +697,30 @@ export function DrillCanvas({
     );
   }, [drawn, absentKey]);
   const siblingsOf = (n: ViewNode) => siblings?.get(n.parent ?? index.root.id) ?? NO_SIBLINGS;
+  /** One line of the layout, if it's drawn: in the quiet layer behind the boxes (`quiet`), or above them. */
+  const line = (placed: PlacedEdge, quiet: boolean) => {
+    const e = edges.get(placed.id);
+    if (!e || !culled?.edges.has(placed.id) || (placed.quiet ?? false) !== quiet) return null;
+    const { selected, emphasis, flow, pulse, diff, broken, absent } = lineLook?.(e) ?? {};
+    return (
+      <CanvasLine
+        key={placed.id}
+        index={index}
+        shown={versionIndex}
+        keep={versionEdges}
+        e={e}
+        placed={placed}
+        selected={selected}
+        emphasis={emphasis}
+        flow={flow}
+        pulse={pulse}
+        diff={diff}
+        broken={broken}
+        absent={absent}
+      />
+    );
+  };
+  const quietLines = shown?.layout.edges.some((p) => p.quiet) ?? false;
   return (
     <div
       {...rest}
@@ -725,6 +751,19 @@ export function DrillCanvas({
                 </span>
               ))}
             </div>
+          )}
+          {quietLines && (
+            <svg
+              ref={quietRef}
+              className="gi-drill__lines"
+              data-quiet=""
+              width={shown.layout.width}
+              height={shown.layout.height}
+              role="group"
+              aria-label="Code dependencies"
+            >
+              {shown.layout.edges.map((placed) => line(placed, true))}
+            </svg>
           )}
           <div
             className="gi-drill__boxes"
@@ -786,34 +825,16 @@ export function DrillCanvas({
             role="group"
             aria-label="Connections"
           >
-            {shown.layout.edges.map((placed) => {
-              const e = edges.get(placed.id);
-              if (!e || !culled?.edges.has(placed.id)) return null;
-              const { selected, emphasis, flow, pulse, diff, broken, absent } = lineLook?.(e) ?? {};
-              return (
-                <CanvasLine
-                  key={placed.id}
-                  index={index}
-                  shown={versionIndex}
-                  keep={versionEdges}
-                  e={e}
-                  placed={placed}
-                  selected={selected}
-                  emphasis={emphasis}
-                  flow={flow}
-                  pulse={pulse}
-                  diff={diff}
-                  broken={broken}
-                  absent={absent}
-                />
-              );
-            })}
+            {shown.layout.edges.map((placed) => line(placed, false))}
           </svg>
           <div ref={labelsRef} className="gi-drill__labels">
             {shown.layout.edges.map((placed) => {
               const e = edges.get(placed.id);
               if (!e || !culled?.edges.has(placed.id)) return null;
               const { selected, emphasis, diff, broken, absent } = lineLook?.(e) ?? {};
+              // A quiet line's pill shows only on a trace's path: the layout kept it no room, and a
+              // selected box's code lines all start at one point, so their pills would pile up.
+              if (placed.quiet && emphasis !== "current" && emphasis !== "traced") return null;
               return (
                 <CanvasPill
                   key={placed.id}

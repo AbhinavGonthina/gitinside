@@ -184,7 +184,9 @@ export interface ExplorerProps {
   /**
    * Which design to draw (M10.3): `"current"` (default) is the shipped explorer; `"prototype"` is
    * the M10 redesign under review at the design gate, only for the website's unlinked
-   * `/prototype` page until Abhinav approves it. So far it lays the top level out in bands.
+   * `/prototype` page until Abhinav approves it. So far: the top level in bands, its shared
+   * packages and outside hosts grouped, its "uses code" lines quiet behind the boxes, and a first
+   * view fitted at 70% or more, else on the hub at 80%.
    */
   design?: ExplorerDesign | undefined;
 }
@@ -342,10 +344,16 @@ export function Explorer({
     setEngine(made);
     return () => made.dispose();
   }, [layoutWorker]);
-  const bands = design === "prototype";
+  // The prototype bands the system level and quiets its "uses code" lines (M10.3a, M10.3b2).
+  const prototype = design === "prototype";
   const cache = useMemo(
-    () => engine && createLayoutCache(index, engine, undefined, marks, { bands }),
-    [index, engine, marks, bands],
+    () =>
+      engine &&
+      createLayoutCache(index, engine, undefined, marks, {
+        bands: prototype,
+        quietCode: prototype,
+      }),
+    [index, engine, marks, prototype],
   );
   // The filters (M4b.8b): nodes and confidence levels, and connection kinds (imports off).
   const [filters, setFilters] = useState<Filters>(initialFilters);
@@ -471,9 +479,11 @@ export function Explorer({
   const auto = useMemo(
     () =>
       belowBand(canvas, hintBand, (room) =>
-        overview && shown ? fitLevel(shown.layout, room) : autoCamera(shown, room, focus),
+        overview && shown
+          ? fitLevel(shown.layout, room)
+          : autoCamera(shown, room, focus, { firstView: prototype }),
       ),
-    [overview, shown, canvas, focus, hintBand],
+    [overview, shown, canvas, focus, hintBand, prototype],
   );
   const camera = handSet ?? auto;
   const [cameraMotion, setCameraMotion] = useState<CameraMotion>("layout");
