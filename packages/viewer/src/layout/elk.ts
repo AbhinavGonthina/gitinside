@@ -1,9 +1,9 @@
-import type { Layer } from "@gitinside/schema";
+import { compareStrings, type Layer } from "@gitinside/schema";
 import type { ELK, ElkExtendedEdge, ElkNode, LayoutOptions } from "elkjs/lib/elk-api.js";
 import type { Rect } from "../chrome/describe.js";
 import type { Point } from "../edges/geometry.js";
 import type { DiffMarks } from "../model/diff.js";
-import { isUnresolvedGroup } from "../model/groups.js";
+import { HOSTS_GROUP_PREFIX, isUnresolvedGroup } from "../model/groups.js";
 import { layerOf, type HierarchyIndex } from "../model/hierarchy.js";
 import { isCodeLine, type GraphView } from "../model/view.js";
 import {
@@ -69,7 +69,15 @@ export interface LayoutNode {
    * the bands in order left to right (`elk.partitioning`). Unset outside the prototype.
    */
   band?: number;
+  /**
+   * A host in a broken-down host group (M10.3d5, prototype only): its place in the group's grid of
+   * {@link GRID_COLUMNS} columns, row by row, the host with the most connections first.
+   */
+  cell?: number;
 }
+
+/** How many columns a broken-down host group's hosts are laid out in (M10-design A6). */
+export const GRID_COLUMNS = 4;
 
 /**
  * The prototype's bands (M10.3a, M10-design A1), left to right as a request travels. A
@@ -101,6 +109,29 @@ function callsOut(view: GraphView, n: GraphView["nodes"][number]): boolean {
     return false;
   }
   return view.byId.get(n.parent)?.node.kind === "service";
+}
+
+/**
+ * Each host's cell in its broken-down host group's grid (`LayoutNode.cell`): the group's drawn
+ * children by how many connections their lines stand for, most first, then by ID. ELK alone
+ * stacked a group's hosts in one column, since nothing connects them (anything-llm's AI models:
+ * 27 tall).
+ */
+function hostCells(view: GraphView): Map<string, number> {
+  const cells = new Map<string, number>();
+  const groups = view.nodes.filter((n) => n.open && n.id.startsWith(HOSTS_GROUP_PREFIX));
+  if (groups.length === 0) return cells;
+  const lines = new Map<string, number>();
+  for (const e of view.edges) {
+    for (const end of [e.from, e.to]) lines.set(end, (lines.get(end) ?? 0) + e.edges.length);
+  }
+  for (const group of groups) {
+    const hosts = [...(view.childrenOf.get(group.id) ?? [])].sort(
+      (a, b) => (lines.get(b) ?? 0) - (lines.get(a) ?? 0) || compareStrings(a, b),
+    );
+    for (const [i, id] of hosts.entries()) cells.set(id, i);
+  }
+  return cells;
 }
 
 /** Where a band starts on the canvas: the left edge of its leftmost top-level box. */
@@ -243,7 +274,9 @@ export function layoutInput(
   marks?: DiffMarks | undefined,
   options: LayoutInputOptions = {},
 ): LayoutInput {
+  const cells = options.bands ? hostCells(view) : new Map<string, number>();
   const nodes = view.nodes.map((n): LayoutNode => {
+    const cell = cells.get(n.id);
     const size = viewNodeSize(index, n, marks, options.cards);
     const header = n.open ? openHeader(n.node, layerOf(index, n.id)) : undefined;
     return {
@@ -256,6 +289,7 @@ export function layoutInput(
       ...(n.section === "entries" ? { entry: true } : {}),
       ...(options.bands && n.parent === null ? { band: bandOf(n.node.layer) } : {}),
       ...(options.bands && callsOut(view, n) ? { exit: true } : {}),
+      ...(cell === undefined ? {} : { cell }),
     };
   });
   const edges = view.edges.map(
@@ -296,7 +330,45 @@ export function elkGraph(input: LayoutInput): ElkNode {
     if (!parent) throw new Error(`layout input lists ${n.id} before its parent ${n.parent}`);
     (parent.children ??= []).push(node);
   }
-  root.edges = input.edges.flatMap((e): ElkExtendedEdge[] =>
+  root.edges = [...gridEdges(input, byId), ...edgesOf(input)];
+  return root;
+}
+
+/** The ID prefix of {@link gridEdges}' edges, which {@link readLayout} never reads. */
+const GRID_EDGE = "__grid:";
+
+/**
+ * A broken-down host group's grid (`LayoutNode.cell`): each row of {@link GRID_COLUMNS} cells
+ * chained left to right by an edge nothing draws, so ELK's layers are the grid's columns and a
+ * row's hosts go busiest first, left to right. ELK still stacks the rows (and staggers each a
+ * little): in the order that keeps the lines coming in from crossing, with room between rows for
+ * them, which isn't always cell order (anything-llm's AI models: the busiest row on top, the rest
+ * mixed). Lining rows up afterwards ran lines through other hosts, and ELK's own ordering options
+ * failed (model order inside the frame threw), so ELK's order stands.
+ */
+function gridEdges(input: LayoutInput, byId: ReadonlyMap<string, ElkNode>): ElkExtendedEdge[] {
+  const rows = new Map<string, LayoutNode[]>();
+  for (const n of input.nodes) {
+    if (n.cell === undefined || n.parent === null) continue;
+    rows.set(n.parent, [...(rows.get(n.parent) ?? []), n]);
+  }
+  const edges: ElkExtendedEdge[] = [];
+  for (const [group, hosts] of rows) {
+    hosts.sort((a, b) => (a.cell ?? 0) - (b.cell ?? 0));
+    const frame = byId.get(group);
+    if (frame) frame.children = hosts.flatMap((h) => byId.get(h.id) ?? []);
+    for (const [i, host] of hosts.entries()) {
+      const next = hosts[i + 1];
+      if (!next || (i + 1) % GRID_COLUMNS === 0) continue;
+      edges.push({ id: `${GRID_EDGE}${host.id}`, sources: [host.id], targets: [next.id] });
+    }
+  }
+  return edges;
+}
+
+/** ELK's edges for an input's drawn lines, the quiet ones left out. */
+function edgesOf(input: LayoutInput): ElkExtendedEdge[] {
+  return input.edges.flatMap((e): ElkExtendedEdge[] =>
     e.quiet
       ? []
       : [
@@ -322,7 +394,6 @@ export function elkGraph(input: LayoutInput): ElkNode {
           },
         ],
   );
-  return root;
 }
 
 /** How far before its target a quiet line turns toward it (canvas px), clear of ELK's 64px column gap. */

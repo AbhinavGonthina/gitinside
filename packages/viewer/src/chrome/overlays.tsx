@@ -1,5 +1,5 @@
 import type { Confidence, Layer, NodeKind } from "@gitinside/schema";
-import { useRef, type HTMLAttributes, type PointerEvent } from "react";
+import { memo, useRef, type HTMLAttributes, type PointerEvent } from "react";
 import { DiagramEdge } from "../edges/DiagramEdge.js";
 import { CONFIDENCE_TEXT } from "../edges/describe.js";
 import { DIFF_TEXT, type NodeDiff, type NodeShape } from "../nodes/describe.js";
@@ -198,7 +198,38 @@ export interface MinimapNode {
   id: string;
   rect: Rect;
   layer?: Layer | undefined;
+  /** A broken-down box with boxes inside: drawn as an outline, so what's inside shows. */
+  frame?: boolean | undefined;
 }
+
+/** The map's boxes, memoized: a camera move inside the diagram redraws only the viewport's frame. */
+const MinimapBoxes = memo(function MinimapBoxes({
+  nodes,
+  scale,
+  dx,
+  dy,
+}: { nodes: readonly MinimapNode[] } & MinimapFit) {
+  const fit = { scale, dx, dy };
+  return (
+    <>
+      {nodes.map((n) => {
+        const r = toMinimap(n.rect, fit);
+        return (
+          <rect
+            key={n.id}
+            className={n.frame ? "gi-minimap__frame" : "gi-minimap__node"}
+            {...(n.layer ? { "data-layer": n.layer } : {})}
+            x={r.x}
+            y={r.y}
+            width={r.width}
+            height={r.height}
+            rx={2}
+          />
+        );
+      })}
+    </>
+  );
+});
 
 /** Props for {@link Minimap}. */
 export interface MinimapProps extends HTMLAttributes<HTMLDivElement> {
@@ -277,21 +308,7 @@ export function Minimap({
         aria-label={`Minimap of ${nodes.length} ${nodes.length === 1 ? "box" : "boxes"}; the frame shows the part in view`}
         {...drag}
       >
-        {nodes.map((n) => {
-          const r = toMinimap(n.rect, fit);
-          return (
-            <rect
-              key={n.id}
-              className="gi-minimap__node"
-              {...(n.layer ? { "data-layer": n.layer } : {})}
-              x={r.x}
-              y={r.y}
-              width={r.width}
-              height={r.height}
-              rx={2}
-            />
-          );
-        })}
+        <MinimapBoxes nodes={nodes} scale={fit.scale} dx={fit.dx} dy={fit.dy} />
         <rect
           className="gi-minimap__viewport"
           x={view.x}

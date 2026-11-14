@@ -5,8 +5,9 @@ import { codeShop } from "../model/codeLines.testkit.js";
 import { withTestFiles } from "../model/filterSamples.js";
 import { DEFAULT_FILTERS } from "../model/filters.js";
 import { groupedShop } from "../model/groups.testkit.js";
+import { asWorker, FakeWorker } from "../layout/fakeWorker.testkit.js";
 import { shopDemo } from "../shopDemo.testkit.js";
-import { Explorer } from "./Explorer.js";
+import { BREAKING_DELAY, Explorer } from "./Explorer.js";
 import { memoryOnboarding } from "./onboarding.js";
 import { FactGrid } from "./overview.js";
 
@@ -745,6 +746,102 @@ describe("the prototype's panel (M10.3c3)", { timeout: 30_000 }, () => {
     expect(panel.textContent).not.toContain("Unresolved calls");
     fireEvent.click(panel.querySelector(".gi-imports button") as HTMLElement);
     await waitFor(() => expect(picked.at(-1)).toBe(missing[0]?.node.id), { timeout: 10_000 });
+  });
+
+  it("shows a slow break-down on its box past 300ms, and Esc cancels it (M10.3d5)", async () => {
+    const API = "service:api/";
+    const fake = new FakeWorker();
+    const { container } = render(
+      <Explorer graph={graph} design="prototype" layoutWorker={() => asWorker(fake)} />,
+    );
+    await layoutDone(container);
+    const wrapper = () => container.querySelector<HTMLElement>(`[data-node-id="${API}"]`);
+    const tile = () => wrapper()?.querySelector<HTMLElement>(":scope > .gi-node") as HTMLElement;
+    const live = () => container.querySelector('[aria-live="polite"]')?.textContent ?? "";
+
+    fake.holding = true;
+    const asked = performance.now();
+    fireEvent.keyDown(tile(), { key: "Enter" });
+    // Not at once: a layout that lands within 300ms shows nothing.
+    expect(wrapper()?.hasAttribute("data-breaking")).toBe(false);
+    await waitFor(() => expect(wrapper()?.hasAttribute("data-breaking")).toBe(true));
+    expect(performance.now() - asked).toBeGreaterThanOrEqual(BREAKING_DELAY - 5);
+    const line = wrapper()?.querySelector(".gi-drill__breaking");
+    expect(line?.getAttribute("aria-hidden")).toBe("true");
+    expect(line?.textContent).toBe("Laying out…");
+    expect(live()).toBe("Breaking down @shop/api…");
+    // The canvas stays as it was, and usable, meanwhile.
+    expect(tile().getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.keyDown(tile(), { key: "Escape" });
+    expect(wrapper()?.hasAttribute("data-breaking")).toBe(false);
+    expect(live()).toBe("Stopped breaking down @shop/api");
+    // The layout it was waiting for lands later, and changes nothing.
+    fake.release();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(tile().getAttribute("aria-expanded")).toBe("false");
+    expect(container.querySelector(`[data-node-id="route:api/GET /api/orders"]`)).toBeNull();
+
+    // It's kept, though: asked again, the API breaks down at once.
+    fake.holding = true;
+    fireEvent.keyDown(tile(), { key: "Enter" });
+    await waitFor(() => expect(wrapper()?.hasAttribute("data-open")).toBe(true));
+    expect(container.querySelector("[data-breaking]")).toBeNull();
+
+    // Another box left to finish breaks down, and its line goes.
+    const web = () => container.querySelector<HTMLElement>(`[data-node-id="service:web/"]`);
+    const webTile = web()?.querySelector<HTMLElement>(":scope > .gi-node") as HTMLElement;
+    fireEvent.keyDown(webTile, { key: "Enter" });
+    await waitFor(() => expect(web()?.hasAttribute("data-breaking")).toBe(true));
+    fake.release();
+    await waitFor(() => expect(web()?.hasAttribute("data-open")).toBe(true));
+    expect(container.querySelector("[data-breaking]")).toBeNull();
+    // Said to be under way, it says when it's done.
+    await waitFor(() => expect(live()).toBe("Broke down @shop/web"));
+  });
+
+  it("shows no break-down line in the shipped design", async () => {
+    const fake = new FakeWorker();
+    const { container } = render(<Explorer graph={graph} layoutWorker={() => asWorker(fake)} />);
+    await layoutDone(container);
+    fake.holding = true;
+    const tile = container.querySelector<HTMLElement>(`[data-node-id="service:api/"] > .gi-node`);
+    fireEvent.keyDown(tile as HTMLElement, { key: "Enter" });
+    await new Promise((resolve) => setTimeout(resolve, BREAKING_DELAY + 100));
+    expect(container.querySelector("[data-breaking]")).toBeNull();
+    // Esc goes up, as it always did: nothing to cancel.
+    fake.release();
+  });
+
+  it("draws every box of a break-down on the minimap, open ones as outlines (M10.3d5, B6)", async () => {
+    const API = "service:api/";
+    for (const design of ["prototype", "current"] as const) {
+      const view = render(<Explorer graph={graph} design={design} initialOpen={[API]} />);
+      await layoutDone(view.container);
+      if (design === "prototype") {
+        fireEvent.click(
+          view.container.querySelector('button[aria-label="Minimap"]') as HTMLElement,
+        );
+      }
+      const map = view.container.querySelector(".gi-minimap svg") as SVGElement;
+      const frames = map.querySelectorAll(".gi-minimap__frame");
+      const boxes = map.querySelectorAll(".gi-minimap__node");
+      const drawnBoxes = view.container.querySelectorAll(".gi-drill__node").length;
+      if (design === "prototype") {
+        // The API's frame, and the routes and folders inside it, as the layout placed them.
+        expect(frames).toHaveLength(1);
+        expect(frames[0]?.getAttribute("data-layer")).toBe("backend");
+        expect(frames.length + boxes.length).toBe(drawnBoxes);
+        expect(map.getAttribute("aria-label")).toBe(
+          `Minimap of ${drawnBoxes} boxes; the frame shows the part in view`,
+        );
+      } else {
+        // The shipped map: the top level only, the open API one filled box.
+        expect(frames).toHaveLength(0);
+        expect(boxes).toHaveLength(4);
+      }
+      view.unmount();
+    }
   });
 
   it("keeps the shipped panel in the shipped design", async () => {

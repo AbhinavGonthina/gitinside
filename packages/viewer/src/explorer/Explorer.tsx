@@ -15,7 +15,14 @@ import { EmptyState, WarningList } from "../chrome/EmptyState.js";
 import { FiltersPopover } from "../chrome/FiltersPopover.js";
 import { ShareMenu } from "../chrome/ShareMenu.js";
 import { viewExport, type ViewExport } from "../export/files.js";
-import { Breadcrumbs, CanvasToolbar, Legend, Minimap, ZoomControls } from "../chrome/overlays.js";
+import {
+  Breadcrumbs,
+  CanvasToolbar,
+  Legend,
+  Minimap,
+  ZoomControls,
+  type MinimapNode,
+} from "../chrome/overlays.js";
 import { DIFF_VIEWS, TopBar, type CommitStatus, type DiffView } from "../chrome/TopBar.js";
 import { buildDiffOverlay, DiffMismatchError, diffMarks, versionGraph } from "../model/diff.js";
 import {
@@ -72,7 +79,13 @@ import {
 } from "./camera.js";
 import { ChangesSection, movesNote } from "./changes.js";
 import { encodeState, withState, type ExplorerState } from "./deepLink.js";
-import { DrillCanvas, toggledBetween, type BoxLook, type LineLook } from "./DrillCanvas.js";
+import {
+  breakingDown,
+  DrillCanvas,
+  toggledBetween,
+  type BoxLook,
+  type LineLook,
+} from "./DrillCanvas.js";
 import { useDrill, type Expansion } from "./drill.js";
 import {
   autoCamera,
@@ -107,6 +120,9 @@ export const PLAY_STEP_MS = durations["trace-hop"] * 3;
 
 /** Room between the first-visit hint's card and the diagram fitted below it: the overlays' 16px spacing. */
 const HINT_GAP = 16;
+
+/** How long a break-down may lay out before its box shows it's working (M10-design B5), in ms. */
+export const BREAKING_DELAY = 300;
 
 /** Props for {@link Explorer}. */
 export interface ExplorerProps {
@@ -1002,6 +1018,43 @@ export function Explorer({
     setAnnouncement(`Back to ${nodeOf(index, id).label}`);
   }
 
+  // The prototype's big break-downs (M10.3d5, M10-design B5): boxes broken down whose layout is
+  // still running. Past BREAKING_DELAY each shows it (a progress line, `DrillCanvas.breaking`)
+  // and the live region says so; Esc cancels them.
+  const breaking = prototype && shown ? breakingDown(shown.view, view) : [];
+  const breakingKey = breaking.join("\n");
+  const [slowKey, setSlowKey] = useState("");
+  const slowNow = useRef(slowKey);
+  slowNow.current = slowKey;
+  useEffect(() => {
+    if (breakingKey === "") {
+      // A break-down said to be under way says when it's done, if it was (Esc says it stopped).
+      const was = slowNow.current;
+      if (was !== "") {
+        setSlowKey("");
+        const done = was.split("\n").filter((id) => view.byId.get(id)?.open);
+        const names = done.map((id) => nodeOf(index, id).label);
+        if (names.length > 0) setAnnouncement(`Broke down ${names.join(", ")}`);
+      }
+      return;
+    }
+    const timer = setTimeout(() => {
+      setSlowKey(breakingKey);
+      const names = breakingKey.split("\n").map((id) => nodeOf(index, id).label);
+      setAnnouncement(`Breaking down ${names.join(", ")}…`);
+    }, BREAKING_DELAY);
+    return () => clearTimeout(timer);
+  }, [breakingKey, index]);
+  const slowBreaking = breakingKey !== "" && slowKey === breakingKey ? breaking : undefined;
+
+  /** Esc while a break-down lays out: closes what it was opening, and the drawn level stays. */
+  function cancelBreakDown() {
+    setSlowKey("");
+    for (const id of breaking) drill.close(id);
+    const names = breaking.map((id) => nodeOf(index, id).label);
+    setAnnouncement(`Stopped breaking down ${names.join(", ")}`);
+  }
+
   /**
    * Takes off the filters that hide a node (`filtersShowing`), so it's drawn
    * again; the chip and the Filters count show what's left. Says so.
@@ -1275,8 +1328,9 @@ export function Explorer({
   }
 
   /**
-   * Esc: close the palette, the picker, or the legend → exit trace → go up a
-   * level → clear selection (UX.md keyboard table). T toggles trace, Ctrl+K
+   * Esc: close the palette, the picker, or the legend → exit trace → (the
+   * prototype) cancel a break-down still laying out → go up a level → clear
+   * selection (UX.md keyboard table). T toggles trace, Ctrl+K
    * or ⌘K the palette.
    */
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -1302,6 +1356,7 @@ export function Explorer({
       else if (filtering) closeFilters();
       else if (legend) closeLegend();
       else if (tracing) toggleTrace();
+      else if (breaking.length > 0) cancelBreakDown();
       else if (goUp()) {
         // went up a level
       } else if (selected) select(null);
@@ -1391,12 +1446,17 @@ export function Explorer({
     })),
   ];
 
-  // The minimap shows the top level of the drawn layout.
-  const drawn = shown?.view;
-  const minimapNodes = (shown?.layout.boxes ?? []).flatMap((b) =>
-    drawn?.byId.get(b.id)?.parent === null
-      ? [{ id: b.id, rect: b, layer: layerOf(index, b.id) }]
-      : [],
+  // The minimap shows the top level of the drawn layout. The prototype's shows every box the layout
+  // placed, open ones as outlines (M10.3d5, M10-design B6): a big break-down's frame alone filled
+  // the whole map, so it read as blank.
+  const minimapNodes = useMemo(
+    () =>
+      (shown?.layout.boxes ?? []).flatMap((b): MinimapNode[] => {
+        const n = shown?.view.byId.get(b.id);
+        if (!n || (!prototype && n.parent !== null)) return [];
+        return [{ id: b.id, rect: b, layer: layerOf(index, b.id), frame: prototype && n.open }];
+      }),
+    [shown, prototype, index],
   );
 
   const selectedView = selectedNode ? view.byId.get(selectedNode.id) : undefined;
@@ -1573,6 +1633,7 @@ export function Explorer({
             versionIndex={shownIndex === index ? undefined : shownIndex}
             cards={prototype}
             onMore={prototype ? showMore : undefined}
+            breaking={slowBreaking}
           />
           <div
             className="gi-explorer__pin"

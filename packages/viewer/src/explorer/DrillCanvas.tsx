@@ -124,6 +124,12 @@ export interface DrillCanvasProps
    * Without it, no such button is drawn.
    */
   onMore?: ((id: string) => void) | undefined;
+  /**
+   * Boxes whose break-down is taking a while (M10.3d5, M10-design B5; the host decides when):
+   * each drawn closed gets an accent outline with a progress line along its top, and under
+   * reduced motion a still line and "Laying out…". Its ID is the box's `data-breaking`.
+   */
+  breaking?: readonly string[] | undefined;
 }
 
 /**
@@ -166,6 +172,8 @@ interface CanvasBoxProps {
   register: (id: string, leaving: boolean, el: HTMLElement | null) => void;
   /** The prototype's cards (`DrillCanvasProps.cards`). */
   cards: boolean;
+  /** Its break-down is taking a while (`DrillCanvasProps.breaking`). */
+  breaking: boolean;
 }
 
 /**
@@ -194,6 +202,7 @@ const CanvasBox = memo(function CanvasBox({
   actions,
   register,
   cards,
+  breaking,
 }: CanvasBoxProps) {
   const frame = nodeTier(n.node) === "frame";
   const ref = useCallback(
@@ -227,6 +236,7 @@ const CanvasBox = memo(function CanvasBox({
       data-open={n.open ? "" : undefined}
       data-leaving={leaving ? "" : undefined}
       data-absent={absent ? "" : undefined}
+      data-breaking={breaking ? "" : undefined}
       aria-hidden={hidden || undefined}
       inert={hidden || undefined}
       style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}
@@ -263,6 +273,12 @@ const CanvasBox = memo(function CanvasBox({
         }
         onKeyDown={hidden ? undefined : (e) => actions.current.keyDown(e, n)}
       />
+      {breaking && (
+        <span className="gi-drill__breaking" aria-hidden="true">
+          <span className="gi-drill__breaking-line" />
+          <span className="gi-drill__breaking-label">Laying out…</span>
+        </span>
+      )}
     </div>
   );
 });
@@ -382,6 +398,18 @@ export function toggledBetween(a: GraphView, b: GraphView): string[] {
   return ids.sort((x, y) => level(x) - level(y));
 }
 
+/**
+ * The boxes `next` breaks down that `drawn` shows closed (M10.3d5, M10-design B5): what a
+ * layout still running is for, in `next`'s order. Empty when `next` is the view drawn.
+ */
+export function breakingDown(drawn: GraphView, next: GraphView): string[] {
+  if (drawn === next) return [];
+  return next.open.filter((id) => {
+    const was = drawn.byId.get(id);
+    return was !== undefined && !was.open;
+  });
+}
+
 const px = (n: number) => `${n}px`;
 
 /**
@@ -476,6 +504,7 @@ export function DrillCanvas({
   versionIndex,
   cards = false,
   onMore,
+  breaking,
   className,
   style,
   ...rest
@@ -815,6 +844,7 @@ export function DrillCanvas({
                 actions={actions}
                 register={register}
                 cards={cards}
+                breaking={false}
               />
             ))}
             {/* One stable list in drawing order, so Tab reads a frame, then its inside. */}
@@ -840,6 +870,7 @@ export function DrillCanvas({
                   actions={actions}
                   register={register}
                   cards={cards}
+                  breaking={!n.open && (breaking?.includes(n.id) ?? false)}
                 />
               );
             })}

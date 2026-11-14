@@ -161,4 +161,18 @@ describe("drill.css", () => {
     expect(body).toMatch(/\.gi-drill__labels \{[^}]*pointer-events: none/);
     expect(body).toMatch(/\.gi-drill__node\[data-leaving\] \{[^}]*pointer-events: none/);
   });
+
+  it("runs a slow break-down's line over 1.2s, and stills it with a label under reduced motion (M10.3d5)", () => {
+    expect(body).toMatch(
+      /\.gi-drill__node\[data-breaking\] > \.gi-node \{\s*border-color: var\(--accent\);/,
+    );
+    expect(body).toMatch(/\.gi-drill__breaking \{[^}]*pointer-events: none/);
+    expect(body).toMatch(
+      /\.gi-drill__breaking-line \{[^}]*animation: gi-breaking calc\(var\(--duration-standard\) \* 5\) var\(--ease-layout\) infinite;/,
+    );
+    expect(body).toMatch(/\.gi-drill__breaking-label \{\s*display: none;/);
+    const reduced = body.slice(body.lastIndexOf("@media (prefers-reduced-motion: reduce)"));
+    expect(reduced).toMatch(/\.gi-drill__breaking-line \{[^}]*animation: none;/);
+    expect(reduced).toMatch(/\.gi-drill__breaking-label \{[^}]*display: block;/);
+  });
 });
