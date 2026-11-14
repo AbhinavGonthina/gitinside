@@ -100,6 +100,33 @@ export function notesEntries(root: GraphNode, count: number): SearchEntry[] {
   ];
 }
 
+/** The ID Ctrl K picks for the prototype's "What depends on …" (no node has it: see {@link NOTES_ENTRY}). */
+export const IMPACT_ENTRY = "impact:selection";
+
+/**
+ * The prototype's "What depends on <the selection>?" result (M10.3f1, M10-design §3.2), found by
+ * "depends" or "impact"; none without a selection. It's drawn with the selection's icon.
+ */
+export function impactEntries(
+  index: HierarchyIndex,
+  selected: GraphNode | undefined,
+): SearchEntry[] {
+  if (!selected || selected.id === index.root.id) return [];
+  const label = `What depends on ${selected.label}?`;
+  return [
+    {
+      result: {
+        node: { ...selected, id: IMPACT_ENTRY, label },
+        layer: layerOf(index, selected.id),
+        path: "Impact · I",
+      },
+      name: `what depends on ${selected.label.toLowerCase()}`,
+      where: "impact",
+      kindRank: KIND_ORDER.indexOf("system"),
+    },
+  ];
+}
+
 /** Whether a word starts at `i` in `label`: its start, after a non-letter-or-digit, or a camelCase step. */
 function isWordStart(label: string, i: number): boolean {
   if (i === 0) return true;

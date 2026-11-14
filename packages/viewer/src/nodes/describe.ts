@@ -227,14 +227,18 @@ export function nodeSubtitle(node: GraphNode): NodeText {
 /**
  * How a node is emphasized while tracing: off the path, on it, or an end of
  * the hop the player is on (`current`, drawn stronger than the rest of the
- * path so the reader sees where in the flow they are, DESIGN_SYSTEM.md §1.1).
+ * path so the reader sees where in the flow they are, DESIGN_SYSTEM.md §1.1). The prototype's
+ * impact analysis (M10.3f1) adds two: `impact` (depends on the node analyzed) and `maybe` (may
+ * reach it through a request GitInside couldn't match), with the rest `dimmed` as in a trace.
  */
-export type NodeEmphasis = "dimmed" | "traced" | "current";
+export type NodeEmphasis = "dimmed" | "traced" | "current" | "impact" | "maybe";
 
 /** Emphasis in words, for accessible names. */
 export const EMPHASIS_TEXT: Readonly<Record<Exclude<NodeEmphasis, "dimmed">, string>> = {
   traced: "On the request path",
   current: "Current step of the request path",
+  impact: "Depends on the node analyzed",
+  maybe: "May depend on the node analyzed, through an unmatched request",
 };
 
 /** A node's state in diff mode. */

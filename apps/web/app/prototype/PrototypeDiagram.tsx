@@ -134,6 +134,7 @@ export function PrototypeDiagram({ owner, repo, sha, graphUrl, barEnd }: Prototy
               initialSelected={linked.state.selected}
               initialTrace={linked.state.trace}
               initialStep={linked.state.step}
+              initialImpact={linked.state.impact}
               initialFilters={linked.state.filters}
               initialHiddenKinds={linked.state.hiddenKinds}
               onStateChange={onStateChange}

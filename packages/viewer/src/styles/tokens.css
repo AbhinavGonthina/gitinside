@@ -65,6 +65,7 @@
   --layer-infra: #f0a35e;
   --layer-external: #f38bc4;
   --trace: #ffd37a;
+  --impact: #5fd4e8;
   --diff-added: #4ade80;
   --diff-changed: #f5c451;
   --diff-removed: #ff6b6b;
@@ -94,6 +95,7 @@
   --layer-infra: #b8641c;
   --layer-external: #c0418a;
   --trace: #a66f00;
+  --impact: #0b7c91;
   --diff-added: #1e8e4e;
   --diff-changed: #a87700;
   --diff-removed: #d23b3b;

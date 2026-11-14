@@ -72,7 +72,7 @@ function spoken(node: GraphNode): string {
 }
 
 /** A hop in the request's direction. */
-interface Hop {
+export interface Hop {
   edge: GraphEdge;
   to: string;
 }
@@ -108,7 +108,8 @@ function hopsByNode(edges: readonly GraphEdge[]): Map<string, Hop[]> {
 
 const cachedHops = new WeakMap<HierarchyIndex, Map<string, Hop[]>>();
 
-function hopsOf(index: HierarchyIndex): Map<string, Hop[]> {
+/** Each node's hops in the request's direction, in call order (cached per index); impact walks them backwards. */
+export function hopsOf(index: HierarchyIndex): ReadonlyMap<string, readonly Hop[]> {
   let hops = cachedHops.get(index);
   if (!hops) {
     hops = hopsByNode(index.graph.edges);

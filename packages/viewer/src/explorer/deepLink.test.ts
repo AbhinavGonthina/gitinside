@@ -177,6 +177,28 @@ describe("decodeState", () => {
     });
   });
 
+  it("reads impact on any node but the system, never beside a trace (M10.3f1)", () => {
+    const query = encodeState(state({ impact: PLACE_ORDER }));
+    expect(query).toBe("impact=symbol:web/lib/orders.ts%23placeOrder");
+    expect(decodeState(query, index)).toEqual({
+      state: state({ impact: PLACE_ORDER }),
+      ignored: [],
+    });
+    // The trace wins, written and read.
+    expect(encodeState(state({ trace: CHECKOUT, step: 0, impact: PLACE_ORDER }))).toBe(
+      `trace=${CHECKOUT}`,
+    );
+    const both = decodeState(`trace=${CHECKOUT}&${query}`, index);
+    expect([both.state.trace, both.state.impact]).toEqual([CHECKOUT, null]);
+    expect(both.ignored).toEqual([{ param: "impact", value: PLACE_ORDER }]);
+    for (const bad of [index.root.id, "model:api/Nowhere"]) {
+      expect(decodeState(`impact=${bad}`, index)).toEqual({
+        state: DEFAULT_STATE,
+        ignored: [{ param: "impact", value: bad }],
+      });
+    }
+  });
+
   it("refuses a second value where one is expected", () => {
     const { state: s, ignored } = decodeState(`sel=${API},${SRC}`, index);
     expect(s.selected).toBeNull();

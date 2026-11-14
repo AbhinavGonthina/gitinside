@@ -218,9 +218,10 @@ export function SegmentedControl<T extends string>({
 
 /**
  * What a status chip is about: `trace` (a trace is running), `diff` (comparing
- * two commits), or `neutral` (anything else, e.g. active filters).
+ * two commits), `impact` (the prototype's "what depends on this", M10.3f1), or
+ * `neutral` (anything else, e.g. active filters).
  */
-export type StatusTone = "trace" | "diff" | "neutral";
+export type StatusTone = "trace" | "diff" | "impact" | "neutral";
 
 /** Props for {@link StatusChip}. */
 export interface StatusChipProps extends HTMLAttributes<HTMLDivElement> {

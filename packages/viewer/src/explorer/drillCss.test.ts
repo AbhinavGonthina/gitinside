@@ -94,10 +94,10 @@ describe("drill.css", () => {
       expect(rule('.gi-drill[data-detail="outline"] .gi-edge-label')).toMatch(/opacity: 0;/);
     });
 
-    it("keeps only service names in the outline, and any box being looked at", () => {
+    it("keeps only service names in the outline, and any box being looked at (impact's too, M10.3f1)", () => {
       expect(
         rule(
-          '.gi-drill[data-detail="outline"] .gi-node:not( [data-kind="service"], [data-selected], [data-emphasis="traced"], [data-emphasis="current"], :hover, :focus-visible ) .gi-node__label',
+          '.gi-drill[data-detail="outline"] .gi-node:not( [data-kind="service"], [data-selected], [data-emphasis="traced"], [data-emphasis="current"], [data-emphasis="impact"], :hover, :focus-visible ) .gi-node__label',
         ),
       ).toMatch(/opacity: 0;/);
     });

@@ -107,10 +107,19 @@ import {
   type HintStep,
   type OnboardingStore,
 } from "./onboarding.js";
+import { impactCountText, impactOf } from "./impact.js";
+import { ImpactPanel } from "./impactPanel.js";
 import { NodePanel, TracePanel, WARNINGS_SECTION } from "./panels.js";
 import { traceChoices, TracePicker } from "./picker.js";
 import { suggestTraces } from "./suggest.js";
-import { NOTES_ENTRY, notesEntries, SearchPalette, searchEntries } from "./search.js";
+import {
+  IMPACT_ENTRY,
+  impactEntries,
+  NOTES_ENTRY,
+  notesEntries,
+  SearchPalette,
+  searchEntries,
+} from "./search.js";
 import { useSourceAccess, type SourceLoader } from "./sources.js";
 import { openForPath } from "./pathView.js";
 import { canTraceFrom, hasHops, traceFrom, traceNodes, type TraceStep } from "./trace.js";
@@ -155,6 +164,11 @@ export interface ExplorerProps {
   initialTrace?: string | null | undefined;
   /** Start tracing at this step (0-based): from `initialTrace`, else from `traceStart`. */
   initialStep?: number | null;
+  /**
+   * With `design="prototype"`, start showing what depends on this node (a deep link's `impact`,
+   * M10.3f1). Ignored beside `initialTrace`, for the root, and for a node not in the graph.
+   */
+  initialImpact?: string | null | undefined;
   /**
    * Start at this zoom (clamped to 25–200%), centered on the first level, as
    * if zoomed there by hand, instead of fitted. 0 or the fit button fits as
@@ -345,6 +359,7 @@ export function Explorer({
   initialSelected = null,
   initialTrace = null,
   initialStep = null,
+  initialImpact = null,
   initialZoom,
   initialFilters = DEFAULT_FILTERS,
   initialHiddenKinds,
@@ -480,6 +495,17 @@ export function Explorer({
     return fallbackStart !== undefined && initialStep !== null ? fallbackStart : null;
   });
   const [stepAsked, setStep] = useState<number | null>(traced === null ? null : (initialStep ?? 0));
+  // The prototype's impact analysis (M10.3f1, M10-design §3.2): the node whose dependents are
+  // shown, never beside a trace (starting one ends the other).
+  const [impactOn, setImpactOn] = useState<string | null>(() =>
+    prototype &&
+    traced === null &&
+    initialImpact !== null &&
+    initialImpact !== index.root.id &&
+    index.byId.has(initialImpact)
+      ? initialImpact
+      : null,
+  );
   // A new graph without the traced node ends the trace rather than throwing.
   const path = useMemo(
     () => (traced && shownIndex.byId.has(traced) ? traceFrom(shownIndex, traced) : undefined),
@@ -525,12 +551,21 @@ export function Explorer({
   const pickerState = usePresence(picking);
   // The Ctrl+K palette (M4b.7), over every node.
   // The prototype's Ctrl K also finds the Analysis notes (M10-design A8), its warnings chip gone.
+  // And "What depends on <the selection>?" (M10.3f1).
   const entries = useMemo(
     () => [
-      ...(prototype ? notesEntries(shownIndex.root, graph.warnings.length) : []),
+      ...(prototype
+        ? [
+            ...impactEntries(
+              shownIndex,
+              selected === null ? undefined : impactable(shownIndex.byId.get(selected)),
+            ),
+            ...notesEntries(shownIndex.root, graph.warnings.length),
+          ]
+        : []),
       ...searchEntries(shownIndex),
     ],
-    [shownIndex, prototype, graph.warnings.length],
+    [shownIndex, prototype, graph.warnings.length, selected],
   );
   const [searching, setSearching] = useState(false);
   const searchState = usePresence(searching);
@@ -712,6 +747,30 @@ export function Explorer({
 
   const tracing = step !== null && path !== undefined;
   const current: TraceStep | undefined = tracing ? steps[step] : undefined;
+  /** What depends on `impactOn`, in the version shown; none while tracing or once it's gone. */
+  const impact = useMemo(
+    () =>
+      impactOn !== null && !tracing && shownIndex.byId.has(impactOn)
+        ? impactOf(shownIndex, impactOn)
+        : undefined,
+    [impactOn, tracing, shownIndex],
+  );
+  /**
+   * The boxes impact lights, at the current depth: the target's, how many dependents each box
+   * holds, and the boxes holding what may reach it.
+   */
+  const impactBoxes = useMemo(() => {
+    if (!impact) return undefined;
+    const counts = new Map<string, number>();
+    for (const id of impact.dependents) {
+      const box = drawnAs(index, view, filtered, id);
+      if (box) counts.set(box, (counts.get(box) ?? 0) + 1);
+    }
+    const maybe = holders(index, view, filtered, impact.maybe);
+    const target = drawnAs(index, view, filtered, impact.target.id);
+    const lit = [...counts.keys(), ...maybe, ...(target ? [target] : [])];
+    return { counts, maybe, target, lit };
+  }, [impact, index, view, filtered]);
   /** The boxes holding each node on the path, at the current depth. */
   const pathBoxes = useMemo(
     () => holders(index, view, filtered, tracing ? traceNodes(path) : []),
@@ -725,6 +784,7 @@ export function Explorer({
     selected,
     trace: tracing ? traced : null,
     step: tracing ? step : null,
+    ...(prototype ? { impact: impact ? impact.target.id : null } : {}),
     filters,
     hiddenKinds: [...hiddenKinds].sort(compareStrings),
   };
@@ -866,6 +926,46 @@ export function Explorer({
     const start = traced ? drawnAs(index, view, filtered, traced) : undefined;
     if (start) boxElement(root, start)?.focus();
   }, [tracing, step, traced, index, view, filtered]);
+
+  // Likewise for impact (M10.3f1): starting it from the inspector's button (which goes) puts
+  // focus on the impact panel's heading; ending it from Done or the chip, on the target's box.
+  const impactTarget = impact?.target.id;
+  const lastImpact = useRef(impactTarget);
+  useEffect(() => {
+    const prev = lastImpact.current;
+    lastImpact.current = impactTarget;
+    if (prev === impactTarget) return;
+    const root = rootRef.current;
+    const active = document.activeElement;
+    const lost =
+      !active || active === document.body || !active.isConnected || active.matches(":disabled");
+    if (!root || !lost) return;
+    if (impactTarget !== undefined) {
+      root.querySelector<HTMLElement>(".gi-impact h2")?.focus();
+      return;
+    }
+    const box = prev === undefined ? undefined : drawnAs(index, view, filtered, prev);
+    if (box) boxElement(root, box)?.focus();
+  }, [impactTarget, index, view, filtered]);
+
+  // Starting impact frames what it lights (the closed boxes), clear of the minimap, once per
+  // target and after the first fit: on documenso the hub-centered view left lit services half
+  // off the canvas. A break-down afterwards frames as usual.
+  const framedImpact = useRef<string | null>(null);
+  useEffect(() => {
+    if (impactTarget === undefined || !impactBoxes) {
+      framedImpact.current = null;
+      return;
+    }
+    if (framedImpact.current === impactTarget || !settled || shown?.view !== view) return;
+    framedImpact.current = impactTarget;
+    const closed = impactBoxes.lit.filter((id) => !view.byId.get(id)?.open);
+    const rect = boxesRect(shown.layout.boxes, closed);
+    if (!rect) return;
+    const { camera: now, canvas: room } = live.current;
+    const next = frameHop(now, rect, room, minimapRect(), hintBand);
+    if (next !== now) moveCamera(next, "layout");
+  });
 
   const selectedNode = selected ? index.byId.get(selected) : undefined;
   /** Whether the selection is a page or route with a request path. */
@@ -1231,8 +1331,31 @@ export function Explorer({
     setTraced(id);
     setStep(0);
     setPlaying(false);
+    setImpactOn(null);
     setAnnouncement(`Tracing from ${nodeOf(index, id).label}`);
     hintDone("trace");
+  }
+
+  /**
+   * The prototype's "What depends on this?" (M10.3f1): ends a trace, lights what depends on the
+   * node, and says how much.
+   */
+  function startImpact(id: string) {
+    const node = impactable(shownIndex.byId.get(id));
+    if (!prototype || !node) return;
+    if (tracing) {
+      setStep(null);
+      setPlaying(false);
+    }
+    setImpactOn(id);
+    setAnnouncement(`What depends on ${node.label}: ${impactCountText(impactOf(shownIndex, id))}`);
+  }
+
+  /** ✕ on the chip, Done, I, or Esc: stop showing what depends on the node. */
+  function endImpact() {
+    if (!impact) return;
+    setImpactOn(null);
+    setAnnouncement(`Stopped showing what depends on ${impact.target.label}`);
   }
 
   /**
@@ -1314,7 +1437,9 @@ export function Explorer({
     leaveDialog(true);
     setSearching(false);
     if (id === NOTES_ENTRY) showWarnings();
-    else reveal(id, true);
+    else if (id === IMPACT_ENTRY) {
+      if (selected !== null) startImpact(selected);
+    } else reveal(id, true);
   }
 
   /**
@@ -1383,8 +1508,8 @@ export function Explorer({
 
   /**
    * Esc: close the palette, the picker, or the legend → exit trace → (the
-   * prototype) cancel a break-down still laying out → go up a level → clear
-   * selection (UX.md keyboard table). T toggles trace, Ctrl+K
+   * prototype) end impact → cancel a break-down still laying out → go up a level → clear
+   * selection (UX.md keyboard table). T toggles trace, I (the prototype) impact, Ctrl+K
    * or ⌘K the palette.
    */
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -1410,6 +1535,7 @@ export function Explorer({
       else if (filtering) closeFilters();
       else if (legend) closeLegend();
       else if (tracing) toggleTrace();
+      else if (impact) endImpact();
       else if (breaking.length > 0) cancelBreakDown();
       else if (goUp()) {
         // went up a level
@@ -1420,6 +1546,14 @@ export function Explorer({
       // A T typed in the picker's field is text (and mustn't make the field the picker's opener).
       if (isTextEntry(event.target)) return;
       toggleTrace();
+      event.preventDefault();
+    } else if (prototype && (event.key === "i" || event.key === "I")) {
+      // I: what depends on the selection, or stop showing it (M10.3f1).
+      if (isTextEntry(event.target)) return;
+      if (impact) endImpact();
+      else if (selected !== null && impactable(shownIndex.byId.get(selected))) {
+        startImpact(selected);
+      } else setAnnouncement("Select a box first to see what depends on it");
       event.preventDefault();
     }
   }
@@ -1449,16 +1583,49 @@ export function Explorer({
       : {}),
     ...(overlay && version !== "overlay" ? { absent: !overlay.nodesIn[version].has(n.id) } : {}),
     selected: selectedBox === n.id,
-    emphasis: !tracing
-      ? undefined
-      : hopBoxes.has(n.id) && !n.open
-        ? "current"
-        : pathBoxes.has(n.id)
-          ? "traced"
-          : n.open && [...pathBoxes].some((p) => p !== n.id && isWithin(index, p, n.id))
-            ? undefined
-            : "dimmed",
+    ...(impactBoxes ? impactLook(n, impactBoxes) : {}),
+    ...(tracing
+      ? {
+          emphasis:
+            hopBoxes.has(n.id) && !n.open
+              ? "current"
+              : pathBoxes.has(n.id)
+                ? "traced"
+                : n.open && [...pathBoxes].some((p) => p !== n.id && isWithin(index, p, n.id))
+                  ? undefined
+                  : "dimmed",
+        }
+      : {}),
   });
+
+  /**
+   * During impact analysis (M10.3f1): a closed box holding dependents is `impact` with their
+   * count (less itself), one holding only what may reach the target `maybe`, the target's box
+   * and an open frame around anything lit plain, everything else dimmed (like a trace).
+   */
+  function impactLook(n: ViewNode, boxes: NonNullable<typeof impactBoxes>): BoxLook {
+    const target = impact?.target.id;
+    const held = boxes.counts.get(n.id) ?? 0;
+    const self = impact?.dependents.has(n.id) ? 1 : 0;
+    const dependents = !n.open && held - self > 0 ? held - self : undefined;
+    const ofTarget =
+      n.id === boxes.target || (target !== undefined && isWithin(index, n.id, target));
+    if (n.open) {
+      const around = ofTarget || boxes.lit.some((b) => b !== n.id && isWithin(index, b, n.id));
+      return { emphasis: around ? undefined : "dimmed" };
+    }
+    if (held > 0) return { emphasis: "impact", dependents };
+    if (ofTarget) return {};
+    return { emphasis: boxes.maybe.has(n.id) ? "maybe" : "dimmed" };
+  }
+
+  /** During impact analysis: whether a box is lit (the target's, a dependent's, or a maybe). */
+  const impactLit = (id: string) =>
+    impactBoxes !== undefined &&
+    (impactBoxes.counts.has(id) ||
+      impactBoxes.maybe.has(id) ||
+      id === impactBoxes.target ||
+      (impact !== undefined && isWithin(index, id, impact.target.id)));
 
   /** On the request path: the line is traced and its particles flow. */
   const onPath = (e: ViewEdge) => tracing && e.edges.some((g) => hopIds.has(g.id));
@@ -1475,8 +1642,17 @@ export function Explorer({
     return {
       ...(marks && version === "overlay" ? marks.line(e.edges) : {}),
       ...(inVersion ? { absent: !e.edges.some((g) => inVersion.has(g.id)) } : {}),
-      selected: !tracing && (selectedBox === e.from || selectedBox === e.to),
-      emphasis: !tracing ? undefined : isHop ? "current" : onPath(e) ? "traced" : "dimmed",
+      selected: !tracing && !impact && (selectedBox === e.from || selectedBox === e.to),
+      // Impact keeps a line between two lit boxes and dims the rest.
+      emphasis: tracing
+        ? isHop
+          ? "current"
+          : onPath(e)
+            ? "traced"
+            : "dimmed"
+        : impact && !(impactLit(e.from) && impactLit(e.to))
+          ? "dimmed"
+          : undefined,
       flow: onPath(e),
       // The pulse runs the way the request goes, against the line for a queue's consumer.
       pulse: !isHop ? undefined : e.to === hopStart && e.from !== hopStart ? "backward" : "forward",
@@ -1738,6 +1914,12 @@ export function Explorer({
                 )}
               </StatusChip>
             )}
+            {impact && (
+              <StatusChip tone="impact" exitLabel="Stop showing dependents" onExit={endImpact}>
+                What depends on <code>{traceName(impact.target)}</code> ·{" "}
+                {impact.dependents.size.toLocaleString("en-US")}
+              </StatusChip>
+            )}
             {/* The prototype's chip is for what the reader set, never the default hiding. */}
             {(prototype ? barFilterCount > 0 : filtered.size > 0 || linesOff > 0) ? (
               <StatusChip exitLabel="Clear filters" onExit={clearFilters}>
@@ -1867,6 +2049,13 @@ export function Explorer({
             filtered={filtered}
             onShow={showNode}
           />
+        ) : impact ? (
+          <ImpactPanel
+            index={shownIndex}
+            impact={impact}
+            onSelect={(id) => reveal(id)}
+            onClose={endImpact}
+          />
         ) : (
           <NodePanel
             index={shownIndex}
@@ -1893,6 +2082,7 @@ export function Explorer({
                       fallbackStart !== undefined || choices.length > 0 ? toggleTrace : undefined,
                     notesOpen,
                     onNotesToggle: setNotesOpen,
+                    onImpact: impactable(selectedNode) ? startImpact : undefined,
                   }
                 : undefined
             }
@@ -1956,6 +2146,11 @@ function traceName(node: GraphNode): string {
   const label = nodeLabel(node);
   const name = label.code ?? label.text ?? node.label;
   return label.method ? `${label.method} ${name}` : name;
+}
+
+/** A node impact analysis can ask about: anything but the system and an unresolved end. */
+function impactable(node: GraphNode | undefined): GraphNode | undefined {
+  return node && node.kind !== "system" && node.kind !== "unresolved" ? node : undefined;
 }
 
 /** Ctrl+K or ⌘K, the palette's shortcut (with no other modifier). */
