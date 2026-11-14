@@ -41,7 +41,8 @@
 
 /* The bar: one per page (the loading bar and the explorer's are never drawn together). */
 body:has(> .landing[data-prototype]) > .site-header,
-.diagram-page[data-own-header] .gi-topbar {
+.diagram-page[data-own-header] .gi-topbar,
+.api-page[data-own-header] .gi-topbar {
   view-transition-name: page-bar;
 }
 
@@ -56,10 +57,12 @@ body:has(> .landing[data-prototype]) > .site-header,
 }
 
 /* The content: the landing and its footer, a repo page's loading or error line (the explorer
-   that replaces it has its own first-load fade). */
+   that replaces it has its own first-load fade), and the API map's body, so switching between a
+   repo's Diagram and API map crossfades them under the still bar (M10-design §4). */
 .landing[data-prototype],
 .landing[data-prototype] ~ .site-footer,
-.diagram-page[data-own-header] .diagram-page__state {
+.diagram-page[data-own-header] .diagram-page__state,
+.api-page[data-own-header] .api-page__body {
   animation: page-enter var(--duration-standard) var(--ease-standard);
 }
 

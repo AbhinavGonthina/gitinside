@@ -272,6 +272,8 @@ export interface ExplorerProps {
   home?: string | undefined;
   commitStatus?: CommitStatus | undefined;
   topBarEnd?: ReactNode;
+  /** The page's views in the bar, e.g. `Diagram | API map` (`TopBar`'s `views`, M10.3f3). */
+  topBarViews?: ReactNode;
   /**
    * The landing page's hero (M10-design §3.5, M10.3e1), with `design="prototype"` only: the
    * canvas alone (no bar, panel, breadcrumbs, toolbar, or Filters button; the trace chip without
@@ -400,6 +402,7 @@ export function Explorer({
   home,
   commitStatus,
   topBarEnd,
+  topBarViews,
   hero = false,
   startTour = false,
   tourField,
@@ -1956,7 +1959,7 @@ export function Explorer({
 
   // The prototype's one page bar (M10-design A7): the page's items, and the path in the bar.
   const pageBar = prototype
-    ? { variant: "page" as const, home, status: commitStatus, end: topBarEnd }
+    ? { variant: "page" as const, home, status: commitStatus, end: topBarEnd, views: topBarViews }
     : {};
   const crumbsInBar = prototype && bar;
 

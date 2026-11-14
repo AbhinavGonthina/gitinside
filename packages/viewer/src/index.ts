@@ -72,6 +72,7 @@ export {
   SegmentedControl,
   StatusChip,
   Toggle,
+  ViewLinks,
 } from "./chrome/controls.js";
 export type {
   ButtonProps,
@@ -83,6 +84,7 @@ export type {
   StatusChipProps,
   StatusTone,
   ToggleProps,
+  ViewLink,
 } from "./chrome/controls.js";
 export { commitUrl, DIFF_VIEWS, TopBar } from "./chrome/TopBar.js";
 export type { CommitStatus, DiffView, TopBarProps } from "./chrome/TopBar.js";

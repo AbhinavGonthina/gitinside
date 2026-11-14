@@ -232,7 +232,15 @@ a.gi-button {
   color: var(--text);
 }
 
-.gi-segmented__option[aria-checked="true"] {
+/* Links drawn as segments (`ViewLinks`): between pages, the one shown marked `aria-current`. */
+a.gi-segmented__option {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.gi-segmented__option[aria-checked="true"],
+.gi-segmented__option[aria-current="page"] {
   background: var(--surface-raised);
   box-shadow: 0 0 0 1px var(--border);
   color: var(--text);
@@ -434,6 +442,12 @@ a.gi-button {
   flex: none;
 }
 
+/* The page's views (`views`, e.g. Diagram | API map): never squeezed. */
+.gi-topbar__views {
+  display: flex;
+  flex: none;
+}
+
 .gi-topbar[data-variant="page"] .gi-topbar__trace {
   margin: 0 var(--space-8) 0 0;
 }
@@ -525,6 +539,22 @@ a.gi-topbar__home:hover {
   }
 
   .gi-topbar[data-variant="page"] > .gi-search-field > :not(.gi-ui-icon) {
+    display: none;
+  }
+}
+
+/* With the page's views beside it (`Diagram | API map`, ~150px), the field becomes an icon sooner,
+   so at 1280px the drill-down path keeps the room it had (M10.3f3). */
+@container (max-width: 1300px) {
+  .gi-topbar[data-variant="page"]:has(> .gi-topbar__views) > .gi-search-field {
+    flex: none;
+    justify-content: center;
+    width: 32px;
+    min-width: 0;
+    padding: 0;
+  }
+
+  .gi-topbar[data-variant="page"]:has(> .gi-topbar__views) > .gi-search-field > :not(.gi-ui-icon) {
     display: none;
   }
 }

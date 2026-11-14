@@ -9,7 +9,7 @@ import { nodeSamples, sampleOf } from "../nodes/samples.js";
 import { themeTokens } from "../tokens.js";
 import * as stories from "./Chrome.stories.js";
 import { CommandPalette } from "./CommandPalette.js";
-import { Button, IconButton, SegmentedControl, StatusChip, Toggle } from "./controls.js";
+import { Button, IconButton, SegmentedControl, StatusChip, Toggle, ViewLinks } from "./controls.js";
 import {
   boundsOf,
   githubLineUrl,
@@ -401,6 +401,48 @@ describe("TopBar", () => {
       expect(container.querySelector(".gi-search-field")).toBeNull();
       expect(screen.getByRole("link", { name: "GitInside home" })).toBeTruthy();
       expect(screen.getByRole("button", { name: "Sign in" })).toBeTruthy();
+    });
+
+    it("draws the page's views after the path and before search, with or without actions (M10.3f3)", () => {
+      const views = (
+        <ViewLinks
+          label="Views"
+          links={[
+            { label: "Diagram", href: "/d" },
+            { label: "API map", href: "/a", current: true },
+          ]}
+        />
+      );
+      for (const actions of [true, false]) {
+        const { container, unmount } = render(
+          <TopBar
+            repo={sampleRepo}
+            variant="page"
+            actions={actions}
+            crumbs={sampleCrumbs}
+            views={views}
+          />,
+        );
+        const bar = container.querySelector(".gi-topbar") as HTMLElement;
+        expect([...bar.children].map((c) => c.className)).toEqual(
+          actions
+            ? ["gi-topbar__start", "gi-topbar__views", "gi-search-field", "gi-topbar__end"]
+            : ["gi-topbar__start", "gi-topbar__views"],
+        );
+        const nav = within(bar).getByRole("navigation", { name: "Views" });
+        expect(
+          within(nav)
+            .getAllByRole("link")
+            .map((a) => [a.textContent, a.getAttribute("href"), a.getAttribute("aria-current")]),
+        ).toEqual([
+          ["Diagram", "/d", null],
+          ["API map", "/a", "page"],
+        ]);
+        unmount();
+      }
+      // The shipped bar has no place for them.
+      const { container } = render(<TopBar repo={sampleRepo} views={views} />);
+      expect(container.querySelector(".gi-view-links")).toBeNull();
     });
 
     it("escapes the commit link's parts", () => {
