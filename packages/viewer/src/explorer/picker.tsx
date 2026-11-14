@@ -1,7 +1,12 @@
 import { compareStrings } from "@gitinside/schema";
 import { useMemo, useState } from "react";
-import { CommandPalette, type PaletteResult } from "../chrome/CommandPalette.js";
+import {
+  CommandPalette,
+  type PaletteResult,
+  type PaletteSection,
+} from "../chrome/CommandPalette.js";
 import { layerOf, type HierarchyIndex } from "../model/hierarchy.js";
+import type { Suggestion } from "./suggest.js";
 import { canTraceFrom } from "./trace.js";
 
 /**
@@ -65,13 +70,51 @@ export interface TracePickerProps {
   onClose: () => void;
   /** Nodes the filters hide, marked in the list (tracing one shows it). */
   hidden?: ReadonlySet<string> | undefined;
+  /**
+   * Traces to suggest above the list while the query is empty (the prototype's, M10.3d1,
+   * M10-design B11), each with its shape.
+   */
+  suggested?: readonly Suggestion[] | undefined;
+}
+
+/** The picker's results: the suggestions under "Suggested", then every choice, while nothing is typed. */
+export function pickerResults(
+  choices: readonly TraceChoice[],
+  query: string,
+  suggested: readonly Suggestion[] = [],
+): { results: PaletteResult[]; sections?: PaletteSection[] } {
+  const results = filterChoices(choices, query);
+  if (query.trim() || suggested.length === 0) return { results };
+  const byId = new Map(choices.map((c) => [c.result.node.id, c.result]));
+  // A suggestion can start in code the list doesn't offer (a component making a request).
+  const top = suggested.map((s) => ({
+    ...(byId.get(s.node.id) ?? { node: s.node, layer: s.layer, path: s.path }),
+    note: s.shape,
+  }));
+  return {
+    results: [...top, ...results],
+    sections: [
+      { label: "Suggested", start: 0 },
+      { label: "All pages and routes", start: top.length },
+    ],
+  };
 }
 
 /** The picker dialog: the palette's shell, holding its own query and active row. */
-export function TracePicker({ choices, state, onPick, onClose, hidden }: TracePickerProps) {
+export function TracePicker({
+  choices,
+  state,
+  onPick,
+  onClose,
+  hidden,
+  suggested,
+}: TracePickerProps) {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
-  const results = useMemo(() => filterChoices(choices, query), [choices, query]);
+  const { results, sections } = useMemo(
+    () => pickerResults(choices, query, suggested),
+    [choices, query, suggested],
+  );
   return (
     <CommandPalette
       label="Trace a request"
@@ -82,6 +125,7 @@ export function TracePicker({ choices, state, onPick, onClose, hidden }: TracePi
       state={state}
       query={query}
       results={results}
+      sections={sections}
       activeIndex={active}
       onQueryChange={(q) => {
         setQuery(q);

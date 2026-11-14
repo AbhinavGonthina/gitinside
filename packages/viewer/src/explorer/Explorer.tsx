@@ -95,9 +95,10 @@ import {
 } from "./onboarding.js";
 import { NodePanel, TracePanel, WARNINGS_SECTION } from "./panels.js";
 import { traceChoices, TracePicker } from "./picker.js";
+import { suggestTraces } from "./suggest.js";
 import { NOTES_ENTRY, notesEntries, SearchPalette, searchEntries } from "./search.js";
 import { useSourceAccess, type SourceLoader } from "./sources.js";
-import { canTraceFrom, traceFrom, traceNodes, type TraceStep } from "./trace.js";
+import { canTraceFrom, hasHops, traceFrom, traceNodes, type TraceStep } from "./trace.js";
 import type { Shown } from "./transition.js";
 
 /** How long the player stays on a step: the pulse travels its hop three times. */
@@ -441,6 +442,8 @@ export function Explorer({
   const [traced, setTraced] = useState<string | null>(() => {
     const linked = initialTrace === null ? undefined : index.byId.get(initialTrace);
     if (linked && canTraceFrom(index, linked)) return linked.id;
+    // The prototype's suggested traces can start in code (M10.3d1), so its links can too.
+    if (linked && prototype && hasHops(index, linked)) return linked.id;
     return fallbackStart !== undefined && initialStep !== null ? fallbackStart : null;
   });
   const [stepAsked, setStep] = useState<number | null>(traced === null ? null : (initialStep ?? 0));
@@ -457,6 +460,12 @@ export function Explorer({
   const [playing, setPlaying] = useState(false);
   // The picker T and the Trace button open when there's nothing to trace yet.
   const choices = useMemo(() => traceChoices(shownIndex), [shownIndex]);
+  // The prototype's suggested traces (M10.3d1, M10-design B11): the picker's first section, and
+  // the first one is "Try this"'s trace.
+  const suggested = useMemo(
+    () => (prototype ? suggestTraces(shownIndex) : undefined),
+    [prototype, shownIndex],
+  );
   const [picking, setPicking] = useState(false);
   const pickerState = usePresence(picking);
   // The Ctrl+K palette (M4b.7), over every node.
@@ -1679,6 +1688,7 @@ export function Explorer({
               prototype
                 ? {
                     hub,
+                    suggestion: suggested?.[0],
                     onSearch: toggleSearch,
                     onTrace:
                       fallbackStart !== undefined || choices.length > 0 ? toggleTrace : undefined,
@@ -1705,6 +1715,7 @@ export function Explorer({
       {pickerState && (
         <TracePicker
           choices={choices}
+          suggested={suggested}
           hidden={filtered}
           state={pickerState}
           onPick={pickTrace}

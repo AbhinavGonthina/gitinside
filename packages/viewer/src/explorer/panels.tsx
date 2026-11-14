@@ -35,8 +35,21 @@ import {
   type TryAction,
 } from "./overview.js";
 import { useSourceText, type SourceAccess } from "./sources.js";
+import type { Suggestion } from "./suggest.js";
 import { summaryOf } from "./summary.js";
 import { TRACE_DEPTH, type TraceStep } from "./trace.js";
+
+/** A trace's start as "Try this" names it: a route's method and path, a page's path. */
+function TraceName({ node }: { node: GraphNode }) {
+  const label = nodeLabel(node);
+  return (
+    <strong>
+      {label.method && <span className="gi-method">{label.method}</span>}
+      {label.text}
+      {label.code && <code>{label.code}</code>}
+    </strong>
+  );
+}
 
 /**
  * The explorer's inspector content (M4b.5a): a node's summary, facts,
@@ -190,6 +203,8 @@ export interface NodePanelProps {
 export interface PrototypePanel {
   /** The system level's hub, which "Try this" offers to break down. */
   hub?: GraphNode | undefined;
+  /** The first suggested trace (M10.3d1), which "Try this" names and starts. */
+  suggestion?: Suggestion | undefined;
   /** Opens Ctrl K's search. */
   onSearch: () => void;
   /** What T does (a trace, or the picker), when there's anything to trace. */
@@ -409,8 +424,29 @@ function PrototypeNodePanel({
   const source = "source" in node ? node.source : undefined;
   const github = source ? githubLineUrl(repo, source.file, source.line) : undefined;
   if (node.id === index.root.id) {
-    const { hub, onSearch, onTrace: onTraceKey } = prototype;
+    const { hub, suggestion, onSearch, onTrace: onTraceKey } = prototype;
+    // The suggested trace leads, named and with its shape (M10-design A8, B11); without one, what
+    // T does.
+    const trace: TryAction | undefined = suggestion
+      ? {
+          icon: "trace",
+          label: (
+            <>
+              Trace <TraceName node={suggestion.node} />
+            </>
+          ),
+          detail: suggestion.shape,
+          onClick: () => onTrace(suggestion.node.id),
+        }
+      : onTraceKey && {
+          icon: "trace",
+          label: "Trace a request",
+          detail: "Follow one through the services",
+          shortcut: ["T"],
+          onClick: onTraceKey,
+        };
     const actions: TryAction[] = [
+      ...(trace ? [trace] : []),
       ...(hub
         ? [
             {
@@ -422,17 +458,6 @@ function PrototypeNodePanel({
               ),
               detail: "The busiest service: see its routes and code",
               onClick: () => onBreakDown(hub.id),
-            },
-          ]
-        : []),
-      ...(onTraceKey
-        ? [
-            {
-              icon: "trace" as const,
-              label: "Trace a request",
-              detail: "Follow one through the services",
-              shortcut: ["T"],
-              onClick: onTraceKey,
             },
           ]
         : []),

@@ -1,8 +1,9 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildHierarchy } from "../model/hierarchy.js";
 import { shopDemo } from "../shopDemo.testkit.js";
-import { filterChoices, traceChoices, TracePicker } from "./picker.js";
+import { filterChoices, pickerResults, traceChoices, TracePicker } from "./picker.js";
+import { suggestTraces } from "./suggest.js";
 import { canTraceFrom } from "./trace.js";
 
 afterEach(cleanup);
@@ -63,6 +64,24 @@ describe("filterChoices", () => {
   });
 });
 
+describe("pickerResults", () => {
+  it("puts the suggestions first while nothing is typed, keeping each one's file and layer", () => {
+    const suggested = suggestTraces(index, 2);
+    const { results, sections } = pickerResults(choices, "", suggested);
+    expect(sections).toEqual([
+      { label: "Suggested", start: 0 },
+      { label: "All pages and routes", start: 2 },
+    ]);
+    expect(results).toHaveLength(choices.length + 2);
+    const first = choices.find((c) => c.result.node.id === suggested[0]?.node.id)?.result;
+    expect(results[0]).toEqual({ ...first, note: suggested[0]?.shape });
+    // Spaces alone aren't a query; with no suggestions there are no sections.
+    expect(pickerResults(choices, "  ", suggested).sections).toHaveLength(2);
+    expect(pickerResults(choices, "", [])).toEqual({ results: filterChoices(choices, "") });
+    expect(pickerResults(choices, "orders", suggested).sections).toBeUndefined();
+  });
+});
+
 describe("TracePicker", () => {
   it("searches, moves with the arrows, and traces the active one with Enter", () => {
     const onPick = vi.fn();
@@ -91,6 +110,45 @@ describe("TracePicker", () => {
     expect(fireEvent.keyDown(field, { key: "Tab" })).toBe(false); // default prevented
     fireEvent.keyDown(field, { key: "Escape" });
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("lists the suggestions under Suggested, with their shapes, until something is typed (M10.3d1)", () => {
+    const suggested = suggestTraces(index);
+    const onPick = vi.fn();
+    render(
+      <TracePicker
+        choices={choices}
+        suggested={suggested}
+        state="open"
+        onPick={onPick}
+        onClose={vi.fn()}
+      />,
+    );
+    const groups = screen.getAllByRole("group");
+    expect(groups).toEqual([
+      screen.getByRole("group", { name: "Suggested" }),
+      screen.getByRole("group", { name: "All pages and routes" }),
+    ]);
+    const top = within(groups[0] as HTMLElement).getAllByRole("option");
+    expect(top.map((o) => o.querySelector(".gi-palette__note")?.textContent)).toEqual(
+      suggested.map((s) => s.shape),
+    );
+    // A suggestion shows its shape, not its file.
+    expect(top[0]?.querySelector(".gi-palette__path")).toBeNull();
+    expect(within(groups[1] as HTMLElement).getAllByRole("option")).toHaveLength(choices.length);
+    // The arrows run through both groups as one list.
+    const field = screen.getByRole("combobox");
+    for (let i = 0; i < suggested.length; i++) fireEvent.keyDown(field, { key: "ArrowDown" });
+    expect(screen.getAllByRole("option")[suggested.length]?.getAttribute("aria-selected")).toBe(
+      "true",
+    );
+    fireEvent.keyDown(field, { key: "ArrowUp" });
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(onPick).toHaveBeenCalledWith(suggested[suggested.length - 1]?.node.id);
+    // Typing searches every choice, without the suggestions.
+    fireEvent.change(field, { target: { value: "orders" } });
+    expect(screen.queryAllByRole("group")).toEqual([]);
+    expect(screen.getAllByRole("option")).toHaveLength(filterChoices(choices, "orders").length);
   });
 
   it("says when nothing matches, and when the repo has nothing to trace", () => {

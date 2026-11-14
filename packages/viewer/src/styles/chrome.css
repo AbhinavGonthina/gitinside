@@ -1998,6 +1998,30 @@ code.gi-palette__name {
   font-size: var(--font-size-12);
 }
 
+/* A suggested trace's shape (M10.3d1): plain words, not a path. */
+.gi-palette__note {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--font-size-12);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The trace picker's groups (M10.3d1): a quiet heading over each run of results. */
+.gi-palette__group {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gi-palette__section {
+  display: block;
+  padding: var(--space-8) 10px var(--space-4) 6px;
+  color: var(--text-muted);
+  font-size: var(--font-size-12);
+  font-weight: var(--font-weight-medium);
+}
+
 .gi-palette__kind {
   flex: none;
   color: var(--text-muted);
@@ -2008,6 +2032,7 @@ code.gi-palette__name {
 /* The active row's tint takes muted text below 4.5:1 in dark (4.06, M9.6's axe audit), so
    its muted text moves a fifth of the way to the body text (4.98; light 6.55). */
 .gi-palette__result[aria-selected="true"] .gi-palette__path,
+.gi-palette__result[aria-selected="true"] .gi-palette__note,
 .gi-palette__result[aria-selected="true"] .gi-palette__kind {
   color: color-mix(in srgb, var(--text-muted) 80%, var(--text));
 }

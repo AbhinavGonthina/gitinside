@@ -15,6 +15,14 @@ export interface PaletteResult {
   path?: string | undefined;
   /** `[start, end)` offsets into `node.label` that matched the query. */
   matches?: readonly (readonly [number, number])[] | undefined;
+  /** A line of plain words under the name instead of the path (a suggested trace's shape). */
+  note?: string | undefined;
+}
+
+/** A heading over the results from `start` on (until the next section's). */
+export interface PaletteSection {
+  label: string;
+  start: number;
 }
 
 /** Props for {@link CommandPalette}. */
@@ -45,6 +53,30 @@ export interface CommandPaletteProps {
   autoFocus?: boolean | undefined;
   /** Nodes the filters hide: their results say so (picking one shows it). */
   hidden?: ReadonlySet<string> | undefined;
+  /**
+   * Headings that split the results into groups (the trace picker's "Suggested", M10.3d1), in
+   * order of `start`. The arrow keys still move through every result as one list.
+   */
+  sections?: readonly PaletteSection[] | undefined;
+}
+
+/**
+ * The results split at each section's `start` into `[start, end)` runs, each with its heading
+ * (none before the first section, or at all without sections). Empty runs are left out.
+ */
+function groupsOf(
+  count: number,
+  sections: readonly PaletteSection[] | undefined,
+): { label?: string; start: number; end: number }[] {
+  const cuts = (sections ?? []).filter((s) => s.start >= 0 && s.start < count);
+  const out: { label?: string; start: number; end: number }[] = [];
+  const first = cuts[0]?.start ?? count;
+  if (first > 0) out.push({ start: 0, end: first });
+  cuts.forEach((s, i) => {
+    const end = cuts[i + 1]?.start ?? count;
+    if (end > s.start) out.push({ label: s.label, start: s.start, end });
+  });
+  return out;
 }
 
 /** Names drawn in the mono face (code-like), like on the canvas. */
@@ -77,6 +109,7 @@ export function CommandPalette({
   pickVerb = "open",
   autoFocus = false,
   hidden,
+  sections,
 }: CommandPaletteProps) {
   const id = useId();
   const listId = `${id}-results`;
@@ -91,7 +124,7 @@ export function CommandPalette({
   // Arrow keys can move the active result past the list's edge: keep it in view.
   const listRef = useRef<HTMLUListElement>(null);
   useEffect(() => {
-    const option = listRef.current?.children[active];
+    const option = listRef.current?.querySelectorAll('[role="option"]')[active];
     if (option instanceof HTMLElement) option.scrollIntoView?.({ block: "nearest" });
   }, [active]);
 
@@ -159,37 +192,57 @@ export function CommandPalette({
           aria-label="Results"
           className="gi-palette__results"
         >
-          {results.map((r, i) => {
-            const tint = r.node.layer ?? r.layer;
-            const segments = highlightSegments(r.node.label, r.matches);
-            const Name = isCode(r.node) ? "code" : "span";
-            return (
-              <li
-                key={r.node.id}
-                id={optionId(i)}
-                role="option"
-                aria-selected={i === active}
-                className="gi-palette__result"
-                onClick={() => onPick?.(r.node.id)}
-                onMouseMove={() => i !== active && onActiveIndexChange?.(i)}
-              >
-                <IconTile layer={tint}>
-                  <NodeIcon node={r.node} size={TILE_ICON_SIZE.sm} />
-                </IconTile>
-                <span className="gi-palette__text">
-                  <Name className="gi-palette__name">
-                    {segments.map((s, j) =>
-                      s.match ? <mark key={j}>{s.text}</mark> : <span key={j}>{s.text}</span>,
+          {groupsOf(results.length, sections).map((group, g) => {
+            const options = results.slice(group.start, group.end).map((r, k) => {
+              const i = group.start + k;
+              const tint = r.node.layer ?? r.layer;
+              const segments = highlightSegments(r.node.label, r.matches);
+              const Name = isCode(r.node) ? "code" : "span";
+              return (
+                // A node can be in two groups (a suggestion is also in the full list).
+                <li
+                  key={`${i} ${r.node.id}`}
+                  id={optionId(i)}
+                  role="option"
+                  aria-selected={i === active}
+                  className="gi-palette__result"
+                  onClick={() => onPick?.(r.node.id)}
+                  onMouseMove={() => i !== active && onActiveIndexChange?.(i)}
+                >
+                  <IconTile layer={tint}>
+                    <NodeIcon node={r.node} size={TILE_ICON_SIZE.sm} />
+                  </IconTile>
+                  <span className="gi-palette__text">
+                    <Name className="gi-palette__name">
+                      {segments.map((s, j) =>
+                        s.match ? <mark key={j}>{s.text}</mark> : <span key={j}>{s.text}</span>,
+                      )}
+                    </Name>
+                    {r.note ? (
+                      <span className="gi-palette__note">{r.note}</span>
+                    ) : (
+                      r.path && <code className="gi-palette__path">{r.path}</code>
                     )}
-                  </Name>
-                  {r.path && <code className="gi-palette__path">{r.path}</code>}
+                  </span>
+                  <span className="gi-palette__kind">
+                    {kindName(r.node)}
+                    {hidden?.has(r.node.id) && (
+                      <span className="gi-palette__hidden">Hidden by filters</span>
+                    )}
+                  </span>
+                </li>
+              );
+            });
+            if (group.label === undefined) return options;
+            const headingId = `${id}-section-${g}`;
+            return (
+              <li key={`section ${g}`} role="group" aria-labelledby={headingId}>
+                <span id={headingId} className="gi-palette__section">
+                  {group.label}
                 </span>
-                <span className="gi-palette__kind">
-                  {kindName(r.node)}
-                  {hidden?.has(r.node.id) && (
-                    <span className="gi-palette__hidden">Hidden by filters</span>
-                  )}
-                </span>
+                <ul role="none" className="gi-palette__group">
+                  {options}
+                </ul>
               </li>
             );
           })}

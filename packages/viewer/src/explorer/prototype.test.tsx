@@ -405,11 +405,13 @@ describe("the prototype's panel (M10.3c3)", { timeout: 30_000 }, () => {
       "2 services3 pages2 routes1 model1 datastore1 outside API",
     );
     expect(headings(panel)).toEqual(["Try this", "Services2", "Analysis notes1"]);
+    // The suggested trace leads, named and with its shape (M10.3d1).
     expect([...panel.querySelectorAll(".gi-try__label")].map((t) => t.textContent)).toEqual([
+      "Trace /orders",
       "Break down @shop/api",
-      "Trace a request",
       "Search the diagram",
     ]);
+    expect(panel.querySelector(".gi-try__detail")?.textContent).toBe("page → API → db, 6 steps");
     // No warning text until the reader opens the notes, and no "Start here".
     expect(panel.textContent).not.toContain(WARNING.message);
     expect(panel.textContent).not.toContain("Start here");
@@ -457,6 +459,65 @@ describe("the prototype's panel (M10.3c3)", { timeout: 30_000 }, () => {
       },
       { timeout: 10_000 },
     );
+  });
+
+  it("traces the suggested request from Try this, and offers the suggestions in T's picker (M10.3d1)", async () => {
+    const { container } = render(<Explorer graph={graph} design="prototype" />);
+    await layoutDone(container);
+    const doc = container.ownerDocument;
+    // T with nothing selected opens the picker, the suggestions on top.
+    fireEvent.keyDown(container.querySelector(".gi-drill") as HTMLElement, { key: "t" });
+    const suggested = await waitFor(() => {
+      const group = doc.querySelector<HTMLElement>(
+        '.gi-palette-scrim[data-state="open"] [role="group"]',
+      );
+      expect(group).not.toBeNull();
+      return group as HTMLElement;
+    });
+    expect([...suggested.querySelectorAll(".gi-palette__note")].map((n) => n.textContent)).toEqual([
+      "page → API → db, 6 steps",
+      "page → API → db, 8 steps",
+      "route → db, 3 steps",
+    ]);
+    fireEvent.keyDown(document.activeElement as HTMLElement, { key: "Escape" });
+    await waitFor(() =>
+      expect(doc.querySelector('.gi-palette-scrim[data-state="open"]')).toBeNull(),
+    );
+    const trace = [...panelOf(container).querySelectorAll<HTMLElement>(".gi-try__action")].find(
+      (a) => a.textContent?.startsWith("Trace"),
+    ) as HTMLElement;
+    fireEvent.click(trace);
+    await waitFor(() =>
+      expect(container.querySelector(".gi-explorer__step[aria-current]")).not.toBeNull(),
+    );
+    expect(container.querySelector(".gi-explorer__step[aria-current]")?.textContent).toContain(
+      "/orders",
+    );
+  });
+
+  it("reopens a linked trace that starts in code, in the prototype only (M10.3d1)", async () => {
+    const start = "symbol:web/lib/orders.ts#listOrders";
+    const proto = render(<Explorer graph={graph} design="prototype" initialTrace={start} />);
+    await layoutDone(proto.container);
+    await waitFor(() =>
+      expect(proto.container.querySelector(".gi-explorer__step[aria-current]")).not.toBeNull(),
+    );
+    cleanup();
+    const shipped = render(<Explorer graph={graph} initialTrace={start} />);
+    await layoutDone(shipped.container);
+    expect(shipped.container.querySelector(".gi-explorer__step")).toBeNull();
+  });
+
+  it("keeps the shipped picker and its Start here as they were", async () => {
+    const { container } = render(<Explorer graph={graph} />);
+    await layoutDone(container);
+    fireEvent.keyDown(container.querySelector(".gi-drill") as HTMLElement, { key: "t" });
+    const doc = container.ownerDocument;
+    await waitFor(() =>
+      expect(doc.querySelector('.gi-palette-scrim[data-state="open"]')).not.toBeNull(),
+    );
+    expect(doc.querySelector('.gi-palette-scrim [role="group"]')).toBeNull();
+    expect(doc.querySelector(".gi-palette__note")).toBeNull();
   });
 
   it('opens and focuses the Analysis notes from Ctrl K\'s "notes"', async () => {
