@@ -26,28 +26,37 @@ export function SiteHeader({ theme, signIn }: { theme: Theme; signIn: SignInView
         <span>GitInside</span>
       </Link>
       <div className="site-header__end">
-        {signIn.login !== undefined ? (
-          <form method="post" action={SIGN_OUT_ACTION} className="site-header__account">
-            <Link
-              href={DASHBOARD_HREF}
-              className="site-header__login"
-              title={`Your repos (signed in with GitHub as ${signIn.login})`}
-            >
-              {signIn.login}
-            </Link>
-            <Button type="submit" variant="quiet">
-              Sign out
-            </Button>
-          </form>
-        ) : (
-          signIn.available && (
-            <LinkButton href={SIGN_IN_HREF} variant="quiet">
-              Sign in
-            </LinkButton>
-          )
-        )}
+        <SiteAccount signIn={signIn} />
         <ThemeSwitch initial={theme} />
       </div>
     </header>
   );
+}
+
+/**
+ * Sign-in, or the login and "Sign out" (see {@link SiteHeader}); nothing while sign-in isn't set
+ * up. Also at the end of the prototype's one bar (M10-design A7).
+ */
+export function SiteAccount({ signIn }: { signIn: SignInView }) {
+  if (signIn.login !== undefined) {
+    return (
+      <form method="post" action={SIGN_OUT_ACTION} className="site-header__account">
+        <Link
+          href={DASHBOARD_HREF}
+          className="site-header__login"
+          title={`Your repos (signed in with GitHub as ${signIn.login})`}
+        >
+          {signIn.login}
+        </Link>
+        <Button type="submit" variant="quiet">
+          Sign out
+        </Button>
+      </form>
+    );
+  }
+  return signIn.available ? (
+    <LinkButton href={SIGN_IN_HREF} variant="quiet">
+      Sign in
+    </LinkButton>
+  ) : null;
 }

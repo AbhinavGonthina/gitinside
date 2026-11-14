@@ -23,7 +23,7 @@ import {
 import { CodePreview, ConnectionList, FactList, InspectorHeader } from "./Inspector.js";
 import { Breadcrumbs, Legend, Minimap, SHAPE_TEXT, ZoomControls } from "./overlays.js";
 import { minimapNodes, paletteResults, sampleCrumbs, sampleRepo } from "./samples.js";
-import { DIFF_VIEWS, TopBar } from "./TopBar.js";
+import { commitUrl, DIFF_VIEWS, TopBar } from "./TopBar.js";
 import { UI_ICON_STROKE, UiIcon, uiIconNames } from "./uiIcons.js";
 
 afterEach(cleanup);
@@ -293,6 +293,121 @@ describe("TopBar", () => {
     rerender(<TopBar repo={sampleRepo} tracing />);
     const exit = screen.getByRole("button", { name: /Exit trace/ });
     expect(exit.dataset.variant).toBe("secondary");
+  });
+
+  describe('variant="page" (M10.3c1)', () => {
+    it("draws the mark as a home link, then the repo, the search, Trace first, and the page's items", () => {
+      const { container } = render(
+        <TopBar
+          repo={sampleRepo}
+          variant="page"
+          home="/"
+          end={<button type="button">Sign in</button>}
+        />,
+      );
+      const bar = container.querySelector<HTMLElement>(".gi-topbar");
+      expect(bar?.dataset.variant).toBe("page");
+      expect(screen.getByRole("link", { name: "GitInside home" }).getAttribute("href")).toBe("/");
+      expect(container.querySelector(".gi-wordmark")).toBeNull();
+      expect(screen.getByRole("button", { name: "Search the diagram" }).title).toBe(
+        "Search the diagram (Ctrl K)",
+      );
+      const end = [...(container.querySelector(".gi-topbar__end")?.children ?? [])];
+      expect(end.map((el) => el.textContent)).toEqual([
+        "Trace a requestT",
+        "Filters",
+        "Share",
+        "Sign in",
+      ]);
+      expect(container.querySelectorAll('[data-variant="primary"]')).toHaveLength(1);
+    });
+
+    it("links the commit on GitHub, its dot green while current, amber while a newer one is analyzed", () => {
+      const { container, rerender } = render(
+        <TopBar
+          repo={sampleRepo}
+          variant="page"
+          status={{ state: "current", text: "The latest commit on main" }}
+        />,
+      );
+      const chip = () => container.querySelector<HTMLAnchorElement>(".gi-commit");
+      const live = () => container.querySelector('[role="status"]');
+      expect(chip()?.getAttribute("href")).toBe(
+        `https://github.com/acme/shop/commit/${sampleRepo.sha}`,
+      );
+      expect(chip()?.dataset.status).toBe("current");
+      expect(chip()?.title).toBe("The latest commit on main");
+      expect(chip()?.textContent).toBe("a1b2c3f");
+      expect(chip()?.querySelector(".gi-chip__dot")).not.toBeNull();
+      expect(live()?.textContent).toBe("");
+      rerender(
+        <TopBar
+          repo={sampleRepo}
+          variant="page"
+          status={{ state: "analyzing", text: "A newer commit, 4f0c2a1, is being analyzed." }}
+        />,
+      );
+      expect(chip()?.dataset.status).toBe("analyzing");
+      expect(chip()?.textContent).toBe("a1b2c3f· newer analyzing");
+      expect(live()?.textContent).toBe("A newer commit, 4f0c2a1, is being analyzed.");
+    });
+
+    it("offers the newer commit once it's analyzed", () => {
+      const onShow = vi.fn();
+      render(
+        <TopBar
+          repo={sampleRepo}
+          variant="page"
+          status={{
+            state: "ready",
+            text: "A newer commit, 4f0c2a1, is ready.",
+            sha: "4f0c2a1d9e8b7a6c5d4e3f2a1b0c9d8e7f6a5b4c",
+            onShow,
+          }}
+        />,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Show 4f0c2a1" }));
+      expect(onShow).toHaveBeenCalledOnce();
+      expect(screen.getByRole("status").textContent).toBe("A newer commit, 4f0c2a1, is ready.");
+    });
+
+    it("draws the drill-down path after the repo, each level above a way back up", () => {
+      const onCrumb = vi.fn();
+      const { container } = render(
+        <TopBar repo={sampleRepo} variant="page" crumbs={sampleCrumbs} onCrumb={onCrumb} />,
+      );
+      const nav = screen.getByRole("navigation", { name: "Drill-down path" });
+      expect(nav.closest(".gi-topbar__start")).not.toBeNull();
+      expect(nav.classList.contains("gi-topbar__crumbs")).toBe(true);
+      // The top level is "System": the repo's name is just before it.
+      expect(nav.textContent).not.toContain("shop");
+      fireEvent.click(within(nav).getByRole("button", { name: "System" }));
+      expect(onCrumb).toHaveBeenCalledWith(sampleCrumbs[0]?.id);
+      expect(container.querySelector('[aria-current="location"]')?.textContent).toBe(
+        sampleCrumbs.at(-1)?.label,
+      );
+    });
+
+    it("keeps the page's items without a diagram to act on", () => {
+      const { container } = render(
+        <TopBar
+          repo={sampleRepo}
+          variant="page"
+          actions={false}
+          home="/"
+          end={<button type="button">Sign in</button>}
+        />,
+      );
+      expect(container.querySelector(".gi-search-field")).toBeNull();
+      expect(screen.getByRole("link", { name: "GitInside home" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Sign in" })).toBeTruthy();
+    });
+
+    it("escapes the commit link's parts", () => {
+      expect(commitUrl({ owner: "a b", name: "c?d", sha: "e#f" })).toBe(
+        "https://github.com/a%20b/c%3Fd/commit/e%23f",
+      );
+    });
   });
 });
 

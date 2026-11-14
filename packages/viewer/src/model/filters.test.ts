@@ -22,6 +22,7 @@ import {
   NO_FILTERS,
   normalizeFilters,
   normalizeFolder,
+  readerFilterCount,
   type Filters,
 } from "./filters.js";
 import { buildHierarchy } from "./hierarchy.js";
@@ -110,6 +111,12 @@ describe("canonical filters", () => {
         }),
       ),
     ).toBe(3);
+  });
+
+  it("counts only what the reader set on top of the defaults, for the prototype's bar", () => {
+    expect(readerFilterCount(DEFAULT_FILTERS)).toBe(0);
+    expect(readerFilterCount(NO_FILTERS)).toBe(0);
+    expect(readerFilterCount({ ...DEFAULT_FILTERS, layers: ["data"], exclude: ["a"] })).toBe(2);
   });
 
   it("keys by effect: none is empty, equal filters share a key", () => {

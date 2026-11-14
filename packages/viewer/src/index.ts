@@ -84,8 +84,8 @@ export type {
   StatusTone,
   ToggleProps,
 } from "./chrome/controls.js";
-export { DIFF_VIEWS, TopBar } from "./chrome/TopBar.js";
-export type { DiffView, TopBarProps } from "./chrome/TopBar.js";
+export { commitUrl, DIFF_VIEWS, TopBar } from "./chrome/TopBar.js";
+export type { CommitStatus, DiffView, TopBarProps } from "./chrome/TopBar.js";
 export { Breadcrumbs, Legend, Minimap, ZoomControls } from "./chrome/overlays.js";
 export type {
   BreadcrumbsProps,
