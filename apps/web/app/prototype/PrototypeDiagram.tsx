@@ -16,6 +16,7 @@ import {
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { PROTOTYPE_HOME } from "../../lib/prototypeLinks";
 import { loadGraph, type GraphLoad } from "../../lib/repoStatus";
+import { RepoForm } from "../RepoForm";
 
 /** Props for {@link PrototypeDiagram}: one of `PROTOTYPE_REPOS`. */
 export interface PrototypeDiagramProps {
@@ -26,6 +27,8 @@ export interface PrototypeDiagramProps {
   graphUrl: string;
   /** The page's own items at the end of the one bar (theme switch, sign-in). */
   barEnd?: ReactNode;
+  /** Start the guided tour once the diagram is drawn (`&tour`, M10.3f2a). */
+  tour?: boolean;
 }
 
 /** The commit chip's tooltip: the prototype draws each repo at a fixed commit. */
@@ -59,7 +62,14 @@ function prototypeQuery(owner: string, repo: string, state: string): string {
  * repo page is untouched. The state goes in the address bar after `repo=`, as on the repo page, so
  * a click-through can be linked.
  */
-export function PrototypeDiagram({ owner, repo, sha, graphUrl, barEnd }: PrototypeDiagramProps) {
+export function PrototypeDiagram({
+  owner,
+  repo,
+  sha,
+  graphUrl,
+  barEnd,
+  tour = false,
+}: PrototypeDiagramProps) {
   const status = { state: "current", text: pinnedText(sha) } as const;
   // Until the explorer draws (loading, or a load that failed), the same bar without actions, so
   // the page never has a second header or a jump in height.
@@ -138,6 +148,9 @@ export function PrototypeDiagram({ owner, repo, sha, graphUrl, barEnd }: Prototy
               initialFilters={linked.state.filters}
               initialHiddenKinds={linked.state.hiddenKinds}
               onStateChange={onStateChange}
+              // The tour's last card offers the landing's own field (M10-design §3.1).
+              startTour={tour}
+              tourField={<RepoForm />}
               linkTo={(query) =>
                 `${window.location.origin}${window.location.pathname}${prototypeQuery(owner, repo, query)}`
               }

@@ -808,8 +808,13 @@ export function DrillCanvas({
         >
           {shown.layout.bands && (
             <div className="gi-drill__bands" aria-hidden="true">
-              {shown.layout.bands.map(({ band, x }) => (
-                <span key={band} className="gi-drill__band" style={{ left: x }}>
+              {/* `--gi-band-at`: its place, so the tour can brighten them in turn (M10.3f2a). */}
+              {shown.layout.bands.map(({ band, x }, at) => (
+                <span
+                  key={band}
+                  className="gi-drill__band"
+                  style={{ left: x, "--gi-band-at": at } as CSSProperties}
+                >
                   {BANDS[band]?.label}
                 </span>
               ))}

@@ -25,6 +25,14 @@ export function prototypeHref(repo: PrototypeRepo, state = ""): string {
   return rest === "" ? page : `${page}&${rest}`;
 }
 
+/** The query parameter that starts the guided tour on a prototype page (M10.3f2a). */
+export const TOUR_PARAM = "tour";
+
+/** A repo's prototype page with its guided tour started (M10-design §3.1): `…&tour`. */
+export function prototypeTourHref(repo: PrototypeRepo): string {
+  return `${prototypeHref(repo)}&${TOUR_PARAM}`;
+}
+
 /** Where the page reads a repo's graph: this site's proxy of production's. */
 export function prototypeGraphUrl(repo: PrototypeRepo): string {
   return `/api/prototype/graph/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}`;

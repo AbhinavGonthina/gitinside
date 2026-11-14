@@ -2,6 +2,7 @@ import { compareStrings } from "@gitinside/schema";
 import type { EdgeKind, GraphEdge, GraphNode, SourceLocation } from "@gitinside/schema";
 import { EDGE_WORDS } from "../edges/describe.js";
 import { nodeOf, type HierarchyIndex } from "../model/hierarchy.js";
+import { nodeLabel } from "../nodes/describe.js";
 
 /**
  * Trace mode's request path (M4b.6, UX.md "Trace mode", ADR-0117): every
@@ -23,6 +24,13 @@ import { nodeOf, type HierarchyIndex } from "../model/hierarchy.js";
  * before the next). Each node is followed once and each edge is one step, so
  * a cycle (recursion, two services calling each other) ends where it closes.
  */
+
+/** A trace's start as the status chip and the tour name it: a page's path, a route's method and path (GET and POST share one). */
+export function traceName(node: GraphNode): string {
+  const label = nodeLabel(node);
+  const name = label.code ?? label.text ?? node.label;
+  return label.method ? `${label.method} ${name}` : name;
+}
 
 /** How many hops from the start the path follows (UX.md). */
 export const TRACE_DEPTH = 12;

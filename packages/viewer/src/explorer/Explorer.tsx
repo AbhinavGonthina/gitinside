@@ -61,7 +61,6 @@ import {
 } from "../model/view.js";
 import { hasSourceFiles, warningCount } from "../model/warnings.js";
 import { prefersReducedMotion, usePresence } from "../motion.js";
-import { nodeLabel } from "../nodes/describe.js";
 import { durations } from "../tokens.js";
 import { selectionAnnouncement } from "./a11y.js";
 import {
@@ -119,10 +118,20 @@ import {
   notesEntries,
   SearchPalette,
   searchEntries,
+  TOUR_ENTRY,
+  tourEntries,
 } from "./search.js";
 import { useSourceAccess, type SourceLoader } from "./sources.js";
 import { openForPath } from "./pathView.js";
-import { canTraceFrom, hasHops, traceFrom, traceNodes, type TraceStep } from "./trace.js";
+import { TOUR_DONE, TOUR_HOPS, TourCard, tourSteps, type TourStep } from "./tour.js";
+import {
+  canTraceFrom,
+  hasHops,
+  traceFrom,
+  traceName,
+  traceNodes,
+  type TraceStep,
+} from "./trace.js";
 import type { Shown } from "./transition.js";
 
 /** How long the player stays on a step: the pulse travels its hop three times. */
@@ -266,6 +275,14 @@ export interface ExplorerProps {
    * and Ctrl K on the page is left to the page. Everything else works as in the explorer.
    */
   hero?: boolean | undefined;
+  /**
+   * With `design="prototype"` (not the hero), start the guided tour (M10.3f2a, M10-design §3.1)
+   * once the first view is drawn: the prototype page's `?tour`. Ctrl K's "Take the tour" starts
+   * it either way.
+   */
+  startTour?: boolean | undefined;
+  /** A repo field (the website's) that the tour's last card offers: "Paste your own repo". */
+  tourField?: ReactNode;
 }
 
 /** How long the hero shows its first view before its trace starts playing, in ms. */
@@ -377,6 +394,8 @@ export function Explorer({
   commitStatus,
   topBarEnd,
   hero = false,
+  startTour = false,
+  tourField,
 }: ExplorerProps) {
   // Diff mode (M6.9b): both versions in one graph, drawn with their states.
   const compareBase = compare?.base;
@@ -547,6 +566,24 @@ export function Explorer({
     () => (prototype ? suggestTraces(shownIndex) : undefined),
     [prototype, shownIndex],
   );
+  // The prototype's guided tour (M10.3f2a, M10-design §3.1): the step shown (its steps' length
+  // is the Done card), or null. Its steps are worked out when it starts: the impact step asks
+  // about every model.
+  const [tourAt, setTourAt] = useState<number | null>(null);
+  const touring = prototype && !heroOn && tourAt !== null;
+  const tour = useMemo(
+    () => (touring ? tourSteps(shownIndex, { hub, suggestion: suggested?.[0] }) : undefined),
+    [touring, shownIndex, hub, suggested],
+  );
+  /** Each step asks for its card's heading to take focus, once its render is in. */
+  const [tourAsked, setTourAsked] = useState(0);
+  // While touring, the card holds focus and the live region reads the step: the trace's and
+  // impact's focus recovery stand down (a box they focused would pull the camera off the step's
+  // framing), and break-downs aren't said over the step.
+  const touringNow = useRef(touring);
+  touringNow.current = touring;
+  /** The tour's trace plays only its first hops: the player stops on this step (0-based). */
+  const [playStop, setPlayStop] = useState<number | null>(null);
   const [picking, setPicking] = useState(false);
   const pickerState = usePresence(picking);
   // The Ctrl+K palette (M4b.7), over every node.
@@ -561,11 +598,13 @@ export function Explorer({
               selected === null ? undefined : impactable(shownIndex.byId.get(selected)),
             ),
             ...notesEntries(shownIndex.root, graph.warnings.length),
+            // And the tour (M10.3f2a), to start it again.
+            ...(heroOn ? [] : tourEntries(shownIndex.root)),
           ]
         : []),
       ...searchEntries(shownIndex),
     ],
-    [shownIndex, prototype, graph.warnings.length, selected],
+    [shownIndex, prototype, graph.warnings.length, selected, heroOn],
   );
   const [searching, setSearching] = useState(false);
   const searchState = usePresence(searching);
@@ -866,10 +905,14 @@ export function Explorer({
     return { x: at.left - on.left, y: at.top - on.top, width: at.width, height: at.height };
   }
 
-  // The player: each step stays up for PLAY_STEP_MS, and play stops on the last; the hero's goes
-  // back to the first instead, and waits while held.
+  // The player: each step stays up for PLAY_STEP_MS, and play stops on the last (the tour's, on
+  // `playStop`); the hero's goes back to the first instead, and waits while held.
   useEffect(() => {
     if (!playing || step === null || held) return;
+    if (playStop !== null && step >= playStop) {
+      setPlaying(false);
+      return;
+    }
     const last = step >= steps.length - 1;
     if (last && !heroOn) {
       setPlaying(false);
@@ -877,7 +920,7 @@ export function Explorer({
     }
     const timer = setTimeout(() => setStep(last ? 0 : step + 1), PLAY_STEP_MS);
     return () => clearTimeout(timer);
-  }, [playing, step, steps.length, held, heroOn]);
+  }, [playing, step, steps.length, held, heroOn, playStop]);
 
   // The hero's trace (M10.3e1): the first suggestion, once the first view has been up a while
   // (at once, and never playing, under reduced motion). Once only: a reader who ends it keeps
@@ -914,6 +957,7 @@ export function Explorer({
     const prev = lastTrace.current;
     lastTrace.current = { tracing, step };
     if (prev.tracing === tracing && prev.step === step) return; // first render: don't take focus
+    if (touringNow.current) return; // the tour's card takes it
     const root = rootRef.current;
     const active = document.activeElement;
     const lost =
@@ -935,6 +979,7 @@ export function Explorer({
     const prev = lastImpact.current;
     lastImpact.current = impactTarget;
     if (prev === impactTarget) return;
+    if (touringNow.current) return; // the tour's card takes it
     const root = rootRef.current;
     const active = document.activeElement;
     const lost =
@@ -1186,14 +1231,16 @@ export function Explorer({
         setSlowKey("");
         const done = was.split("\n").filter((id) => view.byId.get(id)?.open);
         const names = done.map((id) => nodeOf(index, id).label);
-        if (names.length > 0) setAnnouncement(`Broke down ${names.join(", ")}`);
+        if (names.length > 0 && !touringNow.current) {
+          setAnnouncement(`Broke down ${names.join(", ")}`);
+        }
       }
       return;
     }
     const timer = setTimeout(() => {
       setSlowKey(breakingKey);
       const names = breakingKey.split("\n").map((id) => nodeOf(index, id).label);
-      setAnnouncement(`Breaking down ${names.join(", ")}…`);
+      if (!touringNow.current) setAnnouncement(`Breaking down ${names.join(", ")}…`);
     }, BREAKING_DELAY);
     return () => clearTimeout(timer);
   }, [breakingKey, index]);
@@ -1308,11 +1355,16 @@ export function Explorer({
     return () => document.removeEventListener("mousedown", onPress);
   }, [filtering]);
 
-  /** Starts tracing the request path from a node, at its first step, showing it if the filters hide it. */
-  function startTrace(id: string) {
+  /**
+   * Starts tracing the request path from a node, at its first step, showing it if the filters hide
+   * it. `fromLevel` (the tour) opens the path as from the system level, and goes back to that
+   * drill-down state when the trace ends, whatever is broken down now.
+   */
+  function startTrace(id: string, fromLevel?: Expansion) {
     const shownUnder = showNode(id);
     // From the system level (or from a path a trace opened), the prototype opens the new path.
-    const from = pathOpened?.from ?? (view.open.length === 0 ? drill.expansion : undefined);
+    const from =
+      fromLevel ?? pathOpened?.from ?? (view.open.length === 0 ? drill.expansion : undefined);
     if (prototype && from !== undefined && shownIndex.byId.has(id)) {
       const opens = openForPath(
         shownIndex,
@@ -1323,6 +1375,8 @@ export function Explorer({
         setPathOpened({ from, whole: new Set() });
         drill.set(opens);
         setHandSet(null);
+      } else if (fromLevel !== undefined) {
+        drill.set(fromLevel);
       } else if (pathOpened) {
         setPathOpened(null);
         drill.set(pathOpened.from);
@@ -1331,6 +1385,7 @@ export function Explorer({
     setTraced(id);
     setStep(0);
     setPlaying(false);
+    setPlayStop(null);
     setImpactOn(null);
     setAnnouncement(`Tracing from ${nodeOf(index, id).label}`);
     hintDone("trace");
@@ -1357,6 +1412,88 @@ export function Explorer({
     setImpactOn(null);
     setAnnouncement(`Stopped showing what depends on ${impact.target.label}`);
   }
+
+  /**
+   * The tour's step `at` (M10.3f2a): clears what the reader left on (a dialog, a trace, impact, a
+   * selection, the hand-set camera), does the step's action on the diagram from the first view, and
+   * reads the step out; its card's heading then takes focus. Back and Next come here too, so they
+   * redo a step the reader wandered off from. Past the last step, the Done card on the first view.
+   */
+  function goTour(at: number) {
+    const list = tour ?? tourSteps(shownIndex, { hub, suggestion: suggested?.[0] });
+    const next = Math.max(0, Math.min(at, list.length));
+    setSearching(false);
+    setPicking(false);
+    setFiltering(false);
+    setLegend(false);
+    setStep(null);
+    setPlaying(false);
+    setPlayStop(null);
+    setImpactOn(null);
+    setPathOpened(null);
+    setSelected(null);
+    setHandSet(null);
+    setOverview(false);
+    setCameraMotion("layout");
+    const now: TourStep | undefined = list[next];
+    const action = now?.action;
+    if (action?.kind === "breakdown") {
+      drill.set([action.hub]);
+      setSelected(action.hub);
+    } else if (action?.kind === "trace") {
+      drill.set([]);
+      startTrace(action.start, []);
+      // Its first hops, one after another; under reduced motion, on the last of them at once.
+      if (prefersReducedMotion()) setStep(TOUR_HOPS - 1);
+      else {
+        setPlaying(true);
+        setPlayStop(TOUR_HOPS - 1);
+      }
+    } else if (action?.kind === "impact") {
+      drill.set([]);
+      startImpact(action.target);
+    } else drill.set([]);
+    setTourAt(next);
+    setTourAsked((n) => n + 1);
+    setAnnouncement(
+      now
+        ? `Tour, step ${next + 1} of ${list.length}: ${now.title}. ${now.text}`
+        : `${TOUR_DONE.title}. ${TOUR_DONE.text}`,
+    );
+  }
+
+  /** Skip ✕, Esc in the card, or "Explore on your own": the tour goes, the diagram as it is. */
+  function endTour() {
+    if (tourAt === null) return;
+    setPlayStop(null);
+    setTourAt(null);
+    setAnnouncement("Tour ended");
+    // Focus in the card (which goes) moves to the selection's box or the first box.
+    const root = rootRef.current;
+    if (root?.querySelector(".gi-tour")?.contains(document.activeElement)) {
+      const box = selectedBox ? boxElement(root, selectedBox) : null;
+      (
+        box ?? root.querySelector<HTMLElement>(".gi-drill__node:not([data-leaving]) > .gi-node")
+      )?.focus();
+    }
+  }
+
+  // Each step's heading takes focus once its card is drawn, so the keys go on from the card and a
+  // screen reader lands on the step.
+  useEffect(() => {
+    if (tourAsked === 0) return;
+    rootRef.current?.querySelector<HTMLElement>(".gi-tour h2")?.focus({ preventScroll: true });
+  }, [tourAsked]);
+
+  // `startTour`: the tour starts once the first view is drawn.
+  const tourStarted = useRef(false);
+  const startTourNow = useRef<() => void>(() => undefined);
+  startTourNow.current = () => goTour(0);
+  useEffect(() => {
+    if (tourStarted.current || !startTour || !prototype || heroOn || !settled) return;
+    tourStarted.current = true;
+    startTourNow.current();
+  }, [startTour, prototype, heroOn, settled]);
 
   /**
    * A path-only frame's "+ N more": that frame shows whole again. Focus goes from the button,
@@ -1437,6 +1574,7 @@ export function Explorer({
     leaveDialog(true);
     setSearching(false);
     if (id === NOTES_ENTRY) showWarnings();
+    else if (id === TOUR_ENTRY) goTour(0);
     else if (id === IMPACT_ENTRY) {
       if (selected !== null) startImpact(selected);
     } else reveal(id, true);
@@ -1482,6 +1620,7 @@ export function Explorer({
 
   /** Play or pause the steps; play on the last step starts over. */
   function togglePlay() {
+    setPlayStop(null);
     if (playing) setPlaying(false);
     else {
       if (step !== null && step >= steps.length - 1) setStep(0);
@@ -1521,6 +1660,22 @@ export function Explorer({
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     // A dialog's field handled it (its Esc closes only the dialog).
     if (event.defaultPrevented) return;
+    // In the tour's card (M10.3f2a): → and ← step, Esc skips the tour (a field's text is its own).
+    const inTour =
+      touring && event.target instanceof Element && event.target.closest(".gi-tour") !== null;
+    if (inTour && tourAt !== null && !isTextEntry(event.target)) {
+      const by = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
+      if (by !== undefined) {
+        if (tourAt + by >= 0) goTour(tourAt + by);
+        event.preventDefault();
+        return;
+      }
+    }
+    if (inTour && event.key === "Escape") {
+      endTour();
+      event.preventDefault();
+      return;
+    }
     if (event.key === "+" || event.key === "=" || event.key === "-" || event.key === "0") {
       if (isTextEntry(event.target)) return;
       if (event.key === "0") fitView();
@@ -1659,6 +1814,76 @@ export function Explorer({
     };
   };
 
+  /** The inspector: the trace player while tracing, impact's panel while it's on, else the node's (or the overview). */
+  const panel = () =>
+    tracing ? (
+      <TracePanel
+        index={shownIndex}
+        steps={steps}
+        cutOff={path.cutOff}
+        step={step}
+        view={view}
+        sources={stepCode.sources}
+        repo={stepCode.repo}
+        playing={playing}
+        onStep={goToStep}
+        onPlay={togglePlay}
+        onBreakDown={breakDown}
+        filtered={filtered}
+        onShow={showNode}
+      />
+    ) : impact ? (
+      <ImpactPanel
+        index={shownIndex}
+        impact={impact}
+        onSelect={(id) => reveal(id)}
+        onClose={endImpact}
+      />
+    ) : (
+      <NodePanel
+        index={shownIndex}
+        node={panelNode}
+        canBreakDown={selectedView !== undefined && selectedView.canOpen && !selectedView.open}
+        canTrace={selectionTraces}
+        traceHint={fallbackStart ? nodeOf(shownIndex, fallbackStart) : undefined}
+        canPick={choices.length > 0}
+        sources={nodeCode.sources}
+        repo={nodeCode.repo}
+        onSelect={(id) => reveal(id)}
+        onBreakDown={breakDown}
+        onTrace={(id) => startTrace(id)}
+        filteredOut={selectedNode !== undefined && filtered.has(selectedNode.id)}
+        onShow={showNode}
+        warnings={graph.warnings}
+        prototype={
+          prototype
+            ? {
+                hub,
+                suggestion: suggested?.[0],
+                onSearch: toggleSearch,
+                onTrace:
+                  fallbackStart !== undefined || choices.length > 0 ? toggleTrace : undefined,
+                notesOpen,
+                onNotesToggle: setNotesOpen,
+                onImpact: impactable(selectedNode) ? startImpact : undefined,
+              }
+            : undefined
+        }
+        changes={
+          overlay && (
+            <ChangesSection
+              index={index}
+              changes={overlay.changes}
+              within={panelNode.id}
+              foldedInto={overlay.foldedInto}
+              onSelect={pickChange}
+              limit={compareDiff && movesNote(compareDiff)}
+            />
+          )
+        }
+      />
+    );
+
   // The prototype's one page bar (M10-design A7): the page's items, and the path in the bar.
   const pageBar = prototype
     ? { variant: "page" as const, home, status: commitStatus, end: topBarEnd }
@@ -1796,6 +2021,7 @@ export function Explorer({
       data-layout-runs-in={runsIn}
       data-settled={settled ? "" : undefined}
       data-hand-camera={handSet ? "" : undefined}
+      data-tour={tour && tourAt !== null ? (tour[tourAt]?.action.kind ?? "done") : undefined}
       onKeyDown={onKeyDown}
       {...(heroOn && {
         onPointerEnter: () => setPointerIn(true),
@@ -2033,72 +2259,22 @@ export function Explorer({
             )}
           </div>
         </div>
-        {heroOn ? null : tracing ? (
-          <TracePanel
-            index={shownIndex}
-            steps={steps}
-            cutOff={path.cutOff}
-            step={step}
-            view={view}
-            sources={stepCode.sources}
-            repo={stepCode.repo}
-            playing={playing}
-            onStep={goToStep}
-            onPlay={togglePlay}
-            onBreakDown={breakDown}
-            filtered={filtered}
-            onShow={showNode}
-          />
-        ) : impact ? (
-          <ImpactPanel
-            index={shownIndex}
-            impact={impact}
-            onSelect={(id) => reveal(id)}
-            onClose={endImpact}
-          />
+        {heroOn ? null : tour && tourAt !== null ? (
+          // The tour's card docks at the top of the inspector (M10-design §3.1), over whatever
+          // panel its step shows.
+          <div className="gi-explorer__side" data-tour-side="">
+            <TourCard
+              steps={tour}
+              at={tourAt}
+              onBack={() => goTour(tourAt - 1)}
+              onNext={() => goTour(tourAt + 1)}
+              onEnd={endTour}
+              field={tourField}
+            />
+            {panel()}
+          </div>
         ) : (
-          <NodePanel
-            index={shownIndex}
-            node={panelNode}
-            canBreakDown={selectedView !== undefined && selectedView.canOpen && !selectedView.open}
-            canTrace={selectionTraces}
-            traceHint={fallbackStart ? nodeOf(shownIndex, fallbackStart) : undefined}
-            canPick={choices.length > 0}
-            sources={nodeCode.sources}
-            repo={nodeCode.repo}
-            onSelect={(id) => reveal(id)}
-            onBreakDown={breakDown}
-            onTrace={startTrace}
-            filteredOut={selectedNode !== undefined && filtered.has(selectedNode.id)}
-            onShow={showNode}
-            warnings={graph.warnings}
-            prototype={
-              prototype
-                ? {
-                    hub,
-                    suggestion: suggested?.[0],
-                    onSearch: toggleSearch,
-                    onTrace:
-                      fallbackStart !== undefined || choices.length > 0 ? toggleTrace : undefined,
-                    notesOpen,
-                    onNotesToggle: setNotesOpen,
-                    onImpact: impactable(selectedNode) ? startImpact : undefined,
-                  }
-                : undefined
-            }
-            changes={
-              overlay && (
-                <ChangesSection
-                  index={index}
-                  changes={overlay.changes}
-                  within={panelNode.id}
-                  foldedInto={overlay.foldedInto}
-                  onSelect={pickChange}
-                  limit={compareDiff && movesNote(compareDiff)}
-                />
-              )
-            }
-          />
+          panel()
         )}
       </div>
       {pickerState && (
@@ -2139,13 +2315,6 @@ export function filtersText(count: number, nodes: number, lines: number): string
 /** A compared commit in the diff chip: the name given, else its short SHA. */
 function compareName(name: string | undefined, graph: ArchitectureGraph): ReactNode {
   return name ?? <code>{graph.repo.sha ? shortSha(graph.repo.sha) : graph.repo.name}</code>;
-}
-
-/** A trace's start in the status chip: a page's path, a route's method and path (GET and POST share one). */
-function traceName(node: GraphNode): string {
-  const label = nodeLabel(node);
-  const name = label.code ?? label.text ?? node.label;
-  return label.method ? `${label.method} ${name}` : name;
 }
 
 /** A node impact analysis can ask about: anything but the system and an unresolved end. */
