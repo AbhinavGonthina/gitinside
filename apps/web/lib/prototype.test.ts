@@ -1,7 +1,12 @@
 // @vitest-environment node
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import { DEMO_PINS } from "@gitinside/db";
+import { parseGraph } from "@gitinside/schema";
+import { renderDiagram } from "@gitinside/viewer/image";
 import { describe, expect, it, vi } from "vitest";
+import { IMAGE_CSP } from "./csp";
 import {
   findPrototypeRepo,
   HERO_REPO,
@@ -18,6 +23,13 @@ import {
   PROTOTYPE_GRAPH_CACHE_CONTROL,
   type UpstreamGet,
 } from "./prototypeGraph";
+import {
+  GALLERY_COLUMNS_FROM,
+  GALLERY_CROP,
+  GALLERY_THUMB_HEIGHT,
+  handlePrototypeImage,
+  prototypeImageUrl,
+} from "./prototypeImage";
 
 const GRAPH = JSON.stringify({ schemaVersion: 1, nodes: [] });
 
@@ -81,6 +93,82 @@ describe("the prototype's repos (M10.3a)", () => {
       `${PROTOTYPE_GRAPH_ORIGIN}/api/graph/getmaxun/maxun/${maxun.sha}`,
     );
     expect(PROTOTYPE_GRAPH_ORIGIN).toBe("https://gitinside.abhinavgonthina.dev");
+  });
+});
+
+describe("handlePrototypeImage (M10.3e2a)", () => {
+  const GRAPH_JSON = readFileSync(
+    fileURLToPath(new URL("../../../fixtures/shop-demo/expected.json", import.meta.url)),
+    "utf8",
+  );
+  const production = (status = 200): UpstreamGet & ReturnType<typeof vi.fn> =>
+    vi.fn(async () => ({ status, encoding: "gzip", body: stream(gzipSync(GRAPH_JSON)) }));
+
+  it("refuses a repo the prototype doesn't draw before fetching anything", async () => {
+    const get = production();
+    const response = await handlePrototypeImage({ owner: "evil", repo: "x" }, "dark", get);
+    expect(response.status).toBe(404);
+    expect(get).not.toHaveBeenCalled();
+  });
+
+  it("draws the README image's crop around the hub from production's graph, in the theme asked", async () => {
+    const get = production();
+    const response = await handlePrototypeImage({ owner: "getmaxun", repo: "maxun" }, "light", get);
+    const maxun = findPrototypeRepo("getmaxun", "maxun");
+    if (!maxun) throw new Error("no maxun");
+    expect(get).toHaveBeenCalledWith(upstreamGraphUrl(maxun));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("image/svg+xml; charset=utf-8");
+    expect(response.headers.get("cache-control")).toBe(PROTOTYPE_GRAPH_CACHE_CONTROL);
+    expect(response.headers.get("content-security-policy")).toBe(IMAGE_CSP);
+    expect(response.headers.get("x-robots-tag")).toBe("noindex");
+    const graph = parseGraph(JSON.parse(GRAPH_JSON));
+    expect(await response.text()).toBe(
+      renderDiagram(graph, { theme: "light", crop: GALLERY_CROP }),
+    );
+    // A theme it doesn't know follows the reader's.
+    const auto = await handlePrototypeImage(
+      { owner: "getmaxun", repo: "maxun" },
+      "x",
+      production(),
+    );
+    expect(await auto.text()).toBe(renderDiagram(graph, { theme: "auto", crop: GALLERY_CROP }));
+  });
+
+  it("covers every thumbnail with room for the hover's pan, the focus inside the narrowest", () => {
+    expect(GALLERY_CROP.height - GALLERY_THUMB_HEIGHT).toBeGreaterThanOrEqual(8);
+    // One card per row: the landing's 24px padding each side, just under three columns.
+    expect(GALLERY_CROP.width).toBeGreaterThanOrEqual(GALLERY_COLUMNS_FROM - 1 - 48 + 8);
+    // Three columns at their narrowest: the padding, two 24px gaps, and each card's border.
+    const narrowest = (GALLERY_COLUMNS_FROM - 48 - 48) / 3 - 2;
+    expect(GALLERY_CROP.focus).toBeLessThanOrEqual(narrowest - 2 * 4);
+    const css = readFileSync(fileURLToPath(new URL("../app/globals.css", import.meta.url)), "utf8");
+    // Asserted as booleans, so a failure names the rule rather than printing the whole sheet.
+    const breakpoint = `@media (max-width: ${GALLERY_COLUMNS_FROM - 1}px)`;
+    expect(css.includes(breakpoint), breakpoint).toBe(true);
+    const thumb = new RegExp(`\\.demo__thumb \\{[^}]*height: ${GALLERY_THUMB_HEIGHT}px`);
+    expect(thumb.test(css), String(thumb)).toBe(true);
+  });
+
+  it("answers 502, never cached, when production fails, can't be reached, or sends no graph", async () => {
+    const params = { owner: "getmaxun", repo: "maxun" };
+    const failed = await handlePrototypeImage(params, "dark", production(404));
+    expect(failed.status).toBe(502);
+    expect(failed.headers.get("cache-control")).toBe("no-store");
+    const down = await handlePrototypeImage(params, "dark", () =>
+      Promise.reject(new Error("ECONNREFUSED")),
+    );
+    expect(down.status).toBe(502);
+    const invalid = await handlePrototypeImage(params, "dark", upstream());
+    expect(invalid.status).toBe(502);
+  });
+
+  it("links each repo's image by theme", () => {
+    const maxun = findPrototypeRepo("getmaxun", "maxun");
+    if (!maxun) throw new Error("no maxun");
+    expect(prototypeImageUrl(maxun, "dark")).toBe(
+      "/api/prototype/diagram/getmaxun/maxun?theme=dark",
+    );
   });
 });
 

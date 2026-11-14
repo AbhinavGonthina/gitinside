@@ -549,8 +549,64 @@ body:has(> [data-own-header]) > .site-header {
   text-underline-offset: 3px;
 }
 
+/* The prototype gallery's thumbnails (M10.3e2a): a crop of the README image at 100% around the
+   hub, centered in a fixed-height window on the canvas color, with no tray padding. The crop is
+   wider and taller than the window (lib/prototypeImage.ts `GALLERY_CROP`), so hover and focus
+   pan it 4px each way without showing an edge. */
+.landing[data-prototype] .demo__thumb {
+  position: relative;
+  aspect-ratio: auto;
+  height: 280px;
+  padding: 0;
+  background: var(--canvas);
+}
+
+.landing[data-prototype] .demo__image {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: auto;
+  max-width: none;
+  height: auto;
+  translate: -50% -50%;
+  transition: transform var(--duration-standard) var(--ease-standard);
+}
+
+.landing[data-prototype] .demo__link:hover .demo__image,
+.landing[data-prototype] .demo__link:focus-visible .demo__image {
+  transform: translate(-4px, -4px);
+}
+
+.landing[data-prototype] .demo__link:hover .demo__thumb {
+  background: var(--canvas);
+}
+
+.landing__how,
 .landing__review {
   margin: calc(var(--space-48) * 2) 0 0;
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-32) var(--space-48);
+  margin: var(--space-24) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (max-width: 640px) {
+  .steps {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Three cards narrower than a hub's name and counts would cut them (lib/prototypeImage.ts
+   `GALLERY_COLUMNS_FROM`): one card per row instead. */
+@media (max-width: 1100px) {
+  .landing[data-prototype] .gallery {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 960px) {
