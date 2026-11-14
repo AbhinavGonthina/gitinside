@@ -99,11 +99,14 @@ function lineWidth(line: NodeText & { method?: string }, size: number, codeSize:
   return parts.reduce((a, b) => a + b, 0) + PART_GAP * Math.max(parts.length - 1, 0);
 }
 
-/** The width of a node's name and subtitle, whichever is wider, at the tier's type sizes. */
-function textBlockWidth(node: GraphNode, labelSize: number): number {
+/**
+ * The width of a node's name and subtitle, whichever is wider, at the tier's type sizes. A
+ * prototype card's subtitle (`CardLook`) replaces the node's own, as the card draws it.
+ */
+function textBlockWidth(node: GraphNode, labelSize: number, subtitle?: NodeText): number {
   return Math.max(
     lineWidth(nodeLabel(node), labelSize, labelSize * 0.95),
-    lineWidth(nodeSubtitle(node), 12, 12),
+    lineWidth(subtitle ?? nodeSubtitle(node), 12, 12),
   );
 }
 
@@ -280,7 +283,8 @@ export function closedSize(node: GraphNode, context: SizeContext = {}): Size {
   switch (nodeTier(node)) {
     case "frame": {
       // Borders, 12px left and 16px right padding, then the tile row.
-      const nameRow = 2 + 12 + 16 + TILE_ROW + textBlockWidth(node, 14) + COUNTS_SLACK;
+      const nameRow =
+        2 + 12 + 16 + TILE_ROW + textBlockWidth(node, 14, context.card?.subtitle) + COUNTS_SLACK;
       const band = shape === "window" ? WINDOW_BAND.frame : 0;
       return {
         width: Math.ceil(

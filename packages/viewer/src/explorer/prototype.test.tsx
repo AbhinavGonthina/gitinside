@@ -681,6 +681,72 @@ describe("the prototype's panel (M10.3c3)", { timeout: 30_000 }, () => {
     expect(toggles[1]?.getAttribute("aria-expanded")).toBe("true");
   });
 
+  it("draws a service's missing imports as one dotted box, listing each in the panel (M10.3d4)", async () => {
+    const API = "service:api/";
+    const FROM = "file:api/src/orders/handlers.ts";
+    const missing = ["./+types/root", "./+types/orders", "~/lib/gone"].map((expression, i) => ({
+      node: {
+        id: `unresolved:api/src/orders/handlers.ts:${i + 1}:1`,
+        kind: "unresolved" as const,
+        label: expression,
+        parentId: API,
+        reason: "UNKNOWN_SYMBOL" as const,
+        expression,
+        source: { file: "apps/api/src/orders/handlers.ts", line: i + 1, column: 1 },
+      },
+      edge: {
+        id: `imports:${FROM}->${i}`,
+        kind: "imports" as const,
+        from: FROM,
+        to: `unresolved:api/src/orders/handlers.ts:${i + 1}:1`,
+        confidence: "unresolved" as const,
+        sites: [{ file: "apps/api/src/orders/handlers.ts", line: i + 1, column: 1 }],
+      },
+    }));
+    const g: ArchitectureGraph = {
+      ...graph,
+      nodes: [...graph.nodes, ...missing.map((m) => m.node)],
+      edges: [...graph.edges, ...missing.map((m) => m.edge)],
+    };
+    const GROUP = `group:unresolved/${API}#imports/UNKNOWN_SYMBOL`;
+    const picked: string[] = [];
+    const { container } = render(
+      <Explorer
+        graph={g}
+        design="prototype"
+        initialOpen={[API]}
+        initialSelected={GROUP}
+        onStateChange={(s) => {
+          if (s.selected) picked.push(s.selected);
+        }}
+      />,
+    );
+    await layoutDone(container);
+    const box = container.querySelector<HTMLElement>(`[data-node-id="${GROUP}"] > .gi-node`);
+    expect(box?.hasAttribute("data-dotted")).toBe(true);
+    expect(box?.querySelector(".gi-node__label")?.textContent).toBe("Not in the repo · 3 imports");
+    expect(box?.querySelector(".gi-node__subtitle")?.textContent).toBe(
+      "React Router types./+types/*",
+    );
+    // Its members aren't drawn beside it.
+    expect(container.querySelector(`[data-node-id="${missing[0]?.node.id}"]`)).toBeNull();
+    const panel = panelOf(container);
+    expect(panel.querySelector(".gi-inspector__summary p")?.textContent).toBe(
+      "3 imports of files the analysis couldn't find in the repo. 2 point to ./+types/*: React Router types.",
+    );
+    const list = [...panel.querySelectorAll(".gi-imports li")].map((li) => li.textContent);
+    expect(list).toEqual([
+      "./+types/rootapps/api/src/orders/handlers.ts:1",
+      "./+types/ordersapps/api/src/orders/handlers.ts:2",
+      "~/lib/goneapps/api/src/orders/handlers.ts:3",
+    ]);
+    expect(headings(panel)).toContain("Imports3");
+    // Imports aren't calls: no "Unresolved calls" count, no "Nothing … connects" line.
+    expect(panel.textContent).not.toContain("Unresolved calls");
+    fireEvent.click(panel.querySelector(".gi-imports button") as HTMLElement);
+    await waitFor(() => expect(picked.at(-1)).toBe(missing[0]?.node.id), { timeout: 10_000 });
+  });
+
   it("keeps the shipped panel in the shipped design", async () => {
     const { container } = render(<Explorer graph={noted} />);
     await layoutDone(container);

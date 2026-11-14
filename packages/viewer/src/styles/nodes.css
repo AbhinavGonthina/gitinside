@@ -273,6 +273,17 @@
   padding: var(--space-12) var(--space-16) var(--space-12) var(--space-12);
 }
 
+/*
+ * A closed group of unresolved calls or imports (the prototype's, M10.3d4) is dotted like the
+ * nodes it holds, on the canvas's own color: still a frame with its stacked edge, so it breaks down.
+ */
+.gi-node[data-expanded="false"][data-dotted] {
+  --gi-node-bg: var(--canvas);
+  --gi-node-border: var(--text-muted);
+  --gi-lip: 0 6px 0 -4px var(--canvas), 0 6px 0 -3px var(--gi-node-border);
+  border-style: dotted;
+}
+
 /* Closed frames keep their counts on a row of their own, under the name. */
 .gi-node[data-expanded="false"] > .gi-node__badges {
   box-sizing: border-box;
