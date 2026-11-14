@@ -11,6 +11,9 @@ export const GITHUB_RAW_ORIGIN = "https://raw.githubusercontent.com";
 /** Cloudflare Turnstile's script and widget frame (the bot check on Analyze, ADR-0157). */
 export const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
 
+/** The landing page's visit ping (lib/visit.ts): one image request, so `img-src` only. */
+export const VISIT_ORIGIN = "https://visits.agonthina.workers.dev";
+
 /** Options for {@link buildCsp}. */
 export interface CspOptions {
   /** A fresh, unguessable nonce for this response (see {@link createNonce}). */
@@ -30,6 +33,8 @@ export interface CspOptions {
  *   are allowed (`style-src-attr`) because the viewer positions nodes and
  *   passes theme fills through inline custom properties, and attributes
  *   can't run code.
+ * - **Images:** our origin, `blob:`/`data:`, and the landing page's visit ping
+ *   (`VISIT_ORIGIN`), an image request with no response anyone reads.
  * - **Fetches:** our origin, plus GitHub's raw file host, where the
  *   inspector reads public code at the analyzed commit (ADR-0115). It only
  *   reads text, which React renders escaped.
@@ -45,7 +50,7 @@ export function buildCsp({ nonce, dev, https }: CspOptions): string {
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,
     dev ? "style-src 'self' 'unsafe-inline'" : `style-src 'self' 'nonce-${nonce}'`,
     "style-src-attr 'unsafe-inline'",
-    "img-src 'self' blob: data:",
+    `img-src 'self' blob: data: ${VISIT_ORIGIN}`,
     "font-src 'self'",
     `connect-src 'self' ${GITHUB_RAW_ORIGIN}`,
     `frame-src ${TURNSTILE_ORIGIN}`,

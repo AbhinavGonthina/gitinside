@@ -7,6 +7,7 @@ import "./globals.css";
 import { currentSignIn } from "../lib/currentUser";
 import { parseTheme, THEME_COOKIE } from "../lib/theme";
 import { SiteHeader } from "./SiteHeader";
+import { VisitBeacon } from "./VisitBeacon";
 
 export const metadata: Metadata = {
   title: { default: "GitInside: Git inside your repo.", template: "%s · GitInside" },
@@ -32,6 +33,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body>
         <SiteHeader theme={theme} signIn={signIn} />
         {children}
+        <VisitBeacon />
       </body>
     </html>
   );
