@@ -77,9 +77,9 @@ describe("the prototype page (M10.3a)", () => {
       "Git inside your repo.",
     );
     expect(within(hero).getByRole("textbox", { name: "GitHub repo URL" })).toBeTruthy();
-    // "See how it works" opens the tour's pin; the hero loads the hero pin's graph.
+    // "See how it works" opens the tour's pin with its tour started; the hero loads the hero pin's graph.
     expect(within(hero).getByRole("link", { name: "See how it works" }).getAttribute("href")).toBe(
-      "/prototype?repo=Mintplex-Labs/anything-llm",
+      "/prototype?repo=Mintplex-Labs/anything-llm&tour",
     );
     expect(within(hero).getByRole("status").textContent).toBe("Loading getmaxun/maxun");
     expect(
@@ -158,8 +158,54 @@ describe("the prototype page (M10.3a)", () => {
       owner: "getmaxun",
       repo: "maxun",
       graphUrl: "/api/prototype/graph/getmaxun/maxun",
+      tour: false,
     });
   });
+
+  it("starts the guided tour with `&tour`, its last card offering the repo field (M10.3f2a)", async () => {
+    expect((await page({ repo: "Mintplex-Labs/anything-llm", tour: "" })).props.tour).toBe(true);
+    vi.stubGlobal("fetch", async () => new Response(JSON.stringify(shopDemo)));
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(private readonly report: ResizeObserverCallback) {}
+        observe() {
+          this.report(
+            [{ contentRect: { width: 900, height: 600 } } as ResizeObserverEntry],
+            this as unknown as ResizeObserver,
+          );
+        }
+        disconnect() {}
+      },
+    );
+    const { container } = render(
+      <PrototypeDiagram
+        owner="fixtures"
+        repo="shop-demo"
+        sha={"a".repeat(40)}
+        graphUrl="/api/prototype/graph/fixtures/shop-demo"
+        tour
+      />,
+    );
+    const card = await waitFor(
+      () => {
+        const found = container.querySelector<HTMLElement>(".gi-tour");
+        expect(found).not.toBeNull();
+        return found as HTMLElement;
+      },
+      { timeout: 25_000 },
+    );
+    expect(card.textContent).toContain("Tour · 1 of");
+    // Through to the Done card, by its Next / Finish button.
+    for (let i = 0; i < 6 && !card.textContent?.includes("Your turn"); i++) {
+      const next = within(card)
+        .getAllByRole("button")
+        .find((b) => /^(Next|Finish)/.test(b.textContent ?? ""));
+      if (next) act(() => fireEvent.click(next));
+    }
+    await waitFor(() => expect(card.textContent).toContain("Your turn"));
+    expect(within(card).getByRole("textbox", { name: "GitHub repo URL" })).toBeTruthy();
+  }, 30_000);
 
   it("puts the theme switch, in the cookie's theme, and sign-in in its one bar (M10.3c1)", async () => {
     vi.stubGlobal("fetch", () => new Promise(() => {}));

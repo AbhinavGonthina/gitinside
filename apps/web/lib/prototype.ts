@@ -15,6 +15,8 @@ export {
   PROTOTYPE_HOME,
   prototypeGraphUrl,
   prototypeHref,
+  prototypeTourHref,
+  TOUR_PARAM,
   type PrototypeRepo,
 } from "./prototypeLinks";
 
@@ -45,7 +47,7 @@ export const HERO_REPO: PrototypeRepo = pinNamed("getmaxun", "maxun");
 
 /**
  * Where "See how it works" goes (M10-design §3.1): anything-llm, whose chat page → server → AI
- * model trace is the most telling one. The tour itself comes with M10.3f.
+ * model trace is the most telling one, with its guided tour started (M10.3f2a).
  */
 export const TOUR_REPO: PrototypeRepo = pinNamed("Mintplex-Labs", "anything-llm");
 

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { currentSignIn } from "../../lib/currentUser";
-import { prototypeGraphUrl, prototypeRepoParam } from "../../lib/prototype";
+import { prototypeGraphUrl, prototypeRepoParam, TOUR_PARAM } from "../../lib/prototype";
 import { parseTheme, THEME_COOKIE } from "../../lib/theme";
 import { SiteAccount } from "../SiteHeader";
 import { ThemeSwitch } from "../ThemeSwitch";
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
  * (M10.3e1), which ends with a list of the five repos it draws; with `?repo=<owner>/<name>` of one
  * of them, that repo's diagram in the redesign, under
  * one bar for the whole page (M10-design A7): the site header's theme switch and sign-in move
- * into the explorer's bar. Any other `repo` is a 404. One path segment, so it never shadows a
+ * into the explorer's bar, and `&tour` starts its guided tour (M10.3f2a). Any other `repo` is a 404. One path segment, so it never shadows a
  * GitHub owner's repo pages (`/<owner>/<repo>`), and nothing on the site links here.
  */
 export default async function PrototypePage({
@@ -41,6 +41,7 @@ export default async function PrototypePage({
       repo={repo.name}
       sha={repo.sha}
       graphUrl={prototypeGraphUrl(repo)}
+      tour={query[TOUR_PARAM] !== undefined}
       barEnd={
         <>
           <ThemeSwitch compact initial={theme} />

@@ -7,6 +7,7 @@ import {
   PROTOTYPE_GRAPH_ORIGIN,
   PROTOTYPE_REPOS,
   prototypeHref,
+  prototypeTourHref,
   TOUR_REPO,
 } from "../../lib/prototype";
 import { RepoForm } from "../RepoForm";
@@ -20,7 +21,7 @@ import { PrototypeHero } from "./PrototypeHero";
  * The prototype's landing page (M10-design §3.5, B13, B14; M10.3e1, M10.3e2a): the shipped
  * landing with a first screen that shows the product working. Beside the slogan and the field,
  * the live explorer on the hero pin plays its suggested trace; "See how it works" opens the
- * tour's pin (the tour itself comes with M10.3f); under them, the URL swap line. Then the gallery
+ * tour's pin with its guided tour started (M10.3f2a); under them, the URL swap line. Then the gallery
  * as readable crops of each pin, "How it works" in three columns, and the five repos under
  * review, for Abhinav's click-through. Links to prototype pages are plain `<a>`s, never `Link`:
  * cross-document View Transitions (transitions.css, M10.3e2b) run on document navigations only.
@@ -41,7 +42,7 @@ export function PrototypeLanding({ signIn }: { signIn: SignInView }) {
             </p>
             <RepoForm />
             <p className="landing__actions">
-              <LinkButton href={prototypeHref(TOUR_REPO)} icon="play">
+              <LinkButton href={prototypeTourHref(TOUR_REPO)} icon="play">
                 See how it works
               </LinkButton>
               {signIn.available &&

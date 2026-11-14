@@ -127,6 +127,25 @@ export function impactEntries(
   ];
 }
 
+/** The ID Ctrl K picks for the prototype's "Take the tour" (no node has it: see {@link NOTES_ENTRY}). */
+export const TOUR_ENTRY = "tour:start";
+
+/**
+ * The prototype's "Take the tour" result (M10.3f2a, M10-design §3.1), found by "tour", "guide",
+ * or "help", so the tour can be started again. It's drawn with the system's icon.
+ */
+export function tourEntries(root: GraphNode): SearchEntry[] {
+  const path = "A guided walk through this diagram";
+  return [
+    {
+      result: { node: { ...root, id: TOUR_ENTRY, label: "Take the tour" }, path },
+      name: "take the tour",
+      where: `${path.toLowerCase()} · guide · help`,
+      kindRank: KIND_ORDER.indexOf("system"),
+    },
+  ];
+}
+
 /** Whether a word starts at `i` in `label`: its start, after a non-letter-or-digit, or a camelCase step. */
 function isWordStart(label: string, i: number): boolean {
   if (i === 0) return true;

@@ -2308,3 +2308,93 @@ code.gi-palette__name {
 .gi-inspector__section[data-section="warnings"]:focus-visible {
   outline-offset: -2px;
 }
+
+/*
+ * The tour's card (M10.3f2a, M10-design §3.1), docked at the top of the inspector: a hairline
+ * under it, the step's count quiet, its title the heading, and the dots and buttons at its foot.
+ * A new step's words swap in like the inspector's content (fade, no move).
+ */
+.gi-tour {
+  flex: none;
+  padding: var(--space-12) 20px var(--space-16);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-1);
+}
+
+.gi-tour__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 -6px var(--space-4) 0;
+}
+
+.gi-tour__count {
+  color: var(--text-muted);
+  font-size: var(--font-size-12);
+  font-weight: var(--font-weight-medium);
+}
+
+.gi-tour__title {
+  margin: 0 0 6px;
+  font-size: var(--font-size-16);
+  font-weight: var(--font-weight-semibold);
+}
+
+.gi-tour__title:focus {
+  outline: none;
+}
+
+.gi-tour__title:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-chip);
+}
+
+.gi-tour__text {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-13);
+  line-height: 1.5;
+}
+
+.gi-tour__title,
+.gi-tour__text {
+  animation: gi-tour-swap var(--duration-standard) var(--ease-standard);
+}
+
+@keyframes gi-tour-swap {
+  from {
+    opacity: 0;
+  }
+}
+
+.gi-tour__field {
+  margin-top: var(--space-12);
+}
+
+.gi-tour__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+  margin-top: var(--space-12);
+}
+
+.gi-tour__dots {
+  display: flex;
+  gap: 6px;
+  margin-right: auto;
+}
+
+.gi-tour__dot {
+  width: 6px;
+  height: 6px;
+  border: 1px solid var(--text-muted);
+  border-radius: var(--radius-pill);
+  box-sizing: border-box;
+}
+
+.gi-tour__dot[data-on] {
+  border-color: var(--accent);
+  background: var(--accent);
+}
