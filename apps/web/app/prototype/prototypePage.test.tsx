@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import shopDemo from "../../../../fixtures/shop-demo/expected.json";
 import { findPrototypeRepo } from "../../lib/prototype";
 import { GALLERY_CROP } from "../../lib/prototypeImage";
@@ -189,8 +189,48 @@ describe("the prototype landing's hero (M10.3e1)", () => {
     );
     const maxun = findPrototypeRepo("getmaxun", "maxun");
     if (!maxun) throw new Error("no maxun");
+    const t0 = performance.now();
+    const probe = (what: string) =>
+      console.log(`PROBE ${Math.round(performance.now() - t0)} ${what}`);
+    probe(`start active=${document.activeElement?.tagName} mm=${typeof window.matchMedia}`);
+    let lastTick = performance.now();
+    let maxLag = 0;
+    const ticker = setInterval(() => {
+      const now = performance.now();
+      const lag = now - lastTick - 100;
+      if (lag > 200) probe(`lag ${Math.round(lag)}`);
+      maxLag = Math.max(maxLag, lag);
+      lastTick = now;
+    }, 100);
+    const onEvent = (event: Event) =>
+      probe(`${event.type} ${(event.target as HTMLElement | null)?.className ?? ""}`);
+    for (const type of ["focusin", "focusout", "pointerover", "pointerout"])
+      document.addEventListener(type, onEvent, true);
     const { container } = render(<PrototypeHero repo={maxun} />);
     const open = screen.getByRole("link", { name: "Open the full diagram" });
+    const seen = new Set<string>();
+    const observer = new MutationObserver(() => {
+      const root = container.querySelector<HTMLElement>(".gi-explorer");
+      const marks = [
+        `layout=${root?.querySelector("[data-layout]")?.getAttribute("data-layout") ?? "-"}`,
+        `settled=${String(root?.hasAttribute("data-settled") ?? false)}`,
+        `href=${open.getAttribute("href") ?? ""}`,
+      ];
+      for (const mark of marks) {
+        if (!seen.has(mark)) {
+          seen.add(mark);
+          probe(mark);
+        }
+      }
+    });
+    observer.observe(container, { subtree: true, attributes: true, childList: true });
+    onTestFinished(() => {
+      probe(`end maxLag=${Math.round(maxLag)}`);
+      clearInterval(ticker);
+      observer.disconnect();
+      for (const type of ["focusin", "focusout", "pointerover", "pointerout"])
+        document.removeEventListener(type, onEvent, true);
+    });
     expect(open.getAttribute("href")).toBe("/prototype?repo=getmaxun/maxun");
     await waitFor(() => expect(container.querySelector(".gi-explorer[data-hero]")).not.toBeNull());
     expect(container.querySelector(".gi-topbar, .gi-inspector")).toBeNull();
