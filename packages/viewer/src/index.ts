@@ -150,6 +150,9 @@ export {
   nodeOf,
 } from "./model/hierarchy.js";
 export type { EntryNode, HierarchyIndex, KindCounts } from "./model/hierarchy.js";
+export { isGroup, summarizeGraph } from "./model/groups.js";
+export { HOST_GROUPS_VERSION, hostGroupFor } from "./icons/hostGroups.js";
+export type { HostGroup } from "./icons/hostGroups.js";
 export {
   buildView,
   DEFAULT_HIDDEN_KINDS,

@@ -182,9 +182,16 @@ export function isWithin(index: HierarchyIndex, id: string, ancestor: string): b
   return n?.id === ancestor;
 }
 
-/** The node's own layer, else the nearest ancestor's (modules and files take their service's). */
+/**
+ * The node's own layer, else the nearest ancestor's (modules and files take their service's). A
+ * service's layer is its own: one without stays without, even inside a group that has one
+ * (the prototype's "Shared packages", M10.3b1).
+ */
 export function layerOf(index: HierarchyIndex, id: string): Layer | undefined {
-  for (const n of ancestry(index, id)) if (n.layer) return n.layer;
+  for (const n of ancestry(index, id)) {
+    if (n.layer) return n.layer;
+    if (n.kind === "service") return undefined;
+  }
   return undefined;
 }
 

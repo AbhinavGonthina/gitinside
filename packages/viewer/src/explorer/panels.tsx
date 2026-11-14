@@ -19,6 +19,7 @@ import { CONFIDENCE_TEXT } from "../edges/describe.js";
 import { brandForFramework } from "../icons/brands.js";
 import { frameCounts } from "../layout/size.js";
 import { connectionsOf, type NodeConnection } from "../model/connections.js";
+import { isGroup } from "../model/groups.js";
 import { canOpen, layerOf, nodeOf, type HierarchyIndex } from "../model/hierarchy.js";
 import { visibleAncestor, type GraphView } from "../model/view.js";
 import { nodeLabel, REASON_TEXT } from "../nodes/describe.js";
@@ -102,7 +103,8 @@ function factsOf(index: HierarchyIndex, node: GraphNode): Fact[] {
       break;
     case "module":
     case "file":
-      facts.push({ label: "Path", value: node.path, code: true });
+      // A prototype group (M10.3b1) is no folder in the repo, so it has no path.
+      if (!isGroup(node)) facts.push({ label: "Path", value: node.path, code: true });
       break;
     case "model":
       facts.push({ label: "Fields", value: node.fields.map((f) => f.name).join(", ") });
