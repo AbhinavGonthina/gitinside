@@ -8,6 +8,7 @@ import { groupedShop } from "../model/groups.testkit.js";
 import { shopDemo } from "../shopDemo.testkit.js";
 import { Explorer } from "./Explorer.js";
 import { memoryOnboarding } from "./onboarding.js";
+import { FactGrid } from "./overview.js";
 
 // The M10 redesign under review (M10.3): `design="prototype"` only, the shipped explorer unchanged.
 
@@ -383,5 +384,185 @@ describe("Explorer's prototype design (M10.3a)", { timeout: 30_000 }, () => {
       expect(bands).toHaveLength(0);
       view.unmount();
     }
+  });
+});
+
+describe("the prototype's panel (M10.3c3)", { timeout: 30_000 }, () => {
+  const noted: ArchitectureGraph = { ...graph, warnings: [WARNING] };
+  const panelOf = (container: HTMLElement) =>
+    container.querySelector<HTMLElement>(".gi-inspector") as HTMLElement;
+  const headings = (panel: HTMLElement) =>
+    [...panel.querySelectorAll("h3")].map((h) => h.textContent);
+
+  it("leads the overview with one sentence, its counts, and Try this; notes collapsed at the foot", async () => {
+    const { container } = render(<Explorer graph={noted} design="prototype" />);
+    await layoutDone(container);
+    const panel = panelOf(container);
+    expect(panel.querySelector(".gi-inspector__summary p")?.textContent).toBe(
+      "An Express API and a Next.js app, with PostgreSQL and 1 outside API.",
+    );
+    expect(panel.querySelector(".gi-factrow")?.textContent).toBe(
+      "2 services3 pages2 routes1 model1 datastore1 outside API",
+    );
+    expect(headings(panel)).toEqual(["Try this", "Services2", "Analysis notes1"]);
+    expect([...panel.querySelectorAll(".gi-try__label")].map((t) => t.textContent)).toEqual([
+      "Break down @shop/api",
+      "Trace a request",
+      "Search the diagram",
+    ]);
+    // No warning text until the reader opens the notes, and no "Start here".
+    expect(panel.textContent).not.toContain(WARNING.message);
+    expect(panel.textContent).not.toContain("Start here");
+    const toggle = panel.querySelector<HTMLButtonElement>(".gi-notes__toggle") as HTMLElement;
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(panel.textContent).toContain(WARNING.message);
+  });
+
+  it("lists each service with its role and counts, a click selecting it", async () => {
+    const { container } = render(<Explorer graph={graph} design="prototype" />);
+    await layoutDone(container);
+    const rows = [...panelOf(container).querySelectorAll<HTMLElement>(".gi-connection")];
+    expect(rows.map((r) => r.textContent)).toEqual([
+      "@shop/apiExpress API · 2 routes · 1 model · 1 outside API",
+      "@shop/webNext.js app · 3 pages · 1 unresolved call",
+    ]);
+    fireEvent.click(rows[1] as HTMLElement);
+    await waitFor(() =>
+      expect(panelOf(container).querySelector("h2")?.textContent).toBe("@shop/web"),
+    );
+  });
+
+  it("does what each Try this action says", async () => {
+    const { container } = render(<Explorer graph={graph} design="prototype" />);
+    await layoutDone(container);
+    const action = (label: string) =>
+      [...panelOf(container).querySelectorAll<HTMLElement>(".gi-try__action")].find((a) =>
+        a.textContent?.includes(label),
+      ) as HTMLElement;
+    fireEvent.click(action("Search the diagram"));
+    const palette = () =>
+      container.ownerDocument.querySelector('.gi-palette-scrim[data-state="open"]');
+    await waitFor(() => expect(palette()).not.toBeNull());
+    fireEvent.keyDown(document.activeElement as HTMLElement, { key: "Escape" });
+    await waitFor(() => expect(palette()).toBeNull());
+    fireEvent.click(action("Break down"));
+    await waitFor(
+      () => {
+        const api = [...container.querySelectorAll<HTMLElement>(".gi-drill__node")].find(
+          (n) => n.dataset.nodeId === "service:api/",
+        );
+        expect(api?.hasAttribute("data-open")).toBe(true);
+      },
+      { timeout: 10_000 },
+    );
+  });
+
+  it('opens and focuses the Analysis notes from Ctrl K\'s "notes"', async () => {
+    const { container } = render(
+      <Explorer graph={noted} design="prototype" initialSelected="service:web/" />,
+    );
+    await layoutDone(container);
+    fireEvent.keyDown(document.body, { key: "k", ctrlKey: true });
+    const field = await waitFor(() => {
+      const input = container.ownerDocument.querySelector<HTMLInputElement>(
+        '.gi-palette-scrim[data-state="open"] input',
+      );
+      expect(input).not.toBeNull();
+      return input as HTMLInputElement;
+    });
+    fireEvent.change(field, { target: { value: "notes" } });
+    const options = [...container.ownerDocument.querySelectorAll('[role="option"]')];
+    expect(options[0]?.textContent).toContain("Analysis notes");
+    fireEvent.keyDown(field, { key: "Enter" });
+    await waitFor(() => {
+      const section = panelOf(container).querySelector('[data-section="warnings"]');
+      expect(document.activeElement).toBe(section);
+    });
+    expect(panelOf(container).textContent).toContain(WARNING.message);
+  });
+
+  it("finds no Analysis notes in Ctrl K when there are none, or in the shipped design", async () => {
+    for (const [g, design] of [
+      [graph, "prototype"],
+      [noted, "current"],
+    ] as const) {
+      const view = render(<Explorer graph={g} design={design} />);
+      await layoutDone(view.container);
+      fireEvent.keyDown(document.body, { key: "k", ctrlKey: true });
+      const field = await waitFor(() => {
+        const input = view.container.ownerDocument.querySelector<HTMLInputElement>(
+          '.gi-palette-scrim[data-state="open"] input',
+        );
+        expect(input).not.toBeNull();
+        return input as HTMLInputElement;
+      });
+      fireEvent.change(field, { target: { value: "notes" } });
+      const options = [...view.container.ownerDocument.querySelectorAll('[role="option"]')];
+      expect(options.some((o) => o.textContent?.includes("Analysis notes"))).toBe(false);
+      view.unmount();
+    }
+  });
+
+  it("briefs a node, lays out its facts, and groups its calls by target with their sites", async () => {
+    const { container } = render(
+      <Explorer
+        graph={graph}
+        design="prototype"
+        initialSelected="file:api/src/orders/handlers.ts"
+      />,
+    );
+    await layoutDone(container);
+    const panel = panelOf(container);
+    expect(panel.querySelector(".gi-inspector__summary p")?.textContent).toBe(
+      "File defining createOrder and listOrders. It calls chargeOrder and uses Order.",
+    );
+    const grid = [...panel.querySelectorAll(".gi-factgrid > div")].map((r) => [
+      r.querySelector("dt")?.textContent,
+      r.querySelector("dd")?.textContent,
+    ]);
+    expect(grid).toContainEqual(["Data", "Order"]);
+    const calls = [...panel.querySelectorAll("section")].find(
+      (s) => s.querySelector("h3")?.textContent === "Calls2",
+    ) as HTMLElement;
+    const rows = [...calls.querySelectorAll(".gi-connection")].map((r) => r.textContent);
+    expect(rows).toEqual(["chargeOrder1 call · Exact match", "Order1 read, 1 write · Exact match"]);
+    const toggles = calls.querySelectorAll<HTMLButtonElement>(".gi-connection__sites-toggle");
+    expect(toggles[1]?.getAttribute("aria-label")).toBe("Show 2 call sites for Order");
+    fireEvent.click(toggles[1] as HTMLElement);
+    const sites = [...calls.querySelectorAll(".gi-connection__sites li")].map((s) => s.textContent);
+    expect(sites).toHaveLength(2);
+    for (const s of sites) expect(s).toMatch(/^apps\/api\/src\/orders\/handlers\.ts:\d+$/);
+    expect(toggles[1]?.getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("keeps the shipped panel in the shipped design", async () => {
+    const { container } = render(<Explorer graph={noted} />);
+    await layoutDone(container);
+    const panel = panelOf(container);
+    expect(headings(panel)).toEqual(["Start here", "Warnings1"]);
+    expect(panel.querySelector(".gi-try, .gi-factrow, .gi-notes")).toBeNull();
+  });
+});
+
+describe("the prototype's fact grid (M10.3c3)", () => {
+  it("lists three names, then +N, which shows the rest in place; a name selects its node", () => {
+    const picked: string[] = [];
+    const items = ["a", "b", "c", "d", "e"].map((text) => ({ text, id: `n:${text}` }));
+    const { container } = render(
+      <FactGrid rows={[{ label: "Calls into", items }]} onSelect={(id) => picked.push(id)} />,
+    );
+    const links = () =>
+      [...container.querySelectorAll(".gi-factgrid__link")].map((l) => l.textContent);
+    expect(links()).toEqual(["a", "b", "c"]);
+    const more = container.querySelector<HTMLButtonElement>(".gi-factgrid__more") as HTMLElement;
+    expect(more.textContent).toBe("+2");
+    expect(more.getAttribute("aria-label")).toBe("Show 2 more in Calls into");
+    fireEvent.click(more);
+    expect(links()).toEqual(["a", "b", "c", "d", "e"]);
+    expect(container.querySelector(".gi-factgrid__more")).toBeNull();
+    fireEvent.click(container.querySelectorAll(".gi-factgrid__link")[3] as HTMLElement);
+    expect(picked).toEqual(["n:d"]);
   });
 });

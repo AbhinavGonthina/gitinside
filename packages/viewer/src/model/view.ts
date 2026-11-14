@@ -83,7 +83,8 @@ export const DEFAULT_HIDDEN_KINDS: ReadonlySet<EdgeKind> = new Set(["imports"]);
 const RANK: Partial<Record<NodeKind, number>> = { module: 0, file: 1 };
 const rank = (n: GraphNode) => RANK[n.kind] ?? 2;
 
-const STRENGTH: Readonly<Record<Confidence, number>> = {
+/** How strong each confidence is, higher for stronger: exact, pattern, heuristic, unresolved. */
+export const STRENGTH: Readonly<Record<Confidence, number>> = {
   exact: 3,
   pattern: 2,
   heuristic: 1,
