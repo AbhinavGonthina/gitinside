@@ -66,6 +66,12 @@ export const WINDOW_BAND = { frame: 10, card: 6 } as const;
 /** An open frame's header height (before a window's band) and its padding around the children. */
 export const FRAME_HEADER = 60;
 export const FRAME_PAD = 16;
+/**
+ * Room a path-only frame keeps below its children for "+ N more" (M10.3d2): the button
+ * (`.gi-drill__more`, {@link MORE_BUTTON} tall) and a gap of 8px above it.
+ */
+export const MORE_BUTTON = 24;
+export const MORE_FOOT = MORE_BUTTON + 8;
 /** An edge label pill's height, and the widest it gets (`.gi-edge-label`, then an ellipsis). */
 export const EDGE_LABEL_HEIGHT = 22;
 export const MAX_EDGE_LABEL_WIDTH = 280;

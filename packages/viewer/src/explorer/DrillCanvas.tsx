@@ -17,7 +17,14 @@ import type { Rect } from "../chrome/describe.js";
 import { DiagramEdge, EdgeLabel } from "../edges/DiagramEdge.js";
 import { BANDS, type PlacedEdge } from "../layout/elk.js";
 import type { LayoutCache } from "../layout/engine.js";
-import { changeCounts, frameCounts, viewCardLook, viewEdgeLabelSize } from "../layout/size.js";
+import {
+  changeCounts,
+  FRAME_PAD,
+  frameCounts,
+  MORE_BUTTON,
+  viewCardLook,
+  viewEdgeLabelSize,
+} from "../layout/size.js";
 import type { DiffCounts, DiffMarks } from "../model/diff.js";
 import { layerOf, nodeOf, type HierarchyIndex } from "../model/hierarchy.js";
 import {
@@ -112,6 +119,11 @@ export interface DrillCanvasProps
    * (`LayoutInputOptions.cards`): names wrap, services carry a count row and role.
    */
   cards?: boolean | undefined;
+  /**
+   * A path-only frame's "+ N more" (M10.3d2, `ViewNode.more`): asked to show the frame whole.
+   * Without it, no such button is drawn.
+   */
+  onMore?: ((id: string) => void) | undefined;
 }
 
 /**
@@ -463,6 +475,7 @@ export function DrillCanvas({
   marks,
   versionIndex,
   cards = false,
+  onMore,
   className,
   style,
   ...rest
@@ -831,6 +844,26 @@ export function DrillCanvas({
               );
             })}
           </div>
+          {onMore &&
+            shown.layout.boxes.map((b) => {
+              const n = shown.view.byId.get(b.id);
+              if (!n?.open || !n.more || !culled?.boxes.has(b.id)) return null;
+              return (
+                <button
+                  key={`more:${n.id}`}
+                  type="button"
+                  className="gi-drill__more"
+                  aria-label={`Show ${n.more} more in ${n.node.label}`}
+                  style={{ left: b.x + FRAME_PAD, top: b.y + b.height - FRAME_PAD - MORE_BUTTON }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onMore(n.id);
+                  }}
+                >
+                  + {n.more} more
+                </button>
+              );
+            })}
           <svg
             ref={linesRef}
             className="gi-drill__lines"

@@ -98,6 +98,7 @@ import { traceChoices, TracePicker } from "./picker.js";
 import { suggestTraces } from "./suggest.js";
 import { NOTES_ENTRY, notesEntries, SearchPalette, searchEntries } from "./search.js";
 import { useSourceAccess, type SourceLoader } from "./sources.js";
+import { openForPath } from "./pathView.js";
 import { canTraceFrom, hasHops, traceFrom, traceNodes, type TraceStep } from "./trace.js";
 import type { Shown } from "./transition.js";
 
@@ -421,8 +422,6 @@ export function Explorer({
   /** Where the popover opened from: the top bar's button, or the canvas (chip or button). */
   const [filtersFrom, setFiltersFrom] = useState<"top" | "canvas">("top");
   const filtersOpener = useRef<HTMLElement | null>(null);
-  const drill = useDrill(index, initialOpen, { filters, hiddenKinds });
-  const view = drill.view;
   // The prototype overview's "Try this" offers the system level's hub (M10.3c3), the one its
   // first view frames: worked out on the closed level, whatever is broken down now.
   const hub = useMemo(() => {
@@ -457,6 +456,24 @@ export function Explorer({
   // step is stored, so a graph that lengthens the path again stays on it (M4b.16).
   const step = stepAsked === null ? null : Math.max(0, Math.min(stepAsked, steps.length - 1));
   if (step !== stepAsked) setStep(step);
+  // A trace started at the system level opens its path in the prototype (M10.3d2, M10-design
+  // B1): the drill-down state it started from, to go back to when it ends, and the frames shown
+  // whole again ("+ N more"; `all` after "Show everything").
+  const [pathOpened, setPathOpened] = useState<{
+    from: Expansion;
+    whole: ReadonlySet<string> | "all";
+  } | null>(null);
+  const pathNodes = useMemo(() => path && traceNodes(path), [path]);
+  const pathEnded = step === null || path === undefined;
+  const only = useMemo(
+    () =>
+      pathOpened && pathOpened.whole !== "all" && pathNodes && !pathEnded
+        ? { path: pathNodes, whole: pathOpened.whole }
+        : undefined,
+    [pathOpened, pathNodes, pathEnded],
+  );
+  const drill = useDrill(index, initialOpen, { filters, hiddenKinds, only });
+  const view = drill.view;
   const [playing, setPlaying] = useState(false);
   // The picker T and the Trace button open when there's nothing to trace yet.
   const choices = useMemo(() => traceChoices(shownIndex), [shownIndex]);
@@ -532,6 +549,13 @@ export function Explorer({
   }, []);
   const size: Size = shown?.layout ?? { width: 0, height: 0 };
   const [handSet, setHandSet] = useState<Camera | null>(null);
+  // Ending a trace that opened its path, however it ends (Esc, T, the chip, a version without
+  // it), goes back to the level it started from, the camera the explorer's again (a glide back).
+  if (pathOpened && pathEnded) {
+    setPathOpened(null);
+    drill.set(pathOpened.from);
+    setHandSet(null);
+  }
   // 0 and the fit button show the whole level (its busiest part when it
   // doesn't fit even at 40%, M5.13b2), until the next drill-down or close;
   // else the explorer frames the node broken down last when the level is too
@@ -1081,12 +1105,48 @@ export function Explorer({
 
   /** Starts tracing the request path from a node, at its first step, showing it if the filters hide it. */
   function startTrace(id: string) {
-    showNode(id);
+    const shownUnder = showNode(id);
+    // From the system level (or from a path a trace opened), the prototype opens the new path.
+    const from = pathOpened?.from ?? (view.open.length === 0 ? drill.expansion : undefined);
+    if (prototype && from !== undefined && shownIndex.byId.has(id)) {
+      const opens = openForPath(
+        shownIndex,
+        traceFrom(shownIndex, id),
+        hiddenNodes(index, shownUnder),
+      );
+      if (opens.length > 0) {
+        setPathOpened({ from, whole: new Set() });
+        drill.set(opens);
+        setHandSet(null);
+      } else if (pathOpened) {
+        setPathOpened(null);
+        drill.set(pathOpened.from);
+      }
+    }
     setTraced(id);
     setStep(0);
     setPlaying(false);
     setAnnouncement(`Tracing from ${nodeOf(index, id).label}`);
     hintDone("trace");
+  }
+
+  /**
+   * A path-only frame's "+ N more": that frame shows whole again. Focus goes from the button,
+   * which goes, to the frame.
+   */
+  function showMore(id: string) {
+    setPathOpened((o) => (o && o.whole !== "all" ? { ...o, whole: new Set([...o.whole, id]) } : o));
+    boxElement(rootRef.current, id)?.focus({ preventScroll: true });
+    setAnnouncement(`Showing everything in ${nodeOf(index, id).label}`);
+  }
+
+  /** The trace chip's "Show everything": every frame the path opened shows whole; focus stays in the chip. */
+  function showEverything() {
+    setPathOpened((o) => o && { ...o, whole: "all" });
+    rootRef.current
+      ?.querySelector<HTMLElement>('.gi-status[data-tone="trace"] [data-icon-only]')
+      ?.focus();
+    setAnnouncement("Showing everything inside the traced services");
   }
 
   /**
@@ -1512,6 +1572,7 @@ export function Explorer({
             marks={marks}
             versionIndex={shownIndex === index ? undefined : shownIndex}
             cards={prototype}
+            onMore={prototype ? showMore : undefined}
           />
           <div
             className="gi-explorer__pin"
@@ -1540,6 +1601,14 @@ export function Explorer({
             {tracing && (
               <StatusChip tone="trace" exitLabel="Exit trace" onExit={toggleTrace}>
                 Tracing <code>{traceName(path.start)}</code>
+                {view.nodes.some((n) => n.more) && (
+                  <>
+                    {" · "}
+                    <button type="button" className="gi-status__open" onClick={showEverything}>
+                      Show everything
+                    </button>
+                  </>
+                )}
               </StatusChip>
             )}
             {/* The prototype's chip is for what the reader set, never the default hiding. */}

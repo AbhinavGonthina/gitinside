@@ -495,6 +495,89 @@ describe("the prototype's panel (M10.3c3)", { timeout: 30_000 }, () => {
     );
   });
 
+  it("opens a trace's path from the system level, only its boxes inside, and goes back on Esc (M10.3d2)", async () => {
+    const { container } = render(<Explorer graph={graph} design="prototype" />);
+    await layoutDone(container);
+    const opened = () =>
+      [...container.querySelectorAll<HTMLElement>(".gi-drill__node[data-open]")]
+        .map((n) => n.dataset.nodeId)
+        .sort();
+    const mores = () => [...container.querySelectorAll<HTMLElement>(".gi-drill__more")];
+    expect(opened()).toEqual([]);
+    const trace = [...panelOf(container).querySelectorAll<HTMLElement>(".gi-try__action")].find(
+      (a) => a.textContent?.startsWith("Trace"),
+    ) as HTMLElement;
+    fireEvent.click(trace);
+    await waitFor(() => expect(mores().length).toBeGreaterThan(0), { timeout: 10_000 });
+    await layoutDone(container);
+    expect(opened()).toContain("service:web/");
+    expect(opened()).toContain("service:api/");
+    // The page's frame shows only the path's boxes: no other page is drawn.
+    const box = (id: string) => container.querySelector(`.gi-drill__node[data-node-id="${id}"]`);
+    expect(box("page:web//orders")).not.toBeNull();
+    expect(box("page:web//checkout")).toBeNull();
+
+    // "+ N more" shows that frame whole, focus on the frame.
+    const [first] = mores();
+    const label = first?.getAttribute("aria-label") ?? "";
+    const count = mores().length;
+    fireEvent.click(first as HTMLElement);
+    await waitFor(() => expect(mores()).toHaveLength(count - 1), { timeout: 10_000 });
+    expect(label).toMatch(/^Show \d+ more in /);
+    expect(document.activeElement?.closest(".gi-drill__node")?.getAttribute("data-open")).toBe("");
+
+    // "Show everything" in the trace chip: no frame leaves anything out; focus stays in the chip.
+    const chip = container.querySelector('.gi-status[data-tone="trace"]') as HTMLElement;
+    const everything = [...chip.querySelectorAll("button")].find(
+      (b) => b.textContent === "Show everything",
+    ) as HTMLElement;
+    expect(mores().length).toBeGreaterThan(0);
+    fireEvent.click(everything);
+    await waitFor(() => expect(mores()).toHaveLength(0), { timeout: 10_000 });
+    expect(chip.contains(document.activeElement)).toBe(true);
+    expect(box("page:web//checkout")).not.toBeNull();
+    expect(chip.textContent).not.toContain("Show everything");
+
+    // Esc ends the trace and goes back to the level it started from.
+    fireEvent.keyDown(container.querySelector(".gi-drill") as HTMLElement, { key: "Escape" });
+    await waitFor(() => expect(opened()).toEqual([]), { timeout: 10_000 });
+    expect(container.querySelector('.gi-status[data-tone="trace"]')).toBeNull();
+  });
+
+  it("keeps a broken-down level as it is when a trace starts there, and the shipped design never opens a path", async () => {
+    const page = "page:web//orders";
+    const inside = render(
+      <Explorer graph={graph} design="prototype" initialOpen={["service:api/"]} />,
+    );
+    await layoutDone(inside.container);
+    const opened = (c: HTMLElement) =>
+      [...c.querySelectorAll<HTMLElement>(".gi-drill__node[data-open]")].map(
+        (n) => n.dataset.nodeId,
+      );
+    const trace = [
+      ...panelOf(inside.container).querySelectorAll<HTMLElement>(".gi-try__action"),
+    ].find((a) => a.textContent?.startsWith("Trace")) as HTMLElement;
+    fireEvent.click(trace);
+    await waitFor(() =>
+      expect(inside.container.querySelector(".gi-explorer__step[aria-current]")).not.toBeNull(),
+    );
+    await layoutDone(inside.container);
+    expect(opened(inside.container)).toEqual(["service:api/"]);
+    expect(inside.container.querySelector(".gi-drill__more")).toBeNull();
+    cleanup();
+
+    const shipped = render(<Explorer graph={graph} initialSelected={page} />);
+    await layoutDone(shipped.container);
+    const before = opened(shipped.container);
+    fireEvent.keyDown(shipped.container.querySelector(".gi-drill") as HTMLElement, { key: "t" });
+    await waitFor(() =>
+      expect(shipped.container.querySelector(".gi-explorer__step[aria-current]")).not.toBeNull(),
+    );
+    await layoutDone(shipped.container);
+    expect(opened(shipped.container)).toEqual(before);
+    expect(shipped.container.querySelector(".gi-drill__more")).toBeNull();
+  });
+
   it("reopens a linked trace that starts in code, in the prototype only (M10.3d1)", async () => {
     const start = "symbol:web/lib/orders.ts#listOrders";
     const proto = render(<Explorer graph={graph} design="prototype" initialTrace={start} />);
