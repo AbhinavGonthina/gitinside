@@ -1,10 +1,13 @@
 import type { GraphNode } from "@gitinside/schema";
 import { brandForFramework, brandForHost } from "../icons/brands.js";
 import { textWidth } from "../image/markup.js";
+import { commonGeneratedPath } from "../model/generatedPaths.js";
 import {
   entryGroupKind,
   HOSTS_GROUP_PREFIX,
+  importsIn,
   isEntryGroup,
+  isImportsGroup,
   isUnresolvedGroup,
 } from "../model/groups.js";
 import { countsInside, type HierarchyIndex } from "../model/hierarchy.js";
@@ -33,7 +36,9 @@ import type { NodeCount, NodeText } from "./describe.js";
  *
  * - **A route or page group** (M10.3d3, M10-design B3) is a capsule, like a route, on a closed
  *   frame's stacked edge; its name already holds its count ("/api/auth · 7 routes"). A group of
- *   a service's unresolved calls says so in its subtitle.
+ *   a service's unresolved calls says so in its subtitle, dotted like the calls it holds.
+ * - **Imports not in the repo** (M10.3d4, M10-design B4): dotted too, its subtitle naming the
+ *   generated folder at least half its imports point to ("React Router types `./+types/*`").
  *
  * Names wrap rather than end in "…" ({@link nameLines}); the shared `@scope/` stays in the name,
  * muted (nodes.css).
@@ -59,6 +64,8 @@ export interface CardLook {
   shape?: "capsule";
   /** The glyph instead of the node's own: a group shows its members' ("route", not a folder). */
   glyph?: "route" | "page" | "unresolved";
+  /** A dotted outline, like an unresolved node's: a group of unresolved calls or imports. */
+  dotted?: true;
 }
 
 /** What an unlinked datastore's card says (M10-design A4). */
@@ -200,8 +207,24 @@ export function cardLook(index: HierarchyIndex, node: GraphNode): CardLook | und
   if (isEntryGroup(node)) {
     return { counts: [], shape: "capsule", glyph: entryGroupKind(node) ?? "route" };
   }
+  if (isImportsGroup(node)) {
+    const common = commonGeneratedPath(importsIn(index, node.id).map((m) => m.expression));
+    return {
+      subtitle: common
+        ? { text: common.path.note, code: common.path.shown }
+        : { text: "Unresolved imports" },
+      counts: [],
+      glyph: "unresolved",
+      dotted: true,
+    };
+  }
   if (isUnresolvedGroup(node)) {
-    return { subtitle: { text: "Unresolved calls" }, counts: [], glyph: "unresolved" };
+    return {
+      subtitle: { text: "Unresolved calls" },
+      counts: [],
+      glyph: "unresolved",
+      dotted: true,
+    };
   }
   if (node.kind === "datastore" && !factsOf(index).linked.has(node.id)) {
     return { caption: UNLINKED_CAPTION };

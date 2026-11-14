@@ -19,7 +19,7 @@ import { CONFIDENCE_TEXT } from "../edges/describe.js";
 import { brandForFramework } from "../icons/brands.js";
 import { frameCounts } from "../layout/size.js";
 import { connectionsOf, type NodeConnection } from "../model/connections.js";
-import { isGroup } from "../model/groups.js";
+import { importsIn, isGroup } from "../model/groups.js";
 import { canOpen, layerOf, nodeOf, type HierarchyIndex } from "../model/hierarchy.js";
 import { visibleAncestor, type GraphView } from "../model/view.js";
 import { nodeLabel, REASON_TEXT } from "../nodes/describe.js";
@@ -28,6 +28,7 @@ import {
   AnalysisNotes,
   FactGrid,
   FactRow,
+  ImportList,
   GroupedConnections,
   NOTES_SECTION,
   ServiceList,
@@ -506,6 +507,7 @@ function PrototypeNodePanel({
           <FactGrid rows={rows} onSelect={onSelect} />
         </InspectorSection>
       )}
+      <ImportList imports={importsIn(index, node.id)} repo={repo} onSelect={onSelect} />
       <InspectorSection title="Called by" count={calledBy.length}>
         <GroupedConnections
           index={index}

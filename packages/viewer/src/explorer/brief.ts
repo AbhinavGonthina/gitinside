@@ -9,7 +9,7 @@ import { EDGE_WORDS } from "../edges/describe.js";
 import { brandForEngine } from "../icons/brands.js";
 import { frameCounts } from "../layout/size.js";
 import { connectionsOf, type NodeConnection } from "../model/connections.js";
-import { groupLead, groupNote, isGroup } from "../model/groups.js";
+import { groupLead, groupNote, isGroup, isImportsGroup } from "../model/groups.js";
 import type { HierarchyIndex } from "../model/hierarchy.js";
 import { REASON_TEXT } from "../nodes/describe.js";
 import { serviceCounts, serviceRole } from "../nodes/cards.js";
@@ -283,7 +283,8 @@ export function briefOf(index: HierarchyIndex, node: GraphNode): string {
   if (node.id === index.root.id) return lead;
   const note = groupNote(index, node);
   const first = note && wordCount(`${lead} ${note}`) <= BRIEF_WORDS ? `${lead} ${note}` : lead;
-  if (node.kind === "unresolved") return first;
+  // Imports are left off as lines, so an imports group's connections would read as none.
+  if (node.kind === "unresolved" || isImportsGroup(node)) return first;
   const { incoming, outgoing } = connectionsOf(index, node.id);
   const out = clauses(reachOf(index, node, outgoing));
   // A group's note already says who uses its members.
@@ -372,7 +373,8 @@ export function factGrid(index: HierarchyIndex, node: GraphNode): GridRow[] {
     default:
       break;
   }
-  for (const c of frameCounts(index, node.id)) {
+  // An imports group's count would read "Unresolved calls"; its Imports list counts them instead.
+  for (const c of isImportsGroup(node) ? [] : frameCounts(index, node.id)) {
     one(`${capitalize(c.noun)}s`, c.value.toLocaleString("en-US"));
   }
   const { incoming, outgoing } = connectionsOf(index, node.id);

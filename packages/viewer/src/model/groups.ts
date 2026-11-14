@@ -2,6 +2,7 @@ import { compareStrings, UnresolvedReason } from "@gitinside/schema";
 import type { ArchitectureGraph, EdgeKind, GraphNode, Layer } from "@gitinside/schema";
 import { HOST_GROUPS, hostGroupFor, OTHER_HOSTS, type HostGroup } from "../icons/hostGroups.js";
 import { REASON_TEXT } from "../nodes/describe.js";
+import { commonGeneratedPath } from "./generatedPaths.js";
 import {
   buildHierarchy,
   compareEntries,
@@ -35,6 +36,9 @@ import {
  *   entry moves out of its file into its group, so it's drawn there even when its file is open.
  *   Likewise a service drawing more than {@link MAX_ENTRY_BOXES} unresolved calls has them
  *   grouped by reason (`unresolvedGroups`).
+ * - **Imports not in the repo** (M10.3d4, M10-design B4): a service's unresolved imports (nodes
+ *   only `imports` edges reach) go in one box per reason at any count of 2 or more, "Not in the
+ *   repo · 84 imports" (`importsGroups`), named for the generated folder most of them point to.
  *
  * Not handled: a shared service nested below the top level (none are); an entry with no literal
  * segment left (`/:id`, `/*`) stays itself at its level (or in "Other"), and two parameters of
@@ -318,11 +322,102 @@ export function isUnresolvedGroup(node: Pick<GraphNode, "id">): boolean {
   return node.id.startsWith(UNRESOLVED_GROUP_PREFIX);
 }
 
-/** The reason an unresolved calls' group stands for, by its ID. */
+/** What an imports group's ID ends with before its reason: `…#imports/UNKNOWN_SYMBOL`. */
+const IMPORTS_MARK = "#imports/";
+
+/** The reason a group of unresolved calls or imports stands for, by its ID. */
 function unresolvedReasonOf(id: string): UnresolvedReason | undefined {
   if (!isUnresolvedGroup({ id })) return undefined;
-  const parsed = UnresolvedReason.safeParse(id.slice(id.lastIndexOf("#") + 1));
+  // `…#DYNAMIC_URL` for calls, `…#imports/UNKNOWN_SYMBOL` for imports.
+  const parsed = UnresolvedReason.safeParse(
+    id.slice(Math.max(id.lastIndexOf("#"), id.lastIndexOf("/")) + 1),
+  );
   return parsed.success ? parsed.data : undefined;
+}
+
+/** Whether a node is one of a service's groups of unresolved imports ("Not in the repo"). */
+export function isImportsGroup(node: Pick<GraphNode, "id">): boolean {
+  return isUnresolvedGroup(node) && node.id.includes(IMPORTS_MARK);
+}
+
+/**
+ * The unresolved nodes that only stand for imports: every edge into them is an `imports` edge,
+ * and there's one at least (documenso's `./+types/root`, a file React Router writes at build time).
+ */
+function importOnly(index: HierarchyIndex): Set<string> {
+  const kinds = new Map<string, boolean>();
+  for (const e of index.graph.edges) {
+    const target = index.byId.get(e.to);
+    if (target?.kind !== "unresolved") continue;
+    kinds.set(e.to, (kinds.get(e.to) ?? true) && e.kind === "imports");
+  }
+  return new Set([...kinds].filter(([, only]) => only).map(([id]) => id));
+}
+
+/** An unresolved node. */
+export type UnresolvedNode = Extract<GraphNode, { kind: "unresolved" }>;
+
+/**
+ * The imports inside an imports group (`isImportsGroup`), by file, then line, then column: what
+ * the panel lists. Empty for any other node.
+ */
+export function importsIn(index: HierarchyIndex, id: string): UnresolvedNode[] {
+  if (!isImportsGroup({ id })) return [];
+  const at = (n: UnresolvedNode) => n.source ?? { file: "", line: 0, column: 0 };
+  return (index.children.get(id) ?? [])
+    .filter((n): n is UnresolvedNode => n.kind === "unresolved")
+    .sort(
+      (a, b) =>
+        compareStrings(at(a).file, at(b).file) ||
+        at(a).line - at(b).line ||
+        at(a).column - at(b).column ||
+        compareStrings(a.id, b.id),
+    );
+}
+
+/** "Not in the repo · 84 imports"; another reason says itself ("Name chosen at runtime · 2 imports"). */
+function importsLabel(reason: UnresolvedReason, n: number): string {
+  const what = reason === "UNKNOWN_SYMBOL" ? "Not in the repo" : REASON_TEXT[reason];
+  return `${what} · ${n} import${n === 1 ? "" : "s"}`;
+}
+
+/**
+ * Each service's unresolved imports, grouped by reason (M10-design B4): a reason with 2 or more
+ * is one box, "Not in the repo · 84 imports", breaking down to each import; one stays itself.
+ * Unlike calls, they're grouped at any count: they are rarely the architecture, and the box's
+ * subtitle (`commonGeneratedPath`) says what most of them are. Nothing is hidden: each import is
+ * inside its box with its file and line, and the panel lists them all.
+ */
+function importsGroups(
+  index: HierarchyIndex,
+  imports: ReadonlySet<string>,
+): Map<string, EntryGroup[]> {
+  const out = new Map<string, EntryGroup[]>();
+  for (const service of index.graph.nodes) {
+    if (service.kind !== "service") continue;
+    const own = (index.children.get(service.id) ?? []).filter((n) => imports.has(n.id));
+    const groups = UnresolvedReason.options.flatMap((reason): EntryGroup[] => {
+      const members = own.filter((n) => n.kind === "unresolved" && n.reason === reason);
+      if (members.length < 2) return [];
+      const id = `${UNRESOLVED_GROUP_PREFIX}${service.id}${IMPORTS_MARK}${reason}`;
+      return [
+        {
+          node: {
+            id,
+            kind: "module",
+            label: importsLabel(reason, members.length),
+            parentId: service.id,
+            path: "",
+          },
+          prefix: "",
+          entries: [],
+          inside: members.map((m) => ({ ...m, parentId: id })),
+        },
+      ];
+    });
+    if (groups.length > 0) out.set(service.id, groups);
+  }
+  return out;
 }
 
 /**
@@ -331,12 +426,18 @@ function unresolvedReasonOf(id: string): UnresolvedReason | undefined {
  * 148, which made its broken-down frame 11,436px tall. A reason with 2 or more is one box, "URL
  * built at runtime · 84", breaking down to each call; a reason with 1 stays itself. Reasons in
  * the schema's order. Nothing is hidden: each call is inside its box, with its reason and line.
+ * Imports aren't calls (`importsGroups`): they neither count nor go in these boxes.
  */
-function unresolvedGroups(index: HierarchyIndex): Map<string, EntryGroup[]> {
+function unresolvedGroups(
+  index: HierarchyIndex,
+  imports: ReadonlySet<string>,
+): Map<string, EntryGroup[]> {
   const out = new Map<string, EntryGroup[]>();
   for (const service of index.graph.nodes) {
     if (service.kind !== "service") continue;
-    const calls = (index.children.get(service.id) ?? []).filter((n) => n.kind === "unresolved");
+    const calls = (index.children.get(service.id) ?? []).filter(
+      (n) => n.kind === "unresolved" && !imports.has(n.id),
+    );
     if (calls.length <= MAX_ENTRY_BOXES) continue;
     const groups = UnresolvedReason.options.flatMap((reason): EntryGroup[] => {
       const members = calls.filter((n) => n.kind === "unresolved" && n.reason === reason);
@@ -414,7 +515,12 @@ export function summarizeGraph(graph: ArchitectureGraph): ArchitectureGraph {
   const index = buildHierarchy(graph);
   const groups = [sharedGroup(index), ...hostGroups(index)].filter((g) => g !== undefined);
   const byService = new Map<string, GraphNode[]>();
-  for (const found of [entryGroups(index), unresolvedGroups(index)]) {
+  const imports = importOnly(index);
+  for (const found of [
+    entryGroups(index),
+    unresolvedGroups(index, imports),
+    importsGroups(index, imports),
+  ]) {
     for (const [service, list] of found) {
       byService.set(service, [...(byService.get(service) ?? []), ...list.flatMap(flatten)]);
     }
@@ -476,6 +582,18 @@ function usersOf(index: HierarchyIndex, id: string): string[] {
 export function groupLead(index: HierarchyIndex, node: GraphNode): string | undefined {
   if (!isGroup(node)) return undefined;
   const reason = unresolvedReasonOf(node.id);
+  if (reason && isImportsGroup(node)) {
+    const members = importsIn(index, node.id);
+    const what = `${members.length} imports`;
+    if (reason !== "UNKNOWN_SYMBOL") {
+      return `${what} the analysis couldn't link: ${REASON_TEXT[reason].toLowerCase()}.`;
+    }
+    const common = commonGeneratedPath(members.map((m) => m.expression));
+    const most = common
+      ? ` ${common.count === members.length ? "All" : `${common.count}`} point to ${common.path.shown}: ${common.path.note}.`
+      : "";
+    return `${what} of files the analysis couldn't find in the repo.${most}`;
+  }
   if (reason) {
     const n = index.children.get(node.id)?.length ?? 0;
     return `${n} calls the analysis couldn't link, all for one reason: ${REASON_TEXT[reason].toLowerCase()}.`;
@@ -512,6 +630,11 @@ export function groupNote(index: HierarchyIndex, node: GraphNode): string | unde
   const parent = node.parentId === null ? undefined : index.byId.get(node.parentId);
   if (!parent || !isGroup(parent)) return undefined;
   const reason = unresolvedReasonOf(parent.id);
+  if (reason && isImportsGroup(parent)) {
+    return reason === "UNKNOWN_SYMBOL"
+      ? "Grouped with the service's other imports not found in the repo."
+      : "Grouped with the service's other imports for this reason.";
+  }
   if (reason) return `Grouped with the service's other calls for this reason.`;
   const entries = entryGroupOf(parent.id);
   if (entries) {

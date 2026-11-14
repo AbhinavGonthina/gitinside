@@ -5,6 +5,7 @@ import { asServiceEntry, isShown, revealIn } from "../explorer/drill.js";
 import { holderIn, openForPath } from "../explorer/pathView.js";
 import { traceFrom } from "../explorer/trace.js";
 import { layoutInput } from "../layout/elk.js";
+import { closedSize, MAX_FRAME_WIDTH, viewNodeSize } from "../layout/size.js";
 import { cardLook } from "../nodes/cards.js";
 import { kindName } from "../nodes/describe.js";
 import { shopDemo } from "../shopDemo.testkit.js";
@@ -12,8 +13,10 @@ import { hiddenNodes, NO_FILTERS } from "./filters.js";
 import {
   groupLead,
   groupNote,
+  importsIn,
   isEntryGroup,
   isGroup,
+  isImportsGroup,
   isUnresolvedGroup,
   MAX_ENTRY_BOXES,
   summarizeGraph,
@@ -245,7 +248,9 @@ describe("unresolved calls grouped by reason (summarizeGraph)", () => {
       subtitle: { text: "Unresolved calls" },
       counts: [],
       glyph: "unresolved",
+      dotted: true,
     });
+    expect(isImportsGroup(node(id("DYNAMIC_URL")))).toBe(false);
   });
 
   it("leaves 12 as they are", () => {
@@ -271,6 +276,144 @@ describe("unresolved calls grouped by reason (summarizeGraph)", () => {
       (n) => n.exit,
     );
     expect(inGroup.map((n) => n.id)).toEqual(exits);
+  });
+});
+
+describe("imports not in the repo (summarizeGraph)", () => {
+  const FROM = "file:api/src/routes/orders.ts";
+  /** An unresolved import of `expression` from line `n` of the routes file. */
+  const missing = (n: number, expression: string, reason: UnresolvedReason = "UNKNOWN_SYMBOL") => {
+    const node: GraphNode = {
+      id: `unresolved:api/src/routes/orders.ts:${n}:1`,
+      kind: "unresolved",
+      label: expression,
+      parentId: API,
+      reason,
+      expression,
+      source: { file: "apps/api/src/routes/orders.ts", line: n, column: 1 },
+    };
+    const edge: GraphEdge = {
+      id: `imports:${FROM}->${node.id}`,
+      kind: "imports",
+      from: FROM,
+      to: node.id,
+      confidence: "unresolved",
+      reason,
+      sites: [{ file: "apps/api/src/routes/orders.ts", line: n, column: 1 }],
+    };
+    return { node, edge };
+  };
+  /** shop-demo plus `items`' nodes and edges. */
+  const withImports = (items: { node: GraphNode; edge: GraphEdge }[], extra: GraphNode[] = []) => {
+    const g = shop(extra);
+    return {
+      ...g,
+      nodes: [...g.nodes, ...items.map((i) => i.node)],
+      edges: [...g.edges, ...items.map((i) => i.edge)],
+    };
+  };
+  const imports = (reason = "UNKNOWN_SYMBOL") => `group:unresolved/${API}#imports/${reason}`;
+  // Three React Router types (one listed out of line order) and a missing alias.
+  const items = [
+    missing(9, "./+types/orders"),
+    missing(3, "./+types/root"),
+    missing(4, "./+types/home"),
+    missing(5, "~/lib/missing"),
+  ];
+
+  it("groups a service's 2 or more by reason at any count, named for most of them", () => {
+    const g = summarizeGraph(withImports(items));
+    expect(inside(g, API).filter((n) => isGroup({ id: n }))).toEqual([imports()]);
+    expect(label(g, imports())).toBe("Not in the repo · 4 imports");
+    const index = buildHierarchy(g);
+    const node = (n: string) => index.byId.get(n) as GraphNode;
+    expect(isImportsGroup(node(imports()))).toBe(true);
+    expect(isUnresolvedGroup(node(imports()))).toBe(true);
+    // The panel lists them all, by file and line.
+    expect(importsIn(index, imports()).map((n) => n.source?.line)).toEqual([3, 4, 5, 9]);
+    expect(importsIn(index, API)).toEqual([]);
+    expect(groupLead(index, node(imports()))).toBe(
+      "4 imports of files the analysis couldn't find in the repo. 3 point to ./+types/*: React Router types.",
+    );
+    expect(groupNote(index, node(items[0]?.node.id ?? ""))).toBe(
+      "Grouped with the service's other imports not found in the repo.",
+    );
+    expect(cardLook(index, node(imports()))).toEqual({
+      subtitle: { text: "React Router types", code: "./+types/*" },
+      counts: [],
+      glyph: "unresolved",
+      dotted: true,
+    });
+  });
+
+  it("says all when every import points there, and names nothing under half", () => {
+    const all = buildHierarchy(summarizeGraph(withImports(items.slice(0, 3))));
+    expect(groupLead(all, all.byId.get(imports()) as GraphNode)).toBe(
+      "3 imports of files the analysis couldn't find in the repo. All point to ./+types/*: React Router types.",
+    );
+    const few = [items[0], missing(6, "./a"), missing(7, "./b")].filter((i) => i !== undefined);
+    const index = buildHierarchy(summarizeGraph(withImports(few)));
+    const node = index.byId.get(imports()) as GraphNode;
+    expect(groupLead(index, node)).toBe(
+      "3 imports of files the analysis couldn't find in the repo.",
+    );
+    expect(cardLook(index, node)?.subtitle).toEqual({ text: "Unresolved imports" });
+  });
+
+  it("leaves one import itself, and keeps another reason's imports apart", () => {
+    const one = withImports(items.slice(3));
+    expect(summarizeGraph(one)).toBe(one);
+    const dynamic = [missing(11, "./a", "DYNAMIC_NAME"), missing(12, "./b", "DYNAMIC_NAME")];
+    const g = summarizeGraph(withImports([...items, ...dynamic]));
+    expect(inside(g, API).filter((n) => isGroup({ id: n }))).toEqual([
+      imports(),
+      imports("DYNAMIC_NAME"),
+    ]);
+    expect(label(g, imports("DYNAMIC_NAME"))).toBe("Name chosen at runtime · 2 imports");
+    const index = buildHierarchy(g);
+    expect(groupLead(index, index.byId.get(imports("DYNAMIC_NAME")) as GraphNode)).toBe(
+      "2 imports the analysis couldn't link: name chosen at runtime.",
+    );
+    expect(groupNote(index, index.byId.get(dynamic[0]?.node.id ?? "") as GraphNode)).toBe(
+      "Grouped with the service's other imports for this reason.",
+    );
+  });
+
+  it("doesn't count imports as calls, nor group a node a call also reaches", () => {
+    // 12 unresolved calls stay ungrouped beside the imports' box: imports don't push them past 12.
+    const calls = Array.from({ length: MAX_ENTRY_BOXES }, (_, i) =>
+      unresolved(i + 1, "DYNAMIC_URL"),
+    );
+    const g = summarizeGraph(withImports(items, calls));
+    expect(inside(g, API).filter((n) => isGroup({ id: n }))).toEqual([imports()]);
+    // A target reached by a call as well as an import is a call, not an import.
+    const both = items[1];
+    if (!both) throw new Error("no item");
+    const call: GraphEdge = { ...both.edge, id: `calls:${FROM}->${both.node.id}`, kind: "calls" };
+    const mixed = withImports(items);
+    const h = summarizeGraph({ ...mixed, edges: [...mixed.edges, call] });
+    expect(label(h, imports())).toBe("Not in the repo · 3 imports");
+    expect(h.nodes.find((n) => n.id === both.node.id)?.parentId).toBe(API);
+  });
+
+  it("sizes the closed box to fit its subtitle as well as its name", () => {
+    const prisma = [missing(1, "@x/prisma/generated/a"), missing(2, "@x/prisma/generated/b")];
+    const index = buildHierarchy(summarizeGraph(withImports(prisma)));
+    const box = buildView(index, [API]).byId.get(imports());
+    if (!box) throw new Error("no imports box");
+    const look = cardLook(index, box.node);
+    expect(look?.subtitle).toEqual({ text: "Prisma's generated code", code: "prisma/generated/*" });
+    // The shipped size measures the name alone; the card's subtitle is wider.
+    const named = closedSize(box.node, { layer: "backend" }).width;
+    const sized = viewNodeSize(index, box, undefined, true).width;
+    expect(sized).toBeGreaterThan(named);
+    expect(sized).toBeLessThanOrEqual(MAX_FRAME_WIDTH);
+  });
+
+  it("keeps the box in the broken-down service's last column", () => {
+    const index = buildHierarchy(summarizeGraph(withImports(items)));
+    const input = layoutInput(index, buildView(index, [API]), undefined, { bands: true });
+    expect(input.nodes.filter((n) => n.exit).map((n) => n.id)).toEqual([imports()]);
   });
 });
 

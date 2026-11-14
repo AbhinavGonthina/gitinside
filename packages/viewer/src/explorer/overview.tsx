@@ -7,6 +7,7 @@ import { InspectorSection } from "../chrome/Inspector.js";
 import { UiIcon, type UiIconName } from "../chrome/uiIcons.js";
 import { CONFIDENCE_TEXT, LINE_STYLE } from "../edges/describe.js";
 import { IconTile, NodeIcon, TILE_ICON_SIZE } from "../icons/Icon.js";
+import type { UnresolvedNode } from "../model/groups.js";
 import { layerOf, type HierarchyIndex } from "../model/hierarchy.js";
 import { nodeLabel } from "../nodes/describe.js";
 import {
@@ -221,6 +222,53 @@ export function AnalysisNotes({
         </>
       )}
     </section>
+  );
+}
+
+/**
+ * Every import in a "Not in the repo" group (M10-design B4), by file and line: what it asks for
+ * (a link that selects it) and where, a link to the line on GitHub. Nothing is left out, so a
+ * group of 84 lists 84; the box only groups them.
+ */
+export function ImportList({
+  imports,
+  repo,
+  onSelect,
+}: {
+  imports: readonly UnresolvedNode[];
+  repo: RepoRef;
+  onSelect?: ((id: string) => void) | undefined;
+}) {
+  if (imports.length === 0) return null;
+  return (
+    <InspectorSection title="Imports" count={imports.length}>
+      <ul className="gi-imports">
+        {imports.map((n) => {
+          const where = n.source && `${n.source.file}:${n.source.line}`;
+          const href = n.source && githubLineUrl(repo, n.source.file, n.source.line);
+          return (
+            <li key={n.id}>
+              <button type="button" className="gi-factgrid__link" onClick={() => onSelect?.(n.id)}>
+                <code>{n.expression}</code>
+              </button>
+              {where &&
+                (href ? (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    title={`Open ${where} on GitHub`}
+                  >
+                    <code>{where}</code>
+                  </a>
+                ) : (
+                  <code>{where}</code>
+                ))}
+            </li>
+          );
+        })}
+      </ul>
+    </InspectorSection>
   );
 }
 

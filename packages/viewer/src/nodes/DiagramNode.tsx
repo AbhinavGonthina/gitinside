@@ -217,6 +217,7 @@ export function DiagramNode({
     ...(tier === "frame" ? { "data-expanded": String(open) } : {}),
     ...(tint ? { "data-layer": tint } : {}),
     ...(wrap ? { "data-wrap": "" } : {}),
+    ...(card?.dotted && !open ? { "data-dotted": "" } : {}),
     ...(hovered ? { "data-hover": "" } : {}),
     ...(selected ? { "data-selected": "" } : {}),
     ...(emphasis ? { "data-emphasis": emphasis } : {}),

@@ -1631,6 +1631,33 @@ a.gi-topbar__home:hover {
   color: var(--text);
 }
 
+/* A "Not in the repo" group's imports (M10.3d4): what each asks for, then where, muted. */
+.gi-imports {
+  display: grid;
+  gap: var(--space-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--font-size-12);
+}
+
+.gi-imports li {
+  display: grid;
+  gap: 2px;
+}
+
+.gi-imports code {
+  overflow-wrap: anywhere;
+}
+
+.gi-imports a code {
+  color: var(--text-muted);
+}
+
+.gi-imports a:hover code {
+  color: var(--text);
+}
+
 .gi-notes {
   margin-top: auto;
 }
