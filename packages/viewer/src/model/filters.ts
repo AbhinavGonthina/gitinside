@@ -161,6 +161,15 @@ export function activeFilterCount(filters: Filters): number {
 }
 
 /**
+ * How many filters the reader set on top of the defaults (the prototype's bar, M10-design A7:
+ * "a count only when the reader set one"): {@link activeFilterCount} without "Hide tests and
+ * config", which is on by default. Turning that off shows more, so it isn't counted either.
+ */
+export function readerFilterCount(filters: Filters): number {
+  return activeFilterCount({ ...filters, hideTestsAndConfig: false });
+}
+
+/**
  * A key for the filters' effect on the canvas: empty when they hide nothing
  * structural, else their canonical JSON. Equal filters give equal keys
  * whatever order they were set in, so the layout cache can share layouts.

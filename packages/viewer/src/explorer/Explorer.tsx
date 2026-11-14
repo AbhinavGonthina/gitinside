@@ -16,7 +16,7 @@ import { FiltersPopover } from "../chrome/FiltersPopover.js";
 import { ShareMenu } from "../chrome/ShareMenu.js";
 import { viewExport, type ViewExport } from "../export/files.js";
 import { Breadcrumbs, Legend, Minimap, ZoomControls } from "../chrome/overlays.js";
-import { DIFF_VIEWS, TopBar, type DiffView } from "../chrome/TopBar.js";
+import { DIFF_VIEWS, TopBar, type CommitStatus, type DiffView } from "../chrome/TopBar.js";
 import { buildDiffOverlay, DiffMismatchError, diffMarks, versionGraph } from "../model/diff.js";
 import {
   createLayoutCache,
@@ -31,6 +31,7 @@ import {
   filtersShowing,
   hiddenNodes,
   NO_FILTERS,
+  readerFilterCount,
   type Filters,
 } from "../model/filters.js";
 import { summarizeGraph } from "../model/groups.js";
@@ -187,9 +188,19 @@ export interface ExplorerProps {
    * `/prototype` page until Abhinav approves it. So far: the top level in bands, its shared
    * packages and outside hosts grouped, its "uses code" lines quiet behind the boxes, a first
    * view fitted at 70% or more, else on the hub at 80%, and cards whose names wrap rather than
-   * end in "…", with a count row and role on every service and logos on a host group's tile.
+   * end in "…", with a count row and role on every service and logos on a host group's tile;
+   * and one bar for the whole page, with the drill-down path in it (`home`, `commitStatus`,
+   * `topBarEnd`).
    */
   design?: ExplorerDesign | undefined;
+  /**
+   * For `design="prototype"`'s one page bar (M10-design A7): where the mark links, the commit
+   * chip's status, and the page's own items at the bar's end (theme, sign-in). The drill-down
+   * path moves into the bar too. Ignored by the shipped design.
+   */
+  home?: string | undefined;
+  commitStatus?: CommitStatus | undefined;
+  topBarEnd?: ReactNode;
 }
 
 /** The explorer's designs: the shipped one, and the M10 redesign under review (M10.3). */
@@ -293,6 +304,9 @@ export function Explorer({
   diff: compare,
   initialVersion = "overlay",
   design = "current",
+  home,
+  commitStatus,
+  topBarEnd,
 }: ExplorerProps) {
   // Diff mode (M6.9b): both versions in one graph, drawn with their states.
   const compareBase = compare?.base;
@@ -366,9 +380,10 @@ export function Explorer({
   /** Every node the filters leave off the canvas. */
   const filtered = useMemo(() => hiddenNodes(index, filters), [index, filters]);
   const options = useMemo(() => filterOptions(index), [index]);
-  const filterCount =
-    activeFilterCount(filters) +
-    [...hiddenKinds].filter((k) => !DEFAULT_HIDDEN_KINDS.has(k)).length;
+  const kindsOff = [...hiddenKinds].filter((k) => !DEFAULT_HIDDEN_KINDS.has(k)).length;
+  const filterCount = activeFilterCount(filters) + kindsOff;
+  // The prototype's bar counts only what the reader set (M10-design A7), not the default hiding.
+  const barFilterCount = prototype ? readerFilterCount(filters) + kindsOff : filterCount;
   /** Connections the filters take off, beyond the kinds hidden by default. */
   const linesOff = useMemo(() => {
     const confidence = new Set(filters.confidence);
@@ -1200,6 +1215,12 @@ export function Explorer({
     };
   };
 
+  // The prototype's one page bar (M10-design A7): the page's items, and the path in the bar.
+  const pageBar = prototype
+    ? { variant: "page" as const, home, status: commitStatus, end: topBarEnd }
+    : {};
+  const crumbsInBar = prototype && topBar;
+
   const trailEnd = deepestOpen(view, drill.expansion);
   const crumbs = [
     { id: index.root.id, label: index.root.label, kind: index.root.kind },
@@ -1261,7 +1282,7 @@ export function Explorer({
   if (compared?.mismatch !== undefined) {
     return (
       <div ref={rootRef} className="gi-explorer" data-bare={topBar ? undefined : ""} data-empty="">
-        {topBar && <TopBar repo={repo} actions={false} />}
+        {topBar && <TopBar repo={repo} actions={false} {...pageBar} />}
         <div className="gi-explorer__main">
           <div className="gi-explorer__canvas" role="region" aria-label="Diagram">
             <EmptyState tone="error" title="This comparison doesn't match these commits">
@@ -1281,7 +1302,7 @@ export function Explorer({
   if (!hasApp) {
     return (
       <div ref={rootRef} className="gi-explorer" data-bare={topBar ? undefined : ""} data-empty="">
-        {topBar && <TopBar repo={repo} actions={false} />}
+        {topBar && <TopBar repo={repo} actions={false} {...pageBar} />}
         <div className="gi-explorer__main">
           <div className="gi-explorer__canvas" role="region" aria-label="Diagram">
             <EmptyState title="We couldn't find a TypeScript or JavaScript app here">
@@ -1319,13 +1340,16 @@ export function Explorer({
           repo={repo}
           mac={mac}
           onSearch={toggleSearch}
-          filterCount={filterCount}
+          filterCount={barFilterCount}
           filtersOpen={filtering}
           onFilters={() => toggleFilters("top")}
           share={<ShareMenu link={() => linkTo(linkKey)} exports={() => exported} />}
           diff={overlay ? { value: version, onChange: showVersion } : undefined}
           tracing={tracing}
           onTrace={toggleTrace}
+          {...pageBar}
+          crumbs={crumbsInBar ? crumbs : undefined}
+          onCrumb={goTo}
         />
       )}
       <div className="gi-explorer__main">
@@ -1463,7 +1487,7 @@ export function Explorer({
                 </button>
               </StatusChip>
             )}
-            <Breadcrumbs items={crumbs} onSelect={goTo} />
+            {!crumbsInBar && <Breadcrumbs items={crumbs} onSelect={goTo} />}
           </div>
           <div
             className="gi-explorer__pin"

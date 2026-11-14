@@ -28,4 +28,18 @@ describe("ThemeSwitch", () => {
     expect(document.documentElement.dataset["theme"]).toBe("dark");
     expect(document.cookie).toContain("gi-theme=dark");
   });
+
+  it("compact, is one icon button named for the theme it switches to (M10.3c1)", () => {
+    document.documentElement.dataset["theme"] = "dark";
+    render(<ThemeSwitch initial="dark" compact />);
+    expect(screen.queryByRole("radiogroup")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Switch to the light theme" }));
+    expect(document.documentElement.dataset["theme"]).toBe("light");
+    expect(document.cookie).toContain("gi-theme=light");
+    const back = screen.getByRole("button", { name: "Switch to the dark theme" });
+    expect(back.title).toBe("Switch to the dark theme");
+    fireEvent.click(back);
+    expect(document.documentElement.dataset["theme"]).toBe("dark");
+    expect(document.cookie).toContain("gi-theme=dark");
+  });
 });

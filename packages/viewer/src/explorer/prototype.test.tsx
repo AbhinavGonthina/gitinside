@@ -162,6 +162,77 @@ describe("Explorer's prototype design (M10.3a)", { timeout: 30_000 }, () => {
     view.unmount();
   });
 
+  it("draws one page bar with the path, the commit's status, and the page's items (M10.3c1)", async () => {
+    const view = render(
+      <Explorer
+        graph={{
+          ...graph,
+          repo: { ...graph.repo, sha: "a1b2c3f4d5e6f708192a3b4c5d6e7f8091a2b3c4" },
+        }}
+        design="prototype"
+        home="/"
+        commitStatus={{ state: "current", text: "Analyzed at this commit" }}
+        topBarEnd={<button type="button">Sign in</button>}
+      />,
+    );
+    const { container } = view;
+    await waitFor(
+      () => expect(container.querySelector(".gi-drill")?.getAttribute("data-layout")).toBe("done"),
+      { timeout: 10_000 },
+    );
+    const bar = container.querySelector<HTMLElement>(".gi-topbar");
+    expect(bar?.dataset.variant).toBe("page");
+    expect(container.querySelectorAll(".gi-topbar")).toHaveLength(1);
+    expect(bar?.querySelector('a[aria-label="GitInside home"]')?.getAttribute("href")).toBe("/");
+    expect(bar?.querySelector(".gi-commit")?.getAttribute("data-status")).toBe("current");
+    expect(bar?.querySelector(".gi-topbar__end")?.lastElementChild?.textContent).toBe("Sign in");
+    // No count for the default hiding of tests and config: only what the reader sets.
+    expect(bar?.querySelector(".gi-topbar__filters")?.textContent).toBe("Filters");
+    // The path is in the bar, not on the canvas.
+    const crumbs = () => bar?.querySelector('nav[aria-label="Drill-down path"]');
+    expect(
+      container.querySelector('.gi-explorer__canvas nav[aria-label="Drill-down path"]'),
+    ).toBeNull();
+    expect(crumbs()?.querySelector('[aria-current="location"]')).not.toBeNull();
+    const web = [...container.querySelectorAll<HTMLElement>(".gi-drill__node")]
+      .find((n) => n.dataset.nodeId === "service:web/")
+      ?.querySelector<HTMLElement>(":scope > .gi-node");
+    await act(() => fireEvent.keyDown(web as HTMLElement, { key: "Enter" }));
+    await waitFor(
+      () =>
+        expect(crumbs()?.querySelector('[aria-current="location"]')?.textContent).toBe("@shop/web"),
+      { timeout: 10_000 },
+    );
+    // A level above goes back up to it.
+    const up = crumbs()?.querySelector<HTMLButtonElement>(".gi-breadcrumbs__link");
+    await act(() => fireEvent.click(up as HTMLButtonElement));
+    await waitFor(() => expect(crumbs()?.querySelectorAll("li")).toHaveLength(1), {
+      timeout: 10_000,
+    });
+    view.unmount();
+  });
+
+  it("keeps the shipped bar, and the path on the canvas, in the shipped design", async () => {
+    const view = render(
+      <Explorer graph={graph} home="/" topBarEnd={<button type="button">Sign in</button>} />,
+    );
+    const { container } = view;
+    await waitFor(
+      () => expect(container.querySelector(".gi-drill")?.getAttribute("data-layout")).toBe("done"),
+      { timeout: 10_000 },
+    );
+    const bar = container.querySelector<HTMLElement>(".gi-topbar");
+    expect(bar?.dataset.variant).toBeUndefined();
+    expect(bar?.querySelector(".gi-wordmark")).not.toBeNull();
+    expect(bar?.textContent).not.toContain("Sign in");
+    expect(bar?.querySelector("nav")).toBeNull();
+    expect(bar?.querySelector(".gi-topbar__filters")?.textContent).toBe("Filters1");
+    expect(
+      container.querySelector('.gi-explorer__canvas nav[aria-label="Drill-down path"]'),
+    ).not.toBeNull();
+    view.unmount();
+  });
+
   it("draws no bands in the shipped design", async () => {
     for (const design of [undefined, "current"] as const) {
       const { bands, view } = await drawn(design);

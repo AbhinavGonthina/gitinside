@@ -68,6 +68,11 @@ code {
   padding: 0 var(--space-24);
 }
 
+/* A page that draws one bar of its own (the prototype, M10-design A7) has no site header. */
+body:has(> [data-own-header]) > .site-header {
+  display: none;
+}
+
 .site-header__home {
   display: inline-flex;
   align-items: center;

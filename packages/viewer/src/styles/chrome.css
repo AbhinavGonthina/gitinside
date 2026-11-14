@@ -407,6 +407,144 @@ a.gi-button {
   white-space: nowrap;
 }
 
+/*
+ * The page bar (M10-design A7, `variant="page"`): one row for the whole page. The search field
+ * gives way first, and becomes an icon at 1100px and less; then the path (its upper levels before
+ * the current one); Trace keeps its label down to 880px. Its own width decides, not the
+ * window's, so the bar works wherever a page puts it.
+ */
+.gi-topbar[data-variant="page"] {
+  display: flex;
+  container-type: inline-size;
+  gap: var(--space-12);
+}
+
+.gi-topbar[data-variant="page"] > .gi-topbar__start {
+  flex: 1 1 auto;
+  gap: var(--space-8);
+}
+
+/* Gives way first (down to 180px), before the path shrinks. */
+.gi-topbar[data-variant="page"] > .gi-search-field {
+  flex: 0 1000 320px;
+  min-width: 180px;
+}
+
+.gi-topbar[data-variant="page"] > .gi-topbar__end {
+  flex: none;
+}
+
+.gi-topbar[data-variant="page"] .gi-topbar__trace {
+  margin: 0 var(--space-8) 0 0;
+}
+
+.gi-topbar__home {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-chip);
+  color: var(--text);
+}
+
+a.gi-topbar__home:hover {
+  background: var(--surface-2);
+}
+
+.gi-topbar[data-variant="page"] .gi-repo {
+  flex: none;
+  gap: var(--space-8);
+}
+
+.gi-topbar[data-variant="page"] > .gi-topbar__start > .gi-ui-icon {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.gi-commit {
+  text-decoration: none;
+  transition: border-color var(--duration-fast) var(--ease-standard);
+}
+
+.gi-commit:hover {
+  border-color: color-mix(in srgb, var(--text-muted) 45%, var(--border));
+}
+
+/* The status dot: green while this is the commit asked for, amber while a newer one is analyzed. */
+.gi-commit[data-status] {
+  --gi-layer: var(--diff-added);
+}
+
+.gi-commit[data-status="analyzing"] {
+  --gi-layer: var(--diff-changed);
+}
+
+/* The path, in the bar rather than on the canvas: no overlay card around it. */
+.gi-topbar__crumbs.gi-breadcrumbs {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+
+/* The levels above the current one give way first; the current one shrinks last. */
+.gi-topbar__crumbs li {
+  flex-shrink: 100;
+  min-width: 0;
+}
+
+.gi-topbar__crumbs li:last-child {
+  flex-shrink: 1;
+}
+
+/* The chevrons keep their size. */
+.gi-topbar__crumbs li > .gi-ui-icon {
+  flex: none;
+}
+
+.gi-topbar__crumbs :is(.gi-breadcrumbs__link, .gi-breadcrumbs__current) {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  line-height: 24px;
+  text-overflow: ellipsis;
+}
+
+@container (max-width: 1100px) {
+  .gi-topbar[data-variant="page"] > .gi-search-field {
+    flex: none;
+    justify-content: center;
+    width: 32px;
+    min-width: 0;
+    padding: 0;
+  }
+
+  .gi-topbar[data-variant="page"] > .gi-search-field > :not(.gi-ui-icon) {
+    display: none;
+  }
+}
+
+/* Trace an icon, its name still its accessible name (clipped, not removed) and its tooltip. */
+@container (max-width: 880px) {
+  .gi-topbar[data-variant="page"] .gi-topbar__trace .gi-button__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .gi-topbar[data-variant="page"] .gi-topbar__trace .gi-kbd-group {
+    display: none;
+  }
+}
+
 /* Canvas overlays: breadcrumbs, zoom, minimap, status chips */
 
 .gi-overlay {

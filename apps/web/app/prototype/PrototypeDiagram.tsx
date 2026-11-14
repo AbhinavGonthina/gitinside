@@ -10,8 +10,9 @@ import {
   Explorer,
   type ExplorerState,
   summarizeGraph,
+  TopBar,
 } from "@gitinside/viewer";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { loadGraph, type GraphLoad } from "../../lib/repoStatus";
 
 /** Props for {@link PrototypeDiagram}: one of `PROTOTYPE_REPOS`. */
@@ -21,6 +22,13 @@ export interface PrototypeDiagramProps {
   sha: string;
   /** `/api/prototype/graph/…` of the repo. */
   graphUrl: string;
+  /** The page's own items at the end of the one bar (theme switch, sign-in). */
+  barEnd?: ReactNode;
+}
+
+/** The commit chip's tooltip: the prototype draws each repo at a fixed commit. */
+function pinnedText(sha: string): string {
+  return `Commit ${sha}, pinned for the design review`;
 }
 
 /** The prototype's layout worker (`layoutWorker.ts`), started only in the browser. */
@@ -43,7 +51,20 @@ function prototypeQuery(owner: string, repo: string, state: string): string {
  * repo page is untouched. The state goes in the address bar after `repo=`, as on the repo page, so
  * a click-through can be linked.
  */
-export function PrototypeDiagram({ owner, repo, sha, graphUrl }: PrototypeDiagramProps) {
+export function PrototypeDiagram({ owner, repo, sha, graphUrl, barEnd }: PrototypeDiagramProps) {
+  const status = { state: "current", text: pinnedText(sha) } as const;
+  // Until the explorer draws (loading, or a load that failed), the same bar without actions, so
+  // the page never has a second header or a jump in height.
+  const bar = (
+    <TopBar
+      repo={{ owner, name: repo, sha }}
+      actions={false}
+      variant="page"
+      home="/"
+      status={status}
+      end={barEnd}
+    />
+  );
   const [load, setLoad] = useState<GraphLoad>();
   const [attempt, setAttempt] = useState(0);
   const loadSource = useMemo(
@@ -77,12 +98,14 @@ export function PrototypeDiagram({ owner, repo, sha, graphUrl }: PrototypeDiagra
   };
 
   return (
-    <main className="diagram-page">
-      {/* The explorer's own top bar names the repo and commit, so the page adds no second bar
-          (M10-design A7); the heading is for screen readers. */}
+    // `data-own-header`: the explorer's bar is the page's one bar, so the site header isn't drawn
+    // (globals.css, M10-design A7).
+    <main className="diagram-page" data-own-header="">
+      {/* The heading is for screen readers. */}
       <h1 className="visually-hidden">
         Design prototype: {owner} / {repo}
       </h1>
+      {!(load?.ok && linked) && bar}
       <div className="diagram-page__canvas">
         {load === undefined ? (
           <p className="diagram-page__state" role="status">
@@ -93,6 +116,9 @@ export function PrototypeDiagram({ owner, repo, sha, graphUrl }: PrototypeDiagra
             <Explorer
               graph={load.graph}
               design="prototype"
+              home="/"
+              commitStatus={status}
+              topBarEnd={barEnd}
               layoutWorker={layoutWorker}
               loadSource={loadSource}
               initialOpen={linked.state.open}
