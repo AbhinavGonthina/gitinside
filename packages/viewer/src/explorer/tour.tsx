@@ -6,13 +6,15 @@ import { systemSentence } from "./brief.js";
 import { impactCountText, impactOf } from "./impact.js";
 import type { Suggestion } from "./suggest.js";
 import { traceName } from "./trace.js";
+import type { TourBreak } from "./tourBreak.js";
 
 /**
  * The prototype's guided tour (M10.3f2a, M10-design §3.1): a few steps, each doing its action on
  * the real diagram, read from a card docked at the top of the inspector. The steps and their
  * words come from the graph, so every count is the repo's own. A step whose action the repo
- * can't show (no hub, nothing to trace, no model) is left out rather than faked. Not built yet:
- * §3.1's step 4, a broken connection through the diff overlay (M10.3f2b).
+ * can't show (no hub, nothing to trace, no route another service calls, no model) is left out
+ * rather than faked. The broken connection (M10.3f2b) is the one step on made-up data: a canned
+ * PR (`tourBreak`), which its words call an example.
  */
 
 /** A tour step's action on the diagram. */
@@ -20,6 +22,8 @@ export type TourAction =
   | { kind: "system" }
   | { kind: "breakdown"; hub: string }
   | { kind: "trace"; start: string }
+  /** The diff overlay of the canned PR removing `route` (`TourContext.broken`). */
+  | { kind: "broken"; route: string }
   | { kind: "impact"; target: string };
 
 /** One step of the tour: what it does, and what the card says. */
@@ -33,10 +37,14 @@ export interface TourStep {
 /** How many hops the trace step plays (M10-design §3.1: "its first three hops"). */
 export const TOUR_HOPS = 3;
 
-/** What the steps need from the explorer: the system level's hub and the first suggested trace. */
+/**
+ * What the steps need from the explorer: the system level's hub, the first suggested trace, and
+ * the canned PR's break.
+ */
 export interface TourContext {
   hub?: GraphNode | undefined;
   suggestion?: Suggestion | undefined;
+  broken?: TourBreak | undefined;
 }
 
 function plural(n: number, one: string, many = `${one}s`): string {
@@ -95,6 +103,14 @@ export function tourSteps(index: HierarchyIndex, context: TourContext): TourStep
       action: { kind: "trace", start: suggestion.node.id },
       title: "Trace a request",
       text: `This is the path ${traceName(suggestion.node)} takes: ${suggestion.shape}. Press T anytime to trace one yourself.`,
+    });
+  }
+  const { broken } = context;
+  if (broken) {
+    steps.push({
+      action: { kind: "broken", route: broken.route.id },
+      title: "A broken connection",
+      text: `An example PR removes ${broken.route.label}, which ${traceName(broken.caller)} still calls. The diff draws that line broken: this is what the PR bot flags.`,
     });
   }
   const target = tourImpactTarget(index);

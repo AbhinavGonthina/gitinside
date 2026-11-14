@@ -288,6 +288,29 @@ export function buildDiffOverlay(
 }
 
 /**
+ * The overlay drawn over `graph`, the same graph with nodes added above its own (the prototype's
+ * groups, `summarizeGraph`, M10.3f2b): each version holds the groups above its nodes, and the
+ * changes below a node count through them, so a closed group says what changed inside it.
+ */
+export function regroupOverlay(overlay: DiffOverlay, graph: ArchitectureGraph): DiffOverlay {
+  const all = new Map(graph.nodes.map((n) => [n.id, n]));
+  const withAncestors = (ids: ReadonlySet<string>): Set<string> => {
+    const out = new Set(ids);
+    for (const id of ids) for (const a of ancestorsOf(all, id)) out.add(a.id);
+    return out;
+  };
+  return {
+    ...overlay,
+    graph,
+    nodesIn: {
+      base: withAncestors(overlay.nodesIn.base),
+      head: withAncestors(overlay.nodesIn.head),
+    },
+    inside: countInside(all, overlay.nodes, overlay.broken),
+  };
+}
+
+/**
  * One version's graph on the overlay's IDs (M6.9c): what Base or Head draws,
  * so a trace, the trace picker, and the palette there follow only that
  * version's nodes and connections. A tree, like `nodesIn`. In base, every

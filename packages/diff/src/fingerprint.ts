@@ -85,8 +85,10 @@ export function changedFields(base: object, head: object): string[] {
   const b = head as Record<string, unknown>;
   const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
   keys.delete("id");
+  // The same value (a string, or one object) is the same JSON: most fields of most records, so
+  // only the rest are serialized (M10.3f2b: 0.4 s of a big repo's diff in `canonicalJson`).
   return [...keys]
-    .filter((key) => canonicalJson(a[key]) !== canonicalJson(b[key]))
+    .filter((key) => !Object.is(a[key], b[key]) && canonicalJson(a[key]) !== canonicalJson(b[key]))
     .sort(compareStrings);
 }
 

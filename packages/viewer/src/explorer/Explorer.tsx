@@ -25,7 +25,13 @@ import {
   type MinimapNode,
 } from "../chrome/overlays.js";
 import { DIFF_VIEWS, TopBar, type CommitStatus, type DiffView } from "../chrome/TopBar.js";
-import { buildDiffOverlay, DiffMismatchError, diffMarks, versionGraph } from "../model/diff.js";
+import {
+  buildDiffOverlay,
+  DiffMismatchError,
+  diffMarks,
+  regroupOverlay,
+  versionGraph,
+} from "../model/diff.js";
 import {
   createLayoutCache,
   createLayoutEngine,
@@ -124,6 +130,7 @@ import {
 import { useSourceAccess, type SourceLoader } from "./sources.js";
 import { openForPath } from "./pathView.js";
 import { TOUR_DONE, TOUR_HOPS, TourCard, tourSteps, type TourStep } from "./tour.js";
+import { tourBreak, type TourBreak } from "./tourBreak.js";
 import {
   canTraceFrom,
   hasHops,
@@ -397,18 +404,51 @@ export function Explorer({
   startTour = false,
   tourField,
 }: ExplorerProps) {
+  // The prototype bands the system level, quiets its "uses code" lines, and draws its own cards
+  // (M10.3a, M10.3b2, M10.3b3).
+  const prototype = design === "prototype";
+  // The landing page's hero (M10.3e1): the canvas alone, its trace looping.
+  const heroOn = prototype && hero;
+  // The prototype's guided tour (M10.3f2a, M10-design §3.1): the step shown (its steps' length
+  // is the Done card), or null. Its steps, and the canned PR its broken-connection step shows,
+  // are worked out once when it starts (the impact step asks about every model), so they hold
+  // while that step's diff mode redraws the graph.
+  const [tourAt, setTourAt] = useState<number | null>(null);
+  const [tourPlan, setTourPlan] = useState<{
+    steps: TourStep[];
+    broken: TourBreak | undefined;
+  } | null>(null);
+  const tour = prototype && !heroOn && tourAt !== null ? tourPlan?.steps : undefined;
+  const touring = tour !== undefined;
+  // The broken-connection step (M10.3f2b): diff mode on the canned PR while it's shown, the repo
+  // as base and the PR as head; any other step, Skip, or Done leaves it.
+  const tourDiff =
+    tour && tourAt !== null && tour[tourAt]?.action.kind === "broken"
+      ? tourPlan?.broken
+      : undefined;
+
   // Diff mode (M6.9b): both versions in one graph, drawn with their states.
   const compareBase = compare?.base;
   const compareDiff = compare?.diff;
+  /** What diff mode's Base is: the given base, or the repo itself under the tour's canned PR. */
+  const diffBase = tourDiff ? given : compareBase;
+  const shownDiff = tourDiff ? tourDiff.diff : compareDiff;
   const compared = useMemo(() => {
-    if (!compareBase || !compareDiff) return undefined;
+    const pair = tourDiff
+      ? { base: given, head: tourDiff.head, diff: tourDiff.diff }
+      : compareBase && compareDiff && { base: compareBase, head: given, diff: compareDiff };
+    if (!pair) return undefined;
     try {
-      return { overlay: buildDiffOverlay(compareBase, given, compareDiff) };
+      const built = buildDiffOverlay(pair.base, pair.head, pair.diff);
+      // The prototype's groups hold in diff mode too (its system level summarizes, M10.3b1).
+      return {
+        overlay: prototype ? regroupOverlay(built, summarizeGraph(built.graph)) : built,
+      };
     } catch (e) {
       if (e instanceof DiffMismatchError) return { mismatch: e.message };
       throw e;
     }
-  }, [compareBase, compareDiff, given]);
+  }, [tourDiff, compareBase, compareDiff, given, prototype]);
   const overlay = compared?.overlay;
   const marks = useMemo(() => overlay && diffMarks(overlay), [overlay]);
   const [version, setVersion] = useState<DiffView>(() => {
@@ -448,11 +488,6 @@ export function Explorer({
     setEngine(made);
     return () => made.dispose();
   }, [layoutWorker]);
-  // The prototype bands the system level, quiets its "uses code" lines, and draws its own cards
-  // (M10.3a, M10.3b2, M10.3b3).
-  const prototype = design === "prototype";
-  // The landing page's hero (M10.3e1): the canvas alone, its trace looping.
-  const heroOn = prototype && hero;
   const bar = topBar && !heroOn;
   const cache = useMemo(
     () =>
@@ -566,15 +601,6 @@ export function Explorer({
     () => (prototype ? suggestTraces(shownIndex) : undefined),
     [prototype, shownIndex],
   );
-  // The prototype's guided tour (M10.3f2a, M10-design §3.1): the step shown (its steps' length
-  // is the Done card), or null. Its steps are worked out when it starts: the impact step asks
-  // about every model.
-  const [tourAt, setTourAt] = useState<number | null>(null);
-  const touring = prototype && !heroOn && tourAt !== null;
-  const tour = useMemo(
-    () => (touring ? tourSteps(shownIndex, { hub, suggestion: suggested?.[0] }) : undefined),
-    [touring, shownIndex, hub, suggested],
-  );
   /** Each step asks for its card's heading to take focus, once its render is in. */
   const [tourAsked, setTourAsked] = useState(0);
   // While touring, the card holds focus and the live region reads the step: the trace's and
@@ -631,15 +657,15 @@ export function Explorer({
   );
   const exported = useMemo(() => {
     if (!shown) return undefined;
-    if (!overlay || !compareBase) return viewExport(index, shown);
+    if (!overlay || !diffBase) return viewExport(index, shown);
     const drawn = version === "base" ? "base" : "head";
     return viewExport(index, shown, {
       version: drawn,
       index: exportIndex,
-      repo: drawn === "base" ? compareBase.repo : graph.repo,
+      repo: drawn === "base" ? diffBase.repo : graph.repo,
       note: EXPORT_NOTES[version],
     });
-  }, [index, shown, overlay, compareBase, version, exportIndex, graph]);
+  }, [index, shown, overlay, diffBase, version, exportIndex, graph]);
   useEffect(() => {
     if (exportRef) exportRef.current = exported;
   }, [exportRef, exported]);
@@ -1006,6 +1032,27 @@ export function Explorer({
     framedImpact.current = impactTarget;
     const closed = impactBoxes.lit.filter((id) => !view.byId.get(id)?.open);
     const rect = boxesRect(shown.layout.boxes, closed);
+    if (!rect) return;
+    const { camera: now, canvas: room } = live.current;
+    const next = frameHop(now, rect, room, minimapRect(), hintBand);
+    if (next !== now) moveCamera(next, "layout");
+  });
+
+  // The tour's broken connection (M10.3f2b) frames the broken line's two ends, clear of the
+  // minimap, once per time the step is shown and after its layout is drawn: the hub-centered first
+  // view left anything-llm's broken line and its pill off the canvas at 1280 × 800.
+  const framedBreak = useRef<object | null>(null);
+  useEffect(() => {
+    if (!tourDiff || !overlay) {
+      framedBreak.current = null;
+      return;
+    }
+    if (framedBreak.current === overlay || !settled || shown?.view !== view) return;
+    framedBreak.current = overlay;
+    const ends = [tourDiff.caller.id, tourDiff.route.id].flatMap(
+      (id) => drawnAs(index, view, filtered, id) ?? [],
+    );
+    const rect = boxesRect(shown.layout.boxes, ends);
     if (!rect) return;
     const { camera: now, canvas: room } = live.current;
     const next = frameHop(now, rect, room, minimapRect(), hintBand);
@@ -1420,7 +1467,8 @@ export function Explorer({
    * redo a step the reader wandered off from. Past the last step, the Done card on the first view.
    */
   function goTour(at: number) {
-    const list = tour ?? tourSteps(shownIndex, { hub, suggestion: suggested?.[0] });
+    const plan = tourPlan ?? planTour();
+    const list = plan.steps;
     const next = Math.max(0, Math.min(at, list.length));
     setSearching(false);
     setPicking(false);
@@ -1452,7 +1500,12 @@ export function Explorer({
     } else if (action?.kind === "impact") {
       drill.set([]);
       startImpact(action.target);
-    } else drill.set([]);
+    } else {
+      // The system, the broken connection (diff mode comes with the step: `tourDiff`), and Done.
+      drill.set([]);
+      setVersion("overlay");
+    }
+    if (plan !== tourPlan) setTourPlan(plan);
     setTourAt(next);
     setTourAsked((n) => n + 1);
     setAnnouncement(
@@ -1462,11 +1515,28 @@ export function Explorer({
     );
   }
 
-  /** Skip ✕, Esc in the card, or "Explore on your own": the tour goes, the diagram as it is. */
+  /**
+   * The tour's steps for the repo, and its canned PR: the route it removes is the first one on
+   * the suggested trace's path when it can be, so the PR breaks the request step 3 traced.
+   */
+  function planTour(): { steps: TourStep[]; broken: TourBreak | undefined } {
+    const suggestion = suggested?.[0];
+    const prefer = suggestion
+      ? traceFrom(shownIndex, suggestion.node.id).steps.map((s) => s.edge.to)
+      : [];
+    const broken = tourBreak(given, prefer);
+    return { steps: tourSteps(shownIndex, { hub, suggestion, broken }), broken };
+  }
+
+  /**
+   * Skip ✕, Esc in the card, or "Explore on your own": the tour goes, the diagram as it is (out
+   * of the broken-connection step's diff mode).
+   */
   function endTour() {
     if (tourAt === null) return;
     setPlayStop(null);
     setTourAt(null);
+    setTourPlan(null);
     setAnnouncement("Tour ended");
     // Focus in the card (which goes) moves to the selection's box or the first box.
     const root = rootRef.current;
@@ -1877,7 +1947,7 @@ export function Explorer({
               within={panelNode.id}
               foldedInto={overlay.foldedInto}
               onSelect={pickChange}
-              limit={compareDiff && movesNote(compareDiff)}
+              limit={shownDiff && movesNote(shownDiff)}
             />
           )
         }
@@ -1923,7 +1993,8 @@ export function Explorer({
    * node or hop only base has), head's otherwise.
    */
   const codeAt = (fromBase: boolean) =>
-    fromBase && compareBase
+    // The tour's canned PR has the repo's own commit and files on both sides.
+    fromBase && compareBase && !tourDiff
       ? { repo: compareBase.repo, sources: baseSourceAccess }
       : { repo, sources: sourceAccess };
   const fromBase = (has: ReadonlySet<string> | undefined, id: string | undefined) =>
@@ -2042,7 +2113,8 @@ export function Explorer({
           filtersOpen={filtering}
           onFilters={() => toggleFilters("top")}
           share={<ShareMenu link={() => linkTo(linkKey)} exports={() => exported} />}
-          diff={overlay ? { value: version, onChange: showVersion } : undefined}
+          // Not for the tour's example PR, which shows its overlay only (the bar keeps its path).
+          diff={overlay && !tourDiff ? { value: version, onChange: showVersion } : undefined}
           tracing={tracing}
           onTrace={toggleTrace}
           {...pageBar}
@@ -2107,14 +2179,22 @@ export function Explorer({
             data-place="top-left"
             onClick={(e) => e.stopPropagation()}
           >
-            {overlay && compare && (
+            {overlay && (tourDiff || compare) && (
               <div className="gi-explorer__diff">
                 <StatusChip tone="diff">
-                  Comparing {compareName(compare.baseName, compare.base)} →{" "}
-                  {compareName(compare.headName, given)}
+                  {tourDiff ? (
+                    <>Comparing {compareName(undefined, given)} → an example PR</>
+                  ) : (
+                    compare && (
+                      <>
+                        Comparing {compareName(compare.baseName, compare.base)} →{" "}
+                        {compareName(compare.headName, given)}
+                      </>
+                    )
+                  )}
                 </StatusChip>
                 {/* Without the top bar (the website), its Base / Head / Overlay go here. */}
-                {!bar && (
+                {!bar && !tourDiff && (
                   <div className="gi-overlay gi-explorer__versions">
                     <SegmentedControl
                       label="Diff view"
