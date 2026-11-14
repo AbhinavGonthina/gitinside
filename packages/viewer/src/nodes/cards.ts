@@ -1,7 +1,12 @@
 import type { GraphNode } from "@gitinside/schema";
 import { brandForFramework, brandForHost } from "../icons/brands.js";
 import { textWidth } from "../image/markup.js";
-import { HOSTS_GROUP_PREFIX } from "../model/groups.js";
+import {
+  entryGroupKind,
+  HOSTS_GROUP_PREFIX,
+  isEntryGroup,
+  isUnresolvedGroup,
+} from "../model/groups.js";
 import { countsInside, type HierarchyIndex } from "../model/hierarchy.js";
 import type { NodeCount, NodeText } from "./describe.js";
 
@@ -26,6 +31,10 @@ import type { NodeCount, NodeText } from "./describe.js";
  *   links to code yet) says "Not linked to code" under its name. It's never moved toward a
  *   service it might belong to.
  *
+ * - **A route or page group** (M10.3d3, M10-design B3) is a capsule, like a route, on a closed
+ *   frame's stacked edge; its name already holds its count ("/api/auth · 7 routes"). A group of
+ *   a service's unresolved calls says so in its subtitle.
+ *
  * Names wrap rather than end in "…" ({@link nameLines}); the shared `@scope/` stays in the name,
  * muted (nodes.css).
  *
@@ -46,6 +55,10 @@ export interface CardLook {
   logos?: readonly GraphNode[];
   /** A line under the subtitle, set apart by a dotted rule: {@link UNLINKED_CAPTION}. */
   caption?: string;
+  /** The outline instead of `nodeShape`'s: a closed route or page group is a capsule stack. */
+  shape?: "capsule";
+  /** The glyph instead of the node's own: a group shows its members' ("route", not a folder). */
+  glyph?: "route" | "page" | "unresolved";
 }
 
 /** What an unlinked datastore's card says (M10-design A4). */
@@ -182,6 +195,13 @@ export function cardLook(index: HierarchyIndex, node: GraphNode): CardLook | und
   }
   if (isHostGroup(node)) {
     return { subtitle: { text: "Outside hosts" }, counts: [], logos: groupLogos(index, node.id) };
+  }
+  // Their names already say how many: "/api/auth · 7 routes", "URL built at runtime · 84".
+  if (isEntryGroup(node)) {
+    return { counts: [], shape: "capsule", glyph: entryGroupKind(node) ?? "route" };
+  }
+  if (isUnresolvedGroup(node)) {
+    return { subtitle: { text: "Unresolved calls" }, counts: [], glyph: "unresolved" };
   }
   if (node.kind === "datastore" && !factsOf(index).linked.has(node.id)) {
     return { caption: UNLINKED_CAPTION };

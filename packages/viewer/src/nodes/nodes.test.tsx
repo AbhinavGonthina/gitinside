@@ -484,6 +484,27 @@ describe("DiagramNode", () => {
     expect(getByRole("group").querySelector(".gi-icon-tile__logos")).toBeNull();
   });
 
+  it("draws a closed route group as a capsule with the route glyph, and open as a folder", () => {
+    const group = {
+      id: "group:routes/service:api/#/api/auth",
+      kind: "module",
+      label: "/api/auth · 3 routes",
+      parentId: "service:api/",
+      path: "",
+    } as const;
+    const card = { counts: [], shape: "capsule", glyph: "route" } as const;
+    const { getByRole, rerender } = render(<DiagramNode node={group} card={card} />);
+    const closed = getByRole("group");
+    expect(closed.dataset["tier"]).toBe("frame");
+    expect(closed.dataset["shape"]).toBe("capsule");
+    expect(closed.querySelector("[data-glyph]")?.getAttribute("data-glyph")).toBe("route");
+    rerender(<DiagramNode node={group} card={card} expanded />);
+    expect(getByRole("group").dataset["shape"]).toBe("folder");
+    expect(getByRole("group").querySelector("[data-glyph]")?.getAttribute("data-glyph")).toBe(
+      "module",
+    );
+  });
+
   it("draws a closed frame as one element and an open one around its children", () => {
     const { getByRole, rerender } = render(
       <DiagramNode node={sample("service")}>

@@ -1,7 +1,14 @@
-import { compareStrings } from "@gitinside/schema";
+import { compareStrings, UnresolvedReason } from "@gitinside/schema";
 import type { ArchitectureGraph, EdgeKind, GraphNode, Layer } from "@gitinside/schema";
 import { HOST_GROUPS, hostGroupFor, OTHER_HOSTS, type HostGroup } from "../icons/hostGroups.js";
-import { buildHierarchy, type HierarchyIndex } from "./hierarchy.js";
+import { REASON_TEXT } from "../nodes/describe.js";
+import {
+  buildHierarchy,
+  compareEntries,
+  countsInside,
+  type EntryNode,
+  type HierarchyIndex,
+} from "./hierarchy.js";
 
 /**
  * A system level that summarizes (M10.3b1, M10-design A3 and A6), for the prototype design only:
@@ -22,8 +29,17 @@ import { buildHierarchy, type HierarchyIndex } from "./hierarchy.js";
  * as before and a group's lines are its members' lines lifted. Deterministic: graph order, ties by
  * `compareStrings`.
  *
- * Not handled: a shared service nested below the top level (none are), and groups inside a
- * broken-down service (B3, M10.3d). A closed host group's logo tile is `cardLook`'s (M10.3b3).
+ * - **Route and page groups inside a service** (M10.3d3, M10-design B3): a service with more
+ *   than {@link MAX_ENTRY_BOXES} routes and pages has them grouped by path (`entryLevel`), so its
+ *   first level leads with `/api/auth · 7 routes` rather than a column of 315 routes. A grouped
+ *   entry moves out of its file into its group, so it's drawn there even when its file is open.
+ *   Likewise a service drawing more than {@link MAX_ENTRY_BOXES} unresolved calls has them
+ *   grouped by reason (`unresolvedGroups`).
+ *
+ * Not handled: a shared service nested below the top level (none are); an entry with no literal
+ * segment left (`/:id`, `/*`) stays itself at its level (or in "Other"), and two parameters of
+ * different names (`/:id/x`, `/:slug/x`) make two groups.
+ * A closed host group's logo tile is `cardLook`'s (M10.3b3), as is a route group's capsule.
  */
 
 /** The ID prefix of a group node; analyzed node IDs start with their kind, never this. */
@@ -120,6 +136,240 @@ function sharedGroup(index: HierarchyIndex): Group | undefined {
   };
 }
 
+/** The prefix of the entry groups: `group:routes/…` and `group:pages/…`. */
+export const ENTRY_GROUP_PREFIXES = {
+  route: `${GROUP_PREFIX}routes/`,
+  page: `${GROUP_PREFIX}pages/`,
+} as const;
+/**
+ * Most entries a service shows ungrouped, and most boxes one level of its entries draws
+ * (M10-design B3: "more than 12 entries").
+ */
+export const MAX_ENTRY_BOXES = 12;
+
+/** A path's segments, without the empty ones around slashes. */
+function segments(path: string): string[] {
+  return path.split("/").filter((s) => s.length > 0);
+}
+
+/** Whether a path segment is written out, not a parameter (`:id`) or a catch-all (`*slug`). */
+function isLiteral(segment: string): boolean {
+  return !/^[:*[]/.test(segment);
+}
+
+/** Whether a node is one of a service's route or page groups (`summarizeGraph`). */
+export function isEntryGroup(node: Pick<GraphNode, "id">): boolean {
+  return entryGroupKind(node) !== undefined;
+}
+
+/** The kind a route or page group holds, or undefined for any other node. */
+export function entryGroupKind(node: Pick<GraphNode, "id">): EntryNode["kind"] | undefined {
+  if (node.id.startsWith(ENTRY_GROUP_PREFIXES.route)) return "route";
+  if (node.id.startsWith(ENTRY_GROUP_PREFIXES.page)) return "page";
+  return undefined;
+}
+
+/**
+ * What an entry group's ID says: the kind it groups and its path prefix (undefined for
+ * "Other"), or undefined for any other ID.
+ */
+function entryGroupOf(
+  id: string,
+): { kind: EntryNode["kind"]; prefix: string | undefined } | undefined {
+  const kind = entryGroupKind({ id });
+  if (!kind) return undefined;
+  const last = id.slice(id.lastIndexOf("#") + 1);
+  return { kind, prefix: last === "other" ? undefined : last };
+}
+
+/**
+ * One group inside a service, nested: its node, its entries, and what's drawn inside it (groups
+ * first). An unresolved calls' group has no entries or prefix.
+ */
+interface EntryGroup {
+  node: GraphNode;
+  /** The path prefix its entries share ("/api/auth"); "" for "Other". */
+  prefix: string;
+  /** Every entry under it, at any depth, in entry order. */
+  entries: readonly EntryNode[];
+  inside: readonly (EntryGroup | GraphNode)[];
+}
+
+/** "12 routes", "1 page". */
+function entryCountText(kind: EntryNode["kind"], n: number): string {
+  return `${n} ${kind}${n === 1 ? "" : "s"}`;
+}
+
+/**
+ * One level of a service's entries of one kind, grouped (M10-design B3): entries whose paths are
+ * the same through their first literal segment from `depth` on (parameters before it included:
+ * `/api/workspace/:slug/thread`) go in one group (`/auth · 12 routes`; groups of 1 aren't formed),
+ * and the rest stay themselves; a group holding more than {@link MAX_ENTRY_BOXES} breaks down the
+ * same way by the literal segment after its prefix. A level of more than {@link MAX_ENTRY_BOXES} boxes keeps its
+ * largest groups (ties by prefix) and puts the rest in "Other routes · N", grouped the same way
+ * inside, so no level draws more than {@link MAX_ENTRY_BOXES}. Groups come sorted by prefix, then
+ * the level's own entries in entry order, then "Other". `id` is the level's frame (the service
+ * or a group), `base` the service's group ID prefix.
+ */
+function entryLevel(
+  kind: EntryNode["kind"],
+  entries: readonly EntryNode[],
+  depth: number,
+  id: string,
+  base: string,
+): (EntryGroup | EntryNode)[] {
+  const buckets = new Map<string, EntryNode[]>();
+  const loose: EntryNode[] = [];
+  for (const e of entries) {
+    const parts = segments(e.path);
+    const at = parts.findIndex((s, i) => i >= depth && isLiteral(s));
+    if (at === -1) {
+      loose.push(e);
+      continue;
+    }
+    // Through the next literal segment, past any parameters before it.
+    const prefix = `/${parts.slice(0, at + 1).join("/")}`;
+    const bucket = buckets.get(prefix) ?? [];
+    bucket.push(e);
+    buckets.set(prefix, bucket);
+  }
+  const groups: EntryGroup[] = [];
+  for (const [prefix, members] of buckets) {
+    if (members.length === 1) {
+      loose.push(...members);
+      continue;
+    }
+    const groupId = `${base}#${prefix}`;
+    const next = segments(prefix).length;
+    groups.push({
+      node: {
+        id: groupId,
+        kind: "module",
+        label: `${prefix} · ${entryCountText(kind, members.length)}`,
+        parentId: id,
+        path: "",
+      },
+      prefix,
+      entries: members,
+      inside:
+        members.length > MAX_ENTRY_BOXES
+          ? entryLevel(kind, members, next, groupId, base)
+          : members.map((m) => ({ ...m, parentId: groupId })),
+    });
+  }
+  const byPrefix = (a: EntryGroup, b: EntryGroup) => compareStrings(a.prefix, b.prefix);
+  const own = (list: readonly EntryNode[]) =>
+    [...list].sort(compareEntries).map((e) => ({ ...e, parentId: id }));
+  if (groups.length === 0 || groups.length + loose.length <= MAX_ENTRY_BOXES) {
+    return [...groups.sort(byPrefix), ...own(loose)];
+  }
+  const largest = groups.sort((a, b) => b.entries.length - a.entries.length || byPrefix(a, b));
+  const kept = largest.slice(0, MAX_ENTRY_BOXES - 1);
+  const rest = [...largest.slice(MAX_ENTRY_BOXES - 1).flatMap((g) => g.entries), ...loose].sort(
+    compareEntries,
+  );
+  const otherId = `${id.startsWith(GROUP_PREFIX) ? id : base}#other`;
+  const other: EntryGroup = {
+    node: {
+      id: otherId,
+      kind: "module",
+      label: `Other ${kind}s · ${rest.length}`,
+      parentId: id,
+      path: "",
+    },
+    prefix: "",
+    entries: rest,
+    inside: entryLevel(kind, rest, depth, otherId, base),
+  };
+  return [...kept.sort(byPrefix), other];
+}
+
+/**
+ * Each service's route and page groups (M10-design B3), for a service with more than
+ * {@link MAX_ENTRY_BOXES} entries: its routes grouped by their first segment, and its pages
+ * likewise. A first `/api` segment is looked past when every entry of that kind with a segment
+ * after it starts with it (wanderlust's routes, and anything-llm's server, whose `robots.txt` and
+ * `manifest.json` don't), so `/api/auth/*` groups as `/api/auth`, not all in `/api`.
+ */
+function entryGroups(index: HierarchyIndex): Map<string, EntryGroup[]> {
+  const out = new Map<string, EntryGroup[]>();
+  for (const [service, entries] of index.entries) {
+    if (entries.length <= MAX_ENTRY_BOXES) continue;
+    const groups: EntryGroup[] = [];
+    for (const kind of ["page", "route"] as const) {
+      const own = entries.filter((e) => e.kind === kind);
+      const long = own.map((e) => segments(e.path)).filter((p) => p.length > 1);
+      const depth = long.length > 0 && long.every((p) => p[0] === "api") ? 1 : 0;
+      const base = `${ENTRY_GROUP_PREFIXES[kind]}${service}`;
+      for (const item of entryLevel(kind, own, depth, service, base)) {
+        if ("inside" in item) groups.push(item);
+      }
+    }
+    if (groups.length > 0) out.set(service, groups);
+  }
+  return out;
+}
+
+/** The prefix of a service's unresolved calls' groups: `group:unresolved/<service>#<reason>`. */
+export const UNRESOLVED_GROUP_PREFIX = `${GROUP_PREFIX}unresolved/`;
+
+/** Whether a node is one of a service's groups of unresolved calls (`summarizeGraph`). */
+export function isUnresolvedGroup(node: Pick<GraphNode, "id">): boolean {
+  return node.id.startsWith(UNRESOLVED_GROUP_PREFIX);
+}
+
+/** The reason an unresolved calls' group stands for, by its ID. */
+function unresolvedReasonOf(id: string): UnresolvedReason | undefined {
+  if (!isUnresolvedGroup({ id })) return undefined;
+  const parsed = UnresolvedReason.safeParse(id.slice(id.lastIndexOf("#") + 1));
+  return parsed.success ? parsed.data : undefined;
+}
+
+/**
+ * Each service's unresolved calls, grouped by reason (M10-design B3's "calls out"), for a
+ * service drawing more than {@link MAX_ENTRY_BOXES} of them directly: anything-llm's server holds
+ * 148, which made its broken-down frame 11,436px tall. A reason with 2 or more is one box, "URL
+ * built at runtime · 84", breaking down to each call; a reason with 1 stays itself. Reasons in
+ * the schema's order. Nothing is hidden: each call is inside its box, with its reason and line.
+ */
+function unresolvedGroups(index: HierarchyIndex): Map<string, EntryGroup[]> {
+  const out = new Map<string, EntryGroup[]>();
+  for (const service of index.graph.nodes) {
+    if (service.kind !== "service") continue;
+    const calls = (index.children.get(service.id) ?? []).filter((n) => n.kind === "unresolved");
+    if (calls.length <= MAX_ENTRY_BOXES) continue;
+    const groups = UnresolvedReason.options.flatMap((reason): EntryGroup[] => {
+      const members = calls.filter((n) => n.kind === "unresolved" && n.reason === reason);
+      if (members.length < 2) return [];
+      const id = `${UNRESOLVED_GROUP_PREFIX}${service.id}#${reason}`;
+      return [
+        {
+          node: {
+            id,
+            kind: "module",
+            label: `${REASON_TEXT[reason]} · ${members.length}`,
+            parentId: service.id,
+            path: "",
+          },
+          prefix: "",
+          entries: [],
+          inside: members.map((m) => ({ ...m, parentId: id })),
+        },
+      ];
+    });
+    if (groups.length > 0) out.set(service.id, groups);
+  }
+  return out;
+}
+
+/** A group's node and everything inside it, depth first (a frame before its children). */
+function flatten(group: EntryGroup): GraphNode[] {
+  return [
+    group.node,
+    ...group.inside.flatMap((item) => ("inside" in item ? flatten(item) : [item])),
+  ];
+}
+
 /** The outside hosts' groups of {@link MIN_HOST_GROUP} or more, members by most lines first. */
 function hostGroups(index: HierarchyIndex): Group[] {
   const lines = new Map<string, number>();
@@ -156,21 +406,33 @@ function hostGroups(index: HierarchyIndex): Group[] {
 
 /**
  * The graph with its groups added and their members moved under them (see the module's doc). Each
- * group goes where its first member was in graph order, its members right after it; a graph with
- * nothing to group comes back as is.
+ * top-level group goes where its first member was in graph order, its members right after it; a
+ * service's route and page groups go right after the service, each followed by what's inside it.
+ * A graph with nothing to group comes back as is.
  */
 export function summarizeGraph(graph: ArchitectureGraph): ArchitectureGraph {
   const index = buildHierarchy(graph);
   const groups = [sharedGroup(index), ...hostGroups(index)].filter((g) => g !== undefined);
-  if (groups.length === 0) return graph;
+  const byService = new Map<string, GraphNode[]>();
+  for (const found of [entryGroups(index), unresolvedGroups(index)]) {
+    for (const [service, list] of found) {
+      byService.set(service, [...(byService.get(service) ?? []), ...list.flatMap(flatten)]);
+    }
+  }
+  if (groups.length === 0 && byService.size === 0) return graph;
   const groupOf = new Map<string, Group>();
   for (const g of groups) for (const m of g.members) groupOf.set(m.id, g);
+  const grouped = new Set<string>();
+  for (const list of byService.values()) {
+    for (const n of list) if (!isGroup(n)) grouped.add(n.id);
+  }
   const placed = new Set<Group>();
   const nodes: GraphNode[] = [];
   for (const n of graph.nodes) {
+    if (grouped.has(n.id)) continue;
     const group = groupOf.get(n.id);
     if (!group) {
-      nodes.push(n);
+      nodes.push(n, ...(byService.get(n.id) ?? []));
       continue;
     }
     if (placed.has(group)) continue;
@@ -213,6 +475,22 @@ function usersOf(index: HierarchyIndex, id: string): string[] {
  */
 export function groupLead(index: HierarchyIndex, node: GraphNode): string | undefined {
   if (!isGroup(node)) return undefined;
+  const reason = unresolvedReasonOf(node.id);
+  if (reason) {
+    const n = index.children.get(node.id)?.length ?? 0;
+    return `${n} calls the analysis couldn't link, all for one reason: ${REASON_TEXT[reason].toLowerCase()}.`;
+  }
+  const entries = entryGroupOf(node.id);
+  if (entries) {
+    const inside = countsInside(index, node.id)[entries.kind] ?? 0;
+    const what = entryCountText(entries.kind, inside);
+    const nested = (index.children.get(node.id) ?? []).some(isGroup)
+      ? ", grouped by the next part of the path"
+      : "";
+    return entries.prefix === undefined
+      ? `${what} from smaller groups, kept together so this level draws at most ${MAX_ENTRY_BOXES} boxes.`
+      : `${what} whose path starts with ${entries.prefix}${nested}.`;
+  }
   const members = index.children.get(node.id) ?? [];
   const labels = members.map((m) => (m.kind === "external" ? m.host : m.label));
   const hosts = hostGroupOf(node.id);
@@ -233,6 +511,14 @@ export function groupLead(index: HierarchyIndex, node: GraphNode): string | unde
 export function groupNote(index: HierarchyIndex, node: GraphNode): string | undefined {
   const parent = node.parentId === null ? undefined : index.byId.get(node.parentId);
   if (!parent || !isGroup(parent)) return undefined;
+  const reason = unresolvedReasonOf(parent.id);
+  if (reason) return `Grouped with the service's other calls for this reason.`;
+  const entries = entryGroupOf(parent.id);
+  if (entries) {
+    return entries.prefix === undefined
+      ? `Grouped with other ${entries.kind}s from smaller groups.`
+      : `Grouped with the ${entries.kind}s under ${entries.prefix}.`;
+  }
   const hosts = hostGroupOf(parent.id);
   if (hosts) return `Grouped under ${inSentence(hosts.title)}.`;
   const users = usersOf(index, node.id);
