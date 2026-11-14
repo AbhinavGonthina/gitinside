@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type FocusEvent,
   type KeyboardEvent,
   type ReactNode,
 } from "react";
@@ -59,7 +60,7 @@ import {
   type ViewNode,
 } from "../model/view.js";
 import { hasSourceFiles, warningCount } from "../model/warnings.js";
-import { usePresence } from "../motion.js";
+import { prefersReducedMotion, usePresence } from "../motion.js";
 import { nodeLabel } from "../nodes/describe.js";
 import { durations } from "../tokens.js";
 import { selectionAnnouncement } from "./a11y.js";
@@ -241,7 +242,20 @@ export interface ExplorerProps {
   home?: string | undefined;
   commitStatus?: CommitStatus | undefined;
   topBarEnd?: ReactNode;
+  /**
+   * The landing page's hero (M10-design §3.5, M10.3e1), with `design="prototype"` only: the
+   * canvas alone (no bar, panel, breadcrumbs, toolbar, or Filters button; the trace chip without
+   * "Show everything"), and once the first view has
+   * been up for {@link HERO_START_MS}, the first suggested trace plays on a loop, held while the
+   * pointer or focus is inside. Under reduced motion the trace starts at once and stays on its
+   * first step, the path lit. A plain wheel scrolls the page (Ctrl or ⌘ + wheel still zooms),
+   * and Ctrl K on the page is left to the page. Everything else works as in the explorer.
+   */
+  hero?: boolean | undefined;
 }
+
+/** How long the hero shows its first view before its trace starts playing, in ms. */
+export const HERO_START_MS = PLAY_STEP_MS;
 
 /** The explorer's designs: the shipped one, and the M10 redesign under review (M10.3). */
 export type ExplorerDesign = "current" | "prototype";
@@ -347,6 +361,7 @@ export function Explorer({
   home,
   commitStatus,
   topBarEnd,
+  hero = false,
 }: ExplorerProps) {
   // Diff mode (M6.9b): both versions in one graph, drawn with their states.
   const compareBase = compare?.base;
@@ -402,6 +417,9 @@ export function Explorer({
   // The prototype bands the system level, quiets its "uses code" lines, and draws its own cards
   // (M10.3a, M10.3b2, M10.3b3).
   const prototype = design === "prototype";
+  // The landing page's hero (M10.3e1): the canvas alone, its trace looping.
+  const heroOn = prototype && hero;
+  const bar = topBar && !heroOn;
   const cache = useMemo(
     () =>
       engine &&
@@ -491,6 +509,10 @@ export function Explorer({
   const drill = useDrill(index, initialOpen, { filters, hiddenKinds, only });
   const view = drill.view;
   const [playing, setPlaying] = useState(false);
+  // The hero's loop holds while the pointer or focus is inside (M10.3e1).
+  const [pointerIn, setPointerIn] = useState(false);
+  const [focusIn, setFocusIn] = useState(false);
+  const held = heroOn && (pointerIn || focusIn);
   // The picker T and the Trace button open when there's nothing to trace yet.
   const choices = useMemo(() => traceChoices(shownIndex), [shownIndex]);
   // The prototype's suggested traces (M10.3d1, M10-design B11): the picker's first section, and
@@ -576,7 +598,9 @@ export function Explorer({
   // doesn't fit even at 40%, M5.13b2), until the next drill-down or close;
   // else the explorer frames the node broken down last when the level is too
   // big to read whole (M4b.15f).
-  const [overview, setOverview] = useState(false);
+  // The hero opens on the whole level (M10.3e1): at its size the hub at 80% cut the hosts at the
+  // frame's edge, and its trace zooms in on each hop anyway.
+  const [overview, setOverview] = useState(heroOn);
   // Memoized: a level too big to fit searches its boxes for the window to
   // frame (`fitLevel`, quadratic in boxes), and the explorer re-renders on
   // every hover.
@@ -617,7 +641,7 @@ export function Explorer({
   }
   const zoomBy = (direction: 1 | -1) =>
     moveCamera(stepZoom(live.current.camera, direction, live.current.canvas), "standard");
-  useCanvasGestures(canvasRef, live, moveCamera);
+  useCanvasGestures(canvasRef, live, moveCamera, { pageScroll: heroOn });
   // The first fit is drawn as is; only later moves glide (explorer.css), so
   // the diagram doesn't zoom out on load. A start zoom replaces that fit
   // before anything glides.
@@ -782,16 +806,44 @@ export function Explorer({
     return { x: at.left - on.left, y: at.top - on.top, width: at.width, height: at.height };
   }
 
-  // The player: each step stays up for PLAY_STEP_MS, and play stops on the last.
+  // The player: each step stays up for PLAY_STEP_MS, and play stops on the last; the hero's goes
+  // back to the first instead, and waits while held.
   useEffect(() => {
-    if (!playing || step === null) return;
-    if (step >= steps.length - 1) {
+    if (!playing || step === null || held) return;
+    const last = step >= steps.length - 1;
+    if (last && !heroOn) {
       setPlaying(false);
       return;
     }
-    const timer = setTimeout(() => setStep(step + 1), PLAY_STEP_MS);
+    const timer = setTimeout(() => setStep(last ? 0 : step + 1), PLAY_STEP_MS);
     return () => clearTimeout(timer);
-  }, [playing, step, steps.length]);
+  }, [playing, step, steps.length, held, heroOn]);
+
+  // The hero's trace (M10.3e1): the first suggestion, once the first view has been up a while
+  // (at once, and never playing, under reduced motion). Once only: a reader who ends it keeps
+  // the explorer as they leave it.
+  const heroStarted = useRef(false);
+  const heroTrace = heroOn ? suggested?.[0]?.node.id : undefined;
+  const startHeroTrace = useRef<() => void>(() => undefined);
+  startHeroTrace.current = () => {
+    if (heroTrace === undefined) return;
+    startTrace(heroTrace);
+    setPlaying(!prefersReducedMotion());
+  };
+  useEffect(() => {
+    // Held: the reader is looking or acting; the wait starts over when they leave.
+    if (heroStarted.current || heroTrace === undefined || !settled || held) return;
+    const start = () => {
+      heroStarted.current = true;
+      startHeroTrace.current();
+    };
+    if (prefersReducedMotion()) {
+      start();
+      return;
+    }
+    const timer = setTimeout(start, HERO_START_MS);
+    return () => clearTimeout(timer);
+  }, [heroTrace, settled, held]);
 
   // Starting, stepping, or ending a trace can remove the focused control (the
   // step player's buttons, "Trace from here", a disabled "Next step"), which
@@ -1281,10 +1333,12 @@ export function Explorer({
     }
   }
 
-  // Ctrl+K with focus on the page itself (nothing focused yet) opens it too.
+  // Ctrl+K with focus on the page itself (nothing focused yet) opens it too; not from the hero,
+  // which is one part of its page.
   const searchKey = useRef(toggleSearch);
   searchKey.current = toggleSearch;
   useEffect(() => {
+    if (heroOn) return;
     const onKey = (event: globalThis.KeyboardEvent) => {
       const onPage = event.target === document.body || event.target === document.documentElement;
       if (!onPage || event.defaultPrevented || !isSearchKey(event)) return;
@@ -1293,7 +1347,7 @@ export function Explorer({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [heroOn]);
 
   /** A page or route picked in the picker: trace it. */
   function pickTrace(id: string) {
@@ -1433,7 +1487,7 @@ export function Explorer({
   const pageBar = prototype
     ? { variant: "page" as const, home, status: commitStatus, end: topBarEnd }
     : {};
-  const crumbsInBar = prototype && topBar;
+  const crumbsInBar = prototype && bar;
 
   const trailEnd = deepestOpen(view, drill.expansion);
   const crumbs = [
@@ -1511,8 +1565,8 @@ export function Explorer({
   // diagram would be, rather than draw a wrong comparison.
   if (compared?.mismatch !== undefined) {
     return (
-      <div ref={rootRef} className="gi-explorer" data-bare={topBar ? undefined : ""} data-empty="">
-        {topBar && <TopBar repo={repo} actions={false} {...pageBar} />}
+      <div ref={rootRef} className="gi-explorer" data-bare={bar ? undefined : ""} data-empty="">
+        {bar && <TopBar repo={repo} actions={false} {...pageBar} />}
         <div className="gi-explorer__main">
           <div className="gi-explorer__canvas" role="region" aria-label="Diagram">
             <EmptyState tone="error" title="This comparison doesn't match these commits">
@@ -1531,8 +1585,8 @@ export function Explorer({
   // service box with nothing to search, filter, or trace.
   if (!hasApp) {
     return (
-      <div ref={rootRef} className="gi-explorer" data-bare={topBar ? undefined : ""} data-empty="">
-        {topBar && <TopBar repo={repo} actions={false} {...pageBar} />}
+      <div ref={rootRef} className="gi-explorer" data-bare={bar ? undefined : ""} data-empty="">
+        {bar && <TopBar repo={repo} actions={false} {...pageBar} />}
         <div className="gi-explorer__main">
           <div className="gi-explorer__canvas" role="region" aria-label="Diagram">
             <EmptyState title="We couldn't find a TypeScript or JavaScript app here">
@@ -1559,14 +1613,25 @@ export function Explorer({
     <div
       ref={rootRef}
       className="gi-explorer"
-      data-bare={topBar ? undefined : ""}
+      data-bare={bar ? undefined : ""}
       data-design={prototype ? "prototype" : undefined}
+      data-hero={heroOn ? "" : undefined}
+      data-held={held ? "" : undefined}
       data-layout-runs-in={runsIn}
       data-settled={settled ? "" : undefined}
       data-hand-camera={handSet ? "" : undefined}
       onKeyDown={onKeyDown}
+      {...(heroOn && {
+        onPointerEnter: () => setPointerIn(true),
+        onPointerLeave: () => setPointerIn(false),
+        onFocus: () => setFocusIn(true),
+        onBlur: (event: FocusEvent<HTMLDivElement>) => {
+          const to = event.relatedTarget;
+          if (!(to instanceof Node && event.currentTarget.contains(to))) setFocusIn(false);
+        },
+      })}
     >
-      {topBar && (
+      {bar && (
         <TopBar
           repo={repo}
           mac={mac}
@@ -1647,7 +1712,7 @@ export function Explorer({
                   {compareName(compare.headName, given)}
                 </StatusChip>
                 {/* Without the top bar (the website), its Base / Head / Overlay go here. */}
-                {!topBar && (
+                {!bar && (
                   <div className="gi-overlay gi-explorer__versions">
                     <SegmentedControl
                       label="Diff view"
@@ -1662,7 +1727,8 @@ export function Explorer({
             {tracing && (
               <StatusChip tone="trace" exitLabel="Exit trace" onExit={toggleTrace}>
                 Tracing <code>{traceName(path.start)}</code>
-                {view.nodes.some((n) => n.more) && (
+                {/* Not in the hero: a whole big level is too slow a thing to start from a landing page. */}
+                {!heroOn && view.nodes.some((n) => n.more) && (
                   <>
                     {" · "}
                     <button type="button" className="gi-status__open" onClick={showEverything}>
@@ -1686,7 +1752,8 @@ export function Explorer({
                 </button>
               </StatusChip>
             ) : (
-              !topBar && (
+              !bar &&
+              !heroOn && (
                 <div className="gi-overlay gi-explorer__filters-button">
                   <Button
                     variant="quiet"
@@ -1735,7 +1802,7 @@ export function Explorer({
                 </button>
               </StatusChip>
             )}
-            {!crumbsInBar && <Breadcrumbs items={crumbs} onSelect={goTo} />}
+            {!crumbsInBar && !heroOn && <Breadcrumbs items={crumbs} onSelect={goTo} />}
           </div>
           <div
             className="gi-explorer__pin"
@@ -1750,7 +1817,9 @@ export function Explorer({
                 onClose={closeLegend}
               />
             )}
-            {prototype ? (
+            {/* The hero has no toolbar (it sat over its boxes): Ctrl or ⌘ + wheel, a pinch, and the
+                keys still zoom. */}
+            {heroOn ? null : prototype ? (
               <>
                 {minimapOn && minimap}
                 <CanvasToolbar
@@ -1782,7 +1851,7 @@ export function Explorer({
             )}
           </div>
         </div>
-        {tracing ? (
+        {heroOn ? null : tracing ? (
           <TracePanel
             index={shownIndex}
             steps={steps}
