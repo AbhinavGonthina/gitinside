@@ -13,8 +13,10 @@ import react from "@vitejs/plugin-react";
 // import it), `fonts` (only the Fontsource imports; ADR-0056), `image`
 // (the README badge and live image as SVG text, for server code; ADR-0071),
 // and `layout-worker` (ELK's worker script, which the app builds into a Web
-// Worker; ADR-0107). `index` loads ELK itself only as the in-thread fallback,
-// a separate chunk.
+// Worker; ADR-0107). `index` loads ELK itself only as the in-thread fallback.
+// elkjs stays external too (M10.3e3, ADR-0288): bundled, its 48k-line build
+// became a dist chunk that the app's vitest transforms on first use (~4 s
+// here, 13 s on a busy CI runner) where Node loads the package as is.
 // `index` starts with "use client": its components use hooks, so React Server
 // Components (apps/web) must treat the bundle as client code; server
 // components can still render them with serializable props.
@@ -38,6 +40,7 @@ export default defineConfig({
         "react/jsx-runtime",
         /^@fontsource-variable\//,
         /^@gitinside\//,
+        /^elkjs\//,
       ],
       output: {
         banner: (chunk) => (chunk.name === "index" ? '"use client";' : ""),
