@@ -3,6 +3,7 @@ import type { ELK, ElkExtendedEdge, ElkNode, LayoutOptions } from "elkjs/lib/elk
 import type { Rect } from "../chrome/describe.js";
 import type { Point } from "../edges/geometry.js";
 import type { DiffMarks } from "../model/diff.js";
+import { isUnresolvedGroup } from "../model/groups.js";
 import { layerOf, type HierarchyIndex } from "../model/hierarchy.js";
 import { isCodeLine, type GraphView } from "../model/view.js";
 import {
@@ -59,6 +60,11 @@ export interface LayoutNode {
   /** A route or page at its service's first level: kept in the service's first column. */
   entry?: boolean;
   /**
+   * A broken-down service's calls out (M10.3d3, M10-design B3, prototype only): its unresolved
+   * calls and imports, kept in its last column, right of its code.
+   */
+  exit?: boolean;
+  /**
    * A top-level node's band, an index into {@link BANDS} (M10.3a, prototype only): ELK keeps
    * the bands in order left to right (`elk.partitioning`). Unset outside the prototype.
    */
@@ -81,6 +87,20 @@ export const BANDS = [
 export function bandOf(layer: Layer | undefined): number {
   const band = BANDS.findIndex((b) => b.layer === (layer ?? "backend"));
   return band === -1 ? 1 : band;
+}
+
+/**
+ * Whether a visible node is one of an open service's calls out (an `unresolved` node drawn
+ * directly in it, or a group of them, `isUnresolvedGroup`), which the prototype keeps in the
+ * service's last column: a broken-down service
+ * reads entries, then code, then what it calls that isn't in the repo. ELK put unresolved
+ * imports, whose lines are hidden by default, in the first column beside the routes.
+ */
+function callsOut(view: GraphView, n: GraphView["nodes"][number]): boolean {
+  if ((n.node.kind !== "unresolved" && !isUnresolvedGroup(n.node)) || n.parent === null) {
+    return false;
+  }
+  return view.byId.get(n.parent)?.node.kind === "service";
 }
 
 /** Where a band starts on the canvas: the left edge of its leftmost top-level box. */
@@ -235,6 +255,7 @@ export function layoutInput(
       ...(header !== undefined && n.more ? { foot: MORE_FOOT } : {}),
       ...(n.section === "entries" ? { entry: true } : {}),
       ...(options.bands && n.parent === null ? { band: bandOf(n.node.layer) } : {}),
+      ...(options.bands && callsOut(view, n) ? { exit: true } : {}),
     };
   });
   const edges = view.edges.map(
@@ -262,6 +283,7 @@ export function elkGraph(input: LayoutInput): ElkNode {
       options["elk.nodeSize.minimum"] = `(${n.width},${n.height})`;
     }
     if (n.entry) options["elk.layered.layering.layerConstraint"] = "FIRST";
+    if (n.exit) options["elk.layered.layering.layerConstraint"] = "LAST";
     if (n.band !== undefined) options["elk.partitioning.partition"] = String(n.band);
     const node: ElkNode = {
       id: n.id,

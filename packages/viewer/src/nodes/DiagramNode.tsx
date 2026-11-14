@@ -187,7 +187,7 @@ export function DiagramNode({
   const label = card?.name === undefined ? nodeLabel(node) : { text: card.name };
   const subtitle = card?.subtitle ?? nodeSubtitle(node);
   const tileSize = tier === "icon" ? "lg" : "sm";
-  const shape = logos ? "circle" : nodeShape(node, tint);
+  const shape = logos ? "circle" : ((open ? undefined : card?.shape) ?? nodeShape(node, tint));
   // The accessible name starts with the name drawn (WCAG 2.5.3).
   const spoken = card?.name === undefined ? node : { ...node, label: card.name };
   const fields = modelFieldsText(node);
@@ -229,7 +229,11 @@ export function DiagramNode({
         <LogoTile logos={logos} layer={tint} />
       ) : (
         <IconTile size={tileSize} layer={tint} shape={isTileShape(shape) ? shape : undefined}>
-          <NodeIcon node={node} size={TILE_ICON_SIZE[tileSize]} />
+          {card?.glyph && !open ? (
+            <Glyph name={card.glyph} size={TILE_ICON_SIZE[tileSize]} />
+          ) : (
+            <NodeIcon node={node} size={TILE_ICON_SIZE[tileSize]} />
+          )}
         </IconTile>
       )}
       <span className="gi-node__text">

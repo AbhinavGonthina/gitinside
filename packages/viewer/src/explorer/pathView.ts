@@ -1,5 +1,6 @@
-import { ancestry, canOpen, isEntry, type HierarchyIndex } from "../model/hierarchy.js";
-import type { Expansion } from "./drill.js";
+import { isEntryGroup } from "../model/groups.js";
+import { ancestry, canOpen, type HierarchyIndex } from "../model/hierarchy.js";
+import { asServiceEntry, type Expansion } from "./drill.js";
 import type { Trace } from "./trace.js";
 
 /**
@@ -22,8 +23,7 @@ export function holderIn(
 ): string | undefined {
   const target = index.byId.get(id);
   if (!target || filtered.has(id)) return undefined;
-  const service = index.service.get(id);
-  const asEntry = isEntry(target) && service !== undefined && open.has(service);
+  const asEntry = asServiceEntry(index, open, target);
   const chain = ancestry(index, id).reverse().slice(1);
   for (const n of chain) {
     if (filtered.has(n.id)) return undefined;
@@ -47,15 +47,25 @@ export function openForPath(
 ): Expansion {
   const open = new Set<string>();
   const order: string[] = [];
+  const add = (id: string) => {
+    open.add(id);
+    order.push(id);
+  };
   for (const step of trace.steps) {
     for (;;) {
       const from = holderIn(index, open, step.from.id, filtered);
       const to = holderIn(index, open, step.to.id, filtered);
-      if (from === undefined || from !== to || !canOpen(index, from)) break;
+      if (from === undefined || to === undefined) break;
+      // A route or page group (M10.3d3) holding an end opens, so the path's route is drawn.
+      const group = [from, to].find((id) => isEntryGroup({ id }) && canOpen(index, id));
+      if (group !== undefined) {
+        add(group);
+        continue;
+      }
+      if (from !== to || !canOpen(index, from)) break;
       const kind = index.byId.get(from)?.kind;
       if (kind === "file" || kind === "symbol") break;
-      open.add(from);
-      order.push(from);
+      add(from);
     }
   }
   return order;

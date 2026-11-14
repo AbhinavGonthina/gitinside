@@ -1,7 +1,9 @@
 import { compareStrings } from "@gitinside/schema";
+import type { GraphNode } from "@gitinside/schema";
 import { useMemo, useState } from "react";
 import { ancestry, canOpen, isEntry, isWithin, type HierarchyIndex } from "../model/hierarchy.js";
 import { hiddenNodes, NO_FILTERS, type Filters } from "../model/filters.js";
+import { isEntryGroup } from "../model/groups.js";
 import {
   buildView,
   effectiveOpen,
@@ -69,8 +71,25 @@ export function isShown(index: HierarchyIndex, open: ReadonlySet<string>, id: st
   const node = index.byId.get(id);
   if (!node?.parentId) return false;
   if (node.parentId === index.root.id || open.has(node.parentId)) return true;
-  const service = index.service.get(id);
-  return isEntry(node) && service !== undefined && open.has(service);
+  return asServiceEntry(index, open, node);
+}
+
+/**
+ * Whether a route or page is drawn at its open service's first level: its service is open, and
+ * it isn't in one of the prototype's route or page groups (M10.3d3), which always draw it.
+ */
+export function asServiceEntry(
+  index: HierarchyIndex,
+  open: ReadonlySet<string>,
+  node: GraphNode,
+): boolean {
+  const service = index.service.get(node.id);
+  return (
+    isEntry(node) &&
+    service !== undefined &&
+    open.has(service) &&
+    !(node.parentId !== null && isEntryGroup({ id: node.parentId }))
+  );
 }
 
 /**

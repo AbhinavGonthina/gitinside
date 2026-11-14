@@ -1,6 +1,7 @@
 import { compareStrings } from "@gitinside/schema";
 import type { Confidence, EdgeKind, GraphEdge, GraphNode, NodeKind } from "@gitinside/schema";
 import { filtersKey, hiddenNodes, NO_FILTERS, type Filters } from "./filters.js";
+import { isEntryGroup } from "./groups.js";
 import { isEntry, type HierarchyIndex } from "./hierarchy.js";
 
 /**
@@ -108,11 +109,12 @@ export function pathKeep(
     if (!node) continue;
     keep.add(id);
     const service = index.service.get(id);
+    // A grouped entry (M10.3d3) is always drawn in its group, so its group is kept.
     const asEntry =
       isEntry(node) &&
       service !== undefined &&
       open.has(service) &&
-      !(node.parentId !== null && open.has(node.parentId));
+      !(node.parentId !== null && (open.has(node.parentId) || isEntryGroup({ id: node.parentId })));
     let up = asEntry
       ? index.byId.get(service)
       : node.parentId
@@ -210,6 +212,7 @@ export function buildView(
   // An entry is drawn in its file when the file is open, else in its
   // service's entries section when the service is open.
   const inFile = (n: GraphNode) => n.parentId !== null && open.has(n.parentId);
+  const inGroup = (n: GraphNode) => n.parentId !== null && isEntryGroup({ id: n.parentId });
   const place = (n: GraphNode, parent: string | null, section: Section, level: number) => {
     const view: ViewNode = {
       id: n.id,
@@ -234,11 +237,19 @@ export function buildView(
       omitted.add(c.id);
       return false;
     };
-    const entries =
-      n.kind === "service"
-        ? (index.entries.get(n.id) ?? []).filter((e) => !inFile(e) && !filtered.has(e.id))
-        : [];
-    const kids = shownChildren(index, n.id, filtered);
+    // The prototype's route and page groups (M10.3d3) lead the entries; an entry in one is drawn
+    // in its group.
+    const all = shownChildren(index, n.id, filtered);
+    const groups = n.kind === "service" ? all.filter(isEntryGroup) : [];
+    const entries = [
+      ...groups,
+      ...(n.kind === "service"
+        ? (index.entries.get(n.id) ?? []).filter(
+            (e) => !inFile(e) && !inGroup(e) && !filtered.has(e.id),
+          )
+        : []),
+    ];
+    const kids = groups.length > 0 ? all.filter((c) => !isEntryGroup(c)) : all;
     kids.sort((a, b) => rank(a) - rank(b));
     const shownEntries = entries.filter(drawn);
     const shownKids = kids.filter(drawn);
