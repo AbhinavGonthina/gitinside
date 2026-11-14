@@ -700,6 +700,11 @@ a.gi-topbar__home:hover {
   border-color: color-mix(in srgb, var(--diff-changed) 45%, var(--border));
 }
 
+.gi-status[data-tone="impact"] {
+  --gi-status: var(--impact);
+  border-color: color-mix(in srgb, var(--impact) 55%, var(--border));
+}
+
 .gi-status .gi-ui-icon {
   color: var(--text-muted);
 }
@@ -1689,6 +1694,63 @@ a.gi-topbar__home:hover {
 
 .gi-notes > .gi-inspector__empty {
   margin: 10px 0;
+}
+
+/*
+ * Impact analysis's panel (M10.3f1): an impact chip, "What depends on" quieter than the name,
+ * a service's dependents indented under it, and each path wrapping rather than cut.
+ */
+.gi-chip[data-tone="impact"] {
+  border-color: var(--impact);
+  color: var(--text);
+}
+
+.gi-impact__lead {
+  flex: none;
+  color: var(--text-muted);
+  font-weight: var(--font-weight-medium);
+}
+
+.gi-impact__nodes {
+  margin: 0 0 var(--space-4) 30px;
+}
+
+.gi-impact__paths {
+  display: grid;
+  gap: 2px;
+  margin: 0 -8px;
+  padding: 0;
+  list-style: none;
+}
+
+.gi-impact__path {
+  display: grid;
+  gap: 1px;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px var(--space-8);
+  border: 0;
+  border-radius: var(--radius-card);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--font-size-13);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.gi-impact__path:hover {
+  background: var(--surface-2);
+}
+
+.gi-impact__hops {
+  overflow-wrap: anywhere;
+}
+
+.gi-impact__confidence {
+  color: var(--text-muted);
+  font-size: var(--font-size-12);
 }
 
 /* Diff mode's changes list (M6.9d): a quiet heading per state, and each row's mark in its color. */

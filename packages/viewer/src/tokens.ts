@@ -24,6 +24,7 @@ export type ThemeTokenName =
   | "layer-infra"
   | "layer-external"
   | "trace"
+  | "impact"
   | "diff-added"
   | "diff-changed"
   | "diff-removed"
@@ -43,7 +44,7 @@ export type ThemeTokenName =
  *
  * Contrast (checked in tests, both themes, on the canvas and every surface):
  * `text` and `text-muted` are at least 4.5:1, so they work for any text.
- * `accent`, the layers, `trace`, and the diff colors are at least 3:1, so
+ * `accent`, the layers, `trace`, `impact`, and the diff colors are at least 3:1, so
  * they work for strokes, rings, icons, and focus, but not for small text.
  * The `syntax-*` colors are for the code preview only: at least 4.5:1 on the
  * canvas (its background) and on the selected line's accent tint.
@@ -66,6 +67,8 @@ export const themeTokens: Record<Theme, Record<ThemeTokenName, string>> = {
     "layer-infra": "#f0a35e",
     "layer-external": "#f38bc4",
     trace: "#ffd37a",
+    // What depends on a node (M10.3f1, M10-design §3.2): a cyan apart from accent, trace, and diff.
+    impact: "#5fd4e8",
     "diff-added": "#4ade80",
     "diff-changed": "#f5c451",
     "diff-removed": "#ff6b6b",
@@ -95,6 +98,7 @@ export const themeTokens: Record<Theme, Record<ThemeTokenName, string>> = {
     "layer-infra": "#b8641c",
     "layer-external": "#c0418a",
     trace: "#a66f00",
+    impact: "#0b7c91",
     "diff-added": "#1e8e4e",
     "diff-changed": "#a87700",
     "diff-removed": "#d23b3b",

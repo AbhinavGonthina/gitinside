@@ -54,6 +54,8 @@ export interface BoxLook {
   diff?: NodeDiff | undefined;
   changes?: Readonly<DiffCounts> | undefined;
   absent?: boolean | undefined;
+  /** Impact analysis (M10.3f1): how many dependents a closed box holds, as a count badge. */
+  dependents?: number | undefined;
 }
 
 /**
@@ -167,6 +169,8 @@ interface CanvasBoxProps {
   diff: NodeDiff | undefined;
   changes: Readonly<DiffCounts> | undefined;
   absent: boolean;
+  /** `BoxLook.dependents`. */
+  dependents: number | undefined;
   selectable: boolean;
   actions: RefObject<BoxActions>;
   register: (id: string, leaving: boolean, el: HTMLElement | null) => void;
@@ -198,6 +202,7 @@ const CanvasBox = memo(function CanvasBox({
   diff,
   changes,
   absent,
+  dependents,
   selectable,
   actions,
   register,
@@ -217,7 +222,11 @@ const CanvasBox = memo(function CanvasBox({
   const card = cards ? viewCardLook(from, { ...n, node }) : undefined;
   const counts = n.open
     ? []
-    : [...(card?.counts ?? (frame ? frameCounts(from, n.id) : [])), ...changeCounts(changes)];
+    : [
+        ...(card?.counts ?? (frame ? frameCounts(from, n.id) : [])),
+        ...changeCounts(changes),
+        ...(dependents ? [{ value: dependents, noun: "dependent" }] : []),
+      ];
   const tree = hidden
     ? {}
     : {
@@ -840,6 +849,7 @@ export function DrillCanvas({
                 diff={undefined}
                 changes={undefined}
                 absent={false}
+                dependents={undefined}
                 selectable={false}
                 actions={actions}
                 register={register}
@@ -866,6 +876,7 @@ export function DrillCanvas({
                   diff={look.diff}
                   changes={look.changes}
                   absent={look.absent ?? false}
+                  dependents={look.dependents}
                   selectable={onSelect !== undefined}
                   actions={actions}
                   register={register}

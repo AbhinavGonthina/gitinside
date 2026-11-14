@@ -23,6 +23,7 @@ const PARAM_WORDS: Readonly<Record<string, string>> = {
   sel: "selected",
   trace: "traced from",
   step: "step",
+  impact: "what depends on",
   hideLayers: "hidden layer",
   hideKinds: "hidden kind",
   hideConfidence: "hidden confidence",

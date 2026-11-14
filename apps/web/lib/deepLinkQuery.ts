@@ -13,6 +13,7 @@ export const DEEP_LINK_PARAMS: readonly string[] = [
   "sel",
   "trace",
   "step",
+  "impact",
   "hideLayers",
   "hideKinds",
   "hideConfidence",

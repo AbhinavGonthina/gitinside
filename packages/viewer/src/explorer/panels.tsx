@@ -213,6 +213,8 @@ export interface PrototypePanel {
   /** Whether the overview's Analysis notes are open. */
   notesOpen: boolean;
   onNotesToggle: (open: boolean) => void;
+  /** Shows what depends on a node (M10.3f1, **What depends on this?**, I). */
+  onImpact?: ((id: string) => void) | undefined;
 }
 
 /** The overview's warnings section, which the canvas's warnings chip (and the prototype's Ctrl K) moves focus to. */
@@ -348,14 +350,17 @@ function NodeActions({
   onShow,
   onBreakDown,
   onTrace,
+  onImpact,
 }: Pick<
   NodePanelProps,
   "node" | "canBreakDown" | "canTrace" | "onShow" | "onBreakDown" | "onTrace"
 > & {
   github: string | undefined;
   filteredOut: boolean;
+  /** The prototype's impact analysis (M10.3f1). */
+  onImpact?: ((id: string) => void) | undefined;
 }) {
-  if (!(canBreakDown || canTrace || github || (filteredOut && onShow))) return null;
+  if (!(canBreakDown || canTrace || github || (filteredOut && onShow) || onImpact)) return null;
   return (
     <InspectorActions>
       {filteredOut && onShow && (
@@ -382,6 +387,16 @@ function NodeActions({
           onClick={() => onTrace(node.id)}
         >
           Trace from here
+        </Button>
+      )}
+      {onImpact && (
+        <Button
+          variant={canBreakDown || canTrace || (filteredOut && onShow) ? "secondary" : "primary"}
+          size="sm"
+          shortcut={["I"]}
+          onClick={() => onImpact(node.id)}
+        >
+          What depends on this?
         </Button>
       )}
       {github && (
@@ -529,6 +544,7 @@ function PrototypeNodePanel({
       <CodeSection access={sources} repo={repo} site={source} />
       <NodeActions
         {...{ node, canBreakDown, canTrace, github, filteredOut, onShow, onBreakDown, onTrace }}
+        onImpact={prototype.onImpact}
       />
     </Inspector>
   );

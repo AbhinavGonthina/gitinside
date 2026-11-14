@@ -527,6 +527,28 @@
   --gi-node-bg: color-mix(in srgb, var(--trace) 10%, var(--surface-1));
 }
 
+/*
+ * State: impact (M10.3f1, the prototype's "What depends on this?"): a dependent keeps full
+ * strength with an impact border, a closed one a faint impact tint; one that may depend through
+ * an unmatched request stays half dimmed with a dotted impact border.
+ */
+
+.gi-node[data-emphasis="impact"] {
+  --gi-node-border: var(--impact);
+  --gi-state-shadow: 0 0 0 1px var(--impact);
+}
+
+.gi-node[data-tier="card"][data-emphasis="impact"],
+.gi-node[data-expanded="false"][data-emphasis="impact"] {
+  --gi-node-bg: color-mix(in srgb, var(--impact) 10%, var(--surface-1));
+}
+
+.gi-node[data-emphasis="maybe"] {
+  --gi-node-border: var(--impact);
+  border-style: dotted;
+  opacity: 0.5;
+}
+
 /* State: dimmed (off the request path). Hover brings it partway back. */
 
 .gi-node[data-emphasis="dimmed"] {
@@ -559,6 +581,7 @@
     [data-selected],
     [data-emphasis="traced"],
     [data-emphasis="current"],
+    [data-emphasis="impact"],
     [data-diff]
   ) {
   --gi-lip: 0 6px 0 -4px var(--gi-node-bg),

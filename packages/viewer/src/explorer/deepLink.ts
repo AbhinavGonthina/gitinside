@@ -34,6 +34,11 @@ export interface ExplorerState {
   trace: string | null;
   /** The trace's current step, 0-based; null when not tracing. */
   step: number | null;
+  /**
+   * The node whose dependents are shown (the prototype's impact analysis, M10.3f1); null or
+   * absent when none. Never with a trace: starting one ends the other.
+   */
+  impact?: string | null | undefined;
   filters: Filters;
   /** Connection kinds left off, sorted. */
   hiddenKinds: readonly EdgeKind[];
@@ -46,6 +51,7 @@ export const DEFAULT_STATE: ExplorerState = {
   selected: null,
   trace: null,
   step: null,
+  impact: null,
   filters: DEFAULT_FILTERS,
   hiddenKinds: [...DEFAULT_HIDDEN_KINDS].sort(compareStrings),
 };
@@ -67,7 +73,7 @@ export interface DecodedState {
  * are comma-separated; filters name what's left off (`hide…`), or the one
  * folder shown (`only`), and `tests=shown` turns off "Hide tests and config".
  * `view` is diff mode's Base or Head (`base`, `head`), first since it says
- * what the rest is read on.
+ * what the rest is read on. `impact` is the prototype's impact analysis.
  */
 export const STATE_PARAMS = [
   "view",
@@ -75,6 +81,7 @@ export const STATE_PARAMS = [
   "sel",
   "trace",
   "step",
+  "impact",
   "hideLayers",
   "hideKinds",
   "hideConfidence",
@@ -115,7 +122,7 @@ export function encodeState(state: ExplorerState): string {
   if (state.trace !== null) {
     put("trace", [state.trace]);
     if (state.step !== null && state.step > 0) put("step", [String(state.step + 1)]);
-  }
+  } else if (state.impact !== null && state.impact !== undefined) put("impact", [state.impact]);
   const f = normalizeFilters(state.filters);
   if (f.layers.length > 0) put("hideLayers", f.layers);
   if (f.kinds.length > 0) put("hideKinds", f.kinds);
@@ -249,6 +256,13 @@ export function decodeState(query: string, index: HierarchyIndex): DecodedState 
     if (trace !== null && n <= traceFrom(index, trace).steps.length) step = n - 1;
     else ignored.push({ param: "step", value: stepText });
   }
+  // Impact never with a trace (the trace wins), and never on the system.
+  const impactOn = one("impact");
+  let impact: string | null = null;
+  if (impactOn !== undefined) {
+    if (trace === null && index.byId.has(impactOn) && impactOn !== index.root.id) impact = impactOn;
+    else ignored.push({ param: "impact", value: impactOn });
+  }
 
   const folders = new Set(filterOptions(index).folders);
   const isFolder = (v: string) => folders.has(normalizeFolder(v));
@@ -277,6 +291,7 @@ export function decodeState(query: string, index: HierarchyIndex): DecodedState 
       selected,
       trace,
       step,
+      impact,
       filters,
       hiddenKinds: lines ?? DEFAULT_STATE.hiddenKinds,
     },

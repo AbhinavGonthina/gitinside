@@ -49,6 +49,7 @@ const graphicTokens: ThemeTokenName[] = [
   "layer-infra",
   "layer-external",
   "trace",
+  "impact",
   "diff-added",
   "diff-changed",
   "diff-removed",
@@ -195,6 +196,21 @@ describe("theme tokens", () => {
       expect(new Set(colors).size).toBe(colors.length);
     });
   });
+
+  it.each(["dark", "light"] as const)(
+    "keep impact apart from the selection, the trace, and the diff colors in %s (M10.3f1)",
+    (theme) => {
+      const t = themeTokens[theme];
+      const others = (
+        ["accent", "trace", "diff-added", "diff-changed", "diff-removed"] as const
+      ).map((n) => t[n]);
+      expect(others).not.toContain(t.impact);
+      // Its tint behind a closed box (nodes.css) keeps text readable.
+      const tint = mixHex(t.impact, t["surface-1"], 0.1);
+      expect(contrastRatio(t.text, tint)).toBeGreaterThanOrEqual(4.5);
+      expect(contrastRatio(t["text-muted"], tint)).toBeGreaterThanOrEqual(4.5);
+    },
+  );
 
   it("give every layer its own color", () => {
     for (const theme of ["dark", "light"] as const) {
