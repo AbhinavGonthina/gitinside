@@ -10,6 +10,8 @@ import {
   encodeState,
   Explorer,
   type ExplorerState,
+  isShown,
+  revealIn,
   summarizeGraph,
   TopBar,
 } from "@gitinside/viewer";
@@ -17,6 +19,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { PROTOTYPE_HOME } from "../../lib/prototypeLinks";
 import { loadGraph, type GraphLoad } from "../../lib/repoStatus";
 import { RepoForm } from "../RepoForm";
+import { PrototypeViews } from "./PrototypeViews";
 
 /** Props for {@link PrototypeDiagram}: one of `PROTOTYPE_REPOS`. */
 export interface PrototypeDiagramProps {
@@ -71,6 +74,7 @@ export function PrototypeDiagram({
   tour = false,
 }: PrototypeDiagramProps) {
   const status = { state: "current", text: pinnedText(sha) } as const;
+  const views = <PrototypeViews repo={{ owner, name: repo, sha }} current="diagram" />;
   // Until the explorer draws (loading, or a load that failed), the same bar without actions, so
   // the page never has a second header or a jump in height.
   const bar = (
@@ -81,6 +85,7 @@ export function PrototypeDiagram({
       home={PROTOTYPE_HOME}
       status={status}
       end={barEnd}
+      views={views}
     />
   );
   const [load, setLoad] = useState<GraphLoad>();
@@ -100,14 +105,17 @@ export function PrototypeDiagram({
   }, [graphUrl, attempt]);
 
   // Decoded against the graph the prototype draws, its groups included (M10.3b1), so a link
-  // that opens "Shared packages" opens it again.
-  const linked = useMemo(
-    () =>
-      load?.ok
-        ? decodeState(window.location.search, buildHierarchy(summarizeGraph(load.graph)))
-        : undefined,
-    [load],
-  );
+  // that opens "Shared packages" opens it again. A selection the link's open nodes don't show
+  // (the API map's "Diagram ↗" names only the route, M10.3f3) has its way opened, so it arrives
+  // as its own box, framed, rather than as the closed service around it.
+  const linked = useMemo(() => {
+    if (!load?.ok) return undefined;
+    const index = buildHierarchy(summarizeGraph(load.graph));
+    const decoded = decodeState(window.location.search, index);
+    const { open, selected } = decoded.state;
+    if (selected === null || isShown(index, new Set(open), selected)) return decoded;
+    return { ...decoded, state: { ...decoded.state, open: revealIn(index, open, selected) } };
+  }, [load]);
 
   const onStateChange = (state: ExplorerState) => {
     const { pathname, hash } = window.location;
@@ -137,6 +145,7 @@ export function PrototypeDiagram({
               home={PROTOTYPE_HOME}
               commitStatus={status}
               topBarEnd={barEnd}
+              topBarViews={views}
               layoutWorker={layoutWorker}
               loadSource={loadSource}
               onboarding={onboarding}

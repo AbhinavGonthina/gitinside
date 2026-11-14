@@ -12,7 +12,9 @@ import type { PrototypeRepo } from "./prototypeLinks";
  */
 
 export {
+  PROTOTYPE_API,
   PROTOTYPE_HOME,
+  prototypeApiHref,
   prototypeGraphUrl,
   prototypeHref,
   prototypeTourHref,

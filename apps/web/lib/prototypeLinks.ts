@@ -33,6 +33,18 @@ export function prototypeTourHref(repo: PrototypeRepo): string {
   return `${prototypeHref(repo)}&${TOUR_PARAM}`;
 }
 
+/** The prototype's API map page (M10-design §3.3, M10.3f3). */
+export const PROTOTYPE_API = `${PROTOTYPE_HOME}/api`;
+
+/**
+ * A repo's API map page: `/prototype/api?repo=<owner>/<name>`, then the page's own query
+ * (`apiQueryString`) if one is given.
+ */
+export function prototypeApiHref(repo: PrototypeRepo, query = ""): string {
+  const page = `${PROTOTYPE_API}?repo=${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}`;
+  return query === "" ? page : `${page}&${query}`;
+}
+
 /** Where the page reads a repo's graph: this site's proxy of production's. */
 export function prototypeGraphUrl(repo: PrototypeRepo): string {
   return `/api/prototype/graph/${encodeURIComponent(repo.owner)}/${encodeURIComponent(repo.name)}`;

@@ -30,6 +30,9 @@ describe("the prototype's page transitions (M10.3e2b, M10-design §4)", () => {
     expect(read("../globals.css").includes("@view-transition"), "globals.css").toBe(false);
     // The sheet loads with the prototype's route only.
     expect(read("page.tsx").includes('import "./transitions.css";'), "page.tsx").toBe(true);
+    expect(read("api/page.tsx").includes('import "../transitions.css";'), "api/page.tsx").toBe(
+      true,
+    );
   });
 
   it("fades the page it leaves over `fast` with the exit curve, and keeps the bar still", () => {

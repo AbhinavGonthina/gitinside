@@ -1,0 +1,489 @@
+/*
+ * The M10 prototype's API map page (M10-design §3.3, M10.3f3). Loaded by its route only
+ * (`page.tsx`), so the shipped site has none of it. Every value is a token, as on the rest of the
+ * site; hover and focus answer within `fast`, in fill and border only (§4).
+ */
+
+.api-page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.api-page__body {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--space-24) var(--space-24) var(--space-48);
+}
+
+.api-page__summary {
+  min-height: 20px;
+  margin: 0 0 var(--space-16);
+  color: var(--text-muted);
+  font-size: var(--font-size-14);
+  font-variant-numeric: tabular-nums;
+}
+
+.api-page__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12) var(--space-16);
+  margin: 0 0 var(--space-16);
+}
+
+.api-page__filters {
+  display: flex;
+  gap: var(--space-12);
+}
+
+.api-page__note {
+  max-width: 72ch;
+  margin: var(--space-16) 0 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-13);
+  line-height: var(--line-height-body);
+}
+
+.api-page__state {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-48) 0;
+}
+
+/* The search field in the bar. */
+
+.api-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  box-sizing: border-box;
+  width: 240px;
+  height: 32px;
+  margin-right: var(--space-8);
+  padding: 0 var(--space-8);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-chip);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  transition: border-color var(--duration-fast) var(--ease-standard);
+}
+
+.api-search:hover {
+  border-color: color-mix(in srgb, var(--text-muted) 45%, var(--border));
+}
+
+.api-search:has(:focus-visible) {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.api-search__input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--font-size-13);
+}
+
+.api-search__input::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+.api-search__input:focus-visible {
+  outline: none;
+}
+
+/* Tabs: pills with their counts. */
+
+.api-tabs {
+  display: flex;
+  gap: var(--space-8);
+}
+
+.api-tabs__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  height: 32px;
+  padding: 0 var(--space-12);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--font-size-13);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard),
+    color var(--duration-fast) var(--ease-standard);
+}
+
+.api-tabs__tab:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--text-muted) 45%, var(--border));
+}
+
+.api-tabs__tab[aria-selected="true"] {
+  border-color: color-mix(in srgb, var(--text-muted) 45%, var(--border));
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+.api-tabs__count {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Service and Method: native selects, quiet like the bar's controls. */
+
+.api-select {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  color: var(--text-muted);
+  font-size: var(--font-size-13);
+}
+
+.api-select select {
+  max-width: 240px;
+  height: 32px;
+  padding: 0 var(--space-8);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-chip);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--font-size-13);
+  transition: border-color var(--duration-fast) var(--ease-standard);
+}
+
+.api-select select:hover {
+  border-color: color-mix(in srgb, var(--text-muted) 45%, var(--border));
+}
+
+.api-select select:focus-visible {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* The table. */
+
+/* Fixed columns, so the head doesn't move when the rows arrive or a filter changes them. */
+.api-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: var(--font-size-13);
+}
+
+.api-table th:nth-child(1) {
+  width: 72px;
+}
+
+.api-table:not(.api-table--calls) th:nth-child(3) {
+  width: 18%;
+}
+
+.api-table:not(.api-table--calls) th:nth-child(4) {
+  width: 22%;
+}
+
+.api-table:not(.api-table--calls) th:nth-child(5) {
+  width: 104px;
+}
+
+.api-table--calls th:nth-child(2) {
+  width: 32%;
+}
+
+.api-table--calls th:nth-child(3) {
+  width: 14%;
+}
+
+.api-table--calls th:nth-child(4) {
+  width: 22%;
+}
+
+/* The requests GitInside couldn't read: the note and its button on one line, then their table. */
+.api-unread {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-12);
+  margin-top: var(--space-16);
+}
+
+.api-unread > .api-page__note {
+  margin: 0;
+}
+
+.api-unread > .api-table {
+  flex-basis: 100%;
+  margin-top: var(--space-8);
+}
+
+.api-table th {
+  height: 36px;
+  padding: 0 var(--space-12);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--font-size-12);
+  font-weight: var(--font-weight-medium);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.api-table td {
+  height: 40px;
+  padding: 0 var(--space-12);
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.api-table code {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-13);
+}
+
+.api-row > tr:first-child,
+.api-call {
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.api-row > tr:first-child:hover,
+.api-call:hover {
+  background: var(--surface-1);
+}
+
+.api-method {
+  display: inline-block;
+  min-width: 52px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-12);
+  font-weight: var(--font-weight-medium);
+}
+
+.api-row__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  max-width: 100%;
+  margin-left: -6px;
+  padding: 2px 6px 2px 2px;
+  border: 0;
+  border-radius: var(--radius-chip);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.api-row__toggle:hover {
+  background: var(--surface-2);
+}
+
+.api-row__toggle > .gi-ui-icon {
+  flex: none;
+  color: var(--text-muted);
+  transition: rotate var(--duration-fast) var(--ease-standard);
+}
+
+.api-row__toggle[aria-expanded="true"] > .gi-ui-icon {
+  rotate: 90deg;
+}
+
+/* A route with no caller has nothing to open: its path lines up with the toggles' text. */
+.api-row__plain {
+  padding-left: 16px;
+  overflow-wrap: anywhere;
+}
+
+.api-row__service {
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.api-row__callers {
+  white-space: nowrap;
+}
+
+.api-row__callers[data-none] {
+  color: var(--text-muted);
+}
+
+.api-row__link {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.api-site {
+  border-radius: var(--radius-chip);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-12);
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  /* Paths break after a `/` (`<wbr>`); inside a name only if one alone is too wide. */
+  overflow-wrap: break-word;
+  transition: text-decoration-thickness var(--duration-fast) var(--ease-standard);
+}
+
+a.api-site:hover {
+  text-decoration-thickness: 2px;
+}
+
+/* One per row, so it stays quiet until its row is pointed at or it has focus. */
+.api-row__link a {
+  border-radius: var(--radius-chip);
+  color: var(--text-muted);
+  text-decoration: none;
+  text-underline-offset: 3px;
+  transition: color var(--duration-fast) var(--ease-standard);
+}
+
+.api-row > tr:first-child:hover .api-row__link a,
+.api-row__link a:focus-visible {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+}
+
+/* An open row: its callers, one per line, under the row's own fill. */
+
+.api-row[data-open] > tr:first-child > td {
+  border-bottom-color: transparent;
+}
+
+.api-row__detail > td {
+  height: auto;
+  padding-bottom: var(--space-12);
+}
+
+.api-callers {
+  display: grid;
+  gap: var(--space-8);
+  margin: 0;
+  padding: 0 0 0 calc(52px + var(--space-24) + 16px);
+  list-style: none;
+  animation: api-open var(--duration-standard) var(--ease-standard);
+}
+
+.api-callers li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-4) var(--space-12);
+}
+
+.api-callers__name {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-12);
+}
+
+.api-callers__service {
+  color: var(--text-muted);
+}
+
+.api-confidence {
+  color: var(--text-muted);
+  font-size: var(--font-size-12);
+}
+
+@keyframes api-open {
+  from {
+    opacity: 0;
+    translate: 0 -4px;
+  }
+}
+
+.api-table--calls .api-call__url {
+  overflow-wrap: anywhere;
+}
+
+.api-call__why {
+  color: var(--text-muted);
+  line-height: var(--line-height-body);
+}
+
+.api-table--calls td {
+  padding-block: var(--space-8);
+}
+
+.api-table__empty {
+  color: var(--text-muted);
+}
+
+/* Loading: the head, then a 2px line moving under it (never grey rows); text under reduced motion. */
+
+.api-table__loading > td {
+  position: relative;
+  height: 2px;
+  padding: 0;
+  overflow: hidden;
+  border-bottom: 0;
+}
+
+.api-table__line {
+  display: block;
+  width: 30%;
+  height: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  animation: api-line calc(var(--duration-layout) * 3) var(--ease-standard) infinite;
+}
+
+@keyframes api-line {
+  from {
+    translate: -100% 0;
+  }
+  to {
+    translate: 340% 0;
+  }
+}
+
+.api-table__loading-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .api-table__line {
+    display: none;
+  }
+
+  .api-table__loading > td {
+    height: 40px;
+    padding: 0 var(--space-12);
+  }
+
+  .api-table__loading-text {
+    position: static;
+    width: auto;
+    height: auto;
+    clip-path: none;
+    color: var(--text-muted);
+  }
+}

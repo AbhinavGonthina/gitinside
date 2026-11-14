@@ -59,6 +59,11 @@ export interface TopBarProps extends Omit<HTMLAttributes<HTMLElement>, "children
   status?: CommitStatus | undefined;
   /** The page's own items at the end of the bar (`"page"` only). */
   end?: ReactNode;
+  /**
+   * The page's views, e.g. the prototype's `Diagram | API map` links (M10-design §3.3), drawn
+   * after the drill-down path, before the search field (`"page"` only).
+   */
+  views?: ReactNode;
 }
 
 /**
@@ -98,6 +103,7 @@ export function TopBar({
   onCrumb,
   status,
   end,
+  views,
   className,
   ...rest
 }: TopBarProps) {
@@ -109,6 +115,7 @@ export function TopBar({
   ) : (
     <TopBarStart repo={repo} branch={branch} />
   );
+  const pageViews = page && views !== undefined && <div className="gi-topbar__views">{views}</div>;
   if (!actions) {
     return (
       <header
@@ -118,6 +125,7 @@ export function TopBar({
         data-variant={page ? "page" : undefined}
       >
         {start}
+        {pageViews}
         {page && end !== undefined && <div className="gi-topbar__end">{end}</div>}
       </header>
     );
@@ -139,6 +147,7 @@ export function TopBar({
   return (
     <header {...rest} className={classes} data-variant={page ? "page" : undefined}>
       {start}
+      {pageViews}
       <button
         type="button"
         className="gi-search-field"

@@ -216,6 +216,36 @@ export function SegmentedControl<T extends string>({
   );
 }
 
+/** One page of {@link ViewLinks}. */
+export interface ViewLink {
+  label: string;
+  href: string;
+  /** The page this is: `aria-current="page"`, drawn as the chosen segment. */
+  current?: boolean;
+}
+
+/**
+ * Links between a repo's pages drawn as a segmented control, e.g. the prototype's
+ * `Diagram | API map` (M10-design §3.3). They're pages, not a choice on this one, so they're
+ * links in a `nav`, each its own tab stop, the page shown marked `aria-current`.
+ */
+export function ViewLinks({ label, links }: { label: string; links: readonly ViewLink[] }) {
+  return (
+    <nav aria-label={label} className="gi-segmented gi-view-links">
+      {links.map((l) => (
+        <a
+          key={l.href}
+          href={l.href}
+          className="gi-segmented__option"
+          aria-current={l.current ? "page" : undefined}
+        >
+          {l.label}
+        </a>
+      ))}
+    </nav>
+  );
+}
+
 /**
  * What a status chip is about: `trace` (a trace is running), `diff` (comparing
  * two commits), `impact` (the prototype's "what depends on this", M10.3f1), or
