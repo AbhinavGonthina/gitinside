@@ -22,8 +22,8 @@ import { buildHierarchy, type HierarchyIndex } from "./hierarchy.js";
  * as before and a group's lines are its members' lines lifted. Deterministic: graph order, ties by
  * `compareStrings`.
  *
- * Not handled: a shared service nested below the top level (none are), groups inside a broken-down
- * service (B3, M10.3d), and a host group's logo grid (its tile is a folder's until M10.3b3).
+ * Not handled: a shared service nested below the top level (none are), and groups inside a
+ * broken-down service (B3, M10.3d). A closed host group's logo tile is `cardLook`'s (M10.3b3).
  */
 
 /** The ID prefix of a group node; analyzed node IDs start with their kind, never this. */

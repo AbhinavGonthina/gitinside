@@ -438,6 +438,52 @@ describe("DiagramNode", () => {
     );
   });
 
+  it("draws a prototype card's name and subtitle, the name first in the accessible name (M10.3b3)", () => {
+    const node = { ...sample("service"), label: "anything-llm" };
+    const card = { name: "frontend", subtitle: { text: "React app", code: "anything-llm" } };
+    const { getByRole } = render(<DiagramNode node={node} card={card} wrap />);
+    const group = getByRole("group");
+    expect(group.querySelector(".gi-node__label")?.textContent).toBe("frontend");
+    expect(group.querySelector(".gi-node__subtitle")?.textContent).toBe("React appanything-llm");
+    expect(group.getAttribute("aria-label")).toMatch(/^frontend, service/);
+    // The tooltip keeps the package name.
+    expect(group.querySelector(".gi-node__label")?.getAttribute("title")).toBe("anything-llm");
+    expect(group.hasAttribute("data-wrap")).toBe(true);
+  });
+
+  it("lets a wrapping name break after its slashes, keeping the scope's span", () => {
+    const node = { ...sample("service"), label: "@documenso/tailwind-config" };
+    const { getByRole } = render(<DiagramNode node={node} scope="@documenso/" wrap />);
+    const label = getByRole("group").querySelector(".gi-node__label");
+    expect(label?.textContent).toBe("@documenso/tailwind-config");
+    expect(label?.querySelector(".gi-node__scope wbr")).not.toBeNull();
+    expect(label?.querySelectorAll("wbr").length).toBe(3);
+  });
+
+  it("draws a closed host group as a circle of logos, and open as a frame", () => {
+    const group = {
+      id: "group:hosts/ai",
+      kind: "module",
+      label: "AI models · 3",
+      parentId: "system:root",
+      path: "",
+      layer: "external",
+    } as const;
+    const host = (h: string) =>
+      ({ id: `external:${h}`, kind: "external", label: h, host: h, parentId: group.id }) as const;
+    const logos = [host("api.openai.com"), host("api.anthropic.com")];
+    const card = { subtitle: { text: "Outside hosts" }, logos };
+    const { getByRole, rerender } = render(<DiagramNode node={group} card={card} />);
+    const closed = getByRole("group");
+    expect(closed.dataset["tier"]).toBe("icon");
+    expect(closed.dataset["shape"]).toBe("circle");
+    expect(closed.querySelectorAll(".gi-icon-tile__logos > svg")).toHaveLength(2);
+    expect(closed.querySelector(".gi-icon-tile__logos [data-brand='anthropic']")).not.toBeNull();
+    rerender(<DiagramNode node={group} card={card} expanded />);
+    expect(getByRole("group").dataset["tier"]).toBe("frame");
+    expect(getByRole("group").querySelector(".gi-icon-tile__logos")).toBeNull();
+  });
+
   it("draws a closed frame as one element and an open one around its children", () => {
     const { getByRole, rerender } = render(
       <DiagramNode node={sample("service")}>

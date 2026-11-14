@@ -89,6 +89,8 @@ export interface LayoutInputOptions {
    * (the M10.3 prototype's A2), so code dependency doesn't spread the system level out.
    */
   quietCode?: boolean | undefined;
+  /** Size boxes as the prototype's cards draw them (M10.3b3, `cardLook`): names wrap, never cut. */
+  cards?: boolean | undefined;
 }
 
 /** One drawn edge as the layout sees it, with its label's size. */
@@ -203,7 +205,8 @@ function rootOptions(input: LayoutInput): LayoutOptions {
  * (`marks`) a closed box makes room for its change badges and a pill for its
  * state's word or what broke, and both for what Base and Head draw instead.
  * With `options.bands` (the prototype), each top-level node gets its band; with
- * `options.quietCode`, each "uses code" line (`isCodeLine`) is marked `quiet`.
+ * `options.quietCode`, each "uses code" line (`isCodeLine`) is marked `quiet`; with
+ * `options.cards`, boxes are sized as the prototype's cards.
  */
 export function layoutInput(
   index: HierarchyIndex,
@@ -212,7 +215,7 @@ export function layoutInput(
   options: LayoutInputOptions = {},
 ): LayoutInput {
   const nodes = view.nodes.map((n): LayoutNode => {
-    const size = viewNodeSize(index, n, marks);
+    const size = viewNodeSize(index, n, marks, options.cards);
     const header = n.open ? openHeader(n.node, layerOf(index, n.id)) : undefined;
     return {
       id: n.id,

@@ -17,7 +17,7 @@ import type { Rect } from "../chrome/describe.js";
 import { DiagramEdge, EdgeLabel } from "../edges/DiagramEdge.js";
 import { BANDS, type PlacedEdge } from "../layout/elk.js";
 import type { LayoutCache } from "../layout/engine.js";
-import { changeCounts, frameCounts, viewEdgeLabelSize } from "../layout/size.js";
+import { changeCounts, frameCounts, viewCardLook, viewEdgeLabelSize } from "../layout/size.js";
 import type { DiffCounts, DiffMarks } from "../model/diff.js";
 import { layerOf, nodeOf, type HierarchyIndex } from "../model/hierarchy.js";
 import {
@@ -107,6 +107,11 @@ export interface DrillCanvasProps
    * stay the layout's. What it lacks fades out as the overlay drew it.
    */
   versionIndex?: HierarchyIndex | undefined;
+  /**
+   * Draw the prototype's cards (M10.3b3, `cardLook`), which `cache` must have sized
+   * (`LayoutInputOptions.cards`): names wrap, services carry a count row and role.
+   */
+  cards?: boolean | undefined;
 }
 
 /**
@@ -147,6 +152,8 @@ interface CanvasBoxProps {
   selectable: boolean;
   actions: RefObject<BoxActions>;
   register: (id: string, leaving: boolean, el: HTMLElement | null) => void;
+  /** The prototype's cards (`DrillCanvasProps.cards`). */
+  cards: boolean;
 }
 
 /**
@@ -174,6 +181,7 @@ const CanvasBox = memo(function CanvasBox({
   selectable,
   actions,
   register,
+  cards,
 }: CanvasBoxProps) {
   const frame = nodeTier(n.node) === "frame";
   const ref = useCallback(
@@ -185,9 +193,10 @@ const CanvasBox = memo(function CanvasBox({
   // A box the version lacks fades out as the overlay drew it.
   const from = shown && !absent ? shown : index;
   const node = from.byId.get(n.id) ?? n.node;
+  const card = cards ? viewCardLook(from, { ...n, node }) : undefined;
   const counts = n.open
     ? []
-    : [...(frame ? frameCounts(from, n.id) : []), ...changeCounts(changes)];
+    : [...(card?.counts ?? (frame ? frameCounts(from, n.id) : [])), ...changeCounts(changes)];
   const tree = hidden
     ? {}
     : {
@@ -216,6 +225,8 @@ const CanvasBox = memo(function CanvasBox({
         layer={layerOf(index, n.id)}
         counts={counts}
         scope={from.scopes.get(n.id)}
+        card={card}
+        wrap={cards}
         expanded={n.open}
         selected={selected}
         emphasis={emphasis}
@@ -451,6 +462,7 @@ export function DrillCanvas({
   cullFrom = CULL_FROM,
   marks,
   versionIndex,
+  cards = false,
   className,
   style,
   ...rest
@@ -789,6 +801,7 @@ export function DrillCanvas({
                 selectable={false}
                 actions={actions}
                 register={register}
+                cards={cards}
               />
             ))}
             {/* One stable list in drawing order, so Tab reads a frame, then its inside. */}
@@ -813,6 +826,7 @@ export function DrillCanvas({
                   selectable={onSelect !== undefined}
                   actions={actions}
                   register={register}
+                  cards={cards}
                 />
               );
             })}

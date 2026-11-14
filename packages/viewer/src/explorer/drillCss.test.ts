@@ -78,6 +78,13 @@ describe("drill.css", () => {
       expect(body).not.toMatch(/gi-node__diff/);
     });
 
+    it("keeps a scaled-up prototype service name on one line below full detail (M10.3b3)", () => {
+      const name =
+        '.gi-drill:not([data-detail="full"]) .gi-node[data-kind="service"][data-wrap] .gi-node__label';
+      expect(rule(name)).toMatch(/white-space: nowrap;/);
+      expect(rule(`${name} > *`)).toMatch(/overflow-wrap: normal;/);
+    });
+
     it("keeps the selection's, the current hop's, and a broken edge's pill at names detail", () => {
       expect(
         rule(

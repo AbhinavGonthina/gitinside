@@ -185,8 +185,9 @@ export interface ExplorerProps {
    * Which design to draw (M10.3): `"current"` (default) is the shipped explorer; `"prototype"` is
    * the M10 redesign under review at the design gate, only for the website's unlinked
    * `/prototype` page until Abhinav approves it. So far: the top level in bands, its shared
-   * packages and outside hosts grouped, its "uses code" lines quiet behind the boxes, and a first
-   * view fitted at 70% or more, else on the hub at 80%.
+   * packages and outside hosts grouped, its "uses code" lines quiet behind the boxes, a first
+   * view fitted at 70% or more, else on the hub at 80%, and cards whose names wrap rather than
+   * end in "…", with a count row and role on every service and logos on a host group's tile.
    */
   design?: ExplorerDesign | undefined;
 }
@@ -344,7 +345,8 @@ export function Explorer({
     setEngine(made);
     return () => made.dispose();
   }, [layoutWorker]);
-  // The prototype bands the system level and quiets its "uses code" lines (M10.3a, M10.3b2).
+  // The prototype bands the system level, quiets its "uses code" lines, and draws its own cards
+  // (M10.3a, M10.3b2, M10.3b3).
   const prototype = design === "prototype";
   const cache = useMemo(
     () =>
@@ -352,6 +354,7 @@ export function Explorer({
       createLayoutCache(index, engine, undefined, marks, {
         bands: prototype,
         quietCode: prototype,
+        cards: prototype,
       }),
     [index, engine, marks, prototype],
   );
@@ -1373,6 +1376,7 @@ export function Explorer({
             cullFrom={cullFrom}
             marks={marks}
             versionIndex={shownIndex === index ? undefined : shownIndex}
+            cards={prototype}
           />
           <div
             className="gi-explorer__pin"

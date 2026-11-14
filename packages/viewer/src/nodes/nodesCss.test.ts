@@ -49,6 +49,14 @@ describe("nodes.css", () => {
     expect(rule("traced")).toContain("--gi-node-border: var(--trace);");
   });
 
+  it("wraps a prototype name instead of cutting it, its shared scope muted (M10.3b3)", () => {
+    const rule = (selector: string) =>
+      new RegExp(`${selector.replace(/[.[\]>*]/g, "\\$&")} \\{([^}]*)\\}`).exec(css)?.[1] ?? "";
+    expect(rule(".gi-node[data-wrap] .gi-node__label")).toContain("white-space: normal;");
+    expect(rule(".gi-node[data-wrap] .gi-node__label > *")).toContain("overflow-wrap: anywhere;");
+    expect(rule(".gi-node[data-wrap] .gi-node__scope")).toContain("color: var(--text-muted);");
+  });
+
   it.each(["added", "changed", "removed"])("styles the %s diff state", (diff) => {
     expect(css).toContain(`.gi-node[data-diff="${diff}"]`);
   });

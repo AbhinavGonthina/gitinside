@@ -1,6 +1,7 @@
 import type { GraphNode, Layer } from "@gitinside/schema";
 import { edgeLabel, type EdgeText } from "../edges/describe.js";
 import { textWidth } from "../image/markup.js";
+import { cardLook, nameLines, type CardLook } from "../nodes/cards.js";
 import type { DiffCounts, DiffMarks, LineMark } from "../model/diff.js";
 import { countsInside, layerOf, type HierarchyIndex } from "../model/hierarchy.js";
 import { drawnEdge, edgeWithin, type ViewEdge, type ViewNode } from "../model/view.js";
@@ -163,16 +164,29 @@ export function changeCounts(inside: Readonly<DiffCounts> | undefined): NodeCoun
   );
 }
 
+/** The prototype's look for a visible box (`cardLook`); an open box keeps the shipped header. */
+export function viewCardLook(index: HierarchyIndex, view: ViewNode): CardLook | undefined {
+  return view.open ? undefined : cardLook(index, view.node);
+}
+
 /**
  * The badges a visible node draws: a frame's counts (an open frame's too, as
  * the floor of its width), then, closed and in diff mode, its change badges.
+ * With the prototype's `cards`, a closed service or host group draws its card's
+ * counts instead (`cardLook`).
  */
 export function viewNodeCounts(
   index: HierarchyIndex,
   view: ViewNode,
   marks?: DiffMarks | undefined,
+  cards = false,
 ): NodeCount[] {
-  const counts = nodeTier(view.node) === "frame" ? frameCounts(index, view.id) : [];
+  const card = cards ? viewCardLook(index, view) : undefined;
+  const counts = card?.counts
+    ? [...card.counts]
+    : nodeTier(view.node) === "frame"
+      ? frameCounts(index, view.id)
+      : [];
   if (!marks || view.open) return counts;
   return [...counts, ...changeCounts(marks.inside(view.id))];
 }
@@ -183,6 +197,52 @@ export interface SizeContext {
   layer?: Layer | undefined;
   /** Count badges it draws (closed frames). */
   counts?: readonly NodeCount[] | undefined;
+  /**
+   * The prototype's cards (M10.3b3): names wrap to more lines instead of ending in "…", and
+   * services and host groups are sized from their {@link CardLook}.
+   */
+  wrap?: boolean | undefined;
+  /** The prototype's look for this box (`cardLook`), with `wrap`. */
+  card?: CardLook | undefined;
+}
+
+/** Narrowest and widest a prototype service card grows before its name wraps (M10-design B7). */
+export const MIN_WRAP_WIDTH = 200;
+export const MAX_WRAP_WIDTH = 280;
+/** Height each wrapped line of a name adds: 14px and 13px names at the tight line height. */
+export const NAME_LINE = { frame: 18, icon: 17 } as const;
+
+/**
+ * A prototype box's size (M10.3b3), names wrapping rather than cut: a service's card grows to
+ * fit its name and subtitle up to {@link MAX_WRAP_WIDTH} (its count row can widen it further),
+ * then its name takes a second line; a name that two lines still can't hold widens the card, up
+ * to {@link MAX_FRAME_WIDTH}, before taking a third. Icon-first boxes (and a closed host group,
+ * drawn with its logo tile) keep their widths and add lines. Other frames are sized as shipped.
+ */
+function wrappedSize(node: GraphNode, context: SizeContext): Size | undefined {
+  const card = context.card;
+  const name = card?.name ?? node.label;
+  const subtitle = lineWidth(card?.subtitle ?? nodeSubtitle(node), 12, 12);
+  if (card?.logos || nodeTier(node) === "icon") {
+    const chrome = 2 + 2 * 8 + COUNTS_SLACK;
+    const width = Math.ceil(
+      clamp(chrome + Math.max(textWidth(name, 13), subtitle), MIN_ICON_WIDTH, MAX_ICON_WIDTH),
+    );
+    return { width, height: 128 + (nameLines(name, 13, width - chrome) - 1) * NAME_LINE.icon };
+  }
+  if (node.kind !== "service" || !card) return undefined;
+  const counts = context.counts ?? [];
+  const chrome = 2 + 12 + 16 + TILE_ROW + COUNTS_SLACK;
+  let width = Math.ceil(
+    Math.max(
+      clamp(chrome + Math.max(textWidth(name, 14), subtitle), MIN_WRAP_WIDTH, MAX_WRAP_WIDTH),
+      countsRowWidth(counts),
+    ),
+  );
+  while (nameLines(name, 14, width - chrome) > 2 && width < MAX_FRAME_WIDTH) width += 8;
+  const lines = nameLines(name, 14, width - chrome);
+  const band = nodeShape(node, node.layer ?? context.layer) === "window" ? WINDOW_BAND.frame : 0;
+  return { width, height: (counts.length > 0 ? 94 : 62) + band + (lines - 1) * NAME_LINE.frame };
 }
 
 /**
@@ -193,6 +253,8 @@ export interface SizeContext {
  * title band.
  */
 export function closedSize(node: GraphNode, context: SizeContext = {}): Size {
+  const wrapped = context.wrap ? wrappedSize(node, context) : undefined;
+  if (wrapped) return wrapped;
   const shape = nodeShape(node, node.layer ?? context.layer);
   const counts = context.counts ?? [];
   switch (nodeTier(node)) {
@@ -248,8 +310,15 @@ export function viewNodeSize(
   index: HierarchyIndex,
   view: ViewNode,
   marks?: DiffMarks | undefined,
+  cards = false,
 ): Size {
-  const context = { layer: layerOf(index, view.id), counts: viewNodeCounts(index, view, marks) };
+  const card = cards ? viewCardLook(index, view) : undefined;
+  const context = {
+    layer: layerOf(index, view.id),
+    counts: viewNodeCounts(index, view, marks, cards),
+    wrap: cards,
+    card,
+  };
   const size = closedSize(view.node, context);
   const was = marks?.baseNode(view.node);
   if (!was) return size;

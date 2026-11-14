@@ -1,6 +1,8 @@
 import type { GraphNode, Layer } from "@gitinside/schema";
-import { useId, type HTMLAttributes, type ReactNode } from "react";
+import { Fragment, useId, type HTMLAttributes, type ReactNode } from "react";
 import { IconTile, isTileShape, NodeIcon, TILE_ICON_SIZE } from "../icons/Icon.js";
+import { Glyph } from "../icons/glyphs.js";
+import { namePieces, type CardLook } from "./cards.js";
 import {
   changesText,
   countText,
@@ -34,6 +36,14 @@ export interface DiagramNodeProps
    * name still reads whole; a scope the name doesn't start with is ignored.
    */
   scope?: string | undefined;
+  /**
+   * The prototype's card (M10.3b3, `cardLook`): a name and subtitle drawn instead of the node's,
+   * and, closed, a host group drawn as a circle tile with its members' logos. Counts still come
+   * from `counts`.
+   */
+  card?: CardLook | undefined;
+  /** The prototype's names (M10.3b3): wrap onto more lines instead of ending in "…". */
+  wrap?: boolean | undefined;
   /** Frames only: draw open, with `children` inside, instead of as a closed card. */
   expanded?: boolean;
   /** Frames only: the nodes drawn inside an expanded frame. */
@@ -86,6 +96,37 @@ function DiffTag({ diff }: Pick<DiagramNodeProps, "diff">) {
   );
 }
 
+/** A name that may wrap: a break opportunity after each of its pieces (`namePieces`). */
+function Breakable({ text, wrap }: { text: string; wrap: boolean }) {
+  if (!wrap) return text;
+  return namePieces(text).map((piece, i) => (
+    <Fragment key={i}>
+      {piece}
+      <wbr />
+    </Fragment>
+  ));
+}
+
+/** A host group's tile (M10.3b3): up to four of its members' logos in a 2×2 grid. */
+function LogoTile({ logos, layer }: { logos: readonly GraphNode[]; layer: Layer | undefined }) {
+  const [only] = logos;
+  return (
+    <IconTile size="lg" layer={layer} shape="circle">
+      {logos.length === 0 || !only ? (
+        <Glyph name="external" size={TILE_ICON_SIZE.lg} />
+      ) : logos.length === 1 ? (
+        <NodeIcon node={only} size={TILE_ICON_SIZE.lg} />
+      ) : (
+        <span className="gi-icon-tile__logos" data-count={logos.length}>
+          {logos.map((m) => (
+            <NodeIcon key={m.id} node={m} size={18} />
+          ))}
+        </span>
+      )}
+    </IconTile>
+  );
+}
+
 function Badges({ counts }: Pick<DiagramNodeProps, "counts">) {
   if (!counts?.length) return null;
   return (
@@ -127,6 +168,8 @@ export function DiagramNode({
   layer,
   counts,
   scope,
+  card,
+  wrap = false,
   expanded = false,
   children,
   hovered = false,
@@ -136,13 +179,17 @@ export function DiagramNode({
   className,
   ...rest
 }: DiagramNodeProps) {
-  const tier = nodeTier(node);
-  const open = tier === "frame" && expanded;
+  const open = nodeTier(node) === "frame" && expanded;
+  // A closed host group is drawn as an outside API is: its logos on a circle tile.
+  const logos = open ? undefined : card?.logos;
+  const tier = logos ? "icon" : nodeTier(node);
   const tint = node.layer ?? layer;
-  const label = nodeLabel(node);
-  const subtitle = nodeSubtitle(node);
+  const label = card?.name === undefined ? nodeLabel(node) : { text: card.name };
+  const subtitle = card?.subtitle ?? nodeSubtitle(node);
   const tileSize = tier === "icon" ? "lg" : "sm";
-  const shape = nodeShape(node, tint);
+  const shape = logos ? "circle" : nodeShape(node, tint);
+  // The accessible name starts with the name drawn (WCAG 2.5.3).
+  const spoken = card?.name === undefined ? node : { ...node, label: card.name };
   const fields = modelFieldsText(node);
   // A role that carries selection (the canvas's tree items) says it; the name doesn't repeat it.
   const named = rest["aria-selected"] === undefined && selected;
@@ -161,12 +208,13 @@ export function DiagramNode({
     "data-tier": tier,
     "data-kind": node.kind,
     "data-shape": shape,
-    "aria-label": [nodeAccessibleName(node, { selected: named, emphasis, diff }), changes]
+    "aria-label": [nodeAccessibleName(spoken, { selected: named, emphasis, diff }), changes]
       .filter(Boolean)
       .join(". "),
     ...(describedBy.length ? { "aria-describedby": describedBy.join(" ") } : {}),
     ...(tier === "frame" ? { "data-expanded": String(open) } : {}),
     ...(tint ? { "data-layer": tint } : {}),
+    ...(wrap ? { "data-wrap": "" } : {}),
     ...(hovered ? { "data-hover": "" } : {}),
     ...(selected ? { "data-selected": "" } : {}),
     ...(emphasis ? { "data-emphasis": emphasis } : {}),
@@ -175,22 +223,34 @@ export function DiagramNode({
 
   const head = (
     <>
-      <IconTile size={tileSize} layer={tint} shape={isTileShape(shape) ? shape : undefined}>
-        <NodeIcon node={node} size={TILE_ICON_SIZE[tileSize]} />
-      </IconTile>
+      {logos ? (
+        <LogoTile logos={logos} layer={tint} />
+      ) : (
+        <IconTile size={tileSize} layer={tint} shape={isTileShape(shape) ? shape : undefined}>
+          <NodeIcon node={node} size={TILE_ICON_SIZE[tileSize]} />
+        </IconTile>
+      )}
       <span className="gi-node__text">
         <span className="gi-node__label" title={node.label}>
           {label.method && <span className="gi-method">{label.method}</span>}
           {label.text &&
-            (scope && label.text.startsWith(scope) ? (
+            (scope && card?.name === undefined && label.text.startsWith(scope) ? (
               <span>
-                <span className="gi-node__scope">{scope}</span>
-                {label.text.slice(scope.length)}
+                <span className="gi-node__scope">
+                  <Breakable text={scope} wrap={wrap} />
+                </span>
+                <Breakable text={label.text.slice(scope.length)} wrap={wrap} />
               </span>
             ) : (
-              <span>{label.text}</span>
+              <span>
+                <Breakable text={label.text} wrap={wrap} />
+              </span>
             ))}
-          {label.code && <code>{label.code}</code>}
+          {label.code && (
+            <code>
+              <Breakable text={label.code} wrap={wrap} />
+            </code>
+          )}
         </span>
         {hasSubtitle && <Text value={subtitle} className="gi-node__subtitle" />}
       </span>
