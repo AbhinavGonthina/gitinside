@@ -6,6 +6,7 @@ import {
   GITHUB_RAW_ORIGIN,
   SECURITY_HEADERS,
   TURNSTILE_ORIGIN,
+  VISIT_ORIGIN,
 } from "./csp";
 
 /** The policy as directive name → sources. */
@@ -35,11 +36,12 @@ describe("buildCsp", () => {
     expect(prod.get("style-src-attr")).toEqual(["'unsafe-inline'"]);
   });
 
-  it("loads nothing from another origin, except code previews' fetches from GitHub and the bot check's frame", () => {
+  it("loads nothing from another origin, except code previews' fetches from GitHub, the bot check's frame, and the visit ping", () => {
     for (const [name, sources] of prod) {
       for (const source of sources) {
         if (name === "connect-src" && source === GITHUB_RAW_ORIGIN) continue;
         if (name === "frame-src" && source === TURNSTILE_ORIGIN) continue;
+        if (name === "img-src" && source === VISIT_ORIGIN) continue;
         expect(source, `${name} ${source}`).not.toMatch(/^(https?:|\*|\/\/)|\.\w/);
       }
     }

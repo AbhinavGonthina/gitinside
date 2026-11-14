@@ -37,7 +37,7 @@ export default function Privacy() {
   return (
     <DocsPage
       current="/privacy"
-      lede="GitInside keeps as little as it can: the diagram, never your code. It has no ads, no analytics, and no third-party trackers."
+      lede="GitInside keeps as little as it can: the diagram, never your code. It has no ads and no third-party trackers. The only thing it tracks is visits to the home page."
     >
       <DocsSection id="repos" title="What's stored about a repo">
         <p>
