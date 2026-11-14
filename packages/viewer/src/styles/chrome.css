@@ -1422,6 +1422,240 @@ a.gi-topbar__home:hover {
   stroke: none;
 }
 
+/*
+ * The prototype's panel (M10.3c3, M10-design A8, B9, B10): the overview's count row, "Try this",
+ * a node's fact grid with "+N" lists, Calls grouped by target with their sites, and the
+ * Analysis notes collapsed at the foot.
+ */
+.gi-connection__edge[data-wrap] {
+  white-space: normal;
+}
+
+.gi-factrow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-12);
+  margin: calc(-1 * var(--space-8)) 20px var(--space-16);
+  padding: 0 14px;
+  list-style: none;
+  color: var(--text-muted);
+  font-size: var(--font-size-12);
+  font-variant-numeric: tabular-nums;
+}
+
+.gi-factrow strong {
+  color: var(--text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.gi-factgrid {
+  display: grid;
+  gap: var(--space-8);
+  margin: 0;
+}
+
+.gi-factgrid > div {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  gap: var(--space-12);
+  font-size: var(--font-size-13);
+}
+
+.gi-factgrid dt {
+  color: var(--text-muted);
+}
+
+.gi-factgrid dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px var(--space-8);
+  min-width: 0;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.gi-factgrid code {
+  font-size: var(--font-size-12);
+}
+
+.gi-factgrid__link,
+.gi-factgrid__more {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.gi-factgrid__link {
+  text-decoration: underline;
+  text-decoration-color: var(--text-muted);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: text-decoration-color var(--duration-fast) var(--ease-standard);
+}
+
+.gi-factgrid__link:hover {
+  text-decoration-color: var(--text);
+}
+
+.gi-factgrid__more {
+  padding: 0 6px;
+  border-radius: var(--radius-chip);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: var(--font-size-12);
+}
+
+.gi-factgrid__more:hover {
+  color: var(--text);
+}
+
+.gi-try {
+  display: grid;
+  gap: 2px;
+  margin: 0 -8px;
+  padding: 0;
+  list-style: none;
+}
+
+.gi-try__action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  padding: var(--space-8);
+  border: 0;
+  border-radius: var(--radius-card);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.gi-try__action:hover {
+  background: var(--surface-2);
+}
+
+.gi-try__action > .gi-ui-icon {
+  flex: none;
+  color: var(--accent);
+}
+
+.gi-try__text {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 1px;
+  min-width: 0;
+}
+
+.gi-try__label {
+  font-size: var(--font-size-13);
+  font-weight: var(--font-weight-medium);
+}
+
+.gi-try__label strong {
+  font-weight: var(--font-weight-semibold);
+}
+
+.gi-try__detail {
+  color: var(--text-muted);
+  font-size: var(--font-size-12);
+}
+
+.gi-connection-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.gi-connection__sites-toggle,
+.gi-notes__toggle {
+  display: flex;
+  align-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.gi-connection__sites-toggle {
+  flex: none;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: var(--radius-card);
+  transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.gi-connection__sites-toggle:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.gi-connection__sites-toggle .gi-ui-icon,
+.gi-notes__toggle .gi-ui-icon {
+  transition: rotate var(--duration-fast) var(--ease-standard);
+}
+
+.gi-connection__sites-toggle[aria-expanded="true"] .gi-ui-icon,
+.gi-notes__toggle[aria-expanded="true"] .gi-ui-icon {
+  rotate: 90deg;
+}
+
+.gi-connection__sites {
+  display: grid;
+  gap: 2px;
+  margin: 0 0 var(--space-4);
+  padding: 0 0 0 46px;
+  list-style: none;
+  font-size: var(--font-size-12);
+}
+
+.gi-connection__sites a,
+.gi-connection__sites code {
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+}
+
+.gi-connection__sites a:hover code {
+  color: var(--text);
+}
+
+.gi-notes {
+  margin-top: auto;
+}
+
+.gi-notes__toggle {
+  gap: var(--space-8);
+  width: 100%;
+  padding: 0;
+  color: var(--text);
+  font-weight: var(--font-weight-semibold);
+  text-align: left;
+}
+
+.gi-notes__toggle .gi-ui-icon {
+  color: var(--text-muted);
+}
+
+.gi-notes h3 {
+  margin: 0;
+}
+
+.gi-notes > .gi-inspector__empty {
+  margin: 10px 0;
+}
+
 /* Diff mode's changes list (M6.9d): a quiet heading per state, and each row's mark in its color. */
 .gi-changes__group {
   display: flex;

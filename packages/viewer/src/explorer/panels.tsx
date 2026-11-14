@@ -23,6 +23,17 @@ import { isGroup } from "../model/groups.js";
 import { canOpen, layerOf, nodeOf, type HierarchyIndex } from "../model/hierarchy.js";
 import { visibleAncestor, type GraphView } from "../model/view.js";
 import { nodeLabel, REASON_TEXT } from "../nodes/describe.js";
+import { briefOf, factGrid, groupConnections, systemFacts, systemSentence } from "./brief.js";
+import {
+  AnalysisNotes,
+  FactGrid,
+  FactRow,
+  GroupedConnections,
+  NOTES_SECTION,
+  ServiceList,
+  TryThis,
+  type TryAction,
+} from "./overview.js";
 import { useSourceText, type SourceAccess } from "./sources.js";
 import { summaryOf } from "./summary.js";
 import { TRACE_DEPTH, type TraceStep } from "./trace.js";
@@ -171,10 +182,25 @@ export interface NodePanelProps {
   warnings?: readonly AnalysisWarning[] | undefined;
   /** Diff mode's changes list (M6.9d), shown under the summary. */
   changes?: ReactNode;
+  /** The prototype's panel (`design="prototype"`, M10.3c3) instead of the shipped one. */
+  prototype?: PrototypePanel | undefined;
 }
 
-/** The overview's warnings section, which the canvas's warnings chip moves focus to. */
-export const WARNINGS_SECTION = "warnings";
+/** What the prototype's panel (M10.3c3) needs from the explorer. */
+export interface PrototypePanel {
+  /** The system level's hub, which "Try this" offers to break down. */
+  hub?: GraphNode | undefined;
+  /** Opens Ctrl K's search. */
+  onSearch: () => void;
+  /** What T does (a trace, or the picker), when there's anything to trace. */
+  onTrace?: (() => void) | undefined;
+  /** Whether the overview's Analysis notes are open. */
+  notesOpen: boolean;
+  onNotesToggle: (open: boolean) => void;
+}
+
+/** The overview's warnings section, which the canvas's warnings chip (and the prototype's Ctrl K) moves focus to. */
+export const WARNINGS_SECTION = NOTES_SECTION;
 
 /** The inspector for a selected node, or the repo overview (with the analysis's warnings) for the root. */
 export function NodePanel({
@@ -193,7 +219,16 @@ export function NodePanel({
   onShow,
   warnings = [],
   changes,
+  prototype,
 }: NodePanelProps) {
+  if (prototype) {
+    return (
+      <PrototypeNodePanel
+        {...{ index, node, canBreakDown, canTrace, sources, repo, onSelect, onBreakDown, onTrace }}
+        {...{ filteredOut, onShow, warnings, changes, prototype }}
+      />
+    );
+  }
   const { incoming, outgoing } = connectionsOf(index, node.id);
   const source = "source" in node ? node.source : undefined;
   const github = source ? githubLineUrl(repo, source.file, source.line) : undefined;
@@ -280,48 +315,194 @@ export function NodePanel({
           <CodeSection access={sources} repo={repo} site={source} />
         </>
       )}
-      {(canBreakDown || canTrace || github || (filteredOut && onShow)) && (
-        <InspectorActions>
-          {filteredOut && onShow && (
-            <Button variant="primary" size="sm" onClick={() => onShow(node.id)}>
-              Show on canvas
-            </Button>
-          )}
-          {canBreakDown && (
-            <Button
-              variant="primary"
-              size="sm"
-              icon="break-down"
-              shortcut={["Enter"]}
-              onClick={() => onBreakDown(node.id)}
-            >
-              Break down
-            </Button>
-          )}
-          {canTrace && (
-            <Button
-              variant={canBreakDown || (filteredOut && onShow) ? "secondary" : "primary"}
-              size="sm"
-              icon="trace"
-              onClick={() => onTrace(node.id)}
-            >
-              Trace from here
-            </Button>
-          )}
-          {github && (
-            <LinkButton
-              href={github}
-              target="_blank"
-              rel="noreferrer noopener"
-              variant={canBreakDown || canTrace || (filteredOut && onShow) ? "quiet" : "secondary"}
-              size="sm"
-              trailingIcon="open-external"
-            >
-              Open on GitHub
-            </LinkButton>
-          )}
-        </InspectorActions>
+      <NodeActions
+        {...{ node, canBreakDown, canTrace, github, filteredOut, onShow, onBreakDown, onTrace }}
+      />
+    </Inspector>
+  );
+}
+
+/** The actions at a node's foot: Show on canvas, Break down, Trace from here, Open on GitHub. */
+function NodeActions({
+  node,
+  canBreakDown,
+  canTrace,
+  github,
+  filteredOut,
+  onShow,
+  onBreakDown,
+  onTrace,
+}: Pick<
+  NodePanelProps,
+  "node" | "canBreakDown" | "canTrace" | "onShow" | "onBreakDown" | "onTrace"
+> & {
+  github: string | undefined;
+  filteredOut: boolean;
+}) {
+  if (!(canBreakDown || canTrace || github || (filteredOut && onShow))) return null;
+  return (
+    <InspectorActions>
+      {filteredOut && onShow && (
+        <Button variant="primary" size="sm" onClick={() => onShow(node.id)}>
+          Show on canvas
+        </Button>
       )}
+      {canBreakDown && (
+        <Button
+          variant="primary"
+          size="sm"
+          icon="break-down"
+          shortcut={["Enter"]}
+          onClick={() => onBreakDown(node.id)}
+        >
+          Break down
+        </Button>
+      )}
+      {canTrace && (
+        <Button
+          variant={canBreakDown || (filteredOut && onShow) ? "secondary" : "primary"}
+          size="sm"
+          icon="trace"
+          onClick={() => onTrace(node.id)}
+        >
+          Trace from here
+        </Button>
+      )}
+      {github && (
+        <LinkButton
+          href={github}
+          target="_blank"
+          rel="noreferrer noopener"
+          variant={canBreakDown || canTrace || (filteredOut && onShow) ? "quiet" : "secondary"}
+          size="sm"
+          trailingIcon="open-external"
+        >
+          Open on GitHub
+        </LinkButton>
+      )}
+    </InspectorActions>
+  );
+}
+
+/**
+ * The prototype's panel (M10.3c3, M10-design A8, B9, B10). The overview: "From the code" in one
+ * sentence with a row of counts, "Try this", the services, and Analysis notes collapsed at the
+ * foot. A node: a brief of at most 30 words, a fact grid, Called by and Calls grouped by target,
+ * its code, and its actions.
+ */
+function PrototypeNodePanel({
+  index,
+  node,
+  canBreakDown,
+  canTrace,
+  sources,
+  repo,
+  onSelect,
+  onBreakDown,
+  onTrace,
+  filteredOut = false,
+  onShow,
+  warnings = [],
+  changes,
+  prototype,
+}: Omit<NodePanelProps, "traceHint" | "canPick" | "prototype"> & { prototype: PrototypePanel }) {
+  const source = "source" in node ? node.source : undefined;
+  const github = source ? githubLineUrl(repo, source.file, source.line) : undefined;
+  if (node.id === index.root.id) {
+    const { hub, onSearch, onTrace: onTraceKey } = prototype;
+    const actions: TryAction[] = [
+      ...(hub
+        ? [
+            {
+              icon: "break-down" as const,
+              label: (
+                <>
+                  Break down <strong>{hub.label}</strong>
+                </>
+              ),
+              detail: "The busiest service: see its routes and code",
+              onClick: () => onBreakDown(hub.id),
+            },
+          ]
+        : []),
+      ...(onTraceKey
+        ? [
+            {
+              icon: "trace" as const,
+              label: "Trace a request",
+              detail: "Follow one through the services",
+              shortcut: ["T"],
+              onClick: onTraceKey,
+            },
+          ]
+        : []),
+      {
+        icon: "search",
+        label: "Search the diagram",
+        detail: "Services, routes, files, functions",
+        shortcut: ["Ctrl", "K"],
+        onClick: onSearch,
+      },
+    ];
+    return (
+      <Inspector key={node.id} data-design="prototype">
+        <InspectorHeader node={node} />
+        <InspectorSummary>{systemSentence(index)}</InspectorSummary>
+        <FactRow facts={systemFacts(index)} />
+        {changes}
+        <TryThis actions={actions} />
+        <ServiceList index={index} onSelect={onSelect} />
+        <AnalysisNotes
+          warnings={warnings}
+          open={prototype.notesOpen}
+          onToggle={prototype.onNotesToggle}
+        />
+      </Inspector>
+    );
+  }
+  const { incoming, outgoing } = connectionsOf(index, node.id);
+  const calledBy = groupConnections(incoming);
+  const calls = groupConnections(outgoing);
+  const rows = factGrid(index, node);
+  return (
+    <Inspector key={node.id} data-design="prototype">
+      <InspectorHeader node={node} layer={layerOf(index, node.id)} location={locationOf(node)} />
+      <InspectorSummary>{briefOf(index, node)}</InspectorSummary>
+      {filteredOut && (
+        <InspectorSection title="Hidden by filters">
+          <p className="gi-inspector__empty">
+            The filters leave this off the canvas, with its connections.
+          </p>
+        </InspectorSection>
+      )}
+      {changes}
+      {rows.length > 0 && (
+        <InspectorSection title="Facts">
+          <FactGrid rows={rows} onSelect={onSelect} />
+        </InspectorSection>
+      )}
+      <InspectorSection title="Called by" count={calledBy.length}>
+        <GroupedConnections
+          index={index}
+          groups={calledBy}
+          empty="Nothing in the repo calls this."
+          repo={repo}
+          onSelect={onSelect}
+        />
+      </InspectorSection>
+      <InspectorSection title="Calls" count={calls.length}>
+        <GroupedConnections
+          index={index}
+          groups={calls}
+          empty="This calls nothing in the repo."
+          repo={repo}
+          onSelect={onSelect}
+        />
+      </InspectorSection>
+      <CodeSection access={sources} repo={repo} site={source} />
+      <NodeActions
+        {...{ node, canBreakDown, canTrace, github, filteredOut, onShow, onBreakDown, onTrace }}
+      />
     </Inspector>
   );
 }

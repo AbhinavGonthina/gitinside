@@ -80,6 +80,26 @@ export function searchEntries(index: HierarchyIndex): SearchEntry[] {
     });
 }
 
+/** The ID Ctrl K picks for the prototype's Analysis notes (no node has it: IDs have a kind prefix). */
+export const NOTES_ENTRY = "notes:analysis";
+
+/**
+ * The prototype's "Analysis notes" result (M10-design A8), found by "notes", "analysis", or
+ * "warnings"; none when the analysis has no warnings. It's drawn with the system's icon.
+ */
+export function notesEntries(root: GraphNode, count: number): SearchEntry[] {
+  if (count === 0) return [];
+  const path = `${count.toLocaleString("en-US")} ${count === 1 ? "note" : "notes"} · warnings`;
+  return [
+    {
+      result: { node: { ...root, id: NOTES_ENTRY, label: "Analysis notes" }, path },
+      name: "analysis notes",
+      where: path.toLowerCase(),
+      kindRank: KIND_ORDER.indexOf("system"),
+    },
+  ];
+}
+
 /** Whether a word starts at `i` in `label`: its start, after a non-letter-or-digit, or a camelCase step. */
 function isWordStart(label: string, i: number): boolean {
   if (i === 0) return true;

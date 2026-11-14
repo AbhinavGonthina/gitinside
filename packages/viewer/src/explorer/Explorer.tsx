@@ -43,6 +43,7 @@ import {
   type HierarchyIndex,
 } from "../model/hierarchy.js";
 import {
+  buildView,
   DEFAULT_HIDDEN_KINDS,
   viewTrail,
   visibleAncestor,
@@ -94,7 +95,7 @@ import {
 } from "./onboarding.js";
 import { NodePanel, TracePanel, WARNINGS_SECTION } from "./panels.js";
 import { traceChoices, TracePicker } from "./picker.js";
-import { SearchPalette, searchEntries } from "./search.js";
+import { NOTES_ENTRY, notesEntries, SearchPalette, searchEntries } from "./search.js";
 import { useSourceAccess, type SourceLoader } from "./sources.js";
 import { canTraceFrom, traceFrom, traceNodes, type TraceStep } from "./trace.js";
 import type { Shown } from "./transition.js";
@@ -208,7 +209,10 @@ export interface ExplorerProps {
    * `topBarEnd`); on the canvas, at most three overlays (M10.3c2): status chips only for what's
    * on (no filter chip for the default hiding, no warnings chip), one bottom-right toolbar
    * (zoom, fit, the minimap's toggle, the legend), and a one-line first-visit hint instead of
-   * the tip cards, with hairlines instead of the soft shadow; unlinked datastores captioned.
+   * the tip cards, with hairlines instead of the soft shadow; unlinked datastores captioned; and
+   * the panel (M10.3c3): the overview's one sentence, counts, "Try this", services, and Analysis
+   * notes collapsed at the foot (also from Ctrl K), a node's brief of at most 30 words with a
+   * fact grid, and Calls / Called by grouped by target.
    */
   design?: ExplorerDesign | undefined;
   /**
@@ -418,6 +422,15 @@ export function Explorer({
   const filtersOpener = useRef<HTMLElement | null>(null);
   const drill = useDrill(index, initialOpen, { filters, hiddenKinds });
   const view = drill.view;
+  // The prototype overview's "Try this" offers the system level's hub (M10.3c3), the one its
+  // first view frames: worked out on the closed level, whatever is broken down now.
+  const hub = useMemo(() => {
+    if (!prototype) return undefined;
+    const id = hubOf(buildView(shownIndex, [], { filters, hiddenKinds }));
+    return id === undefined ? undefined : shownIndex.byId.get(id);
+  }, [prototype, shownIndex, filters, hiddenKinds]);
+  // The prototype's Analysis notes (M10.3c3): collapsed until opened, here or from Ctrl K.
+  const [notesOpen, setNotesOpen] = useState(false);
 
   const [selected, setSelected] = useState<string | null>(initialSelected);
   /** `traceStart`, if it's in this graph and has somewhere to go. */
@@ -447,7 +460,14 @@ export function Explorer({
   const [picking, setPicking] = useState(false);
   const pickerState = usePresence(picking);
   // The Ctrl+K palette (M4b.7), over every node.
-  const entries = useMemo(() => searchEntries(shownIndex), [shownIndex]);
+  // The prototype's Ctrl K also finds the Analysis notes (M10-design A8), its warnings chip gone.
+  const entries = useMemo(
+    () => [
+      ...(prototype ? notesEntries(shownIndex.root, graph.warnings.length) : []),
+      ...searchEntries(shownIndex),
+    ],
+    [shownIndex, prototype, graph.warnings.length],
+  );
   const [searching, setSearching] = useState(false);
   const searchState = usePresence(searching);
   /** Where focus was when the picker or the palette opened, to go back to. */
@@ -888,7 +908,8 @@ export function Explorer({
       ?.querySelector<HTMLElement>(`.gi-inspector [data-section="${WARNINGS_SECTION}"]`)
       ?.focus();
   function showWarnings() {
-    // The overview is already up: nothing re-renders, so focus it now.
+    setNotesOpen(true);
+    // The overview is already up: its section is there, so focus it now.
     if (selected === null) {
       focusWarnings();
       return;
@@ -1118,7 +1139,8 @@ export function Explorer({
   function pickSearch(id: string) {
     leaveDialog(true);
     setSearching(false);
-    reveal(id, true);
+    if (id === NOTES_ENTRY) showWarnings();
+    else reveal(id, true);
   }
 
   /**
@@ -1653,6 +1675,18 @@ export function Explorer({
             filteredOut={selectedNode !== undefined && filtered.has(selectedNode.id)}
             onShow={showNode}
             warnings={graph.warnings}
+            prototype={
+              prototype
+                ? {
+                    hub,
+                    onSearch: toggleSearch,
+                    onTrace:
+                      fallbackStart !== undefined || choices.length > 0 ? toggleTrace : undefined,
+                    notesOpen,
+                    onNotesToggle: setNotesOpen,
+                  }
+                : undefined
+            }
             changes={
               overlay && (
                 <ChangesSection
