@@ -3,12 +3,15 @@ import ELK from "elkjs/lib/elk.bundled.js";
 import { describe, expect, it } from "vitest";
 import type { Rect } from "../chrome/describe.js";
 import type { Point } from "../edges/geometry.js";
+import { codeShop } from "../model/codeLines.testkit.js";
 import { buildHierarchy } from "../model/hierarchy.js";
 import { buildView, type GraphView } from "../model/view.js";
 import { shopDemo } from "../shopDemo.testkit.js";
 import {
   bandOf,
   BANDS,
+  BUS_GAP,
+  busRoute,
   ELK_OPTIONS,
   elkGraph,
   LAYOUT_PAD,
@@ -178,6 +181,172 @@ describe("bands (the M10.3 prototype, M10-design A1)", () => {
       expect(right("datastore:infra/db")).toBeLessThanOrEqual(left("external:ext/api.stripe.com"));
       expect(result.bands?.map((b) => b.band)).toEqual([0, 1, 3, 4]);
     }
+  });
+});
+
+describe("quiet code lines (the M10.3 prototype, M10-design A2)", () => {
+  const code = buildHierarchy(codeShop());
+  const quietIds = (input: LayoutInput) => input.edges.filter((e) => e.quiet).map((e) => e.id);
+  const WEB_UI = "calls:service:web/->service:ui/";
+  const WEB_API = "calls:service:web/->service:api/";
+  const API_UI = "calls:service:api/->service:ui/";
+
+  it("marks only top-level imports and calls lines quiet, and only when asked", () => {
+    const view = buildView(code, []);
+    expect(quietIds(layoutInput(code, view))).toEqual([]);
+    expect(quietIds(layoutInput(code, view, undefined, { quietCode: true })).sort()).toEqual([
+      API_UI,
+      WEB_API,
+      WEB_UI,
+    ]);
+    // web's requests to api stay ELK's.
+    const http = layoutInput(code, view, undefined, { quietCode: true }).edges.find(
+      (e) => e.id === "http:service:web/->service:api/",
+    );
+    expect(http?.quiet).toBeUndefined();
+    // Shown imports are code too.
+    const withImports = buildView(code, [], { hiddenKinds: new Set() });
+    expect(quietIds(layoutInput(code, withImports, undefined, { quietCode: true }))).toContain(
+      "imports:service:web/->service:ui/",
+    );
+    // From inside a broken-down service, a call to another service is an ordinary line; one
+    // between two closed services stays quiet.
+    const open = buildView(code, ["service:web/"]);
+    expect(quietIds(layoutInput(code, open, undefined, { quietCode: true }))).toEqual([API_UI]);
+    expect(open.edges.some((e) => e.kind === "calls" && e.to === "service:ui/")).toBe(true);
+  });
+
+  it("leaves quiet lines out of ELK and routes them from box to box", async () => {
+    const input = layoutInput(code, buildView(code, []), undefined, {
+      bands: true,
+      quietCode: true,
+    });
+    expect(elkGraph(input).edges?.map((e) => e.id)).not.toContain(WEB_UI);
+    const result = await runLayout(elk, input);
+    expect(result.edges.map((e) => e.id)).toEqual(input.edges.map((e) => e.id));
+    for (const id of [WEB_UI, WEB_API, API_UI]) {
+      const placed = result.edges.find((e) => e.id === id);
+      expect(placed?.quiet).toBe(true);
+      const [from, to] = id.slice("calls:".length).split("->") as [string, string];
+      expect(placed?.points).toEqual(busRoute(boxOf(result, from), boxOf(result, to)));
+      expect(onLine(placed?.label as Point, placed?.points ?? [])).toBe(true);
+    }
+    expect(result.edges.find((e) => e.id === "http:service:web/->service:api/")?.quiet).toBe(
+      undefined,
+    );
+  });
+
+  it("spreads a level out less than the same lines laid out by ELK", async () => {
+    const view = buildView(code, []);
+    const routed = await runLayout(elk, layoutInput(code, view, undefined, { bands: true }));
+    const quiet = await runLayout(
+      elk,
+      layoutInput(code, view, undefined, { bands: true, quietCode: true }),
+    );
+    // ui sits in Backend; with api's call laid out by ELK it takes a column after api's.
+    const x = (r: LayoutResult, id: string) => boxOf(r, id).x;
+    expect(x(routed, "service:ui/")).toBeGreaterThan(x(routed, "service:api/"));
+    expect(x(quiet, "service:ui/")).toBe(x(quiet, "service:api/"));
+    expect(quiet.width).toBeLessThan(routed.width);
+  });
+});
+
+describe("busRoute", () => {
+  const box = (x: number, y: number): Rect => ({ x, y, width: 100, height: 40 });
+
+  it("leaves the side facing the target and turns BUS_GAP short of it", () => {
+    expect(busRoute(box(0, 0), box(300, 100))).toEqual([
+      { x: 100, y: 20 },
+      { x: 300 - BUS_GAP, y: 20 },
+      { x: 300 - BUS_GAP, y: 120 },
+      { x: 300, y: 120 },
+    ]);
+    expect(busRoute(box(300, 100), box(0, 0))).toEqual([
+      { x: 300, y: 120 },
+      { x: 100 + BUS_GAP, y: 120 },
+      { x: 100 + BUS_GAP, y: 20 },
+      { x: 100, y: 20 },
+    ]);
+  });
+
+  it("reaches a box in the same column around the column's right side", () => {
+    expect(busRoute(box(0, 0), { x: 10, y: 200, width: 120, height: 40 })).toEqual([
+      { x: 100, y: 20 },
+      { x: 130 + BUS_GAP, y: 20 },
+      { x: 130 + BUS_GAP, y: 220 },
+      { x: 130, y: 220 },
+    ]);
+  });
+
+  it("goes straight across to a target level with the source", () => {
+    expect(busRoute(box(0, 0), box(300, 0))).toEqual([
+      { x: 100, y: 20 },
+      { x: 300, y: 20 },
+    ]);
+  });
+
+  it("bundles: one box's lines leave at one point, a column's lines in at one turn", () => {
+    const source = box(0, 200);
+    const targets = [box(300, 0), box(300, 100), box(300, 300), box(600, 50)];
+    const routes = targets.map((t) => busRoute(source, t));
+    expect(new Set(routes.map((r) => JSON.stringify(r[0])))).toEqual(
+      new Set([JSON.stringify({ x: 100, y: 220 })]),
+    );
+    // The three targets in one column share the run to it and its turn.
+    expect(new Set(routes.slice(0, 3).map((r) => JSON.stringify(r[1])))).toEqual(
+      new Set([JSON.stringify({ x: 300 - BUS_GAP, y: 220 })]),
+    );
+    // Lines from two boxes into one target meet at its side.
+    const into = [box(0, 0), box(0, 300)].map((s) => busRoute(s, box(300, 150)).at(-1));
+    expect(into[0]).toEqual(into[1]);
+  });
+});
+
+describe("the banded system level's placement (M10.3b2: maxun's 40%)", () => {
+  const node = (id: string, band: number, height = 128) => ({
+    id,
+    parent: null,
+    width: 136,
+    height,
+    band,
+  });
+  // maxun's shape: one service calling six outside hosts, two datastores with no lines.
+  const hosts = ["a", "b", "c", "d", "e", "f"].map((h) => `host-${h}`);
+  const input: LayoutInput = {
+    nodes: [
+      node("service", 1, 94),
+      node("minio", 3),
+      node("postgres", 3),
+      ...hosts.map((h) => node(h, 4)),
+    ],
+    edges: hosts.map((h) => ({
+      id: `external_call:service->${h}`,
+      from: "service",
+      to: h,
+      label: { width: 60, height: 20 },
+    })),
+  };
+
+  it("keeps datastores with no lines within the tallest column, not below it", async () => {
+    const result = await runLayout(elk, input);
+    const column = hosts.map((h) => boxOf(result, h));
+    const bottom = Math.max(...column.map((b) => b.y + b.height));
+    for (const id of ["minio", "postgres"]) {
+      const b = boxOf(result, id);
+      expect(b.y + b.height).toBeLessThanOrEqual(bottom);
+    }
+    expect(result.height).toBe(bottom + LAYOUT_PAD);
+  });
+
+  it("places by network simplex only on a banded level with nothing open", () => {
+    const strategy = (i: LayoutInput) =>
+      elkGraph(i).layoutOptions?.["elk.layered.nodePlacement.strategy"];
+    expect(strategy(input)).toBe("NETWORK_SIMPLEX");
+    expect(
+      strategy({ ...input, nodes: input.nodes.map(({ band: _, ...n }) => n) }),
+    ).toBeUndefined();
+    const open = layoutInput(index, buildView(index, API_OPEN), undefined, { bands: true });
+    expect(strategy(open)).toBeUndefined();
   });
 });
 

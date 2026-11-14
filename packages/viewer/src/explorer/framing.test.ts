@@ -1,12 +1,22 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
+import { codeShop } from "../model/codeLines.testkit.js";
 import { buildHierarchy } from "../model/hierarchy.js";
-import { buildView } from "../model/view.js";
+import { buildView, type GraphView } from "../model/view.js";
 import { shopDemo } from "../shopDemo.testkit.js";
 import type { Rect } from "../chrome/describe.js";
 import { fitCamera, READABLE_ZOOM, type Camera, type Size } from "./camera.js";
-import { FIT_INSET } from "./fit.js";
-import { autoCamera, belowBand, boxesRect, entriesRect, fitLevel, lastOpened } from "./framing.js";
+import { FIRST_VIEW, FIT_INSET } from "./fit.js";
+import {
+  autoCamera,
+  belowBand,
+  boxesRect,
+  entriesRect,
+  firstView,
+  fitLevel,
+  hubOf,
+  lastOpened,
+} from "./framing.js";
 import type { Shown } from "./transition.js";
 
 const index = buildHierarchy(shopDemo());
@@ -90,6 +100,115 @@ describe("framing", () => {
     // Nothing to frame: the level's fit.
     expect(autoCamera(shown, small, undefined)).toEqual(fitLevel(shown.layout, small));
     expect(autoCamera(undefined, small, API)).toEqual(fitCamera({ width: 0, height: 0 }, small));
+  });
+});
+
+describe("the prototype's first view (M10.3b2, M10-design A2 and A5)", () => {
+  const code = buildHierarchy(codeShop());
+
+  /** The system level of `codeShop` in a row, 100 × 40 each, `gap` apart. */
+  function level(gap: number): Shown {
+    const view = buildView(code, []);
+    const boxes = view.nodes.map((n, i) => ({
+      id: n.id,
+      x: 40 + i * (100 + gap),
+      y: 40,
+      width: 100,
+      height: 40,
+    }));
+    const width = Math.max(...boxes.map((b) => b.x + b.width)) + 40;
+    return { view, layout: { boxes, edges: [], width, height: 120 } };
+  }
+
+  it("picks the service with the most lines that aren't code as the hub", () => {
+    const view = buildView(code, []);
+    // api: web's requests, the Stripe call, and the database; web: its requests and code lines only.
+    expect(hubOf(view)).toBe(API);
+    // Code lines alone don't make a hub.
+    const onlyCode = {
+      ...view,
+      edges: view.edges.filter((e) => e.kind === "calls"),
+    };
+    expect(onlyCode.edges.length).toBeGreaterThan(0);
+    expect(hubOf(onlyCode)).toBeUndefined();
+  });
+
+  it("breaks a tie between hubs by ID, and counts only services", () => {
+    const service = (id: string) => ({ id, parent: null, node: { kind: "service" } });
+    const store = { id: "datastore:db", parent: null, node: { kind: "datastore" } };
+    const view = {
+      byId: new Map([service("service:b/"), service("service:a/"), store].map((n) => [n.id, n])),
+      edges: [
+        { kind: "reads", from: "service:b/", to: "datastore:db" },
+        { kind: "writes", from: "service:a/", to: "datastore:db" },
+      ],
+    } as unknown as GraphView;
+    expect(hubOf(view)).toBe("service:a/");
+  });
+
+  it("fits a level that reads at 70% or more, as the shipped explorer does", () => {
+    const shown = level(40);
+    const canvas = { width: shown.layout.width * 0.8 + 2 * FIT_INSET.x, height: 600 };
+    const fit = fitLevel(shown.layout, canvas);
+    expect(fit.zoom).toBeGreaterThanOrEqual(FIRST_VIEW.least);
+    expect(fit.zoom).toBeLessThan(1);
+    expect(firstView(shown, canvas)).toEqual(fit);
+    expect(autoCamera(shown, canvas, undefined, { firstView: true })).toEqual(fit);
+  });
+
+  it("opens a level that doesn't on its hub at 80%, keeping the canvas full", () => {
+    const shown = level(600);
+    const canvas = { width: 1000, height: 700 };
+    expect(fitLevel(shown.layout, canvas).zoom).toBeLessThan(FIRST_VIEW.least);
+    const camera = firstView(shown, canvas);
+    expect(camera.zoom).toBe(FIRST_VIEW.hub);
+    const hub = shown.layout.boxes.find((b) => b.id === API);
+    if (!hub) throw new Error("no hub box");
+    const left = hub.x * camera.zoom + camera.x;
+    const right = (hub.x + hub.width) * camera.zoom + camera.x;
+    expect(left).toBeGreaterThanOrEqual(0);
+    expect(right).toBeLessThanOrEqual(canvas.width);
+    // The hub is in the row's middle, so it's centered across; the row is short, so it's centered down.
+    expect(Math.abs((left + right) / 2 - canvas.width / 2)).toBeLessThanOrEqual(1);
+    expect(camera.y).toBe(Math.round((canvas.height - shown.layout.height * camera.zoom) / 2));
+    // The fit button's overview keeps the 40% floor; a focus keeps its own frame.
+    expect(autoCamera(shown, canvas, undefined)).toEqual(fitLevel(shown.layout, canvas));
+    expect(autoCamera(shown, canvas, undefined, { firstView: true })).toEqual(camera);
+  });
+
+  it("stops at the diagram's edge rather than center a hub near it", () => {
+    const shown = level(600);
+    const canvas = { width: 1000, height: 700 };
+    // api moved to the row's start, where centering it would leave the canvas's left part empty.
+    const start: Shown = {
+      ...shown,
+      layout: {
+        ...shown.layout,
+        boxes: shown.layout.boxes.map((b) => (b.id === API ? { ...b, x: 0 } : b)),
+      },
+    };
+    const camera = firstView(start, canvas);
+    expect(camera.zoom).toBe(FIRST_VIEW.hub);
+    expect(camera.x).toBe(FIT_INSET.x);
+    // Moved to the row's end: its right edge at the inset from the canvas's.
+    const end: Shown = {
+      ...shown,
+      layout: {
+        ...shown.layout,
+        boxes: shown.layout.boxes.map((b) =>
+          b.id === API ? { ...b, x: shown.layout.width - b.width } : b,
+        ),
+      },
+    };
+    const last = firstView(end, canvas);
+    expect(shown.layout.width * last.zoom + last.x).toBe(canvas.width - FIT_INSET.x);
+  });
+
+  it("fits a level with no hub", () => {
+    const shown = level(600);
+    const canvas = { width: 1000, height: 700 };
+    const none: Shown = { ...shown, view: { ...shown.view, edges: [] } };
+    expect(firstView(none, canvas)).toEqual(fitLevel(shown.layout, canvas));
   });
 });
 

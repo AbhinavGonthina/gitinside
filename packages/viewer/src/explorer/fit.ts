@@ -2,6 +2,13 @@
 export const FIT_INSET = { x: 24, y: 64 } as const;
 
 /**
+ * The prototype's first view (M10.3b2, M10-design A5): the system level is fitted when that takes
+ * at least `least` (70%), else framed on its hub at `hub` (80%). The fit's 40% floor
+ * ({@link fitScale}) stays for 0 and the fit button.
+ */
+export const FIRST_VIEW = { least: 0.7, hub: 0.8 } as const;
+
+/**
  * The zoom that fits the diagram in the canvas with {@link FIT_INSET} clear
  * (never above 100%, never below 40%), rounded down to a hundredth. An
  * unmeasured canvas (0 × 0, as in tests) gets 100%. The explorer fits each

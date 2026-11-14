@@ -1,6 +1,7 @@
 import type { ArchitectureGraph } from "@gitinside/schema";
 import { act, cleanup, fireEvent, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
+import { codeShop } from "../model/codeLines.testkit.js";
 import { groupedShop } from "../model/groups.testkit.js";
 import { shopDemo } from "../shopDemo.testkit.js";
 import { Explorer } from "./Explorer.js";
@@ -84,6 +85,41 @@ describe("Explorer's prototype design (M10.3a)", { timeout: 30_000 }, () => {
     expect(box("group:shared")).toBeNull();
     expect(box("external:ext/api.openai.com")).not.toBeNull();
     expect(box("service:ui/")).not.toBeNull();
+  });
+
+  it("draws the system level's code lines quietly, behind the boxes, without pills (M10.3b2)", async () => {
+    const { view } = await drawnWith(codeShop(), "prototype");
+    const quiet = view.container.querySelector<SVGSVGElement>(".gi-drill__lines[data-quiet]");
+    expect(quiet?.getAttribute("aria-label")).toBe("Code dependencies");
+    // Before the boxes in the stage, so they paint over it.
+    const boxes = view.container.querySelector(".gi-drill__boxes");
+    expect(quiet?.compareDocumentPosition(boxes as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    const kinds = (root: Element | null) =>
+      [...(root?.querySelectorAll<SVGGElement>(".gi-edge") ?? [])].map((g) => g.dataset.kind);
+    expect(kinds(quiet)).toEqual(["calls", "calls", "calls"]);
+    const above = view.container.querySelector(".gi-drill__lines:not([data-quiet])");
+    expect(kinds(above)).not.toContain("calls");
+    expect(kinds(above)).toContain("http");
+    // Pills: one per line above the boxes, none for the quiet ones.
+    const pills = view.container.querySelectorAll(".gi-drill__labels .gi-edge-label");
+    expect(pills).toHaveLength(kinds(above).length);
+    // Still named for screen readers, with the count.
+    const names = [...(quiet?.querySelectorAll(".gi-edge") ?? [])].map((g) =>
+      g.getAttribute("aria-label"),
+    );
+    expect(names.some((n) => n?.includes("@shop/ui"))).toBe(true);
+    view.unmount();
+  });
+
+  it("draws code lines like any other in the shipped design", async () => {
+    const { view } = await drawnWith(codeShop(), "current");
+    expect(view.container.querySelector(".gi-drill__lines[data-quiet]")).toBeNull();
+    const lines = [...view.container.querySelectorAll<SVGGElement>(".gi-drill__lines .gi-edge")];
+    expect(lines.filter((g) => g.dataset.kind === "calls")).toHaveLength(3);
+    expect(view.container.querySelectorAll(".gi-drill__labels .gi-edge-label")).toHaveLength(
+      lines.length,
+    );
+    view.unmount();
   });
 
   it("draws no bands in the shipped design", async () => {

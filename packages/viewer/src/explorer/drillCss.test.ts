@@ -30,6 +30,28 @@ describe("drill.css", () => {
     expect(z(".gi-drill__lines")).toBe("1");
     expect(z(".gi-drill__node")).toBe("2");
     expect(z(".gi-drill__labels")).toBe("3");
+    // The prototype's quiet code lines (M10.3b2): with open frames, under everything else.
+    expect(z(".gi-drill__lines[data-quiet]")).toBe("0");
+  });
+
+  it("draws a quiet code line 1px and grey until it's looked at (M10.3b2)", () => {
+    const quiet = body
+      .replace(/\s+/g, " ")
+      .match(/\.gi-drill__lines\[data-quiet\] \.gi-edge:not\(([^{]*)\) \{([^}]*)\}/);
+    const kept = (quiet?.[1] ?? "").split(",").map((s) => s.trim());
+    expect(kept).toEqual([
+      ":hover",
+      "[data-hover]",
+      "[data-selected]",
+      '[data-emphasis="traced"]',
+      '[data-emphasis="current"]',
+      "[data-diff]",
+      "[data-broken]",
+    ]);
+    expect(quiet?.[2]).toMatch(/--gi-edge-width: 1px;/);
+    expect(quiet?.[2]).toMatch(
+      /--gi-edge-color: color-mix\(in srgb, var\(--text-muted\) 70%, var\(--border\)\);/,
+    );
   });
 
   it("keeps an open file's own row at the top, above its children (M4b.3a)", () => {

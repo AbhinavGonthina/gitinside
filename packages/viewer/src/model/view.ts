@@ -307,6 +307,22 @@ export function versionView(view: GraphView, version: HierarchyIndex): GraphView
   return { ...view, nodes, byId, childrenOf, open: view.open.filter((id) => byId.has(id)), edges };
 }
 
+/** The edge kinds that are only code dependency: one part of the code using another's. */
+export const CODE_KINDS: ReadonlySet<EdgeKind> = new Set(["imports", "calls"]);
+
+/**
+ * A "uses code" line (M10.3b2, M10-design A2): one joining two top-level boxes (services, groups)
+ * that stands only for imports or calls, as opposed to a request, data, a queue, or an outside
+ * call. The prototype draws these quietly, behind the boxes.
+ */
+export function isCodeLine(view: GraphView, e: ViewEdge): boolean {
+  return (
+    CODE_KINDS.has(e.kind) &&
+    view.byId.get(e.from)?.parent === null &&
+    view.byId.get(e.to)?.parent === null
+  );
+}
+
 /**
  * The edge as the label and line should draw it: a single edge keeps its own
  * label and reason; an aggregate becomes a count (`count` is set).

@@ -4,7 +4,7 @@ import type { Rect } from "../chrome/describe.js";
 import type { Point } from "../edges/geometry.js";
 import type { DiffMarks } from "../model/diff.js";
 import { layerOf, type HierarchyIndex } from "../model/hierarchy.js";
-import type { GraphView } from "../model/view.js";
+import { isCodeLine, type GraphView } from "../model/view.js";
 import { FRAME_PAD, openHeader, viewEdgeLabelSize, viewNodeSize, type Size } from "./size.js";
 
 /**
@@ -31,6 +31,10 @@ import { FRAME_PAD, openHeader, viewEdgeLabelSize, viewNodeSize, type Size } fro
  * partitions are ignored across levels of a compound graph), then its folders.
  * In the M10.3 prototype the top level's nodes are partitioned into bands
  * ({@link BANDS}); that works with nodes open, since they're all the root's.
+ * Its "uses code" lines between top-level boxes are left out of ELK and
+ * routed after it ({@link busRoute}), so imports and calls between packages
+ * don't stretch the level into a long chain of columns (documenso: 4,317px
+ * wide with them, 1,960px without).
  */
 
 /** One visible node as the layout sees it. */
@@ -80,6 +84,11 @@ export interface PlacedBand {
 export interface LayoutInputOptions {
   /** Lay the top level out in {@link BANDS} (the M10.3 prototype's A1). */
   bands?: boolean | undefined;
+  /**
+   * Leave "uses code" lines (`isCodeLine`) out of ELK and route them with {@link busRoute}
+   * (the M10.3 prototype's A2), so code dependency doesn't spread the system level out.
+   */
+  quietCode?: boolean | undefined;
 }
 
 /** One drawn edge as the layout sees it, with its label's size. */
@@ -88,6 +97,8 @@ export interface LayoutEdge {
   from: string;
   to: string;
   label: Size;
+  /** A "uses code" line left out of ELK and routed by {@link busRoute} (prototype only). */
+  quiet?: boolean;
 }
 
 /** Everything the layout needs, as plain data a worker can receive. */
@@ -102,6 +113,8 @@ export interface PlacedEdge {
   id: string;
   points: Point[];
   label: Point;
+  /** Routed by {@link busRoute}, not ELK: a quiet "uses code" line, drawn behind the boxes. */
+  quiet?: true;
 }
 
 /** A laid-out view, in absolute canvas coordinates (the diagram's top left is 0, 0). */
@@ -161,15 +174,24 @@ export const MODEL_ORDER_LIMIT = 200;
  */
 export const THOROUGHNESS_LIMIT = 3000;
 
-/** The root's options for an input: {@link ELK_OPTIONS}, made cheaper for a big view. */
+/**
+ * The root's options for an input: {@link ELK_OPTIONS}, made cheaper for a big view. A banded
+ * input (the prototype) is partitioned; a banded system level with nothing open also places its
+ * nodes by network simplex (M10.3b2), since ELK's default (Brandes–Köpf) put maxun's two
+ * datastores with no lines below its six outside hosts, a level 1,262px tall where 988px holds it
+ * (fitted at 44% instead of 57%). Only there: on a broken-down service it tripled the time
+ * (documenso's remix, 0.8 s to 2.7 s).
+ */
 function rootOptions(input: LayoutInput): LayoutOptions {
   const items = input.nodes.length + input.edges.length;
+  const banded = input.nodes.some((n) => n.band !== undefined);
   return {
     ...ELK_OPTIONS,
     ...(items > MODEL_ORDER_LIMIT ? { "elk.layered.considerModelOrder.strategy": "NONE" } : {}),
     ...(items > THOROUGHNESS_LIMIT ? { "elk.layered.thoroughness": "1" } : {}),
-    ...(input.nodes.some((n) => n.band !== undefined)
-      ? { "elk.partitioning.activate": "true" }
+    ...(banded ? { "elk.partitioning.activate": "true" } : {}),
+    ...(banded && input.nodes.every((n) => n.parent === null)
+      ? { "elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX" }
       : {}),
   };
 }
@@ -180,7 +202,8 @@ function rootOptions(input: LayoutInput): LayoutOptions {
  * it around its children), and each edge's label size. In diff mode
  * (`marks`) a closed box makes room for its change badges and a pill for its
  * state's word or what broke, and both for what Base and Head draw instead.
- * With `options.bands` (the prototype), each top-level node gets its band.
+ * With `options.bands` (the prototype), each top-level node gets its band; with
+ * `options.quietCode`, each "uses code" line (`isCodeLine`) is marked `quiet`.
  */
 export function layoutInput(
   index: HierarchyIndex,
@@ -201,16 +224,19 @@ export function layoutInput(
       ...(options.bands && n.parent === null ? { band: bandOf(n.node.layer) } : {}),
     };
   });
-  const edges = view.edges.map((e) => ({
-    id: e.id,
-    from: e.from,
-    to: e.to,
-    label: viewEdgeLabelSize(e, marks),
-  }));
+  const edges = view.edges.map(
+    (e): LayoutEdge => ({
+      id: e.id,
+      from: e.from,
+      to: e.to,
+      label: viewEdgeLabelSize(e, marks),
+      ...(options.quietCode && isCodeLine(view, e) ? { quiet: true } : {}),
+    }),
+  );
   return { nodes, edges };
 }
 
-/** ELK's graph for an input: compound nodes for open ones, every edge on the root. */
+/** ELK's graph for an input: compound nodes for open ones, every edge but the quiet ones on the root. */
 export function elkGraph(input: LayoutInput): ElkNode {
   const root: ElkNode = { id: "__root", layoutOptions: rootOptions(input), children: [] };
   const byId = new Map<string, ElkNode>();
@@ -235,29 +261,65 @@ export function elkGraph(input: LayoutInput): ElkNode {
     if (!parent) throw new Error(`layout input lists ${n.id} before its parent ${n.parent}`);
     (parent.children ??= []).push(node);
   }
-  root.edges = input.edges.map(
-    (e): ElkExtendedEdge => ({
-      id: e.id,
-      sources: [e.from],
-      targets: [e.to],
-      // ELK skips a label without text (it's left at 0, 0 and gets no room),
-      // so the label carries a placeholder; only its size matters here.
-      labels: [
-        {
-          id: `${e.id}#label`,
-          text: " ",
-          width: e.label.width,
-          height: e.label.height,
-          // The pill sits on its line (DESIGN_SYSTEM §3), so ELK routes the
-          // line through the room it keeps (a label option, ignored on the
-          // root). Placed beside the line and moved onto it, the pills of two
-          // parallel edges 11px apart covered each other (M4b.2b).
-          layoutOptions: { "elk.edgeLabels.inline": "true" },
-        },
-      ],
-    }),
+  root.edges = input.edges.flatMap((e): ElkExtendedEdge[] =>
+    e.quiet
+      ? []
+      : [
+          {
+            id: e.id,
+            sources: [e.from],
+            targets: [e.to],
+            // ELK skips a label without text (it's left at 0, 0 and gets no room),
+            // so the label carries a placeholder; only its size matters here.
+            labels: [
+              {
+                id: `${e.id}#label`,
+                text: " ",
+                width: e.label.width,
+                height: e.label.height,
+                // The pill sits on its line (DESIGN_SYSTEM §3), so ELK routes the
+                // line through the room it keeps (a label option, ignored on the
+                // root). Placed beside the line and moved onto it, the pills of two
+                // parallel edges 11px apart covered each other (M4b.2b).
+                layoutOptions: { "elk.edgeLabels.inline": "true" },
+              },
+            ],
+          },
+        ],
   );
   return root;
+}
+
+/** How far before its target a quiet line turns toward it (canvas px), clear of ELK's 64px column gap. */
+export const BUS_GAP = 20;
+
+/**
+ * A quiet "uses code" line's route (M10.3b2, M10-design A2), source first: out of the source's
+ * side facing the target at its middle, straight across to {@link BUS_GAP} short of the target's
+ * near side, along to the target's middle, and in. A target in the source's column (their spans
+ * overlap) is reached around the column's right side. Every line from one box leaves at one
+ * point and runs together until its target's column, and every line into a box meets at one
+ * point, so a box's code dependencies read as one bundle. Drawn behind the boxes, so a run that
+ * crosses a box between the two is hidden by it.
+ */
+export function busRoute(from: Rect, to: Rect): Point[] {
+  const fromY = from.y + from.height / 2;
+  const toY = to.y + to.height / 2;
+  const fromRight = from.x + from.width;
+  const toRight = to.x + to.width;
+  const route = (startX: number, turnX: number, endX: number): Point[] => {
+    const points = [
+      { x: startX, y: fromY },
+      { x: turnX, y: fromY },
+      { x: turnX, y: toY },
+      { x: endX, y: toY },
+    ].map(point);
+    // A target level with the source needs no turn.
+    return fromY === toY ? [points[0] as Point, points[3] as Point] : points;
+  };
+  if (to.x >= fromRight) return route(fromRight, Math.max(fromRight, to.x - BUS_GAP), to.x);
+  if (toRight <= from.x) return route(from.x, Math.min(from.x, toRight + BUS_GAP), toRight);
+  return route(fromRight, Math.max(fromRight, toRight) + BUS_GAP, toRight);
 }
 
 const round = (n: number) => Math.round(n * 100) / 100;
@@ -332,7 +394,15 @@ export function readLayout(input: LayoutInput, out: ElkNode): LayoutResult {
     };
   });
 
+  const boxById = new Map(boxes.map((b) => [b.id, b]));
   const edges = input.edges.map((e): PlacedEdge => {
+    if (e.quiet) {
+      const from = boxById.get(e.from);
+      const to = boxById.get(e.to);
+      if (!from || !to) throw new Error(`layout has no box for an end of edge ${e.id}`);
+      const points = busRoute(from, to);
+      return { id: e.id, points, label: midpoint(points), quiet: true };
+    }
     const route = routes.get(e.id);
     const points: Point[] = [];
     for (const section of route?.sections ?? []) {

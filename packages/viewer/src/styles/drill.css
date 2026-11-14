@@ -135,6 +135,31 @@
 }
 
 /*
+ * The prototype's "uses code" lines (M10.3b2, M10-design A2): their own layer
+ * behind the boxes and open frames (drawn before them), 1px and grey (the
+ * muted text mixed toward the border: 4.3:1 on the dark canvas, 3.4:1 on the
+ * light one) instead of the source's layer tint. Hover, the selection, a
+ * trace's path, a diff, or a break gives a line its usual look back.
+ */
+.gi-drill__lines[data-quiet] {
+  z-index: 0;
+}
+
+.gi-drill__lines[data-quiet]
+  .gi-edge:not(
+    :hover,
+    [data-hover],
+    [data-selected],
+    [data-emphasis="traced"],
+    [data-emphasis="current"],
+    [data-diff],
+    [data-broken]
+  ) {
+  --gi-edge-color: color-mix(in srgb, var(--text-muted) 70%, var(--border));
+  --gi-edge-width: 1px;
+}
+
+/*
  * Zoom-dependent detail (M4b.4b, src/explorer/detail.ts; UX.md). The host's
  * zoom sets data-detail; text fades rather than leaving the layout, so no box
  * moves or resizes as you zoom. `names`: subtitles, counts, model fields, and

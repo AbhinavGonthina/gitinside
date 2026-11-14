@@ -155,10 +155,12 @@ export { HOST_GROUPS_VERSION, hostGroupFor } from "./icons/hostGroups.js";
 export type { HostGroup } from "./icons/hostGroups.js";
 export {
   buildView,
+  CODE_KINDS,
   DEFAULT_HIDDEN_KINDS,
   drawnEdge,
   edgeWithin,
   effectiveOpen,
+  isCodeLine,
   versionView,
   viewTrail,
   visibleAncestor,
@@ -213,6 +215,8 @@ export type { Size, SizeContext } from "./layout/size.js";
 export {
   BANDS,
   bandOf,
+  BUS_GAP,
+  busRoute,
   ELK_OPTIONS,
   elkGraph,
   LAYOUT_PAD,
