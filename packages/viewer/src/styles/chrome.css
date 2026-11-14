@@ -271,23 +271,23 @@ a.gi-button {
   background: var(--gi-layer);
 }
 
-:is(.gi-chip, .gi-minimap__node, .gi-legend__swatch)[data-layer="frontend"] {
+:is(.gi-chip, .gi-minimap__node, .gi-minimap__frame, .gi-legend__swatch)[data-layer="frontend"] {
   --gi-layer: var(--layer-frontend);
 }
 
-:is(.gi-chip, .gi-minimap__node, .gi-legend__swatch)[data-layer="backend"] {
+:is(.gi-chip, .gi-minimap__node, .gi-minimap__frame, .gi-legend__swatch)[data-layer="backend"] {
   --gi-layer: var(--layer-backend);
 }
 
-:is(.gi-chip, .gi-minimap__node, .gi-legend__swatch)[data-layer="data"] {
+:is(.gi-chip, .gi-minimap__node, .gi-minimap__frame, .gi-legend__swatch)[data-layer="data"] {
   --gi-layer: var(--layer-data);
 }
 
-:is(.gi-chip, .gi-minimap__node, .gi-legend__swatch)[data-layer="infra"] {
+:is(.gi-chip, .gi-minimap__node, .gi-minimap__frame, .gi-legend__swatch)[data-layer="infra"] {
   --gi-layer: var(--layer-infra);
 }
 
-:is(.gi-chip, .gi-minimap__node, .gi-legend__swatch)[data-layer="external"] {
+:is(.gi-chip, .gi-minimap__node, .gi-minimap__frame, .gi-legend__swatch)[data-layer="external"] {
   --gi-layer: var(--layer-external);
 }
 
@@ -647,6 +647,14 @@ a.gi-topbar__home:hover {
 .gi-minimap__node {
   --gi-layer: var(--text-muted);
   fill: color-mix(in srgb, var(--gi-layer) 30%, var(--surface-2));
+  stroke: color-mix(in srgb, var(--gi-layer) 55%, var(--border));
+  stroke-width: 1px;
+}
+
+/* A broken-down box (the prototype, M10.3d5): an outline, so the boxes inside it show. */
+.gi-minimap__frame {
+  --gi-layer: var(--text-muted);
+  fill: none;
   stroke: color-mix(in srgb, var(--gi-layer) 55%, var(--border));
   stroke-width: 1px;
 }

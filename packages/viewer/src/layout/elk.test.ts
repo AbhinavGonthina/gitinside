@@ -1,9 +1,11 @@
 // @vitest-environment node
+import type { ArchitectureGraph, GraphEdge, GraphNode } from "@gitinside/schema";
 import ELK from "elkjs/lib/elk.bundled.js";
 import { describe, expect, it } from "vitest";
 import type { Rect } from "../chrome/describe.js";
 import type { Point } from "../edges/geometry.js";
 import { codeShop } from "../model/codeLines.testkit.js";
+import { summarizeGraph } from "../model/groups.js";
 import { buildHierarchy } from "../model/hierarchy.js";
 import { buildView, type GraphView } from "../model/view.js";
 import { shopDemo } from "../shopDemo.testkit.js";
@@ -14,6 +16,7 @@ import {
   busRoute,
   ELK_OPTIONS,
   elkGraph,
+  GRID_COLUMNS,
   LAYOUT_PAD,
   layoutInput,
   MODEL_ORDER_LIMIT,
@@ -181,6 +184,126 @@ describe("bands (the M10.3 prototype, M10-design A1)", () => {
       expect(right("datastore:infra/db")).toBeLessThanOrEqual(left("external:ext/api.stripe.com"));
       expect(result.bands?.map((b) => b.band)).toEqual([0, 1, 3, 4]);
     }
+  });
+});
+
+describe("a broken-down host group's grid (M10.3d5, M10-design A6)", () => {
+  // shop-demo's API calls nine AI hosts: the i-th host i + 1 times, from as many files.
+  const HOSTS = [
+    "api.openai.com",
+    "api.anthropic.com",
+    "api.groq.com",
+    "api.mistral.ai",
+    "api.together.xyz",
+    "openrouter.ai",
+    "api.perplexity.ai",
+    "api.cohere.com",
+    "generativelanguage.googleapis.com",
+  ];
+  const FILES = [
+    "file:api/src/billing/stripe.ts",
+    "file:api/src/orders/handlers.ts",
+    "file:api/src/routes/orders.ts",
+  ];
+  function manyHosts(): ArchitectureGraph {
+    const g = shopDemo();
+    const nodes = HOSTS.map(
+      (host): GraphNode => ({
+        id: `external:ext/${host}`,
+        kind: "external",
+        label: host,
+        host,
+        layer: "external",
+        parentId: "system:root",
+      }),
+    );
+    const edges = HOSTS.flatMap((host, i) =>
+      Array.from({ length: i + 1 }, (_, k): GraphEdge => {
+        const from = `${FILES[k % FILES.length] ?? ""}`;
+        return {
+          id: `external_call:${from}#${k}->external:ext/${host}`,
+          kind: "external_call",
+          from,
+          to: `external:ext/${host}`,
+          confidence: "exact",
+          sites: [{ file: "apps/api/src/billing/stripe.ts", line: k + 1, column: 1 }],
+        };
+      }),
+    );
+    return { ...g, nodes: [...g.nodes, ...nodes], edges: [...g.edges, ...edges] };
+  }
+  const hosts = buildHierarchy(summarizeGraph(manyHosts()));
+  const AI = "group:hosts/ai";
+  const busiestFirst = [...HOSTS].reverse().map((h) => `external:ext/${h}`);
+
+  it("numbers the hosts busiest first, only when banded and only in an open host group", () => {
+    const cellOf = (input: LayoutInput) =>
+      input.nodes.filter((n) => n.cell !== undefined).sort((a, b) => (a.cell ?? 0) - (b.cell ?? 0));
+    const open = buildView(hosts, [AI]);
+    expect(cellOf(layoutInput(hosts, open, undefined, { bands: true })).map((n) => n.id)).toEqual(
+      busiestFirst,
+    );
+    expect(cellOf(layoutInput(hosts, open))).toEqual([]);
+    expect(cellOf(layoutInput(hosts, buildView(hosts, []), undefined, { bands: true }))).toEqual(
+      [],
+    );
+  });
+
+  it(`lays them out ${GRID_COLUMNS} to a row, busiest first, with no line over a host`, async () => {
+    const input = layoutInput(hosts, buildView(hosts, [AI]), undefined, { bands: true });
+    const result = await runLayout(elk, input);
+    const boxes = busiestFirst.map((id) => boxOf(result, id));
+    const across = (a: Rect, b: Rect) => a.x < b.x + b.width && b.x < a.x + a.width;
+    for (const [i, b] of boxes.entries()) {
+      for (const [k, other] of boxes.entries()) {
+        if (k === i) continue;
+        // Cell i is in column i mod 4: level with that column's hosts, left of the next column's,
+        // so each row reads busiest first, left to right.
+        const column = i % GRID_COLUMNS;
+        if (k % GRID_COLUMNS === column) expect(across(b, other)).toBe(true);
+        else expect(across(b, other)).toBe(false);
+        if (k % GRID_COLUMNS === column + 1) expect(b.x).toBeLessThan(other.x);
+        expect(overlaps(b, other)).toBe(false);
+      }
+      // A row's hosts sit side by side (ELK staggers them a little).
+      const first = boxes[i - (i % GRID_COLUMNS)] as Rect;
+      expect(Math.abs(b.y - first.y)).toBeLessThan(b.height);
+    }
+    // Inside the group's frame, 3 rows tall instead of a column of 9.
+    const group = boxOf(result, AI);
+    for (const b of boxes) {
+      expect(b.x).toBeGreaterThanOrEqual(group.x);
+      expect(b.y).toBeGreaterThanOrEqual(group.y);
+      expect(b.x + b.width).toBeLessThanOrEqual(group.x + group.width);
+      expect(b.y + b.height).toBeLessThanOrEqual(group.y + group.height);
+    }
+    expect(group.height).toBeLessThan(5 * ((boxes[0]?.height ?? 0) + 28));
+    // Every line ends on its host and crosses no other host.
+    for (const [i, e] of input.edges.entries()) {
+      const placed = result.edges[i];
+      if (!placed) continue;
+      if (busiestFirst.includes(e.to)) {
+        expect(onOutline(placed.points.at(-1) as Point, boxOf(result, e.to))).toBe(true);
+      }
+      for (const host of busiestFirst) {
+        if (host === e.to || host === e.from) continue;
+        const r = boxOf(result, host);
+        const inner = { x: r.x + 1, y: r.y + 1, width: r.width - 2, height: r.height - 2 };
+        for (const [k, p] of placed.points.slice(1).entries()) {
+          const q = placed.points[k] as Point;
+          const segment = {
+            x: Math.min(p.x, q.x),
+            y: Math.min(p.y, q.y),
+            width: Math.abs(p.x - q.x) || 0.01,
+            height: Math.abs(p.y - q.y) || 0.01,
+          };
+          expect(overlaps(segment, inner)).toBe(false);
+        }
+      }
+    }
+    // The chain that makes the rows is ELK's alone.
+    expect(result.edges.map((e) => e.id)).toEqual(input.edges.map((e) => e.id));
+    expect(result.edges.some((e) => e.id.startsWith("__grid:"))).toBe(false);
   });
 });
 

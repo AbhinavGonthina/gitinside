@@ -151,6 +151,63 @@
   }
 }
 
+/*
+ * A box whose break-down is taking a while (M10.3d5, M10-design B5): its border turns accent and
+ * a 2px line runs along its top, left to right over 1.2s (five standard durations), until the
+ * new layout lands. Under reduced motion the line stands still and "Laying out…" says it instead.
+ */
+.gi-drill__node[data-breaking] > .gi-node {
+  border-color: var(--accent);
+}
+
+.gi-drill__breaking {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  pointer-events: none;
+}
+
+.gi-drill__breaking-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40%;
+  height: 2px;
+  background: var(--accent);
+  animation: gi-breaking calc(var(--duration-standard) * 5) var(--ease-layout) infinite;
+}
+
+.gi-drill__breaking-label {
+  display: none;
+}
+
+@keyframes gi-breaking {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gi-drill__breaking-line {
+    width: 100%;
+    animation: none;
+  }
+
+  .gi-drill__breaking-label {
+    position: absolute;
+    top: 6px;
+    right: var(--space-8);
+    display: block;
+    color: var(--accent);
+    font-size: var(--font-size-12);
+    line-height: 16px;
+  }
+}
+
 /* The pills' layer covers the stage but lets clicks through to the boxes. */
 .gi-drill__labels {
   position: absolute;

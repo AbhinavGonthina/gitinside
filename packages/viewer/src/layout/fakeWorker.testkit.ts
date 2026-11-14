@@ -17,7 +17,16 @@ export class FakeWorker {
   terminated = false;
   /** Answer nothing (a worker still loading, or hung). */
   silent = false;
+  /** Keep layouts asked for until `release()` (a slow layout, M10.3d5). */
+  holding = false;
+  private readonly held: WorkerMessage[] = [];
   private readonly listeners = new Map<string, Listener[]>();
+
+  /** Answers the layouts held so far, and stops holding. */
+  release() {
+    this.holding = false;
+    for (const message of this.held.splice(0)) setTimeout(() => void this.answer(message), 0);
+  }
 
   addEventListener(type: string, listener: Listener) {
     this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]);
@@ -27,6 +36,10 @@ export class FakeWorker {
     const message = structuredClone(data) as WorkerMessage;
     this.received.push(message);
     if (this.silent) return;
+    if (this.holding && message.cmd === "layout") {
+      this.held.push(message);
+      return;
+    }
     setTimeout(() => void this.answer(message), 0);
   }
 
