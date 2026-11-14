@@ -8,6 +8,7 @@ import { SiteAccount } from "../SiteHeader";
 import { ThemeSwitch } from "../ThemeSwitch";
 import { PrototypeDiagram } from "./PrototypeDiagram";
 import { PrototypeLanding } from "./PrototypeLanding";
+import "./transitions.css";
 
 /** Never indexed: the page is for the design gate's review only. */
 export const metadata: Metadata = {
