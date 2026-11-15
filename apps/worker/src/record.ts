@@ -30,6 +30,7 @@ import { JobFailure } from "./failure.js";
 import { fetchRepoFacts, type DownloadOptions } from "./github.js";
 import type { JobArtifact, JobRecorder, RecordedJob } from "./job.js";
 import { recordedProgress, type StoredProgress } from "./progress.js";
+import type { AnalysisStats } from "./protocol.js";
 import type { JobRequest } from "./request.js";
 import {
   privateDiffKey,
@@ -92,6 +93,18 @@ export interface RecorderOptions {
 /** A {@link JobRecorder} plus the job's `publish` step. */
 export interface AnalysisRecorder extends JobRecorder {
   publish(artifact: JobArtifact): Promise<void>;
+}
+
+/**
+ * The counts only the timeline needs (M11.4a), when the child reported them: with both,
+ * `completeAnalysis` and `storeDiffSideAnalysis` also write the commit's `analysis_counts` row.
+ */
+function timelineCounts(stats: AnalysisStats): { services?: number; broken?: number } {
+  const { services, broken } = stats;
+  return {
+    ...(services === undefined ? {} : { services }),
+    ...(broken === undefined ? {} : { broken }),
+  };
 }
 
 /** The recorder and publisher a worker passes as `JobDeps.recorder` and `JobDeps.publish`. */
@@ -176,6 +189,7 @@ export function createAnalysisRecorder(options: RecorderOptions): AnalysisRecord
         edges: stats.edges,
         unresolved: stats.unresolved,
         warnings: stats.warnings,
+        ...timelineCounts(stats),
         graphBytes: stored.bytes,
         snapshotBytes: stored.storedBytes,
         stageMs: stats.stageMs,
@@ -322,6 +336,7 @@ export function createDiffRecorder(
           edges: stats.edges,
           unresolved: stats.unresolved,
           warnings: stats.warnings,
+          ...timelineCounts(stats),
           graphBytes: uploaded.bytes,
           snapshotBytes: uploaded.storedBytes,
           stageMs: stats.stageMs,

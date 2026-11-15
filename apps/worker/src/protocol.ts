@@ -45,6 +45,13 @@ export interface AnalysisStats {
   /** Nodes of kind `unresolved` (requests, imports, and calls shown with a reason). */
   unresolved: number;
   warnings: number;
+  /**
+   * `service` nodes, and requests `@gitinside/api-map` calls broken (M11.4a, `counts.ts`):
+   * with both, the analysis's `analysis_counts` row is written for the timeline. The child
+   * always reports them; test fakes may leave them out.
+   */
+  services?: number;
+  broken?: number;
   /** Size of the serialized graph written to `job.out`. */
   graphBytes: number;
   /** Wall-clock milliseconds per analyzer stage, rounded, in stage order. */
@@ -186,8 +193,11 @@ export function parseChildReport(text: string): ChildReport | undefined {
   }
   if (value.ok !== true || !isRecord(value.stats)) return undefined;
   const { files, nodes, edges, unresolved, warnings, graphBytes, stageMs } = value.stats;
-  const { peakRssBytes, heapBytes, gcMs, cache } = value.stats;
+  const { peakRssBytes, heapBytes, gcMs, cache, services, broken } = value.stats;
   if (![files, nodes, edges, unresolved, warnings, graphBytes].every(isCount)) return undefined;
+  if (![services, broken].every((count) => count === undefined || isCount(count))) {
+    return undefined;
+  }
   if (!isRecord(stageMs) || !Object.values(stageMs).every(isCount)) return undefined;
   if (gcMs !== undefined && (!isRecord(gcMs) || !Object.values(gcMs).every(isCount))) {
     return undefined;
@@ -210,6 +220,8 @@ export function parseChildReport(text: string): ChildReport | undefined {
       unresolved: unresolved as number,
       warnings: warnings as number,
       graphBytes: graphBytes as number,
+      ...(services === undefined ? {} : { services: services as number }),
+      ...(broken === undefined ? {} : { broken: broken as number }),
       stageMs: stageMs as Record<string, number>,
       ...(peakRssBytes === undefined ? {} : { peakRssBytes: peakRssBytes as number }),
       ...(heapBytes === undefined ? {} : { heapBytes: heapBytes as number }),

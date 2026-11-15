@@ -4,9 +4,11 @@ import {
   INTERRUPTED_CODE,
   QUEUE_UNAVAILABLE_CODE,
   analyses,
+  analysisCounts,
   JobGoneError,
   UnknownInstallationError,
   completeAnalysis,
+  deleteDoneAnalyses,
   deletedInstallations,
   deleteInstallationData,
   failAnalysis,
@@ -23,6 +25,7 @@ import {
   hideRepo,
   installations,
   isPrivateSnapshot,
+  listAnalysisCounts,
   queueAnalysis,
   recentAnalysisStats,
   removedInstallationRepos,
@@ -548,6 +551,128 @@ describe("completeAnalysis", () => {
     expect(await analysis(id)).toMatchObject({ status: "done", errorCode: null });
     expect(await completeAnalysis(t.db, id, { snapshotKey: "public/x", stats: STATS })).toBe(false);
     expect((await analysis(id)).snapshotKey).toBe("public/k");
+  });
+});
+
+describe("analysis counts (M11.4a)", () => {
+  const COUNTED: AnalysisStats = { ...STATS, services: 2, broken: 1 };
+  const ROW = {
+    sha: SHA,
+    analyzerVersion: VERSION,
+    services: 2,
+    files: 4,
+    nodes: 10,
+    edges: 7,
+    unresolved: 1,
+    broken: 1,
+  };
+  const list = (repoId: string, shas = [SHA], analyzerVersion = VERSION) =>
+    listAnalysisCounts(t.db, { repoId, analyzerVersion, shas });
+
+  it("are written when an analysis completes, and outlive its row's eviction", async () => {
+    const id = await started();
+    const { repoId } = await analysis(id);
+    expect(await completeAnalysis(t.db, id, { snapshotKey: "public/k", stats: COUNTED })).toBe(
+      true,
+    );
+    expect(await list(repoId)).toEqual([ROW]);
+    // Retention deletes the row with its snapshot; the timeline keeps the commit's counts.
+    expect(await deleteDoneAnalyses(t.db, [{ id, snapshotKey: "public/k" }])).toHaveLength(1);
+    expect(await t.db.select().from(analyses)).toEqual([]);
+    expect(await list(repoId)).toEqual([ROW]);
+  });
+
+  it("are deleted with the repo", async () => {
+    const id = await started();
+    const { repoId } = await analysis(id);
+    await completeAnalysis(t.db, id, { snapshotKey: "public/k", stats: COUNTED });
+    await t.db.delete(repos).where(eq(repos.id, repoId));
+    expect(await t.db.select().from(analysisCounts)).toEqual([]);
+  });
+
+  it("aren't written from stats without services and broken", async () => {
+    const id = await started();
+    const { repoId } = await analysis(id);
+    expect(await completeAnalysis(t.db, id, { snapshotKey: "public/k", stats: STATS })).toBe(true);
+    for (const [sha, stats] of [
+      ["b".repeat(40), { ...STATS, services: 2 }],
+      ["c".repeat(40), { ...STATS, broken: 0 }],
+    ] as const) {
+      const other = await startAnalysis(t.db, { repoId, sha, analyzerVersion: VERSION });
+      expect(await completeAnalysis(t.db, other.id, { snapshotKey: `k/${sha}`, stats })).toBe(true);
+    }
+    expect(await t.db.select().from(analysisCounts)).toEqual([]);
+  });
+
+  it("aren't touched by a completion that rewrites nothing", async () => {
+    const id = await started();
+    const { repoId } = await analysis(id);
+    await completeAnalysis(t.db, id, { snapshotKey: "public/k", stats: COUNTED });
+    const other = { ...COUNTED, services: 9, broken: 9 };
+    expect(await completeAnalysis(t.db, id, { snapshotKey: "public/x", stats: other })).toBe(false);
+    expect(await list(repoId)).toEqual([ROW]);
+  });
+
+  it("are replaced when an evicted commit is analyzed again", async () => {
+    const id = await started();
+    const { repoId } = await analysis(id);
+    await completeAnalysis(t.db, id, { snapshotKey: "public/k", stats: COUNTED });
+    await deleteDoneAnalyses(t.db, [{ id, snapshotKey: "public/k" }]);
+    const again = await started();
+    const stats = { ...COUNTED, nodes: 11, broken: 0 };
+    await completeAnalysis(t.db, again, { snapshotKey: "public/k", stats });
+    expect(await list(repoId)).toEqual([{ ...ROW, nodes: 11, broken: 0 }]);
+  });
+
+  it("are written with a diff job's stored side, and not when it stores nothing", async () => {
+    await upsertInstallation(t.db, {
+      githubInstallationId: 41,
+      accountId: 7,
+      accountLogin: "acme",
+      accountType: "Organization",
+      suspendedAt: null,
+    });
+    const { id: repoId } = await upsertRepo(t.db, { ...FACTS, githubInstallationId: 41 });
+    const side = {
+      githubInstallationId: 41,
+      repoId,
+      sha: SHA,
+      analyzerVersion: VERSION,
+      snapshotKey: "public/k",
+      stats: COUNTED,
+    };
+    expect(await storeDiffSideAnalysis(t.db, side)).toBe(true);
+    expect(await list(repoId)).toEqual([ROW]);
+    const other = { ...side, stats: { ...COUNTED, services: 9 } };
+    expect(await storeDiffSideAnalysis(t.db, other)).toBe(false);
+    expect(await list(repoId)).toEqual([ROW]);
+    const sha = "b".repeat(40);
+    expect(await storeDiffSideAnalysis(t.db, { ...other, sha, githubInstallationId: 42 })).toBe(
+      false,
+    );
+    expect(await list(repoId, [sha])).toEqual([]);
+  });
+
+  it("are listed for one repo, analyzer version, and set of commits, by SHA", async () => {
+    const { id: repoId } = await upsertRepo(t.db, FACTS);
+    const { id: otherRepo } = await upsertRepo(t.db, {
+      ...FACTS,
+      providerRepoId: FACTS.providerRepoId + 1,
+      name: "other",
+    });
+    const shas = ["c", "a", "b"].map((c) => c.repeat(40));
+    const complete = async (key: { repoId: string; sha: string; analyzerVersion: string }) => {
+      const { id } = await startAnalysis(t.db, key);
+      await completeAnalysis(t.db, id, { snapshotKey: `k/${id}`, stats: COUNTED });
+    };
+    for (const sha of shas) await complete({ repoId, sha, analyzerVersion: VERSION });
+    await complete({ repoId, sha: shas[0]!, analyzerVersion: "0.2.0" });
+    await complete({ repoId: otherRepo, sha: shas[1]!, analyzerVersion: VERSION });
+    const asked = [shas[0]!, shas[1]!, "d".repeat(40)];
+    expect((await list(repoId, asked)).map((row) => row.sha)).toEqual([shas[1], shas[0]]);
+    expect((await list(repoId, asked, "0.2.0")).map((row) => row.sha)).toEqual([shas[0]]);
+    expect((await list(otherRepo, asked)).map((row) => row.sha)).toEqual([shas[1]]);
+    expect(await list(repoId, [])).toEqual([]);
   });
 });
 

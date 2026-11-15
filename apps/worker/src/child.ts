@@ -4,6 +4,7 @@ import { constants, PerformanceObserver, type PerformanceEntry } from "node:perf
 import { fileURLToPath } from "node:url";
 import { AnalysisError, analyze, openDiskCache, serializeGraph } from "@gitinside/analyzer";
 import type { ArchitectureGraph } from "@gitinside/schema";
+import { graphCounts } from "./counts.js";
 import { CACHE_BLOCK_BYTES } from "./factcache.js";
 import { foundFacts, type FoundFacts, type StepProgress } from "./progress.js";
 import {
@@ -125,10 +126,7 @@ export async function runChildJob(
   return {
     ok: true,
     stats: {
-      files: graph.nodes.filter((node) => node.kind === "file").length,
-      nodes: graph.nodes.length,
-      edges: graph.edges.length,
-      unresolved: graph.nodes.filter((node) => node.kind === "unresolved").length,
+      ...graphCounts(graph),
       warnings: graph.warnings.length,
       graphBytes: Buffer.byteLength(text),
       stageMs,

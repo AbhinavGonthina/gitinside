@@ -317,6 +317,7 @@ Built in steps M6.7a–f (ADR-0090).
 |---|---|
 | `repos` | id, provider_repo_id, owner, name, visibility (`public`/`private`), installation_id (nullable), default_branch |
 | `analyses` | id, repo_id, sha, status (`queued`/`running`/`done`/`failed`), error_code, stats (jsonb: files, nodes, edges, unresolved), snapshot_key, analyzer_version, started_at, finished_at. Unique (repo_id, sha, analyzer_version). Also the job (ADR-0139): job_id (`analyze-<32 hex>`, indexed), attempts, queued_at (queue position), progress (jsonb, only while `running`) |
+| `analysis_counts` | repo_id, sha, analyzer_version (primary key together), services, files, nodes, edges, unresolved, broken (requests `@gitinside/api-map` calls broken), recorded_at. Written with each `done` analysis and kept when retention deletes that row, so the architecture timeline keeps an evicted commit's size; deleted with the repo (M11.4a, ADR-0301) |
 | `users` | id, github_user_id, login, created_at |
 | `sessions` | id, token_hash (SHA-256 of the cookie's token, unique), user_id, github_tokens (sealed by the website), created_at, expires_at. Deleted on sign-out and with the user (ADR-0221) |
 | `installations` | id, github_installation_id, account_login, created_at |

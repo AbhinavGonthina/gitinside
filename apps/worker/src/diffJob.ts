@@ -9,6 +9,7 @@ import {
   type ArchitectureGraph,
   type GraphDiff,
 } from "@gitinside/schema";
+import { graphCounts } from "./counts.js";
 import { ExtractError, extractTarball } from "./extract.js";
 import { JobFailure } from "./failure.js";
 import { fetchMergeBase, openTarball } from "./github.js";
@@ -344,10 +345,7 @@ async function storedSide(
     const graph = parseGraph(JSON.parse(text) as unknown);
     if (graph.repo.sha !== side.sha) throw new OtherCommitError();
     const stats = {
-      files: graph.nodes.filter((node) => node.kind === "file").length,
-      nodes: graph.nodes.length,
-      edges: graph.edges.length,
-      unresolved: graph.nodes.filter((node) => node.kind === "unresolved").length,
+      ...graphCounts(graph),
       warnings: graph.warnings.length,
       graphBytes: Buffer.byteLength(text),
       stageMs: {},

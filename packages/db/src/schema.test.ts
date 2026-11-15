@@ -6,6 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   accessCache,
   analyses,
+  analysisCounts,
   installations,
   migrationsFolder,
   pullRequests,
@@ -33,6 +34,7 @@ afterAll(async () => {
 beforeEach(async () => {
   // Children first; cascades would do it too, but this doesn't rely on them.
   await t.db.delete(accessCache);
+  await t.db.delete(analysisCounts);
   await t.db.delete(pullRequests);
   await t.db.delete(analyses);
   await t.db.delete(rateLimits);
@@ -89,6 +91,7 @@ describe("migrations", () => {
     expect(names).toEqual([
       "access_cache",
       "analyses",
+      "analysis_counts",
       "compute_usage",
       "deleted_installations",
       "installations",
@@ -397,6 +400,34 @@ describe("pull_requests", () => {
       ),
     ).toBe(CHECK);
     await t.db.insert(pullRequests).values({ ...pr, number: 4, diffJobId, diffQueuedAt });
+  });
+});
+
+describe("analysis_counts", () => {
+  it("are one row per repo, commit, and analyzer version, with real SHAs and no negative count", async () => {
+    const repo = await insertRepo();
+    const row = {
+      repoId: repo.id,
+      sha: SHA,
+      analyzerVersion: "0.1.0",
+      services: 1,
+      files: 2,
+      nodes: 3,
+      edges: 4,
+      unresolved: 0,
+      broken: 0,
+    };
+    await t.db.insert(analysisCounts).values(row);
+    expect(await pgErrorCode(t.db.insert(analysisCounts).values(row))).toBe(UNIQUE);
+    await t.db.insert(analysisCounts).values({ ...row, analyzerVersion: "0.2.0" });
+    expect(await pgErrorCode(t.db.insert(analysisCounts).values({ ...row, sha: "main" }))).toBe(
+      CHECK,
+    );
+    for (const field of ["services", "files", "nodes", "edges", "unresolved", "broken"]) {
+      expect(
+        await pgErrorCode(t.db.insert(analysisCounts).values({ ...row, sha: SHA2, [field]: -1 })),
+      ).toBe(CHECK);
+    }
   });
 });
 

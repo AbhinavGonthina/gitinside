@@ -157,6 +157,13 @@ export interface AnalysisStats {
   heapBytes?: number;
   /** The child's main-thread collector pauses in ms by kind (`minor`, `major`, …; M5.13a5). */
   gcMs?: Record<string, number>;
+  /**
+   * `service` nodes, and requests `@gitinside/api-map` calls broken (aimed at the repo, and no
+   * route matches; M11.4a). The worker always reports both; with both, finishing the analysis
+   * also writes its {@link analysisCounts} row.
+   */
+  services?: number;
+  broken?: number;
 }
 
 /**
@@ -239,6 +246,39 @@ export const analyses = pgTable(
         when 'done' then ${t.snapshotKey} is not null and ${t.errorCode} is null and ${t.finishedAt} is not null
         when 'failed' then ${t.errorCode} is not null and ${t.snapshotKey} is null and ${t.finishedAt} is not null
       end`,
+    ),
+  ],
+);
+
+/**
+ * One finished analysis's size, for the architecture timeline (M11.4a, ADR-0301): written with
+ * the analysis's `done` and keyed like it, but a table of its own, so it outlives the
+ * `analyses` row that retention deletes with the snapshot. A timeline step whose analysis was
+ * evicted still has its counts (its graph "not kept"). Deleted with the repo.
+ */
+export const analysisCounts = pgTable(
+  "analysis_counts",
+  {
+    repoId: uuid("repo_id")
+      .notNull()
+      .references(() => repos.id, { onDelete: "cascade" }),
+    sha: text("sha").notNull(),
+    analyzerVersion: text("analyzer_version").notNull(),
+    services: integer("services").notNull(),
+    files: integer("files").notNull(),
+    nodes: integer("nodes").notNull(),
+    edges: integer("edges").notNull(),
+    unresolved: integer("unresolved").notNull(),
+    /** Requests `@gitinside/api-map` calls broken. */
+    broken: integer("broken").notNull(),
+    recordedAt: timestampTz("recorded_at").notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.repoId, t.sha, t.analyzerVersion] }),
+    check("analysis_counts_sha_check", isSha(t.sha)),
+    check(
+      "analysis_counts_counts_check",
+      sql`${t.services} >= 0 and ${t.files} >= 0 and ${t.nodes} >= 0 and ${t.edges} >= 0 and ${t.unresolved} >= 0 and ${t.broken} >= 0`,
     ),
   ],
 );

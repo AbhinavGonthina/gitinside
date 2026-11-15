@@ -10,7 +10,8 @@
  *   {@link hideRepo} when GitHub says a published repo went private or away. The worker calls {@link upsertRepo} and {@link startAnalysis} when a
  *   job starts ({@link startInstallationAnalysis} for a job through an installation),
  *   {@link completeAnalysis} after the snapshot is in object storage (so a `done`
- *   row always has its object; {@link findAnalysisStatus} when it finds none), {@link requeueAnalysis} when an attempt fails but will be
+ *   row always has its object, and its counts row for the timeline, {@link listAnalysisCounts};
+ *   {@link findAnalysisStatus} when it finds none), {@link requeueAnalysis} when an attempt fails but will be
  *   retried, {@link failAnalysis} when the last one fails,
  *   {@link failInterruptedAnalyses} at startup, and {@link recentAnalysisStats} when a job
  *   starts (for its time estimate).
@@ -22,6 +23,7 @@ import { and, desc, eq, inArray, lte, ne, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import {
   analyses,
+  analysisCounts,
   installations,
   removedInstallationRepos,
   repos,
@@ -607,20 +609,90 @@ export async function completeAnalysis(
   id: string,
   result: { snapshotKey: string; stats: AnalysisStats },
 ): Promise<boolean> {
-  const rows = await db
-    .update(analyses)
-    .set({
-      status: "done",
-      snapshotKey: result.snapshotKey,
-      stats: result.stats,
-      errorCode: null,
-      finishedAt: sql`now()`,
-      progress: null,
-      progressAt: null,
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .update(analyses)
+      .set({
+        status: "done",
+        snapshotKey: result.snapshotKey,
+        stats: result.stats,
+        errorCode: null,
+        finishedAt: sql`now()`,
+        progress: null,
+        progressAt: null,
+      })
+      .where(and(eq(analyses.id, id), ne(analyses.status, "done")))
+      .returning({
+        repoId: analyses.repoId,
+        sha: analyses.sha,
+        analyzerVersion: analyses.analyzerVersion,
+      });
+    if (row === undefined) return false;
+    await writeCounts(tx, row, result.stats);
+    return true;
+  });
+}
+
+/** One analysis's {@link analysisCounts} row, as {@link listAnalysisCounts} returns it. */
+export interface AnalysisCounts {
+  sha: string;
+  analyzerVersion: string;
+  services: number;
+  files: number;
+  nodes: number;
+  edges: number;
+  unresolved: number;
+  broken: number;
+}
+
+/**
+ * Write the counts row of the analysis `key` from `stats`, replacing an earlier one (the
+ * same commit analyzed again after retention evicted it), when `stats` holds every count;
+ * stats without `services` and `broken` (written before M11.4a, or by a test) write nothing.
+ */
+async function writeCounts(db: AnyDatabase, key: AnalysisKey, stats: AnalysisStats): Promise<void> {
+  const { services, broken, files, nodes, edges, unresolved } = stats;
+  if (services === undefined || broken === undefined) return;
+  const counts = { services, files, nodes, edges, unresolved, broken, recordedAt: sql`now()` };
+  await db
+    .insert(analysisCounts)
+    .values({ ...key, ...counts })
+    .onConflictDoUpdate({
+      target: [analysisCounts.repoId, analysisCounts.sha, analysisCounts.analyzerVersion],
+      set: counts,
+    });
+}
+
+/**
+ * The counts rows of repo row `repoId`'s commits `shas` by `analyzerVersion`, sorted by SHA
+ * (M11.4a): what the architecture timeline draws, whether or not the analysis and its
+ * snapshot are still kept. A commit with no row is left out.
+ */
+export async function listAnalysisCounts(
+  db: AnyDatabase,
+  query: { repoId: string; analyzerVersion: string; shas: readonly string[] },
+): Promise<AnalysisCounts[]> {
+  if (query.shas.length === 0) return [];
+  return db
+    .select({
+      sha: analysisCounts.sha,
+      analyzerVersion: analysisCounts.analyzerVersion,
+      services: analysisCounts.services,
+      files: analysisCounts.files,
+      nodes: analysisCounts.nodes,
+      edges: analysisCounts.edges,
+      unresolved: analysisCounts.unresolved,
+      broken: analysisCounts.broken,
     })
-    .where(and(eq(analyses.id, id), ne(analyses.status, "done")))
-    .returning({ id: analyses.id });
-  return rows.length > 0;
+    .from(analysisCounts)
+    .where(
+      and(
+        eq(analysisCounts.repoId, query.repoId),
+        eq(analysisCounts.analyzerVersion, query.analyzerVersion),
+        inArray(analysisCounts.sha, [...query.shas]),
+      ),
+    )
+    .orderBy(analysisCounts.sha);
 }
 
 /**
@@ -742,7 +814,9 @@ export async function storeDiffSideAnalysis(
         setWhere: eq(analyses.status, "failed"),
       })
       .returning({ id: analyses.id });
-    return rows.length > 0;
+    if (rows.length === 0) return false;
+    await writeCounts(tx, { repoId, sha, analyzerVersion }, side.stats);
+    return true;
   });
 }
 

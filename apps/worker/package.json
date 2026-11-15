@@ -52,6 +52,7 @@
   },
   "dependencies": {
     "@gitinside/analyzer": "workspace:*",
+    "@gitinside/api-map": "workspace:*",
     "@gitinside/db": "workspace:*",
     "@gitinside/diff": "workspace:*",
     "@gitinside/schema": "workspace:*"

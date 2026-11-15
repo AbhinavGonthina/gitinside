@@ -13,6 +13,7 @@ import {
   deletedInstallations,
   deleteInstallationData,
   installations,
+  listAnalysisCounts,
   queueAnalysis,
   queuePullRequestDiff,
   recordDiffJobResult,
@@ -61,6 +62,8 @@ const STATS = {
   edges: 4,
   unresolved: 1,
   warnings: 0,
+  services: 2,
+  broken: 1,
   graphBytes: GRAPH.length,
   stageMs: { inventory: 3, graph: 1 },
   peakRssBytes: 900_000_000,
@@ -198,7 +201,24 @@ describe("createAnalysisRecorder", () => {
       peakRssBytes: 900_000_000,
       heapBytes: 700_000_000,
       gcMs: { minor: 4100, major: 900 },
+      services: 2,
+      broken: 1,
     });
+    // The timeline's row (M11.4a), which outlives this one when retention evicts it.
+    expect(
+      await listAnalysisCounts(t.db, { repoId: repo!.id, analyzerVersion: VERSION, shas: [SHA] }),
+    ).toEqual([
+      {
+        sha: SHA,
+        analyzerVersion: VERSION,
+        services: 2,
+        files: 2,
+        nodes: 5,
+        edges: 4,
+        unresolved: 1,
+        broken: 1,
+      },
+    ]);
     // jsonb keeps its own key order, so compare as an object.
     expect(row.stats!.jobMs).toEqual({
       download: expect.any(Number) as number,
@@ -933,6 +953,10 @@ describe("createDiffRecorder (ADR-0245)", () => {
         graphBytes: Buffer.byteLength(TEXT),
         snapshotBytes: s3.objects.get(key)!.body.length,
       });
+      const timeline = { repoId: side.repoId, analyzerVersion: VERSION, shas: [MERGE] };
+      expect(await listAnalysisCounts(t.db, timeline)).toMatchObject([
+        { sha: MERGE, services: 2, broken: 1, nodes: 5 },
+      ]);
       expect(await d.storedGraph(side)).toBe(TEXT);
     });
 

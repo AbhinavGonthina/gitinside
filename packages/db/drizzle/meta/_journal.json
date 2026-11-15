@@ -99,6 +99,13 @@
       "when": 1794203038007,
       "tag": "0013_installation_tombstones",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1794730863628,
+      "tag": "0014_analysis_counts",
+      "breakpoints": true
     }
   ]
 }
