@@ -72,7 +72,7 @@ Checked in I2.2 (ADR-0295) before any iteration 2 feature was built; each featur
 
 | Workload | Runs on | Quota it uses | At 10× today | Guard that stops it first |
 |---|---|---|---|---|
-| Impact analysis (M11.1, M14.3) | the visitor's browser | none beyond the page's CDN-cached graph read | no server cost | no route, job, or table; M11.1's benchmark holds it to the interactive budget |
+| Impact analysis (M11.1, M14.3) | the visitor's browser | none beyond the page's CDN-cached graph read | no server cost | no route, job, or table; M11.1's benchmark holds it to the interactive budget (76.9 ms worst first question on cal.com, `bench/results/2026-11-15-impact-calcom.md`) |
 | API map (M11.2, M14.4) | the browser, from the CDN-cached graph | one page invocation per view, as the repo page | within Vercel's 1M invocations | no stored copy; private repos through `/api/graph`'s access check (`no-store`) |
 | Architecture rules in PRs (M11.3, M15.1) | inside the existing PR diff job | milliseconds of that job's Cloud Run time | no new job, task, or object | `.gitinside.yml` ≤ 64 KiB and ≤ 200 rules, a linear-time glob matcher, evaluation inside a slice of the job's 280 s (overrun = config error) |
 | Diagram images in PR comments (M15.2) | Vercel, from the stored diff | ≤ 0.3 s Active CPU (measured locally on a 14 MiB graph) and one bucket read per CDN miss | ≈ 5,100 renders a month: ≈ 11% of 4 CPU-hours, ≈ 10% of 50,000 bucket requests | an immutable URL per diff, CDN-cached a year when public; at most 40 boxes per image, so cost doesn't grow with the repo |
