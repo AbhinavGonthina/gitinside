@@ -1,6 +1,7 @@
 /**
  * A fake GitHub REST API for tests: `fetch` answering `GET /repos/{owner}/{repo}` and
- * `GET /repos/{owner}/{repo}/commits/HEAD` (sha media type), and
+ * `GET /repos/{owner}/{repo}/commits/HEAD` (sha media type),
+ * `GET /repos/{owner}/{repo}/commits?sha=…`, and
  * `GET /repos/{owner}/{repo}/languages` like api.github.com does.
  * Names match ignoring case, as on GitHub.
  */
@@ -22,6 +23,21 @@ export interface FakeRepo {
    * is a `301` to `/repositories/{id}` (plus the rest of the path), answered as the repo.
    */
   formerNames?: string[];
+  /**
+   * `GET …/commits?sha=<sha>&per_page=<n>`'s history, newest first, as GitHub lists it (every
+   * ancestor by date): the page starts at the commit named `sha` and holds up to `n` entries.
+   * Default: `sha` alone, with no parents.
+   */
+  commits?: FakeCommit[];
+}
+
+/** One entry of {@link FakeRepo.commits}. */
+export interface FakeCommit {
+  sha: string;
+  parents: string[];
+  message?: string;
+  /** The committer's date; default `2026-11-01T00:00:00Z`. `null` leaves it out. */
+  date?: string | null;
 }
 
 export interface FakeGitHub {
@@ -93,6 +109,22 @@ export function fakeGitHub(repos: FakeRepo[]): FakeGitHub {
     }
     if (rest.join("/") === "languages") {
       return Response.json(repo.languages ?? { TypeScript: 50_000 });
+    }
+    if (rest.join("/") === "commits") {
+      const history = repo.commits ?? (repo.sha === null ? [] : [{ sha: repo.sha, parents: [] }]);
+      const start = history.findIndex((c) => c.sha === url.searchParams.get("sha"));
+      if (start < 0) return Response.json({ message: "No commit found" }, { status: 404 });
+      const size = Number(url.searchParams.get("per_page") ?? "30");
+      return Response.json(
+        history.slice(start, start + size).map((c) => ({
+          sha: c.sha,
+          commit: {
+            message: c.message ?? `Commit ${c.sha.slice(0, 7)}`,
+            committer: c.date === null ? {} : { date: c.date ?? "2026-11-01T00:00:00Z" },
+          },
+          parents: c.parents.map((sha) => ({ sha })),
+        })),
+      );
     }
     return Response.json({ message: "Not Found" }, { status: 404 });
   };

@@ -22,6 +22,7 @@ import type { GraphRouteDeps } from "./graphRoute";
 import { cdnGraphReader, type ImageRouteDeps } from "./imageRoute";
 import { jobRouteDeps, type JobRouteDeps } from "./jobRoute";
 import { createHeadCache, type RepoViewDeps } from "./repoView";
+import { createTimelineCache, type TimelineDeps } from "./timeline";
 import { createTaskQueue, type TaskQueue } from "./cloudTasks";
 import { createGoogleTokenSource, type GoogleTokenSource } from "./googleAuth";
 import { createLocalTaskQueue, isLoopbackOrigin, type LocalTaskQueue } from "./localTasks";
@@ -411,6 +412,8 @@ export function tokenRouteDepsFromEnv(env: Env = process.env): TokenRouteDeps | 
 
 /** One process-wide memory of GitHub's answers (lib/repoView.ts). */
 const heads = createHeadCache();
+/** One process-wide memory of GitHub's commit lists for timelines (lib/timeline.ts). */
+const timelineCommits = createTimelineCache();
 /** One process-wide memory of GitHub's code counts by commit (lib/codeSize.ts). */
 const codeSizes = createCodeSizeCache();
 
@@ -433,5 +436,25 @@ export function repoViewDepsFromEnv(
     codeSizes,
     purgeRepo: (providerRepoId) => purgeRepoCache(providerRepoId),
     later: (task, delayMs) => runLater(task, delayMs),
+  };
+}
+
+/**
+ * The timeline route's deps (M11.4b): the database, else `undefined` (`503`). Without a
+ * configured queue, the series is answered but nothing is queued.
+ */
+export function timelineDepsFromEnv(
+  env: Env = process.env,
+  oidcToken?: string | null,
+): TimelineDeps | undefined {
+  const db = database(env);
+  if (!db) return undefined;
+  return {
+    db,
+    queue: taskQueue(env, oidcToken),
+    github: env.GITHUB_TOKEN ? { token: env.GITHUB_TOKEN } : {},
+    analyzerVersion: ANALYZER_VERSION,
+    commits: timelineCommits,
+    codeSizes,
   };
 }

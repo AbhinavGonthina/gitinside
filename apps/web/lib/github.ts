@@ -5,6 +5,7 @@ import type { RepoRef } from "./repoUrl";
  * (`GET /repos/{owner}/{repo}`), then its default branch's latest commit
  * (`GET /repos/{owner}/{repo}/commits/HEAD` with the `sha` media type, which answers with
  * the 40 hex characters alone). Before new work, its languages (`fetchCodeBytes`, ADR-0154).
+ * For the architecture timeline, one page of the branch's commits (`fetchFirstParents`, M11.4b).
  *
  * - **Public repos only** by name: a private repo is reported exactly like a missing one,
  *   so a configured token that can see private repos never reveals that one exists. A private
@@ -312,6 +313,105 @@ function parseCodeBytes(text: string): number | undefined {
     total += bytes;
   }
   return total;
+}
+
+/** A commit on a branch's first-parent line, as {@link fetchFirstParents} reads it. */
+export interface BranchCommit {
+  /** 40 lowercase hex. */
+  sha: string;
+  /** The committer's date as GitHub gives it (ISO 8601, UTC), or `null` if it has none we can read. */
+  date: string | null;
+  /** The message's first line, at most {@link TITLE_LENGTH} characters. */
+  title: string;
+}
+
+/** What {@link fetchFirstParents} found. */
+export type CommitsResult =
+  | { ok: true; commits: BranchCommit[] }
+  | { ok: false; code: ResolveFailure };
+
+/** Commits asked of GitHub in the one page {@link fetchFirstParents} reads: its largest page. */
+export const COMMITS_PAGE = 100;
+/** A commit title's longest form; longer ones end in `…`. */
+export const TITLE_LENGTH = 100;
+/** A page of 100 commits is about 400 KB; anything far larger isn't one. */
+const MAX_COMMITS_JSON_BYTES = 8 * 1024 * 1024;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
+
+/**
+ * Up to `max` commits of the first-parent line ending at `repo.sha`, newest first: one page of
+ * `GET /repos/{owner}/{repo}/commits?sha=<sha>&per_page=100` (M11.4b), each commit followed to
+ * its first parent within that page. GitHub lists every ancestor by date, a merged branch's
+ * commits included, so a line whose next first parent isn't on the page ends there (fewer than
+ * `max`, never a guessed commit); a second page isn't read. `repo.sha` missing from the answer
+ * is `GITHUB_UNAVAILABLE`. Never throws.
+ */
+export async function fetchFirstParents(
+  repo: Pick<ResolvedRepo, "owner" | "name" | "sha">,
+  max: number,
+  options: GitHubOptions = {},
+): Promise<CommitsResult> {
+  const api = new GitHubApi(options);
+  let text: string;
+  try {
+    const query = new URLSearchParams({ sha: repo.sha, per_page: String(COMMITS_PAGE) });
+    text = await api.get(
+      `${api.repoPath(repo.owner, repo.name)}/commits?${query}`,
+      "application/vnd.github+json",
+    );
+  } catch (error) {
+    if (error instanceof Failure) return { ok: false, code: error.code };
+    throw error;
+  }
+  const page = text.length > MAX_COMMITS_JSON_BYTES ? undefined : parseCommitPage(text);
+  if (page === undefined) return { ok: false, code: "GITHUB_UNAVAILABLE" };
+  const commits: BranchCommit[] = [];
+  let next: string | undefined = repo.sha;
+  while (next !== undefined && commits.length < max) {
+    const found = page.get(next);
+    if (found === undefined) break;
+    commits.push(found.commit);
+    next = found.firstParent;
+  }
+  return commits.length === 0 ? { ok: false, code: "GITHUB_UNAVAILABLE" } : { ok: true, commits };
+}
+
+/** A commits page by SHA, each with its first parent; `undefined` if it isn't one. */
+function parseCommitPage(
+  text: string,
+): Map<string, { commit: BranchCommit; firstParent: string | undefined }> | undefined {
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+  if (!Array.isArray(value)) return undefined;
+  const page = new Map<string, { commit: BranchCommit; firstParent: string | undefined }>();
+  for (const item of value as unknown[]) {
+    if (!isRecord(item) || typeof item.sha !== "string" || !SHA.test(item.sha)) return undefined;
+    const { parents } = item;
+    if (!Array.isArray(parents)) return undefined;
+    const [first] = parents as unknown[];
+    const firstParent =
+      isRecord(first) && typeof first.sha === "string" && SHA.test(first.sha)
+        ? first.sha
+        : undefined;
+    const details = isRecord(item.commit) ? item.commit : {};
+    const committer = isRecord(details.committer) ? details.committer : {};
+    const date =
+      typeof committer.date === "string" && ISO_DATE.test(committer.date) ? committer.date : null;
+    const message = typeof details.message === "string" ? details.message : "";
+    page.set(item.sha, { commit: { sha: item.sha, date, title: titleOf(message) }, firstParent });
+  }
+  return page;
+}
+
+/** A message's first line, trimmed, cut to {@link TITLE_LENGTH} characters (code points). */
+function titleOf(message: string): string {
+  const line = (message.split("\n", 1)[0] ?? "").trim();
+  const chars = Array.from(line);
+  return chars.length <= TITLE_LENGTH ? line : `${chars.slice(0, TITLE_LENGTH - 1).join("")}…`;
 }
 
 /**

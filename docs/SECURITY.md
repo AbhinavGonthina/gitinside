@@ -47,6 +47,7 @@ The abuse limits as of M5.18f (#11). `apps/web/lib/abuseLimits.test.ts` checks e
 | New analyses per repo | 1 per 30 minutes, whoever asks | `claimRepoAnalysis`, a sliding claim on the repo's row (ADR-0155); the claimed commit itself still goes through |
 | Re-analysis on view (pages, README images) | 6 new commits per repo per hour | `RECHECKS_PER_HOUR`, charged to the repo, not the visitor (`repoView.ts`) |
 | Pull requests' diff jobs | 6 new diff jobs per repo per hour, each up to two analyses | `DIFFS_PER_HOUR` under its own key, after the compute pause; a held one gets a neutral Check Run (`githubWebhook.ts`, ADR-0296) |
+| Architecture timeline | 2 new analyses per request, 6 per repo per hour, none past 50% of any compute meter | only repos already analyzed, the last 12 first-parent commits; `TIMELINE_QUEUES_PER_HOUR` under its own key, then check-on-view's rules (`timeline.ts`, ADR-0302) |
 | Too much code, before any download | over 100 MiB of TypeScript + JavaScript by GitHub's count | `codeSize.ts`, twice the worker's 50 MB source limit (ADR-0154) |
 | After a `LIMIT_*` failure | the repo is refused for 7 days, unless it shrinks by half | `sizeHold.ts`, by GitHub repo ID (ADR-0153) |
 | Worker instances | at most 2, 0 when idle | `infra/gcp/service.json` |

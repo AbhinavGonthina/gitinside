@@ -134,7 +134,7 @@ export interface ComputeMeter {
   limit: number;
   /** `used / limit` as a percentage, rounded down to 0.1. */
   percent: number;
-  /** At or past {@link COMPUTE_PAUSE_RATIO}: new analyses are paused. */
+  /** At or past the ratio asked ({@link COMPUTE_PAUSE_RATIO} by default: new analyses are paused). */
   alarm: boolean;
 }
 
@@ -200,12 +200,13 @@ export async function computeUsageThisMonth(db: AnyDatabase): Promise<ComputeUsa
 }
 
 /**
- * Each allowance against `usage`. Pure; vCPU, memory, Cloud Run requests, Cloud Tasks,
- * Secret Manager.
+ * Each allowance against `usage`, each alarmed at `ratio` of it. Pure; vCPU, memory, Cloud Run
+ * requests, Cloud Tasks, Secret Manager.
  */
 export function computeMeters(
   usage: Pick<ComputeUsage, "instanceMs" | "runRequests" | "taskOperations" | "secretAccesses">,
   allowance: ComputeAllowance = COMPUTE_ALLOWANCE,
+  ratio: number = COMPUTE_PAUSE_RATIO,
 ): ComputeMeter[] {
   const meter = (
     resource: ComputeMeter["resource"],
@@ -218,7 +219,7 @@ export function computeMeters(
     used,
     limit,
     percent: Math.floor((used / limit) * 1000) / 10,
-    alarm: used >= limit * COMPUTE_PAUSE_RATIO,
+    alarm: used >= limit * ratio,
   });
   const seconds = usage.instanceMs / 1000;
   return [
@@ -238,12 +239,16 @@ export interface ComputePause {
   meters: ComputeMeter[];
 }
 
-/** Whether new analyses are paused this month; `undefined` when not. */
+/**
+ * Whether new analyses are paused this month; `undefined` when not. With `ratio`, whether any
+ * allowance is used to that share instead (the timeline stops at half, M11.4b, ADR-0295).
+ */
 export async function findComputePause(
   db: AnyDatabase,
   allowance: ComputeAllowance = COMPUTE_ALLOWANCE,
+  ratio: number = COMPUTE_PAUSE_RATIO,
 ): Promise<ComputePause | undefined> {
   const usage = await computeUsageThisMonth(db);
-  const meters = computeMeters(usage, allowance).filter((meter) => meter.alarm);
+  const meters = computeMeters(usage, allowance, ratio).filter((meter) => meter.alarm);
   return meters.length === 0 ? undefined : { until: usage.nextMonthStart, meters };
 }

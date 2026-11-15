@@ -268,4 +268,15 @@ describe("findComputePause", () => {
       { resource: "cloud_run_requests", used: 8, limit: 10, percent: 80, alarm: true },
     ]);
   });
+
+  it("stops at a lower share when given one (the timeline's 50%, M11.4b)", async () => {
+    await countComputeUsage(t.db, { instanceMs: memoryShareMs(0.5) - 1_000 });
+    expect(await findComputePause(t.db, COMPUTE_ALLOWANCE, 0.5)).toBeUndefined();
+    await countComputeUsage(t.db, { instanceMs: 1_000 });
+    const pause = await findComputePause(t.db, COMPUTE_ALLOWANCE, 0.5);
+    expect(pause?.until).toEqual(utcMonths().nextMonthStart);
+    expect(pause?.meters.map((meter) => meter.resource)).toEqual(["cloud_run_memory"]);
+    // Still well under the 80% pause everything else follows.
+    expect(await findComputePause(t.db)).toBeUndefined();
+  });
 });

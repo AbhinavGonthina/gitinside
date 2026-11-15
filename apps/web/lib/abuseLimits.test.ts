@@ -18,6 +18,11 @@ import { DIFFS_PER_HOUR } from "./githubWebhook";
 import { RECHECKS_PER_HOUR } from "./repoView";
 import { SIGNED_IN_HOURLY_LIMIT, SIGNED_OUT_HOURLY_LIMIT } from "./serverDeps";
 import { SIZE_HOLD_DAYS } from "./sizeHold";
+import {
+  TIMELINE_COMPUTE_RATIO,
+  TIMELINE_QUEUES_PER_HOUR,
+  TIMELINE_QUEUES_PER_REQUEST,
+} from "./timeline";
 
 /**
  * docs/SECURITY.md's "T9 in numbers" table against the code and `infra/gcp` (M5.18f): a limit
@@ -79,6 +84,10 @@ const rows: [string, string][] = [
   [
     "Pull requests' diff jobs",
     `${DIFFS_PER_HOUR} new diff jobs per repo per hour, each up to two analyses`,
+  ],
+  [
+    "Architecture timeline",
+    `${TIMELINE_QUEUES_PER_REQUEST} new analyses per request, ${TIMELINE_QUEUES_PER_HOUR} per repo per hour, none past ${percent(TIMELINE_COMPUTE_RATIO)} of any compute meter`,
   ],
   [
     "Too much code, before any download",
