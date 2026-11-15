@@ -1,0 +1,4 @@
+{
+  "name": "spread-chain-method",
+  "dependencies": { "express": "4" }
+}

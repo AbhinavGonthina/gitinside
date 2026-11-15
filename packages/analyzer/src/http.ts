@@ -191,7 +191,7 @@ import {
   MAX_HOPS,
   objectProperty,
   ownProperty,
-  spreadLacks,
+  spreadSources,
   weaker,
   type ConfigValue,
   type ProgramExpression,
@@ -679,26 +679,9 @@ export function createHttpSiteCollector(
     sp: ServiceProgram,
     object: ts.ObjectLiteralExpression,
   ): MethodSource | undefined => {
-    const spreads: ProgramExpression[] = [];
-    let fallback: ProgramExpression | undefined;
-    for (let i = object.properties.length - 1; i >= 0; i--) {
-      const property = object.properties[i];
-      if (!property) continue;
-      if (ts.isSpreadAssignment(property)) {
-        // `...(body ? { body } : {})` can't supply it (M5C.10e2).
-        if (!spreadLacks(sp, property.expression, "method")) {
-          spreads.push({ sp, expression: property.expression });
-        }
-        continue;
-      }
-      const value = ownProperty(sp, property, "method");
-      if (value === null) return undefined;
-      if (value) {
-        fallback = value;
-        break;
-      }
-    }
-    return { kind: "spreads", spreads, fallback };
+    // `...(body ? { body } : {})` can't supply it (M5C.10e2).
+    const found = spreadSources(sp, object, "method");
+    return found && { kind: "spreads", ...found };
   };
 
   // ---- methods chosen by a condition (M12.1e2, ADR-0308) ----

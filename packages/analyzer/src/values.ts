@@ -160,6 +160,34 @@ export function objectProperty(
 }
 
 /**
+ * The spreads that could supply an object literal's property `name`, last first, and the
+ * `name` property written before them, if any (`{ method: "GET", ...init }`). Spreads that
+ * can't supply it ({@link spreadLacks}) are left out. `undefined` when something other than
+ * a spread (a computed key, a `method()` member) hides it.
+ */
+export function spreadSources(
+  sp: ServiceProgram,
+  object: ts.ObjectLiteralExpression,
+  name: string,
+): { spreads: ProgramExpression[]; fallback: ProgramExpression | undefined } | undefined {
+  const spreads: ProgramExpression[] = [];
+  for (let i = object.properties.length - 1; i >= 0; i--) {
+    const property = object.properties[i];
+    if (!property) continue;
+    if (ts.isSpreadAssignment(property)) {
+      if (!spreadLacks(sp, property.expression, name)) {
+        spreads.push({ sp, expression: property.expression });
+      }
+      continue;
+    }
+    const value = ownProperty(sp, property, name);
+    if (value === null) return undefined;
+    if (value) return { spreads, fallback: value };
+  }
+  return { spreads, fallback: undefined };
+}
+
+/**
  * True when a spread's value can't supply property `name` (M5C.10e2): an object literal that
  * certainly lacks it, or a conditional (`c ? { body } : {}`) or `&&` (`c && { body }`) of such
  * values, nested too. A falsy left side of `&&` spreads nothing. Anything else (a variable,

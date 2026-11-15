@@ -1047,6 +1047,37 @@ describe("wrappers calling wrappers (M5C.7f)", () => {
     ]);
   });
 
+  it("reads a caller's method through each wrapper's spread of its options (M12.1e3)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/http.ts", [
+      "function api(path: string, options?: RequestInit) {",
+      '  return fetch("/api" + path, options);',
+      "}",
+      "function withCookie(path: string, options?: RequestInit) {",
+      '  return api(path, { ...options, headers: { cookie: "c=1" } });',
+      "}",
+      "function withTrace(path: string, init?: RequestInit) {",
+      "  return withCookie(path, { ...init, keepalive: true });",
+      "}",
+      'export const add = () => withTrace("/teams", { method: "POST" });',
+      'export const list = () => withTrace("/teams");',
+      'export const ask = (init: RequestInit) => withCookie("/teams", init);',
+      "function loop(path: string) {",
+      "  const { headers, ...rest } = { ...rest };",
+      "  return api(path, { ...rest });",
+      "}",
+      'export const odd = () => loop("/teams");',
+    ]);
+    // `ask` passes options nothing shows; `loop`'s rest copies itself, so reading it stops
+    // after MAX_WRAPPER_DEPTH literals with the method unknown.
+    expect(await summary()).toEqual([
+      "src/http.ts:10 POST /api/teams [add] <- src/http.ts:2",
+      "src/http.ts:11 GET /api/teams [list] <- src/http.ts:2",
+      "src/http.ts:12 ? /api/teams [ask] <- src/http.ts:2",
+      "src/http.ts:17 ? /api/teams [odd] <- src/http.ts:2",
+    ]);
+  });
+
   it("ends a cycle of wrappers calling each other, keeping every site", async () => {
     await put("package.json", JSON.stringify({ name: "web" }));
     await put("src/http.ts", [

@@ -159,6 +159,7 @@ const EXPECTED: Record<string, string[]> = {
   "rtk-query": ["616b4c69c6eed7d4", "be82de0bb830a121", "51a3a9f13d58db6b"],
   "shop-demo": ["a293bcabb8929d22", "d5cbf1bed672075b", "24c3b4e9fa0d57ac"],
   "sibling-apps": ["661d856493c7cb37", "fd9db09229cd509d", "3397c2b738f0e5c3"],
+  "spread-chain-method": ["5a64ecc9b7c65ba6", "d8b69aef4fc42d99", "0caa62e676a73984"],
   "static-member-base": ["528a2f24dabb646c", "c0c0087f23e66c95", "41c3ebbc26f6cb05"],
   "swr-fetchers": ["bba1e337e7b53ccd", "694d35429918cdd4", "8f4ab8aea9ed9036"],
   "syntax-error": ["55396ca32388bd0f", "9cb7f0340d7cb270", "7b0e096375125e04"],
