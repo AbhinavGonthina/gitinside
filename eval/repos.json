@@ -619,7 +619,7 @@
     },
     {
       "batch": 6,
-      "seen": null
+      "seen": "Its blind result was 100.0% precision and 69.0% recall (6 of 16 mapped completely). Its misses were diagnosed in eval/results/2026-11-batch6-diagnosis.md, and M12.1's fixes were chosen from them, each written from a library's or the language's contract with its own fixture, starting with M12.1a (a trailing-slash trim reads as the value before it, ADR-0303)."
     }
   ]
 }

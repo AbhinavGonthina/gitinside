@@ -487,6 +487,8 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     expect(links(g, "http")).toEqual([
       `symbol:${p}/src/orders.ts#createOrder -> route:${p}/POST /api/orders exact`,
       `symbol:${p}/src/orders.ts#getOrder -> route:${p}/GET /api/orders/:id exact`,
+      // An env base with a fallback, through a trailing-slash trim (M12.1a).
+      `symbol:${p}/src/orders.ts#refreshOrder -> route:${p}/GET /api/orders/:id heuristic`,
     ]);
   });
 
