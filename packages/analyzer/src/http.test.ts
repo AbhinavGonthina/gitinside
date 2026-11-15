@@ -52,7 +52,7 @@ function text(value: ProgramExpression | null | undefined): string {
 function summary(sites: readonly BoundSite[]): string[] {
   return sites.map(
     (s) =>
-      `${s.file}:${s.site.line}:${s.site.column} ${s.client} ${s.method ?? "?"} ${text(s.url)}` +
+      `${s.file}:${s.site.line}:${s.site.column} ${s.client} ${s.methods?.join("|") ?? s.method ?? "?"} ${text(s.url)}` +
       ` base=${text(s.baseURL)} [${s.owners.join(",")}]` +
       (s.confidence === "exact" ? "" : ` (${s.confidence})`),
   );
@@ -171,6 +171,53 @@ describe("collectHttpCalls: fetch", () => {
       'src/api.ts:7:9 fetch ? "/f"',
       'src/api.ts:8:9 fetch ? "/g"',
       'src/api.ts:9:9 fetch GET "/h"',
+    ]);
+  });
+
+  it("reads a method chosen by a condition as every branch's, when each is a literal (M12.1e2)", async () => {
+    await put("package.json", JSON.stringify({ name: "web", dependencies: { axios: "1.0.0" } }));
+    await put("src/api.ts", [
+      'import axios from "axios";',
+      'const VERB = "patch";',
+      "export async function load(on: boolean, kind: string, m: string, extra: RequestInit) {",
+      '  await fetch("/a", { method: on ? "DELETE" : "POST" });',
+      '  await fetch("/b", { method: on ? "put" : kind === "x" ? VERB : "DELETE" });',
+      '  await fetch("/c", { method: on ? "POST" : "post" });',
+      '  const pick = on ? { method: "DELETE" } : { method: "PATCH", body: "x" };',
+      '  await fetch("/d", pick);',
+      '  await fetch("/e", on ? { method: "PUT" } : { body: "x" });',
+      '  const chosen = on ? "PUT" : "DELETE";',
+      '  await fetch("/f", { method: chosen });',
+      '  await axios({ url: "/g", method: on ? "put" : "delete" });',
+      '  await fetch("/h", { method: on ? m : "POST" });',
+      '  await fetch("/i", { method: on ? "TRACE" : "POST" });',
+      '  await fetch("/j", on ? extra : { method: "POST" });',
+      '  await fetch("/k", on ? { method: "PUT", ...extra } : { method: "POST" });',
+      '  let loose = on ? { method: "PUT" } : { method: "POST" };',
+      '  await fetch("/l", loose);',
+      '  const changed = on ? { method: "PUT" } : { method: "POST" };',
+      '  changed.method = "GET";',
+      '  await fetch("/m", changed);',
+      '  loose = { method: "GET" };',
+      "}",
+    ]);
+    // Both methods only when every branch reads as one; one method when they agree. A branch
+    // that's a parameter, an unknown method, a config that can't be read, a spread that could
+    // set it, a `let`, or a mutated const stays unknown.
+    expect(summary(await collect()).map((s) => s.split(" base=")[0])).toEqual([
+      'src/api.ts:4:9 fetch DELETE|POST "/a"',
+      'src/api.ts:5:9 fetch DELETE|PATCH|PUT "/b"',
+      'src/api.ts:6:9 fetch POST "/c"',
+      'src/api.ts:8:9 fetch DELETE|PATCH "/d"',
+      'src/api.ts:9:9 fetch GET|PUT "/e"',
+      'src/api.ts:11:9 fetch DELETE|PUT "/f"',
+      'src/api.ts:12:9 axios DELETE|PUT "/g"',
+      'src/api.ts:13:9 fetch ? "/h"',
+      'src/api.ts:14:9 fetch ? "/i"',
+      'src/api.ts:15:9 fetch ? "/j"',
+      'src/api.ts:16:9 fetch ? "/k"',
+      'src/api.ts:18:9 fetch ? "/l"',
+      'src/api.ts:21:9 fetch ? "/m"',
     ]);
   });
 
