@@ -292,6 +292,7 @@ describe("when to deploy", () => {
       "infra/gcp/",
       "package.json",
       "packages/analyzer/",
+      "packages/api-map/",
       "packages/db/",
       "packages/diff/",
       "packages/schema/",
