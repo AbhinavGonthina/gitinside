@@ -32,9 +32,9 @@ jobs:
     env:
       TEST_DATABASE_URL: postgres://gitinside:gitinside@localhost:5432/gitinside
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -59,8 +59,8 @@ jobs:
   worker-image:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - run: docker version
@@ -74,9 +74,9 @@ jobs:
       # Keep in step with @playwright/test in packages/viewer/package.json.
       image: mcr.microsoft.com/playwright:v1.64.1-noble
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -86,7 +86,7 @@ jobs:
       - run: pnpm --filter @gitinside/viewer build-storybook
       - run: pnpm --filter @gitinside/viewer visual
       - if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: visual-report
           path: |
@@ -104,9 +104,9 @@ jobs:
       # Keep in step with @playwright/test in apps/web/package.json.
       image: mcr.microsoft.com/playwright:v1.64.1-noble
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -114,7 +114,7 @@ jobs:
       - run: pnpm turbo run build --filter=@gitinside/web
       - run: pnpm --filter @gitinside/web e2e
       - if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: web-e2e-report
           path: |
@@ -150,12 +150,12 @@ jobs:
       SNAPSHOTS_BUCKET: ${{ vars.SNAPSHOTS_BUCKET }}
       SNAPSHOTS_ACCESS_KEY_ID: ${{ vars.SNAPSHOTS_ACCESS_KEY_ID }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # The whole history, to diff from the commit the live services run.
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - id: plan
