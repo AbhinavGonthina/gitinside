@@ -298,6 +298,11 @@ Format rules (ADR-0040, enforced by `eval/src/format.ts`; `pnpm --filter @gitins
 - Target: ≥ 60fps median at 2,000 nodes.
 - Final (M9.2d, [report](../bench/results/2026-11-10-render.md)): 59.9 fps median and 59.5 fps p5 in all six cases, at the display's 59.9 ceiling.
 
+**Impact analysis (M11.1):**
+- `pnpm bench:impact`: `@gitinside/impact` on the analysis benchmark's cal.com graph (19,422 nodes, 31,769 edges), in Node (V8, as in Chromium). The index is built 5 times; `impactOf` runs 3 times each on 1,118 targets (every service, route, page, model, datastore, queue, and outside API, plus every 25th file and symbol), after a warm-up pass.
+- Budget: a first question, the index's build plus one query, within 100 ms (RAIL's response window).
+- First ([report](../bench/results/2026-11-15-impact-calcom.md)): 48.4 ms median build, 0.27 ms median query, 2.11 ms p95, 28.5 ms slowest; 76.9 ms worst first question, within budget. The first engine had measured 212 ms ([report](../bench/results/2026-11-15-impact-calcom-first.md)) before ADR-0298's typed-array index.
+
 **Output:** `bench/results/<YYYY-MM-DD>-<name>.md` with raw numbers (JSON alongside), committed.
 
 ## 3. PR backtesting (M7)
