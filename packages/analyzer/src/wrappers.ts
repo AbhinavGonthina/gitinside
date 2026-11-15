@@ -60,7 +60,11 @@
  *   what it was destructured from (M5C.7a): `const { json, headers, ...rest } = init` then
  *   `fetch(url, { ...rest })` reads the caller's `init`, as does a parameter written
  *   `{ json, ...rest }`; a pattern that takes `method` out by name leaves `rest` without one,
- *   and a computed key that isn't a const string makes the method unknown.
+ *   and a computed key that isn't a const string makes the method unknown. Through a chain
+ *   (M12.1e3, ADR-0309), a config an outer wrapper passes as an object literal with spreads
+ *   (`api(path, { ...options, headers })`) is read by the same rules, each spread with that
+ *   wrapper's bindings, so its caller's `{ method: "POST" }` (or no options: `GET`) arrives;
+ *   a spread of anything unreadable (a call, a caller's own parameter) leaves it unknown.
  * - A whole axios config that is a parameter (`axios(req)`, `api.request(req)`, M5A.3c): the
  *   caller's object literal or const object gives `url`, `baseURL` (else the instance's), and
  *   `method`, so `httpRequest({ method: "POST", url: "/login" })` is `POST /login`. A caller
@@ -193,6 +197,7 @@ import {
   MAX_HOPS,
   objectProperty,
   redactedText,
+  spreadSources,
   weaker,
   type ConfigValue,
   type ProgramExpression,
@@ -1400,17 +1405,48 @@ export function collectHttpFacts(
     const configMethod = (config: ProgramExpression): HttpMethod | null => {
       const v = bound(config);
       if (v === "missing") return "GET";
-      return v === null ? null : methodValue(methodProperty(v));
+      return v === null ? null : orGet(objectMethod(v, 0));
     };
 
-    const boundMethod = (site: HttpCallSite): HttpMethod | null => {
-      const source = site.methodSource;
-      if (site.method !== null || !source) return site.method;
-      if (source.kind === "value") return methodValue(source.value);
-      if (source.kind === "config") return configMethod(source.config);
-      // `{ method: "GET", ...init }`: the last spread that sets `method` wins. A rest element
-      // (`const { json, ...rest } = init`) copies `init` unless the pattern takes `method` out.
-      for (const spread of source.spreads) {
+    /** A method a config sets, or `GET` when it sets none (`null`, unknown, stays). */
+    const orGet = (method: HttpMethod | null | undefined): HttpMethod | null =>
+      method === undefined ? "GET" : method;
+
+    /**
+     * The method a bound config sets, `undefined` when it sets none: a const object's or
+     * object literal's `method` property, or, when spreads could supply a literal's, read
+     * through them (M12.1e3): `api(path, { ...options, headers })` in an outer wrapper reads
+     * that wrapper's caller's `options`. Each spread is bound like any value here, so it
+     * reads the bindings of the call it sits in. `depth` counts the literals read: past
+     * {@link MAX_WRAPPER_DEPTH}, more than a chain can pass on, a spread hides the method as
+     * before, which also ends a rest that copies itself (`const { ...rest } = { ...rest }`).
+     */
+    const objectMethod = (
+      value: ProgramExpression,
+      depth: number,
+    ): HttpMethod | null | undefined => {
+      const e = unwrap(value.expression);
+      const source =
+        ts.isObjectLiteralExpression(e) && depth < MAX_WRAPPER_DEPTH
+          ? spreadSources(value.sp, e, "method")
+          : undefined;
+      if (source) return spreadsMethod(source.spreads, source.fallback, depth + 1);
+      const property = methodProperty(value);
+      return property === undefined ? undefined : methodValue(property);
+    };
+
+    /**
+     * The method spreads (last first) set over the `method` property written before them:
+     * `{ method: "GET", ...init }`, the last spread that sets `method` wins. A rest element
+     * (`const { json, ...rest } = init`) copies `init` unless the pattern takes `method` out.
+     * `undefined` when neither sets one.
+     */
+    const spreadsMethod = (
+      spreads: readonly ProgramExpression[],
+      fallback: ProgramExpression | undefined,
+      depth: number,
+    ): HttpMethod | null | undefined => {
+      for (const spread of spreads) {
         const rest = restElement(spread);
         if (rest?.method === false) continue;
         if (rest?.method === null) return null;
@@ -1422,10 +1458,19 @@ export function collectHttpFacts(
               ? boundParameter(rest.parameter)
               : null;
         if (v === "missing") continue;
-        const method = v === null ? null : methodProperty(v);
-        if (method !== undefined) return methodValue(method);
+        if (v === null) return null;
+        const method = objectMethod(v, depth);
+        if (method !== undefined) return method;
       }
-      return methodValue(source.fallback);
+      return fallback === undefined ? undefined : methodValue(fallback);
+    };
+
+    const boundMethod = (site: HttpCallSite): HttpMethod | null => {
+      const source = site.methodSource;
+      if (site.method !== null || !source) return site.method;
+      if (source.kind === "value") return methodValue(source.value);
+      if (source.kind === "config") return configMethod(source.config);
+      return orGet(spreadsMethod(source.spreads, source.fallback, 0));
     };
 
     /**

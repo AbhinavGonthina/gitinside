@@ -72,6 +72,7 @@ const NAMES = [
   "param-default-base",
   "query-string-url",
   "conditional-method",
+  "spread-chain-method",
   "conditional-spread-method",
   "ambiguous-routes",
   "wrapper-fetch",
@@ -985,6 +986,22 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       "? /api/blog-comments/{}",
       "? window.location.href",
       "DELETE /api/posts/{}/archive",
+    ]);
+  });
+
+  it("spread-chain-method: a caller's method reaches the request through a spread two helpers deep (M12.1e3)", async () => {
+    const g = await run("spread-chain-method");
+    const p = "spread-chain-method";
+    const history = `symbol:${p}/src/history.ts`;
+    expect(links(g, "http")).toEqual([
+      `${history}#addToHistory -> route:${p}/POST /api/history exact`,
+      `${history}#clearHistory -> route:${p}/DELETE /api/history exact`,
+      `${history}#listHistory -> route:${p}/GET /api/history exact`,
+      `${history}#readHistory -> route:${p}/GET /api/history exact`,
+      `${history}#replaceHistory -> route:${p}/POST /api/history exact`,
+      // Options the analyzer can't see, and a spread of a call's result, could set any method.
+      `${history}#syncHistory -> unresolved:${p}/src/history.ts:25:10 unresolved AMBIGUOUS`,
+      `${history}#touchHistory -> unresolved:${p}/src/history.ts:30:10 unresolved AMBIGUOUS`,
     ]);
   });
 

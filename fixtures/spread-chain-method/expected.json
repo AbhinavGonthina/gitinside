@@ -1,0 +1,647 @@
+{
+  "analyzerVersion": "0.3.17",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:spread-chain-method/src/api.ts#forcePost",
+      "id": "calls:symbol:spread-chain-method/src/api.ts#forcePost->symbol:spread-chain-method/src/api.ts#api",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 10,
+          "file": "src/api.ts",
+          "line": 16
+        }
+      ],
+      "to": "symbol:spread-chain-method/src/api.ts#api"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:spread-chain-method/src/api.ts#remove",
+      "id": "calls:symbol:spread-chain-method/src/api.ts#remove->symbol:spread-chain-method/src/api.ts#api",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 10,
+          "file": "src/api.ts",
+          "line": 21
+        }
+      ],
+      "to": "symbol:spread-chain-method/src/api.ts#api"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:spread-chain-method/src/api.ts#serverApi",
+      "id": "calls:symbol:spread-chain-method/src/api.ts#serverApi->symbol:spread-chain-method/src/api.ts#api",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 10,
+          "file": "src/api.ts",
+          "line": 11
+        }
+      ],
+      "to": "symbol:spread-chain-method/src/api.ts#api"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:spread-chain-method/src/api.ts#withExtra",
+      "id": "calls:symbol:spread-chain-method/src/api.ts#withExtra->symbol:spread-chain-method/src/api.ts#api",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 10,
+          "file": "src/api.ts",
+          "line": 30
+        }
+      ],
+      "to": "symbol:spread-chain-method/src/api.ts#api"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:spread-chain-method/src/api.ts#withExtra",
+      "id": "calls:symbol:spread-chain-method/src/api.ts#withExtra->symbol:spread-chain-method/src/api.ts#extra",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 37,
+          "file": "src/api.ts",
+          "line": 30
+        }
+      ],
+      "to": "symbol:spread-chain-method/src/api.ts#extra"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:spread-chain-method/src/history.ts#addToHistory",
+      "id": "calls:symbol:spread-chain-method/src/history.ts#addToHistory->symbol:spread-chain-method/src/api.ts#serverApi",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 10,
+          "file": "src/history.ts",
+          "line": 8
+        }
+      ],
+      "to": "symbol:spread-chain-method/src/api.ts#serverApi"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:spread-chain-method/src/history.ts#clearHistory",
+      "id": "calls:symbol:spread-chain-method/src/history.ts#clearHistory->symbol:spread-chain-method/src/api.ts#remove",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 10,
+          "file": "src/history.ts",
+          "line": 16
+        }
+      ],
+      "to": "symbol:spread-chain-method/src/api.ts#remove"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:spread-chain-method/src/history.ts#listHistory",
+      "id": "calls:symbol:spread-chain-method/src/history.ts#listHistory->symbol:spread-chain-method/src/api.ts#serverApi",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 10,
+          "file": "src/history.ts",
+          "line": 4
+        }
+      ],
+      "to": "symbol:spread-chain-method/src/api.ts#serverApi"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:spread-chain-method/src/history.ts#readHistory",
+      "id": "calls:symbol:spread-chain-method/src/history.ts#readHistory->symbol:spread-chain-method/src/api.ts#remove",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 10,
+          "file": "src/history.ts",
+          "line": 20
+        }
+      ],
+      "to": "symbol:spread-chain-method/src/api.ts#remove"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:spread-chain-method/src/history.ts#replaceHistory",
+      "id": "calls:symbol:spread-chain-method/src/history.ts#replaceHistory->symbol:spread-chain-method/src/api.ts#forcePost",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 10,
+          "file": "src/history.ts",
+          "line": 12
+        }
+      ],
+      "to": "symbol:spread-chain-method/src/api.ts#forcePost"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:spread-chain-method/src/history.ts#syncHistory",
+      "id": "calls:symbol:spread-chain-method/src/history.ts#syncHistory->symbol:spread-chain-method/src/api.ts#serverApi",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 10,
+          "file": "src/history.ts",
+          "line": 25
+        }
+      ],
+      "to": "symbol:spread-chain-method/src/api.ts#serverApi"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:spread-chain-method/src/history.ts#touchHistory",
+      "id": "calls:symbol:spread-chain-method/src/history.ts#touchHistory->symbol:spread-chain-method/src/api.ts#withExtra",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 10,
+          "file": "src/history.ts",
+          "line": 30
+        }
+      ],
+      "to": "symbol:spread-chain-method/src/api.ts#withExtra"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:spread-chain-method/src/history.ts#addToHistory",
+      "id": "http:symbol:spread-chain-method/src/history.ts#addToHistory->route:spread-chain-method/POST /api/history",
+      "kind": "http",
+      "label": "POST /api/history",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/history.ts",
+          "line": 8,
+          "request": "POST /api/history"
+        }
+      ],
+      "to": "route:spread-chain-method/POST /api/history"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:spread-chain-method/src/history.ts#clearHistory",
+      "id": "http:symbol:spread-chain-method/src/history.ts#clearHistory->route:spread-chain-method/DELETE /api/history",
+      "kind": "http",
+      "label": "DELETE /api/history",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/history.ts",
+          "line": 16,
+          "request": "DELETE /api/history"
+        }
+      ],
+      "to": "route:spread-chain-method/DELETE /api/history"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:spread-chain-method/src/history.ts#listHistory",
+      "id": "http:symbol:spread-chain-method/src/history.ts#listHistory->route:spread-chain-method/GET /api/history",
+      "kind": "http",
+      "label": "GET /api/history",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/history.ts",
+          "line": 4,
+          "request": "GET /api/history"
+        }
+      ],
+      "to": "route:spread-chain-method/GET /api/history"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:spread-chain-method/src/history.ts#readHistory",
+      "id": "http:symbol:spread-chain-method/src/history.ts#readHistory->route:spread-chain-method/GET /api/history",
+      "kind": "http",
+      "label": "GET /api/history",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/history.ts",
+          "line": 20,
+          "request": "GET /api/history"
+        }
+      ],
+      "to": "route:spread-chain-method/GET /api/history"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:spread-chain-method/src/history.ts#replaceHistory",
+      "id": "http:symbol:spread-chain-method/src/history.ts#replaceHistory->route:spread-chain-method/POST /api/history",
+      "kind": "http",
+      "label": "POST /api/history",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/history.ts",
+          "line": 12,
+          "request": "POST /api/history"
+        }
+      ],
+      "to": "route:spread-chain-method/POST /api/history"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:spread-chain-method/src/history.ts#syncHistory",
+      "id": "http:symbol:spread-chain-method/src/history.ts#syncHistory->unresolved:spread-chain-method/src/history.ts:25:10",
+      "kind": "http",
+      "reason": "AMBIGUOUS",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/history.ts",
+          "line": 25
+        }
+      ],
+      "to": "unresolved:spread-chain-method/src/history.ts:25:10"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:spread-chain-method/src/history.ts#touchHistory",
+      "id": "http:symbol:spread-chain-method/src/history.ts#touchHistory->unresolved:spread-chain-method/src/history.ts:30:10",
+      "kind": "http",
+      "reason": "AMBIGUOUS",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/history.ts",
+          "line": 30
+        }
+      ],
+      "to": "unresolved:spread-chain-method/src/history.ts:30:10"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:spread-chain-method/src/history.ts",
+      "id": "imports:file:spread-chain-method/src/history.ts->file:spread-chain-method/src/api.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 57,
+          "file": "src/history.ts",
+          "line": 1
+        }
+      ],
+      "to": "file:spread-chain-method/src/api.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "1786e30e42564ca0b2a2f27f41fdc2c9eead8e31492efb2f70efa1b0c4412f65",
+      "id": "file:spread-chain-method/src/api.ts",
+      "kind": "file",
+      "label": "api.ts",
+      "parentId": "module:spread-chain-method/src",
+      "path": "src/api.ts"
+    },
+    {
+      "hash": "719ac922c313b473f49e90892e3bf023e0573d4f76d39cde4ae737600d945083",
+      "id": "file:spread-chain-method/src/history.ts",
+      "kind": "file",
+      "label": "history.ts",
+      "parentId": "module:spread-chain-method/src",
+      "path": "src/history.ts"
+    },
+    {
+      "hash": "e8e5a7cac142125662014d1047ef82122aed57607032aa36b0c722d17c07a6ac",
+      "id": "file:spread-chain-method/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:spread-chain-method/src",
+      "path": "src/server.ts"
+    },
+    {
+      "id": "module:spread-chain-method/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:spread-chain-method/",
+      "path": "src"
+    },
+    {
+      "id": "route:spread-chain-method/DELETE /api/history",
+      "kind": "route",
+      "label": "DELETE /api/history",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:spread-chain-method/src/server.ts",
+      "path": "/api/history",
+      "source": {
+        "column": 9,
+        "file": "src/server.ts",
+        "line": 11
+      }
+    },
+    {
+      "id": "route:spread-chain-method/GET /api/history",
+      "kind": "route",
+      "label": "GET /api/history",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:spread-chain-method/src/server.ts",
+      "path": "/api/history",
+      "source": {
+        "column": 9,
+        "file": "src/server.ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:spread-chain-method/POST /api/history",
+      "kind": "route",
+      "label": "POST /api/history",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:spread-chain-method/src/server.ts",
+      "path": "/api/history",
+      "source": {
+        "column": 9,
+        "file": "src/server.ts",
+        "line": 8
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:spread-chain-method/",
+      "kind": "service",
+      "label": "spread-chain-method",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:spread-chain-method/src/api.ts#api",
+      "kind": "symbol",
+      "label": "api",
+      "parentId": "file:spread-chain-method/src/api.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "src/api.ts",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": false,
+      "id": "symbol:spread-chain-method/src/api.ts#extra",
+      "kind": "symbol",
+      "label": "extra",
+      "parentId": "file:spread-chain-method/src/api.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 26,
+        "file": "src/api.ts",
+        "line": 24
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:spread-chain-method/src/api.ts#forcePost",
+      "kind": "symbol",
+      "label": "forcePost",
+      "parentId": "file:spread-chain-method/src/api.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 17,
+        "file": "src/api.ts",
+        "line": 15
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:spread-chain-method/src/api.ts#remove",
+      "kind": "symbol",
+      "label": "remove",
+      "parentId": "file:spread-chain-method/src/api.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 22,
+        "file": "src/api.ts",
+        "line": 20
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:spread-chain-method/src/api.ts#serverApi",
+      "kind": "symbol",
+      "label": "serverApi",
+      "parentId": "file:spread-chain-method/src/api.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 12,
+        "file": "src/api.ts",
+        "line": 9
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:spread-chain-method/src/api.ts#withExtra",
+      "kind": "symbol",
+      "label": "withExtra",
+      "parentId": "file:spread-chain-method/src/api.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 31,
+        "file": "src/api.ts",
+        "line": 29
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:spread-chain-method/src/history.ts#addToHistory",
+      "kind": "symbol",
+      "label": "addToHistory",
+      "parentId": "file:spread-chain-method/src/history.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 9,
+        "file": "src/history.ts",
+        "line": 7
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:spread-chain-method/src/history.ts#clearHistory",
+      "kind": "symbol",
+      "label": "clearHistory",
+      "parentId": "file:spread-chain-method/src/history.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 17,
+        "file": "src/history.ts",
+        "line": 15
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:spread-chain-method/src/history.ts#listHistory",
+      "kind": "symbol",
+      "label": "listHistory",
+      "parentId": "file:spread-chain-method/src/history.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 5,
+        "file": "src/history.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:spread-chain-method/src/history.ts#readHistory",
+      "kind": "symbol",
+      "label": "readHistory",
+      "parentId": "file:spread-chain-method/src/history.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 21,
+        "file": "src/history.ts",
+        "line": 19
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:spread-chain-method/src/history.ts#replaceHistory",
+      "kind": "symbol",
+      "label": "replaceHistory",
+      "parentId": "file:spread-chain-method/src/history.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 13,
+        "file": "src/history.ts",
+        "line": 11
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:spread-chain-method/src/history.ts#syncHistory",
+      "kind": "symbol",
+      "label": "syncHistory",
+      "parentId": "file:spread-chain-method/src/history.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 26,
+        "file": "src/history.ts",
+        "line": 24
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:spread-chain-method/src/history.ts#touchHistory",
+      "kind": "symbol",
+      "label": "touchHistory",
+      "parentId": "file:spread-chain-method/src/history.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 31,
+        "file": "src/history.ts",
+        "line": 29
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:spread-chain-method/src/server.ts#server",
+      "kind": "symbol",
+      "label": "server",
+      "parentId": "file:spread-chain-method/src/server.ts",
+      "source": {
+        "column": 7,
+        "endLine": 15,
+        "file": "src/server.ts",
+        "line": 15
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "spread-chain-method",
+      "parentId": null
+    },
+    {
+      "detail": "the method isn't read, and routes for DELETE, GET, POST match /api/history",
+      "expression": "serverApi(\"/history\", init)",
+      "id": "unresolved:spread-chain-method/src/history.ts:25:10",
+      "kind": "unresolved",
+      "label": "? /api/history",
+      "parentId": "service:spread-chain-method/",
+      "reason": "AMBIGUOUS",
+      "source": {
+        "column": 10,
+        "file": "src/history.ts",
+        "line": 25
+      }
+    },
+    {
+      "detail": "the method isn't read, and routes for DELETE, GET, POST match /api/history",
+      "expression": "withExtra(\"/history\", { method: \"POST\" })",
+      "id": "unresolved:spread-chain-method/src/history.ts:30:10",
+      "kind": "unresolved",
+      "label": "? /api/history",
+      "parentId": "service:spread-chain-method/",
+      "reason": "AMBIGUOUS",
+      "source": {
+        "column": 10,
+        "file": "src/history.ts",
+        "line": 30
+      }
+    }
+  ],
+  "repo": {
+    "name": "spread-chain-method",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}
