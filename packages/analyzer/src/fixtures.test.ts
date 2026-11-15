@@ -68,6 +68,7 @@ const NAMES = [
   "origin-parameters",
   "local-helpers",
   "let-query-urls",
+  "let-callback-base",
   "conditional-spread-method",
   "ambiguous-routes",
   "wrapper-fetch",
@@ -900,6 +901,18 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       // The append that may change the path stays visible, not matched to `/:owner`.
       `symbol:${p}/src/player.ts#playlists -> unresolved:${p}/src/player.ts:30:10 unresolved DYNAMIC_URL`,
       `symbol:${p}/src/player.ts#showTrack -> route:${p}/GET /api/tracks/:trackId exact`,
+    ]);
+  });
+
+  it("let-callback-base: a let written once in a listen callback is read in the tests (M12.1b)", async () => {
+    const g = await run("let-callback-base");
+    const p = "let-callback-base";
+    expect(links(g, "http")).toEqual([
+      `file:${p}/test/health.test.js -> unresolved:${p}/test/health.test.js:20:9 unresolved DYNAMIC_URL`,
+      `file:${p}/test/health.test.js -> unresolved:${p}/test/health.test.js:24:9 unresolved DYNAMIC_URL`,
+      `file:${p}/test/tasks.test.js -> route:${p}/GET /api/v1/tasks heuristic`,
+      `file:${p}/test/tasks.test.js -> route:${p}/GET /api/v1/tasks/:taskId heuristic`,
+      `file:${p}/test/tasks.test.js -> route:${p}/POST /api/v1/tasks heuristic`,
     ]);
   });
 

@@ -132,6 +132,7 @@ const EXPECTED: Record<string, string[]> = {
   "infra-test-folders": ["789ce3712ac34461", "823de049e0657bce", "8e4485f276b1629a"],
   "js-global-assignment": ["18b60ddacf92a70b", "855baae653ff2dc8", "bcde91a2c1772632"],
   "ky-client": ["98b488d4045dd56e", "a36d5c046e900109", "a2a2f4377183f742"],
+  "let-callback-base": ["2e0bb56d3daa8b06", "ae904f6077fdf0f0", "f048f61054d8fa00"],
   "let-query-urls": ["8a7b0fa56e0ca90e", "2cb98638918479b5", "4b7a3c5b789f5ec7"],
   "local-helpers": ["afad3ccf07a92c1e", "d662c1ba2f987fe3", "9c81dbd32a7555f3"],
   "nested-config": ["e09cd135f6f7eb33", "8e28e41695e97ec5", "19d5cf5eaebc5005"],

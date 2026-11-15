@@ -1,0 +1,289 @@
+{
+  "analyzerVersion": "0.3.12",
+  "edges": [
+    {
+      "confidence": "unresolved",
+      "from": "file:let-callback-base/test/health.test.js",
+      "id": "http:file:let-callback-base/test/health.test.js->unresolved:let-callback-base/test/health.test.js:20:9",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 9,
+          "file": "test/health.test.js",
+          "line": 20
+        }
+      ],
+      "to": "unresolved:let-callback-base/test/health.test.js:20:9"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "file:let-callback-base/test/health.test.js",
+      "id": "http:file:let-callback-base/test/health.test.js->unresolved:let-callback-base/test/health.test.js:24:9",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 9,
+          "file": "test/health.test.js",
+          "line": 24
+        }
+      ],
+      "to": "unresolved:let-callback-base/test/health.test.js:24:9"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "file:let-callback-base/test/tasks.test.js",
+      "id": "http:file:let-callback-base/test/tasks.test.js->route:let-callback-base/GET /api/v1/tasks",
+      "kind": "http",
+      "label": "GET /api/v1/tasks",
+      "sites": [
+        {
+          "column": 9,
+          "file": "test/tasks.test.js",
+          "line": 19,
+          "request": "GET http://localhost:{}/api/v1/tasks"
+        }
+      ],
+      "to": "route:let-callback-base/GET /api/v1/tasks"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "file:let-callback-base/test/tasks.test.js",
+      "id": "http:file:let-callback-base/test/tasks.test.js->route:let-callback-base/GET /api/v1/tasks/:taskId",
+      "kind": "http",
+      "label": "GET /api/v1/tasks/:taskId",
+      "sites": [
+        {
+          "column": 9,
+          "file": "test/tasks.test.js",
+          "line": 27,
+          "request": "GET http://localhost:{}/api/v1/tasks/42"
+        }
+      ],
+      "to": "route:let-callback-base/GET /api/v1/tasks/:taskId"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "file:let-callback-base/test/tasks.test.js",
+      "id": "http:file:let-callback-base/test/tasks.test.js->route:let-callback-base/POST /api/v1/tasks",
+      "kind": "http",
+      "label": "POST /api/v1/tasks",
+      "sites": [
+        {
+          "column": 9,
+          "file": "test/tasks.test.js",
+          "line": 23,
+          "request": "POST http://localhost:{}/api/v1/tasks"
+        }
+      ],
+      "to": "route:let-callback-base/POST /api/v1/tasks"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:let-callback-base/test/health.test.js",
+      "id": "imports:file:let-callback-base/test/health.test.js->file:let-callback-base/src/app.js",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 17,
+          "file": "test/health.test.js",
+          "line": 2
+        }
+      ],
+      "to": "file:let-callback-base/src/app.js"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:let-callback-base/test/tasks.test.js",
+      "id": "imports:file:let-callback-base/test/tasks.test.js->file:let-callback-base/src/app.js",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 17,
+          "file": "test/tasks.test.js",
+          "line": 2
+        }
+      ],
+      "to": "file:let-callback-base/src/app.js"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "b534edfb126c375d658f5f6e9c7fde70c23ca50ab382569638a3545065692f29",
+      "id": "file:let-callback-base/src/app.js",
+      "kind": "file",
+      "label": "app.js",
+      "parentId": "module:let-callback-base/src",
+      "path": "src/app.js"
+    },
+    {
+      "hash": "cd4036834aa23eb009e79cf33a354726cc8d3d33dd3bfce33bba789565e5ac05",
+      "id": "file:let-callback-base/test/health.test.js",
+      "kind": "file",
+      "label": "health.test.js",
+      "parentId": "module:let-callback-base/test",
+      "path": "test/health.test.js"
+    },
+    {
+      "hash": "d53aba5bfaf85ebd7c6ecd4288a5a6ea70e86c3e251459fb3ce03e22212a5e83",
+      "id": "file:let-callback-base/test/tasks.test.js",
+      "kind": "file",
+      "label": "tasks.test.js",
+      "parentId": "module:let-callback-base/test",
+      "path": "test/tasks.test.js"
+    },
+    {
+      "id": "module:let-callback-base/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:let-callback-base/",
+      "path": "src"
+    },
+    {
+      "id": "module:let-callback-base/test",
+      "kind": "module",
+      "label": "test",
+      "parentId": "service:let-callback-base/",
+      "path": "test"
+    },
+    {
+      "id": "route:let-callback-base/GET /api/v1/health",
+      "kind": "route",
+      "label": "GET /api/v1/health",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:let-callback-base/src/app.js",
+      "path": "/api/v1/health",
+      "source": {
+        "column": 5,
+        "file": "src/app.js",
+        "line": 9
+      }
+    },
+    {
+      "id": "route:let-callback-base/GET /api/v1/tasks",
+      "kind": "route",
+      "label": "GET /api/v1/tasks",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:let-callback-base/src/app.js",
+      "path": "/api/v1/tasks",
+      "source": {
+        "column": 7,
+        "file": "src/app.js",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:let-callback-base/GET /api/v1/tasks/:taskId",
+      "kind": "route",
+      "label": "GET /api/v1/tasks/:taskId",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:let-callback-base/src/app.js",
+      "path": "/api/v1/tasks/:taskId",
+      "source": {
+        "column": 7,
+        "file": "src/app.js",
+        "line": 7
+      }
+    },
+    {
+      "id": "route:let-callback-base/GET /api/v1/version",
+      "kind": "route",
+      "label": "GET /api/v1/version",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:let-callback-base/src/app.js",
+      "path": "/api/v1/version",
+      "source": {
+        "column": 5,
+        "file": "src/app.js",
+        "line": 10
+      }
+    },
+    {
+      "id": "route:let-callback-base/POST /api/v1/tasks",
+      "kind": "route",
+      "label": "POST /api/v1/tasks",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:let-callback-base/src/app.js",
+      "path": "/api/v1/tasks",
+      "source": {
+        "column": 7,
+        "file": "src/app.js",
+        "line": 6
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:let-callback-base/",
+      "kind": "service",
+      "label": "let-callback-base",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:let-callback-base/src/app.js#app",
+      "kind": "symbol",
+      "label": "app",
+      "parentId": "file:let-callback-base/src/app.js",
+      "source": {
+        "column": 7,
+        "endLine": 3,
+        "file": "src/app.js",
+        "line": 3
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "let-callback-base",
+      "parentId": null
+    },
+    {
+      "detail": "the URL starts with a value only known at runtime",
+      "expression": "fetch(`${origin}/api/v1/health`)",
+      "id": "unresolved:let-callback-base/test/health.test.js:20:9",
+      "kind": "unresolved",
+      "label": "GET `${origin}/api/v1/health`",
+      "parentId": "service:let-callback-base/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 9,
+        "file": "test/health.test.js",
+        "line": 20
+      }
+    },
+    {
+      "detail": "the URL starts with a value only known at runtime",
+      "expression": "fetch(`${host}/api/v1/version`)",
+      "id": "unresolved:let-callback-base/test/health.test.js:24:9",
+      "kind": "unresolved",
+      "label": "GET `${host}/api/v1/version`",
+      "parentId": "service:let-callback-base/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 9,
+        "file": "test/health.test.js",
+        "line": 24
+      }
+    }
+  ],
+  "repo": {
+    "name": "let-callback-base",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

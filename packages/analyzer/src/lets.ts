@@ -17,15 +17,23 @@
  *   (only an append inside the query, `url.ts`).
  * - A `let` with no initializer starts with no value: reading it before any write is unknown,
  *   and a path that never writes it adds nothing (it would send `undefined`).
+ * - A module-level `let` with no initializer whose only write is one plain `x = value;` statement
+ *   inside a nested function (M12.1b, ADR-0304: a test's `let baseUrl;` set in a `before` hook's
+ *   `listen(0, () => { baseUrl = … })`): a read in another function holds that value, since
+ *   before the write runs it holds only `undefined`, which adds nothing, as above.
  *
  * Not handled (unknown, so the URL gets a hole):
  * - `var`, exported `let`s, and `let`s in a `for` head.
  * - Any other write: other compound assignments (`-=`, `||=`, `??=`), `++`, a `+=` used as a
  *   value (`fetch(url += "?x")`), destructuring (`[url] = …`, `({ url } = …)`), `for (url of …)`,
  *   an assignment used as a value (`x && (url = B)`), a write through parentheses, `as`, `!`,
- *   `<T>`, or `satisfies` (`(url as string) = B`), or a write inside a nested function.
- * - A read in a nested function (a callback may run after any write), in the same declaration
- *   list, or in a statement that also writes it inside a loop, `switch`, `try`, or label.
+ *   `<T>`, or `satisfies` (`(url as string) = B`), or a write inside a nested function other
+ *   than the one above: a second write anywhere, a `+=`, an initializer, a `let` inside a
+ *   function, or a value that reads the `let` itself.
+ * - A read in a nested function (a callback may run after any write) other than the one above,
+ *   a read at the top level or inside the writing function when the write is nested, a read in
+ *   the same declaration list, or in a statement that also writes it inside a loop, `switch`,
+ *   `try`, or label.
  */
 import ts from "typescript";
 
@@ -111,6 +119,8 @@ interface Writes {
   statements: readonly ts.Statement[];
   /** Each `x = value;` or `x += value;` statement and its definition. */
   writes: Map<ts.Statement, Definition>;
+  /** The one write inside a nested function (M12.1b): that function and the value written. */
+  nested?: { scope: ts.Node; value: Definition };
 }
 
 /** Each declaration's writes, found once however many reads ask (`null`: can't be told). */
@@ -132,10 +142,15 @@ function writesOf(
   const statements = (container as { statements: ts.NodeArray<ts.Statement> }).statements;
   const scope = scopeOf(declaration);
 
-  // Every write must be a plain `x = value;` statement in the declaring function.
+  // Every write must be a plain `x = value;` statement in the declaring function, or the one
+  // nested write below.
   const writes = new Map<ts.Statement, Definition>();
+  const nested: { scope: ts.Node; value: Definition }[] = [];
   let unknown = false;
   const name = declaration.name.text;
+  const mentions = (node: ts.Node): boolean =>
+    (ts.isIdentifier(node) && node.text === name && refersTo(node)) ||
+    (ts.forEachChild(node, mentions) ?? false);
   const visit = (node: ts.Node): void => {
     if (unknown) return;
     if (ts.isIdentifier(node) && node !== declaration.name && node.text === name) {
@@ -146,23 +161,45 @@ function writesOf(
           ts.isBinaryExpression(assignment) &&
           assignment.left === node &&
           (op === ts.SyntaxKind.EqualsToken || op === ts.SyntaxKind.PlusEqualsToken) &&
-          ts.isExpressionStatement(assignment.parent) &&
-          scopeOf(node) === scope;
+          ts.isExpressionStatement(assignment.parent);
         if (!plain) {
           unknown = true;
           return;
         }
-        // `url += v` is `url = url + v`: the statement itself, whose left reads the values before.
-        writes.set(
-          assignment.parent,
-          op === ts.SyntaxKind.PlusEqualsToken ? assignment : assignment.right,
-        );
+        const at = scopeOf(node);
+        if (at !== scope) {
+          if (op !== ts.SyntaxKind.EqualsToken) {
+            unknown = true;
+            return;
+          }
+          nested.push({ scope: at, value: assignment.right });
+        } else {
+          // `url += v` is `url = url + v`: the statement itself, whose left reads the values before.
+          writes.set(
+            assignment.parent,
+            op === ts.SyntaxKind.PlusEqualsToken ? assignment : assignment.right,
+          );
+        }
       }
     }
     ts.forEachChild(node, visit);
   };
   visit(scope);
-  return unknown ? null : { scope, statement, statements, writes };
+  if (unknown) return null;
+  if (nested.length === 0) return { scope, statement, statements, writes };
+  // A nested write counts only as the module-level `let`'s one and only value (M12.1b).
+  const [only] = nested;
+  if (
+    !only ||
+    nested.length > 1 ||
+    writes.size > 0 ||
+    declaration.initializer ||
+    !ts.isSourceFile(scope) ||
+    mentions(only.value)
+  ) {
+    return null;
+  }
+  return { scope, statement, statements, writes, nested: only };
 }
 
 /**
@@ -182,7 +219,12 @@ export function letValues(
     writesCache.set(declaration, found);
   }
   if (!found) return undefined;
-  const { scope, statement, statements, writes } = found;
+  const { scope, statement, statements, writes, nested } = found;
+  if (nested) {
+    // Read in another function: the one write, or `undefined` (nothing) before it ran.
+    if (scopeOf(read) === scope || within(read, nested.scope)) return undefined;
+    return [nested.value];
+  }
   if (scopeOf(read) !== scope || within(read, statement)) return undefined;
 
   const hasWrite = (node: ts.Node): boolean => {

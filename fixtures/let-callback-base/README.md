@@ -1,0 +1,3 @@
+# let-callback-base
+
+A module-level `let` written once inside a callback (M12.1b, ADR-0304), as in a test that starts the app on a free port. `test/tasks.test.js` declares `let baseUrl;` and sets it once in a `before` hook's `app.listen(0, () => { baseUrl = \`http://localhost:${server.address().port}\` })`; each test then calls `fetch(\`${baseUrl}/api/v1/tasks…\`)`, which reads that one write (`localhost` is `heuristic`, ADR-0158) and links `GET /api/v1/tasks`, `POST /api/v1/tasks`, and `GET /api/v1/tasks/:taskId`. `test/health.test.js` holds the controls: `origin` is written in two callbacks and `host` once at the top level, so both requests stay unresolved (`DYNAMIC_URL`) rather than guessing which value they send.

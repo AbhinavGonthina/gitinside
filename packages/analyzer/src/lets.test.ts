@@ -231,6 +231,71 @@ describe("letValues", () => {
     }
   });
 
+  it("reads a module-level let written once in a callback as that value in other functions (M12.1b)", () => {
+    expect(
+      valuesAt([
+        "declare function before(f: () => void): void;",
+        "declare function listen(port: number, f: () => void): void;",
+        "let url;",
+        "before(() => {",
+        "  listen(0, () => {",
+        "    url = 'http://localhost:4000';",
+        "    fetch(url);",
+        "    setTimeout(() => fetch(url));",
+        "  });",
+        "  fetch(url);",
+        "});",
+        "export function load() { fetch(url); }",
+        "const later = () => fetch(url);",
+        "fetch(url);",
+      ]),
+    ).toEqual([
+      // Inside the writing function the order is the callback's own, not told here.
+      "unknown",
+      "unknown",
+      "'http://localhost:4000'",
+      "'http://localhost:4000'",
+      "'http://localhost:4000'",
+      // At the top level the callback hasn't run yet.
+      "unknown",
+    ]);
+  });
+
+  it("leaves a let written in a callback unknown unless it's that one write (M12.1b)", () => {
+    const top = (...lines: string[]): string =>
+      valuesAt([
+        "declare function on(f: () => void): void;",
+        ...lines,
+        "export function load() { fetch(url); }",
+      ]).join(", ");
+    const cases: [string, string[]][] = [
+      [
+        "two nested writes",
+        ["let url;", "on(() => { url = '/a'; });", "on(() => { url = '/b'; });"],
+      ],
+      ["a nested and a top-level write", ["let url;", "url = '/a';", "on(() => { url = '/b'; });"]],
+      ["an initializer", ["let url = '/a';", "on(() => { url = '/b'; });"]],
+      ["a nested +=", ["let url;", "on(() => { url += '/b'; });"]],
+      ["a value reading itself", ["let url;", "on(() => { url = url + '/b'; });"]],
+      ["a write used as a value", ["let url;", "on(() => url = '/b');"]],
+      ["an exported let", ["export let url;", "on(() => { url = '/b'; });"]],
+      ["a var", ["var url;", "on(() => { url = '/b'; });"]],
+      ["one top-level write", ["let url;", "url = '/a';"]],
+    ];
+    for (const [what, lines] of cases) expect(top(...lines), what).toBe("unknown");
+    // A `let` inside a function: each call has its own, written by its own callbacks.
+    expect(
+      valuesAt([
+        "declare function on(f: () => void): void;",
+        "export function setup() {",
+        "  let url;",
+        "  on(() => { url = '/a'; });",
+        "  on(() => fetch(url));",
+        "}",
+      ]),
+    ).toEqual(["unknown"]);
+  });
+
   it("walks the declaring function once per declaration, not once per read", () => {
     const { declaration, reads, refersTo, checks } = compile(
       fn("let url = '/a';", "fetch(url);", "if (flag) url = '/b';", "fetch(url);", "fetch(url);"),
