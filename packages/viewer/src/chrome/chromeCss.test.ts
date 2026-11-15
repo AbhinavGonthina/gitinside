@@ -64,6 +64,24 @@ describe("chrome.css", () => {
     }
   });
 
+  it("lets the page bar's search field give way before the path loses a pixel (M10.3g)", () => {
+    // Flexbox shrinks every item by its share of shrink × basis, so a path beside a search field
+    // that is still shrinking loses a fraction of a pixel, and `text-overflow: ellipsis` turns that
+    // into "Syste… › backen…" (a 1440px trace). The path's share must stay below a layout unit
+    // (1/64 px) while the field goes from 320px to its 180px minimum, for a path up to 2,000px.
+    const flex = (selector: string) =>
+      new RegExp(`${selector.replace(/[.[\]"=>]/g, "\\$&")} \\{[^}]*?flex: ([^;]+);`)
+        .exec(body)?.[1]
+        ?.split(" ");
+    const [, fieldShrink, fieldBasis] =
+      flex('.gi-topbar[data-variant="page"] > .gi-search-field') ?? [];
+    const [, startShrink] = flex('.gi-topbar[data-variant="page"] > .gi-topbar__start') ?? [];
+    const field = Number(fieldShrink) * Number.parseFloat(fieldBasis ?? "");
+    const path = Number(startShrink) * 2000;
+    const lost = ((320 - 180) * path) / (field + path);
+    expect(lost).toBeLessThan(1 / 64);
+  });
+
   it("styles each button variant and the palette's active result", () => {
     for (const v of ["primary", "secondary", "quiet"]) {
       expect(css).toContain(`.gi-button[data-variant="${v}"]`);

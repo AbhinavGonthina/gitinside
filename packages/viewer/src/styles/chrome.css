@@ -432,9 +432,11 @@ a.gi-segmented__option {
   gap: var(--space-8);
 }
 
-/* Gives way first (down to 180px), before the path shrinks. */
+/* Gives way first (down to 180px), before the path shrinks. Flexbox shrinks by shrink × basis, so
+   at 1000 the path still lost a fraction of a pixel, and its ellipsis showed ("Syste…", M10.3g);
+   at a million its share stays under a layout unit. */
 .gi-topbar[data-variant="page"] > .gi-search-field {
-  flex: 0 1000 320px;
+  flex: 0 1000000 320px;
   min-width: 180px;
 }
 
