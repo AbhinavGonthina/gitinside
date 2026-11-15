@@ -18,6 +18,7 @@
     "bench:stress": "turbo run build && pnpm --filter @gitinside/bench run bench:stress",
     "bench:capped": "turbo run build && pnpm --filter @gitinside/bench run bench:capped",
     "bench:incremental": "turbo run build && pnpm --filter @gitinside/bench run bench:incremental",
+    "bench:impact": "turbo run build --filter=@gitinside/bench... && pnpm --filter @gitinside/bench run bench:impact",
     "eval": "turbo run build && pnpm --filter @gitinside/eval run eval",
     "verify-guardrails": "node infra/gcp/verify.mjs"
   },
