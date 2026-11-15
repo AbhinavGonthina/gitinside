@@ -2,5 +2,6 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "buildCommand": "cd ../.. && pnpm turbo run build --filter=@gitinside/web",
+  "ignoreCommand": "npx -y turbo-ignore@2.11.11 @gitinside/web",
   "regions": ["iad1"]
 }
