@@ -146,6 +146,25 @@ export function tourEntries(root: GraphNode): SearchEntry[] {
   ];
 }
 
+/** The ID Ctrl K picks for the prototype's "History" (no node has it: see {@link NOTES_ENTRY}). */
+export const HISTORY_ENTRY = "history:open";
+
+/**
+ * The prototype's "History" result (M10.3f4, M10-design §3.4), found by "history", "timeline", or
+ * "commits", which opens the timeline drawer. It's drawn with the system's icon.
+ */
+export function historyEntries(root: GraphNode): SearchEntry[] {
+  const path = "How the diagram changed, commit by commit";
+  return [
+    {
+      result: { node: { ...root, id: HISTORY_ENTRY, label: "History" }, path },
+      name: "history",
+      where: `${path.toLowerCase()} · timeline`,
+      kindRank: KIND_ORDER.indexOf("system"),
+    },
+  ];
+}
+
 /** Whether a word starts at `i` in `label`: its start, after a non-letter-or-digit, or a camelCase step. */
 function isWordStart(label: string, i: number): boolean {
   if (i === 0) return true;

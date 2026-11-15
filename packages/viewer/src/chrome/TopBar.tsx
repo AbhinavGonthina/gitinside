@@ -1,5 +1,5 @@
 import type { HTMLAttributes, ReactNode } from "react";
-import { Button, Kbd, SegmentedControl, type Segment } from "./controls.js";
+import { Button, IconButton, Kbd, SegmentedControl, type Segment } from "./controls.js";
 import { shortSha, type RepoRef } from "./describe.js";
 import { Breadcrumbs, type Crumb } from "./overlays.js";
 import { LogoMark, UiIcon } from "./uiIcons.js";
@@ -64,6 +64,11 @@ export interface TopBarProps extends Omit<HTMLAttributes<HTMLElement>, "children
    * after the drill-down path, before the search field (`"page"` only).
    */
   views?: ReactNode;
+  /**
+   * The commit chip's History button (M10-design §3.4, `"page"` only): it opens and closes the
+   * timeline drawer, `open` its `aria-expanded`.
+   */
+  history?: { open: boolean; onToggle: () => void } | undefined;
 }
 
 /**
@@ -104,6 +109,7 @@ export function TopBar({
   status,
   end,
   views,
+  history,
   className,
   ...rest
 }: TopBarProps) {
@@ -111,7 +117,14 @@ export function TopBar({
   const page = variant === "page";
   const classes = className ? `gi-topbar ${className}` : "gi-topbar";
   const start = page ? (
-    <PageStart repo={repo} home={home} crumbs={crumbs} onCrumb={onCrumb} status={status} />
+    <PageStart
+      repo={repo}
+      home={home}
+      crumbs={crumbs}
+      onCrumb={onCrumb}
+      status={status}
+      history={history}
+    />
   ) : (
     <TopBarStart repo={repo} branch={branch} />
   );
@@ -236,7 +249,8 @@ function PageStart({
   crumbs,
   onCrumb,
   status,
-}: Pick<TopBarProps, "repo" | "home" | "crumbs" | "onCrumb" | "status">) {
+  history,
+}: Pick<TopBarProps, "repo" | "home" | "crumbs" | "onCrumb" | "status" | "history">) {
   const mark = <LogoMark size={22} />;
   const sha = repo.sha;
   const announced = status !== undefined && status.state !== "current";
@@ -271,6 +285,16 @@ function PageStart({
           <Button variant="quiet" size="sm" className="gi-commit__show" onClick={status.onShow}>
             Show {shortSha(status.sha)}
           </Button>
+        )}
+        {history && (
+          <IconButton
+            icon="commit"
+            label="History"
+            size="sm"
+            className="gi-commit__history"
+            aria-expanded={history.open}
+            onClick={history.onToggle}
+          />
         )}
         {/* Always there, so a change of status is announced (a region added with its text isn't). */}
         <span className="gi-visually-hidden" role="status">
