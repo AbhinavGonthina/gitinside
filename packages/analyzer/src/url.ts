@@ -26,7 +26,10 @@
  *   global unless the repo declares it; a JS file's `process.env.NODE_ENV = "test"` doesn't
  *   (ADR-0211), and the same goes for `window`, `location`, `URL`, and `String`.
  * - `window.location.origin` (also `location`, `self.location`, `globalThis.location`,
- *   `document.location`): the page's own origin, so the URL is root-relative.
+ *   `document.location`): the page's own origin, so the URL is root-relative. So is that
+ *   origin spelled out, `location.protocol + "//" + location.host` or
+ *   `${location.protocol}//${location.host}` at a template's start (M12.1c, ADR-0305);
+ *   `location.hostname` drops the port, so with it the URL starts with a hole.
  * - A trailing-slash trim, `x.replace(/\/+$/, "")` (also `/\/*$/` and `/\/$/`, each maybe
  *   with `g`, and `''` or an empty template; M12.1a, ADR-0303): `x`'s parts with the slashes
  *   removed from its literal end (all, or the last one for `/\/$/`), or from the end of an env
@@ -135,7 +138,7 @@
 import ts from "typescript";
 import type { Confidence, UrlSegment } from "@gitinside/schema";
 import type { SymbolResolver } from "./calls.js";
-import type { HttpCallSite } from "./http.js";
+import type { BaseJoin, HttpCallSite, HttpClient } from "./http.js";
 import type { ServiceProgram } from "./program.js";
 import { createFieldReader, thisAccess, type MemberAccess } from "./fields.js";
 import { letValues } from "./lets.js";
@@ -217,12 +220,45 @@ export interface UrlPattern {
   segments: UrlSegment[];
 }
 
-/** Why a URL is `DYNAMIC_URL`, in words shown to the user. */
+/**
+ * What a detail calls the base a site's URL is joined to (M12.1c): the client's own option,
+ * so an RTK Query endpoint's base isn't called "the axios baseURL". ky's `ky` is for a site
+ * whose prefixUrl, prefix, or baseUrl can't be told apart (one of them unreadable).
+ */
+export const BASE_NAME = {
+  axios: "the axios baseURL",
+  ofetch: "the ofetch baseURL",
+  ky: "the ky prefixUrl, prefix, or baseUrl",
+  kyPrefixUrl: "the ky prefixUrl",
+  kyPrefix: "the ky prefix",
+  kyBaseUrl: "the ky baseUrl",
+  fetch: "the fetchBaseQuery baseUrl",
+} as const;
+
+export type BaseName = (typeof BASE_NAME)[keyof typeof BASE_NAME];
+
+/**
+ * The name of a site's base: by its client (a `fetch` with a base is RTK Query's
+ * `fetchBaseQuery`), and for ky by the option that set it. A site without a client (an axios
+ * config read while inlining a wrapper) is axios's.
+ */
+export function baseName(site: { client?: HttpClient; baseJoin?: BaseJoin }): BaseName {
+  if (site.client !== "ky") return BASE_NAME[site.client ?? "axios"];
+  return site.baseJoin === undefined || site.baseJoin === "withBase"
+    ? BASE_NAME.ky
+    : BASE_NAME[site.baseJoin];
+}
+
+/** Why a URL is `DYNAMIC_URL` because of its base, in words shown to the user. */
+export const BASE_DETAIL = {
+  unreadable: (name: BaseName) => `${name} can't be read statically` as const,
+  leadingHole: (name: BaseName) => `${name} starts with a value only known at runtime` as const,
+};
+
+/** Why a URL is `DYNAMIC_URL`, in words shown to the user (base details: {@link BASE_DETAIL}). */
 export const DYNAMIC_URL_DETAIL = {
   url: "the URL can't be read statically",
   leadingHole: "the URL starts with a value only known at runtime",
-  baseURL: "the axios baseURL can't be read statically",
-  baseLeadingHole: "the axios baseURL starts with a value only known at runtime",
   host: "the host is only known at runtime",
   onlyHoles: "every path segment is only known at runtime",
   emptyHost: "the URL has an empty host",
@@ -239,16 +275,17 @@ export const DYNAMIC_URL_DETAIL = {
   sdkBaseBranches: "the SDK client is built with different base URLs on different branches",
 } as const;
 
-export type DynamicUrlDetail = (typeof DYNAMIC_URL_DETAIL)[keyof typeof DYNAMIC_URL_DETAIL];
+export type DynamicUrlDetail =
+  | (typeof DYNAMIC_URL_DETAIL)[keyof typeof DYNAMIC_URL_DETAIL]
+  | ReturnType<(typeof BASE_DETAIL)[keyof typeof BASE_DETAIL]>;
 
 /**
- * Why a URL is `WRAPPER_DEPTH`, in words shown to the user. The first three are also what a
- * wrapper over wrappers (M5C.7f) shows when nothing calls it.
+ * Why a URL is `WRAPPER_DEPTH`, in words shown to the user. The first two (and
+ * {@link wrapperDepthBase}) are also what a wrapper over wrappers (M5C.7f) shows when nothing
+ * calls it.
  */
 export const WRAPPER_DEPTH_DETAIL = {
   url: "the URL starts with a parameter of the calling function, and no call to that function was followed",
-  baseURL:
-    "the axios baseURL starts with a parameter of the calling function, and no call to that function was followed",
   config:
     "the axios config is a parameter of the calling function, and no call to that function was followed",
   inner:
@@ -257,7 +294,13 @@ export const WRAPPER_DEPTH_DETAIL = {
     "the URL's leading part is a parameter of the calling function, a wrapper more than three calls deep",
 } as const;
 
-export type WrapperDepthDetail = (typeof WRAPPER_DEPTH_DETAIL)[keyof typeof WRAPPER_DEPTH_DETAIL];
+/** Why a URL is `WRAPPER_DEPTH` because its base starts with an unbound parameter. */
+export const wrapperDepthBase = (name: BaseName) =>
+  `${name} starts with a parameter of the calling function, and no call to that function was followed` as const;
+
+export type WrapperDepthDetail =
+  | (typeof WRAPPER_DEPTH_DETAIL)[keyof typeof WRAPPER_DEPTH_DETAIL]
+  | ReturnType<typeof wrapperDepthBase>;
 
 /**
  * Why a site marked `moduleFile` (`new URL("<relative>", import.meta.url)`, M9.1a4, ADR-0251) is
@@ -930,6 +973,16 @@ function fallbackOrigin(env: Extract<UrlPart, { kind: "env" }>): UrlPart {
   return { kind: "env", name: env.name };
 }
 
+/**
+ * What normalizing reads from a call site; `client` names its base in details (absent:
+ * axios's, see {@link baseName}).
+ */
+export type SiteUrl = Pick<
+  HttpCallSite,
+  "url" | "baseURL" | "baseJoin" | "urlDetail" | "moduleFile"
+> &
+  Partial<Pick<HttpCallSite, "client">>;
+
 /** Normalizes call-site URLs, reading values with one resolver's checkers. */
 export interface UrlNormalizer {
   /** The parts an expression evaluates to; anything not statically known is a hole. */
@@ -939,20 +992,14 @@ export interface UrlNormalizer {
    * With `bindings` (inlining a wrapper call), a URL or base that still starts with an
    * unbound parameter is `WRAPPER_DEPTH`: only a caller further out could supply it.
    */
-  normalize(
-    site: Pick<HttpCallSite, "url" | "baseURL" | "baseJoin" | "urlDetail" | "moduleFile">,
-    bindings?: ParameterBindings,
-  ): NormalizedUrl;
+  normalize(site: SiteUrl, bindings?: ParameterBindings): NormalizedUrl;
   /**
    * Like `normalize`, but one result per URL the code fixes statically (M5A.3h, ADR-0166):
    * each ternary branch and each value a `let` may hold where it is read is followed on its
    * own path, and paths that read the same are kept once, in path order (`true` branches and
    * earlier values first). Past {@link MAX_PATHS} paths, `normalize`'s single result.
    */
-  alternatives(
-    site: Pick<HttpCallSite, "url" | "baseURL" | "baseJoin" | "urlDetail" | "moduleFile">,
-    bindings?: ParameterBindings,
-  ): NormalizedUrl[];
+  alternatives(site: SiteUrl, bindings?: ParameterBindings): NormalizedUrl[];
   /**
    * The parameters a call site's URL and `baseURL` read, which a wrapper caller could bind.
    * With `bindings`, the unbound ones read through them: a caller's own (M5C.7f).
@@ -1070,9 +1117,14 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     return undefined;
   };
 
-  /** True for `location.origin` on the global `location` (or `window.location`, …). */
-  const isLocationOrigin = (sp: ServiceProgram, e: ts.Expression): boolean => {
-    if (!ts.isPropertyAccessExpression(e) || e.name.text !== "origin") return false;
+  /** True for `location.<name>` on the global `location` (or `window.location`, …). */
+  const isLocationProperty = (
+    sp: ServiceProgram,
+    expression: ts.Expression,
+    name: string,
+  ): boolean => {
+    const e = unwrap(expression);
+    if (!ts.isPropertyAccessExpression(e) || e.name.text !== name) return false;
     const location = unwrap(e.expression);
     if (ts.isIdentifier(location)) return isGlobal(sp, location, "location");
     if (!ts.isPropertyAccessExpression(location) || location.name.text !== "location") {
@@ -1081,9 +1133,24 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     const owner = unwrap(location.expression);
     return (
       ts.isIdentifier(owner) &&
-      ["document", "globalThis", "self", "window"].some((name) => isGlobal(sp, owner, name))
+      ["document", "globalThis", "self", "window"].some((g) => isGlobal(sp, owner, g))
     );
   };
+
+  /**
+   * True for the page's origin spelled out (M12.1c): `location.protocol`, then exactly `//`,
+   * then `location.host`, each on a global location as for `location.origin`. `host` keeps
+   * the port and `hostname` doesn't, so `protocol + "//" + hostname` isn't the origin.
+   */
+  const isSpelledOrigin = (
+    sp: ServiceProgram,
+    protocol: ts.Expression,
+    slashes: string,
+    host: ts.Expression,
+  ): boolean =>
+    slashes === "//" &&
+    isLocationProperty(sp, protocol, "protocol") &&
+    isLocationProperty(sp, host, "host");
 
   /** A single string or number literal type, as text. */
   const literalType = (sp: ServiceProgram, e: ts.Expression): UrlPart[] | undefined => {
@@ -1578,7 +1645,19 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     if (ts.isStringLiteralLike(e) || ts.isNumericLiteral(e)) return [text(e.text)];
     if (ts.isTemplateExpression(e)) {
       const out: UrlPart[] = [text(e.head.text)];
-      for (const span of e.templateSpans) {
+      let spans: readonly ts.TemplateSpan[] = e.templateSpans;
+      const [protocol, host] = spans;
+      // `${location.protocol}//${location.host}/api` (M12.1c).
+      if (
+        e.head.text === "" &&
+        protocol &&
+        host &&
+        isSpelledOrigin(sp, protocol.expression, protocol.literal.text, host.expression)
+      ) {
+        out.splice(0, 1, { kind: "origin" }, text(host.literal.text));
+        spans = spans.slice(2);
+      }
+      for (const span of spans) {
         out.push(...partsOf(sp, span.expression, hops + 1), text(span.literal.text));
       }
       return mergeParts(out);
@@ -1586,6 +1665,17 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     if (ts.isBinaryExpression(e)) {
       const op = e.operatorToken.kind;
       if (op === ts.SyntaxKind.PlusToken) {
+        // `location.protocol + "//" + location.host` (M12.1c), the left-nested `+` it parses as.
+        const left = unwrap(e.left);
+        if (ts.isBinaryExpression(left) && left.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+          const slashes = unwrap(left.right);
+          if (
+            ts.isStringLiteralLike(slashes) &&
+            isSpelledOrigin(sp, left.left, slashes.text, e.right)
+          ) {
+            return [{ kind: "origin" }];
+          }
+        }
         return mergeParts([...partsOf(sp, e.left, hops + 1), ...partsOf(sp, e.right, hops + 1)]);
       }
       if (op === ts.SyntaxKind.PlusEqualsToken) {
@@ -1652,7 +1742,7 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     }
     const env = envName(sp, e);
     if (env !== undefined) return [{ kind: "env", name: env }];
-    if (isLocationOrigin(sp, e)) return [{ kind: "origin" }];
+    if (isLocationProperty(sp, e, "origin")) return [{ kind: "origin" }];
     const key = keyRead(sp, e, hops);
     if (key !== undefined) return keyParts(key, hops);
     if (ts.isIdentifier(e)) return identifierParts(sp, e, hops);
@@ -1711,10 +1801,7 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     return bindings !== undefined && first?.kind === "hole" && first.param === true;
   };
 
-  const normalize = (
-    site: Pick<HttpCallSite, "url" | "baseURL" | "baseJoin" | "urlDetail" | "moduleFile">,
-    scope?: ParameterBindings,
-  ): NormalizedUrl => {
+  const normalize = (site: SiteUrl, scope?: ParameterBindings): NormalizedUrl => {
     confidence = "exact";
     bindings = scope;
     try {
@@ -1726,9 +1813,7 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     }
   };
 
-  const normalizeSite = (
-    site: Pick<HttpCallSite, "url" | "baseURL" | "baseJoin" | "urlDetail" | "moduleFile">,
-  ): NormalizedUrl => {
+  const normalizeSite = (site: SiteUrl): NormalizedUrl => {
     if (site.url === null) return dynamic(site.urlDetail ?? DYNAMIC_URL_DETAIL.url);
     if (site.moduleFile) {
       return { resolved: false, reason: "NO_MATCHING_ROUTE", detail: MODULE_FILE_DETAIL };
@@ -1738,11 +1823,12 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     if (startsWithParameter(url)) return deeper(WRAPPER_DEPTH_DETAIL.url);
     if (url[0]?.kind === "hole") return dynamic(DYNAMIC_URL_DETAIL.leadingHole);
     if (site.baseURL !== undefined && !isAbsolute(url)) {
-      if (site.baseURL === null) return dynamic(DYNAMIC_URL_DETAIL.baseURL);
+      const name = baseName(site);
+      if (site.baseURL === null) return dynamic(BASE_DETAIL.unreadable(name));
       const base = parts(site.baseURL);
       if (overflowed(base)) return dynamic(DYNAMIC_URL_DETAIL.tooComplex);
-      if (startsWithParameter(base)) return deeper(WRAPPER_DEPTH_DETAIL.baseURL);
-      if (base[0]?.kind === "hole") return dynamic(DYNAMIC_URL_DETAIL.baseLeadingHole);
+      if (startsWithParameter(base)) return deeper(wrapperDepthBase(name));
+      if (base[0]?.kind === "hole") return dynamic(BASE_DETAIL.leadingHole(name));
       const head = mergeParts(url)[0];
       // ky 1 throws on this ("`input` must not begin with a slash when using `prefixUrl`").
       if (site.baseJoin === "kyPrefixUrl" && head?.kind === "text" && head.text.startsWith("/")) {
@@ -1766,10 +1852,7 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     };
   };
 
-  const alternatives = (
-    site: Pick<HttpCallSite, "url" | "baseURL" | "baseJoin" | "urlDetail" | "moduleFile">,
-    scope?: ParameterBindings,
-  ): NormalizedUrl[] => {
+  const alternatives = (site: SiteUrl, scope?: ParameterBindings): NormalizedUrl[] => {
     const out: NormalizedUrl[] = [];
     const seen = new Set<string>();
     let forced: number[] = [];

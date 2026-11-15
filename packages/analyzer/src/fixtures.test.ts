@@ -209,6 +209,10 @@ describe("fixture contents (guards against blindly regenerated goldens)", () => 
       "symbol:task-board/store/api.ts#tasksApi -> route:task-board/PATCH /api/tasks/:id exact",
       "symbol:task-board/store/api.ts#tasksApi -> route:task-board/POST /api/tasks exact",
       "symbol:task-board/store/labels.ts#labelsApi -> unresolved:task-board/store/labels.ts:6:19 unresolved NO_MATCHING_ROUTE",
+      // The page's origin spelled out as protocol + "//" + host (M12.1c); hostname drops the port.
+      "symbol:task-board/store/origin.ts#hostnameApi -> unresolved:task-board/store/origin.ts:27:20 unresolved DYNAMIC_URL",
+      "symbol:task-board/store/origin.ts#originApi -> route:task-board/ALL /api/stats exact",
+      "symbol:task-board/store/origin.ts#templateApi -> route:task-board/GET /api/tasks exact",
       // A re-auth base query forwarding to fetchBaseQuery is that fetchBaseQuery (M5C.2), and
       // its own refresh call is a request.
       "symbol:task-board/store/session.ts#baseQueryWithReauth -> route:task-board/ALL /api/session/refresh exact",
@@ -216,6 +220,12 @@ describe("fixture contents (guards against blindly regenerated goldens)", () => 
       "symbol:task-board/store/session.ts#sessionApi -> route:task-board/GET /api/session exact",
     ]);
     expect(g.nodes.filter((n) => n.kind === "unresolved" && n.id.includes("session"))).toEqual([]);
+    const origin = g.nodes.flatMap((n) =>
+      n.kind === "unresolved" && n.id.includes("origin.ts") ? [n.detail] : [],
+    );
+    expect(origin).toEqual([
+      "the fetchBaseQuery baseUrl starts with a value only known at runtime",
+    ]);
   });
 
   it("tanstack-query-key reads each hook's key through its queryFn's context (M5C.3f)", async () => {
