@@ -127,6 +127,25 @@ version: 7,784 / 529 / 1,525 nodes, 12,630 (873) / 542 (29) / 2,323 (142) edges,
 digit), with no node or edge added, removed, or changed. No pin's SDK client is a property
 stored from outside its declarations. No edge needed rechecking by hand.
 
+### The API map (M11.2)
+
+`packages/api-map` was checked against each record on production's 0.3.10 graphs
+(`apps/web/dist/m112-pins.mjs`, ADR-0299): every `http` edge in a record appears in the map
+exactly once, and the map has no other (7 / 123 / 452); every route caller is an edge the
+record calls `correct`.
+
+| Repo | Routes | Called | Dead | Broken | Unmatched | Unread |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| taxonomy | 9 | 5 | 4 | 0 | 2 | 0 |
+| maxun | 101 | 65 | 36 | 1 | 2 | 46 |
+| anything-llm | 332 | 233 | 99 | 0 | 60 | 154 |
+
+maxun's one broken call (`POST …/integration/upload-credentials`) is the record's "request to
+a route that doesn't exist". Its two `/health` checks to `localhost:3002` are unmatched, not
+broken: the browser service answers them from a raw `http.createServer`. taxonomy's unmatched
+are its two font files. "Dead" means no caller found: 4 of anything-llm's dead routes are
+called through `fullApiUrl()`, whose requests the record lists as unread.
+
 ### At 0.3.0
 
 All three pins were analyzed on the site at analyzer 0.3.0 on 2026-11-10 (M9.1b2b), right
