@@ -20,9 +20,9 @@ jobs:
       # Keep in step with @playwright/test in packages/viewer/package.json.
       image: mcr.microsoft.com/playwright:v1.64.1-noble
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -31,7 +31,7 @@ jobs:
       - run: pnpm --filter "@gitinside/viewer^..." build
       - run: pnpm --filter @gitinside/viewer build-storybook
       - run: pnpm --filter @gitinside/viewer visual --update-snapshots=all
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: visual-baselines
           path: packages/viewer/visual/baselines/
@@ -44,16 +44,16 @@ jobs:
       # Keep in step with @playwright/test in apps/web/package.json.
       image: mcr.microsoft.com/playwright:v1.64.1-noble
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm turbo run build --filter=@gitinside/web
       - run: pnpm --filter @gitinside/web e2e --project=visual --update-snapshots=all
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: web-visual-baselines
           path: apps/web/e2e/baselines/
