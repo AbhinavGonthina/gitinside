@@ -124,6 +124,7 @@ inventory → workspaces → per-service TypeScript programs → symbols, import
 The code is a pnpm + Turborepo monorepo:
 - `packages/schema` holds the graph format and the graph diff format (types + Zod validators).
 - `packages/diff` compares two graphs of a repo: `diffGraphs` classifies nodes and edges by per-kind fingerprints, detects renames and moves, and finds broken connections; `applyDiff` rebuilds head from base + diff; `renderMermaidSummary` draws the change. Property-tested with fast-check.
+- `packages/impact` answers "what depends on this?" from a graph: everything that reaches a node, across services, each with its path and that path's weakest confidence, and what may also reach it through calls the analyzer couldn't resolve, listed apart. It runs in the browser on the graph the page already has.
 - `packages/analyzer` holds the analysis pipeline and the `gitinside` CLI (`analyze`, and `diff`, which analyzes both sides and calls `packages/diff`) (inventory → workspaces → per-service TypeScript programs → detectors → validated graph).
 - `packages/viewer` holds the explorer's React components and their Storybook (`pnpm --filter @gitinside/viewer storybook`).
 - `packages/db` holds the Postgres schema (Drizzle), committed SQL migrations, and the client shared by the web app and worker. Local Postgres: `docker compose -f infra/docker-compose.dev.yml up -d`, then `pnpm --filter @gitinside/db migrate` with `DATABASE_URL` from that file. Its tests run on in-memory PGlite, so they need no Docker.

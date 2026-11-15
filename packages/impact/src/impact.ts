@@ -1,12 +1,5 @@
-import { compareStrings, SYSTEM_ID } from "@gitinside/schema";
-import type {
-  ArchitectureGraph,
-  Confidence,
-  EdgeKind,
-  GraphEdge,
-  GraphNode,
-  NodeKind,
-} from "@gitinside/schema";
+import { compareStrings, EdgeKind, SYSTEM_ID } from "@gitinside/schema";
+import type { ArchitectureGraph, Confidence, GraphEdge, GraphNode } from "@gitinside/schema";
 
 /**
  * Impact analysis (M11.1, ADR-0298): given a node, everything in the repo that depends on it,
@@ -25,9 +18,12 @@ import type {
  * file's or a service's dependents are what reaches any of its symbols, routes, or files from
  * outside it.
  *
- * **Which way, and how sure.** Each dependent gets one path to the target: the one whose
- * weakest edge is strongest (`exact` over `pattern` over `heuristic`), and among those the
- * shortest by hops. Its `confidence` is that weakest edge, `depth` its length.
+ * **Which way, and how sure.** Each dependent gets one path to the target, a strongest one:
+ * its weakest edge is as sure as any path from that node allows (`exact` over `pattern` over
+ * `heuristic`), and that edge is the entry's `confidence`. Within each level the search goes
+ * nearest first, so the path is short, though not always the shortest of the equally sure:
+ * it carries on along the path of the node it was found from, which may have been found
+ * earlier, more surely, and further out. `depth` is the path's length.
  *
  * **May also reach.** Edges to `unresolved` nodes never reach anything. Instead, an
  * unresolved node may stand for a node the analyzer couldn't name: a request it couldn't
@@ -43,6 +39,11 @@ import type {
  * the target); calls whose callee didn't resolve (the analyzer draws no edge for them); and
  * containment beyond the target itself: a file that imports a dependent file doesn't make its
  * own symbols dependents, nor does a dependent symbol make its file one.
+ *
+ * **How it's fast** (the interactive budget, `bench:impact`): nodes are numbered in ID order,
+ * and each node's incoming edges sit in flat arrays sorted by confidence, then by the
+ * depending node's number. A query fills a few typed arrays and reads each edge at most once,
+ * and that order (never the graph's) decides every tie, which is what makes it deterministic.
  */
 
 /** What an unresolved node may stand for, when the analyzer couldn't name its target. */
@@ -74,22 +75,31 @@ export interface Impact {
   maybe: readonly ImpactEntry[];
 }
 
-/** An edge into a node, read from the node that depends on it. */
-interface Back {
-  from: string;
-  edge: GraphEdge;
-}
-
-/** A graph prepared for impact queries: build once, ask many times. */
+/** A graph prepared for impact queries: build once with {@link impactIndex}, ask many times. */
 export interface ImpactIndex {
   readonly graph: ArchitectureGraph;
-  readonly byId: ReadonlyMap<string, GraphNode>;
-  /** Each node's children, sorted by ID. */
-  readonly children: ReadonlyMap<string, readonly string[]>;
-  /** Each node's dependents by one edge, sorted by their ID, then the edge's. */
-  readonly into: ReadonlyMap<string, readonly Back[]>;
-  /** Unresolved nodes that may stand for a node of each kind, sorted by ID. */
-  readonly standIns: ReadonlyMap<StandIn, readonly string[]>;
+  /** Node IDs in ID order; a node's number is its place here. */
+  readonly ids: readonly string[];
+  /** @internal The nodes by number. */
+  readonly nodes: readonly GraphNode[];
+  /** @internal Each node's number. */
+  readonly number: ReadonlyMap<string, number>;
+  /** @internal Each node's parent's number, -1 for the system node. */
+  readonly parent: Int32Array;
+  /** @internal Children of node `i`: `children[childStart[i] .. childStart[i + 1])`, in number order. */
+  readonly childStart: Int32Array;
+  readonly children: Int32Array;
+  /**
+   * @internal Edges into node `i`: `[inStart[i] .. inStart[i + 1])` of `inFrom` (the node that
+   * depends on `i`), `inEdge` (the edge), and `inRank` (its confidence, 0 = exact … 3 =
+   * unresolved), sorted by rank, then `inFrom`, then the edge's kind.
+   */
+  readonly inStart: Int32Array;
+  readonly inFrom: Int32Array;
+  readonly inEdge: Int32Array;
+  readonly inRank: Uint8Array;
+  /** @internal Unresolved nodes that may stand for a node of each kind, in number order. */
+  readonly standIns: ReadonlyMap<StandIn, Int32Array>;
 }
 
 /** Edge kinds whose `from` depends on their `to`. */
@@ -106,14 +116,17 @@ const FORWARD: ReadonlySet<EdgeKind> = new Set<EdgeKind>([
   "external_call",
 ]);
 
-/** Confidence levels a path can reach through, strongest first. */
-const LEVELS: readonly Confidence[] = ["exact", "pattern", "heuristic"];
+const CONFIDENCE: readonly Confidence[] = ["exact", "pattern", "heuristic", "unresolved"];
 const RANK: Readonly<Record<Confidence, number>> = {
   exact: 0,
   pattern: 1,
   heuristic: 2,
   unresolved: 3,
 };
+const UNRESOLVED = 3;
+/** Edge kinds by number, for ties between two edges joining the same pair of nodes. */
+const KIND_NUMBER = new Map(EdgeKind.options.map((k, i) => [k, i]));
+const STAND_INS: readonly StandIn[] = ["route", "model", "queue"];
 
 /** What an edge into an unresolved node says it stood for, if anything. */
 function standInOf(edge: GraphEdge, node: GraphNode): StandIn | undefined {
@@ -132,175 +145,217 @@ function standInOf(edge: GraphEdge, node: GraphNode): StandIn | undefined {
   }
 }
 
-const KIND_OF: Readonly<Record<StandIn, NodeKind>> = {
-  route: "route",
-  model: "model",
-  queue: "queue",
-};
-const STAND_INS: readonly StandIn[] = ["route", "model", "queue"];
+/** For keys sorted ascending in `0 .. n - 1`: where each key's run starts (`n + 1` offsets). */
+function starts(n: number, sortedKeys: readonly number[]): Int32Array {
+  const out = new Int32Array(n + 1);
+  let k = 0;
+  for (let i = 0; i <= n; i++) {
+    out[i] = k;
+    while (k < sortedKeys.length && sortedKeys[k] === i) k++;
+  }
+  return out;
+}
 
-const byBack = (a: Back, b: Back) =>
-  compareStrings(a.from, b.from) || compareStrings(a.edge.id, b.edge.id);
-
-/** Index a graph for {@link impactOf}. Linear in the graph's size. */
+/** Index a graph for {@link impactOf}: O(nodes + edges · log edges). */
 export function impactIndex(graph: ArchitectureGraph): ImpactIndex {
-  const byId = new Map(graph.nodes.map((n) => [n.id, n]));
-  const children = new Map<string, string[]>();
-  for (const n of graph.nodes) {
-    if (n.parentId === null) continue;
-    const list = children.get(n.parentId);
-    if (list) list.push(n.id);
-    else children.set(n.parentId, [n.id]);
-  }
-  for (const list of children.values()) list.sort(compareStrings);
+  const nodes = [...graph.nodes].sort((a, b) => compareStrings(a.id, b.id));
+  const n = nodes.length;
+  const ids = nodes.map((node) => node.id);
+  const number = new Map(ids.map((id, i) => [id, i]));
+  const at = (id: string) => number.get(id) as number;
 
-  const into = new Map<string, Back[]>();
-  const add = (to: string, back: Back) => {
-    const list = into.get(to);
-    if (list) list.push(back);
-    else into.set(to, [back]);
-  };
-  const standIns = new Map<StandIn, Set<string>>();
-  for (const edge of graph.edges) {
-    if (FORWARD.has(edge.kind)) add(edge.to, { from: edge.from, edge });
+  const parent = new Int32Array(n).fill(-1);
+  for (let i = 0; i < n; i++) {
+    const p = nodes[i]?.parentId;
+    if (p !== null && p !== undefined) parent[i] = at(p);
+  }
+  const kids = [...parent].map((p, i) => [p, i] as const).filter(([p]) => p >= 0);
+  // Stable sort by parent keeps each node's children in number order.
+  kids.sort((a, b) => a[0] - b[0]);
+  const childStart = starts(
+    n,
+    kids.map(([p]) => p),
+  );
+  const children = Int32Array.from(kids, ([, i]) => i);
+
+  // Edges into each node, from the node that depends on it.
+  type Entry = { to: number; from: number; edge: number; rank: number; kind: number };
+  const entries: Entry[] = [];
+  const standSets = new Map<StandIn, Set<number>>();
+  graph.edges.forEach((edge, e) => {
+    const from = at(edge.from);
+    const to = at(edge.to);
+    const rank = RANK[edge.confidence];
+    const kind = (KIND_NUMBER.get(edge.kind) as number) * 2;
+    if (FORWARD.has(edge.kind)) entries.push({ to, from, edge: e, rank, kind });
     else if (edge.kind === "consumes") {
-      add(edge.to, { from: edge.from, edge });
-      add(edge.from, { from: edge.to, edge });
+      entries.push({ to, from, edge: e, rank, kind });
+      entries.push({ to: from, from: to, edge: e, rank, kind: kind + 1 });
     }
-    const to = byId.get(edge.to);
-    const stands = to && standInOf(edge, to);
+    const stands = standInOf(edge, nodes[to] as GraphNode);
     if (stands) {
-      const set = standIns.get(stands);
-      if (set) set.add(edge.to);
-      else standIns.set(stands, new Set([edge.to]));
+      const set = standSets.get(stands);
+      if (set) set.add(to);
+      else standSets.set(stands, new Set([to]));
     }
-  }
-  for (const list of into.values()) list.sort(byBack);
+  });
+  entries.sort((a, b) => a.to - b.to || a.rank - b.rank || a.from - b.from || a.kind - b.kind);
+  const inStart = starts(
+    n,
+    entries.map((x) => x.to),
+  );
+  const inFrom = Int32Array.from(entries, (x) => x.from);
+  const inEdge = Int32Array.from(entries, (x) => x.edge);
+  const inRank = Uint8Array.from(entries, (x) => x.rank);
 
+  const standIns = new Map(
+    [...standSets].map(([k, set]) => [k, Int32Array.from(set).sort()] as const),
+  );
   return {
     graph,
-    byId,
+    ids,
+    nodes,
+    number,
+    parent,
+    childStart,
     children,
-    into,
-    standIns: new Map([...standIns].map(([k, ids]) => [k, [...ids].sort(compareStrings)])),
+    inStart,
+    inFrom,
+    inEdge,
+    inRank,
+    standIns,
   };
 }
 
-/** The target and everything inside it. */
-function insideOf(index: ImpactIndex, target: string): string[] {
-  const out: string[] = [];
-  for (const stack = [target]; stack.length > 0; ) {
-    const id = stack.pop() as string;
-    out.push(id);
-    for (const child of index.children.get(id) ?? []) stack.push(child);
-  }
-  return out.sort(compareStrings);
-}
-
-const byDepth = (a: ImpactEntry, b: ImpactEntry) => a.depth - b.depth || compareStrings(a.id, b.id);
+/** Where a node stands in a query. */
+const UNSEEN = -1;
+const SEED = 4;
+const MAYBE = 3;
 
 /** What depends on `target` (any node but the system's). Throws for an unknown ID. */
 export function impactOf(index: ImpactIndex, target: string): Impact {
   if (target === SYSTEM_ID) throw new Error("impact: the system node holds everything");
-  if (!index.byId.has(target)) throw new Error(`impact: unknown node ${target}`);
-  const inside = insideOf(index, target);
-  const seeds = new Set(inside);
-  const depthOf = (entries: ReadonlyMap<string, ImpactEntry>, id: string) =>
-    entries.get(id)?.depth ?? 0;
+  const t = index.number.get(target);
+  if (t === undefined) throw new Error(`impact: unknown node ${target}`);
+  const { inStart, inFrom, inEdge, inRank } = index;
+  const n = index.ids.length;
+  /** -1 unseen, 0–2 reached at that confidence, 3 maybe, 4 inside the target. */
+  const state = new Int8Array(n).fill(UNSEEN);
+  const depth = new Int32Array(n);
+  const next = new Int32Array(n).fill(-1);
+  const via = new Int32Array(n).fill(-1);
 
-  // Reaching: one breadth-first pass per level, through edges at least that sure. A node
-  // first found at a level is reached no more surely, and its parent's path is as sure.
-  const reached = new Map<string, ImpactEntry>();
-  for (const level of LEVELS) {
-    const seen = new Set(seeds);
-    for (let frontier = inside; frontier.length > 0; ) {
-      const next: string[] = [];
-      for (const id of frontier) {
-        for (const back of index.into.get(id) ?? []) {
-          if (RANK[back.edge.confidence] > RANK[level] || seen.has(back.from)) continue;
-          seen.add(back.from);
-          next.push(back.from);
-          if (!reached.has(back.from)) {
-            reached.set(back.from, {
-              id: back.from,
-              depth: depthOf(reached, id) + 1,
-              confidence: level,
-              next: id,
-              edge: back.edge.id,
-            });
-          }
+  // The target and everything inside it, in number order.
+  const inside: number[] = [];
+  for (const stack = [t]; stack.length > 0; ) {
+    const i = stack.pop() as number;
+    inside.push(i);
+    state[i] = SEED;
+    for (let c = index.childStart[i] as number; c < (index.childStart[i + 1] as number); c++) {
+      stack.push(index.children[c] as number);
+    }
+  }
+  inside.sort((a, b) => a - b);
+
+  // Reaching: one pass per level, nearest first. A node scans, at its own level, its edges
+  // that sure or surer; at each later level, only the edges of that level.
+  const reached: number[] = [];
+  for (let level = 0; level < UNRESOLVED; level++) {
+    const buckets: number[][] = [];
+    const put = (i: number) => (buckets[depth[i] as number] ??= []).push(i);
+    for (const i of inside) put(i);
+    for (const i of reached) put(i);
+    for (let d = 0; d < buckets.length; d++) {
+      const bucket = buckets[d] ?? [];
+      for (let b = 0; b < bucket.length; b++) {
+        const u = bucket[b] as number;
+        const own = state[u] === level;
+        for (let k = inStart[u] as number; k < (inStart[u + 1] as number); k++) {
+          const rank = inRank[k] as number;
+          if (rank > level) break;
+          if (rank < level && !own) continue;
+          const w = inFrom[k] as number;
+          if (state[w] !== UNSEEN) continue;
+          state[w] = level;
+          depth[w] = d + 1;
+          next[w] = u;
+          via[w] = inEdge[k] as number;
+          reached.push(w);
+          put(w);
         }
       }
-      frontier = next.sort(compareStrings);
     }
   }
 
   // May also reach: from unresolved edges into what's reached, and from the unresolved nodes
   // that may stand for a kind of node reached, through any edge.
-  const maybe = new Map<string, ImpactEntry>();
-  const known = (id: string) => seeds.has(id) || reached.has(id) || maybe.has(id);
-  const kinds = new Set<NodeKind>();
-  const note = (id: string) => {
-    const kind = index.byId.get(id)?.kind;
-    if (kind) kinds.add(kind);
+  const maybe: number[] = [];
+  const stands = new Map<number, StandIn>();
+  const kinds = new Set<string>();
+  const note = (i: number) => kinds.add((index.nodes[i] as GraphNode).kind);
+  const mark = (w: number, d: number, toward: number, edge: number) => {
+    state[w] = MAYBE;
+    depth[w] = d;
+    next[w] = toward;
+    via[w] = edge;
+    maybe.push(w);
+    note(w);
   };
-  let frontier: string[] = [];
-  for (const id of [...inside, ...[...reached.keys()].sort(compareStrings)]) {
-    for (const back of index.into.get(id) ?? []) {
-      if (back.edge.confidence !== "unresolved" || known(back.from)) continue;
-      const depth = (reached.get(id)?.depth ?? 0) + 1;
-      maybe.set(back.from, {
-        id: back.from,
-        depth,
-        confidence: "unresolved",
-        next: id,
-        edge: back.edge.id,
-      });
-      frontier.push(back.from);
-      note(back.from);
+  for (const u of [...inside, ...reached]) {
+    note(u);
+    // Sorted by rank, so the unresolved edges come last.
+    for (let k = (inStart[u + 1] as number) - 1; k >= (inStart[u] as number); k--) {
+      if ((inRank[k] as number) !== UNRESOLVED) break;
+      const w = inFrom[k] as number;
+      if (state[w] === UNSEEN) {
+        mark(w, (depth[u] as number) + 1, u, inEdge[k] as number);
+      }
     }
   }
   const opened = new Set<StandIn>();
   const open = () => {
-    for (const stands of STAND_INS) {
-      if (opened.has(stands) || !kinds.has(KIND_OF[stands])) continue;
-      opened.add(stands);
-      for (const id of index.standIns.get(stands) ?? []) {
-        if (known(id)) continue;
-        maybe.set(id, { id, depth: 0, confidence: "unresolved", standsFor: stands });
-        frontier.push(id);
+    for (const s of STAND_INS) {
+      if (opened.has(s) || !kinds.has(s)) continue;
+      opened.add(s);
+      for (const i of index.standIns.get(s) ?? []) {
+        if (state[i] !== UNSEEN) continue;
+        mark(i, 0, -1, -1);
+        stands.set(i, s);
       }
     }
   };
-  for (const id of seeds) note(id);
-  for (const id of reached.keys()) note(id);
   open();
-  while (frontier.length > 0) {
-    const next: string[] = [];
-    for (const id of frontier.sort(compareStrings)) {
-      for (const back of index.into.get(id) ?? []) {
-        if (known(back.from)) continue;
-        maybe.set(back.from, {
-          id: back.from,
-          depth: depthOf(maybe, id) + 1,
-          confidence: "unresolved",
-          next: id,
-          edge: back.edge.id,
-        });
-        next.push(back.from);
-        note(back.from);
-      }
+  for (let q = 0; q < maybe.length; q++) {
+    const u = maybe[q] as number;
+    for (let k = inStart[u] as number; k < (inStart[u + 1] as number); k++) {
+      const w = inFrom[k] as number;
+      if (state[w] === UNSEEN) mark(w, (depth[u] as number) + 1, u, inEdge[k] as number);
     }
-    frontier = next;
     // A kind found only now (a route behind a raw query) brings in its own stand-ins.
-    if (frontier.length === 0) open();
+    if (q === maybe.length - 1) open();
   }
 
+  const entry = (i: number): ImpactEntry => {
+    const e: ImpactEntry = {
+      id: index.ids[i] as string,
+      depth: depth[i] as number,
+      confidence: CONFIDENCE[state[i] as number] as Confidence,
+    };
+    const toward = next[i] as number;
+    if (toward >= 0) {
+      e.next = index.ids[toward] as string;
+      e.edge = (index.graph.edges[via[i] as number] as GraphEdge).id;
+    }
+    const s = stands.get(i);
+    if (s) e.standsFor = s;
+    return e;
+  };
+  const byDepth = (a: number, b: number) => (depth[a] as number) - (depth[b] as number) || a - b;
   return {
     target,
-    inside,
-    dependents: [...reached.values()].sort(byDepth),
-    maybe: [...maybe.values()].sort(byDepth),
+    inside: inside.map((i) => index.ids[i] as string),
+    dependents: reached.sort(byDepth).map(entry),
+    maybe: maybe.sort(byDepth).map(entry),
   };
 }
 
@@ -334,9 +389,10 @@ export function impactByService(
   const counts = new Map<string, number>();
   for (const { id } of entries) {
     let holder = id;
-    for (let n = index.byId.get(id); n && n.parentId !== null; n = index.byId.get(n.parentId)) {
-      if (n.kind === "service") {
-        holder = n.id;
+    for (let i = index.number.get(id) ?? -1; i >= 0; i = index.parent[i] as number) {
+      const node = index.nodes[i] as GraphNode;
+      if (node.kind === "service") {
+        holder = node.id;
         break;
       }
     }

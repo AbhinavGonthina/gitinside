@@ -85,6 +85,7 @@ flowchart LR
 - **`packages/schema`:** TS types + Zod for `architecture.json`. Imported everywhere.
 - **`packages/analyzer`:** library + the `gitinside` CLI: `gitinside analyze <path>`, and `gitinside diff <base> <head>` (each side a graph file, a folder, or a git commit checked out into a temporary worktree; ADR-0089); both take `--cache <dir>` (§9).
 - **`packages/diff`:** library: `diffGraphs`, `applyDiff`, and `renderMermaidSummary` (the Mermaid summary of a diff). No Node or TypeScript dependency, so browsers can use it.
+- **`packages/impact`:** library: `impactIndex` (a reverse index, built once per graph) and `impactOf` (what depends on a node, with paths, the weakest confidence per path, and "may also reach" through unresolved nodes; ADR-0298), plus `impactPath` and `impactByService`. Browser-safe like `packages/diff`; it runs in the visitor's browser, never on a server (ADR-0295).
 - **`packages/viewer`:** React components for the explorer (React Flow + ELK). Used by `apps/web` and Storybook.
 
 ## 5. Analyzer pipeline
