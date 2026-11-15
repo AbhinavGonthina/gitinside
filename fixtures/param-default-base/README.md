@@ -1,0 +1,3 @@
+# param-default-base
+
+A URL base held in a constructor parameter property's default (M12.1d), as in sea-notes-saas-starter-kit's API clients. `NotesClient` declares `constructor(private baseURL = "/api/notes")` and `BillingClient` takes its base second, after a token (`readonly baseURL: string = "/api/billing"`); every `new` of either in `src/pages.ts` passes nothing in that position, so `this.baseURL` reads the default (`heuristic`, as for any field) and links `GET /api/notes`, `POST /api/notes`, and `GET /api/billing/plans`. The controls stay unresolved (`DYNAMIC_URL`): one `new UsersClient(…)` passes its own base, and `TeamsClient` is handed to `register` as a value, so its constructions aren't seen.

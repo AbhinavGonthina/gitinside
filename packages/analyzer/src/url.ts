@@ -66,7 +66,9 @@
  * - `this.<field>` in a class's instance member when the class writes the field once, in its
  *   initializer or a top-level constructor statement, and nothing else may (`fields.ts`,
  *   M9.1a7a, ADR-0253): the value written, read at `heuristic` (`this.endpoint =
- *   \`http://127.0.0.1:${port()}\`` ⇒ `http://127.0.0.1:{}`).
+ *   \`http://127.0.0.1:${port()}\`` ⇒ `http://127.0.0.1:{}`). With no such write, a
+ *   parameter property's default when every `new` of the class leaves that argument out
+ *   (`constructor(private baseURL = "/api/notes")`, M12.1d, ADR-0306), at `heuristic` too.
  * - Static and object members (`fields.ts`, M9.1a7b, ADR-0254), at `heuristic`: a static
  *   field's initializer (`this.CATALOG_URL`, `Finder.remoteUrl`); a static getter's or a
  *   `#private` getter's body read as a string builder (`EmbeddedLemonadeEngine.baseUrl`); a

@@ -1396,6 +1396,153 @@ describe("createUrlNormalizer", () => {
     ]);
   });
 
+  it("reads a parameter property's default when every new passes nothing there (M12.1d)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/clients.ts", [
+      "export class Notes {",
+      '  constructor(private baseURL = "/api/notes") {}',
+      "  list() { return fetch(this.baseURL); }",
+      "  one(id: string) { return fetch(`${this.baseURL}/${id}`); }",
+      "}",
+      "export class Billing {",
+      '  constructor(token: string, public readonly base: string = "/api/billing") {',
+      "    void fetch(`${this.base}/early`, { headers: { token } });",
+      "  }",
+      "  plans() { return fetch(this.base + '/plans'); }",
+      "}",
+      "export default class Users {",
+      '  constructor(protected root = "/api/users") {}',
+      "  load() { return fetch(this.root); }",
+      "}",
+      "export class Override {",
+      '  constructor(private url = "/api/param") { this.url = "/api/statement"; }',
+      "  load() { return fetch(this.url); }",
+      "}",
+      "export class Overloaded {",
+      "  constructor();",
+      "  constructor(url: string);",
+      '  constructor(private url = "/api/overloaded") {}',
+      "  load() { return fetch(this.url); }",
+      "}",
+    ]);
+    await put("src/use.ts", [
+      'import { Notes, Billing as Bill, Override, Overloaded } from "./clients";',
+      'import Account from "./clients";',
+      'import * as clients from "./clients";',
+      "export const a = new Notes();",
+      "export const b = new clients.Notes;",
+      'export const c = new Bill("t");',
+      "export const d = new Account();",
+      'export const e = new Override("/api/passed");',
+      "export let typed: Notes | undefined;",
+      "export const o = new Overloaded();",
+    ]);
+    expect(await normalized()).toEqual([
+      "src/clients.ts:3 /api/notes (heuristic)",
+      "src/clients.ts:4 /api/notes/{} (heuristic)",
+      "src/clients.ts:8 /api/billing/early (heuristic)",
+      "src/clients.ts:10 /api/billing/plans (heuristic)",
+      "src/clients.ts:14 /api/users (heuristic)",
+      "src/clients.ts:18 /api/statement (heuristic)",
+      "src/clients.ts:24 /api/overloaded (heuristic)",
+    ]);
+  });
+
+  it("leaves a parameter property's default unread when a new may pass it (M12.1d)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/clients.ts", [
+      "export class Passed {",
+      '  constructor(private url = "/api/a") {}',
+      "  load() { return fetch(this.url); }",
+      "}",
+      "export class Spread {",
+      '  constructor(key: string, private url = "/api/b") {}',
+      "  load() { return fetch(this.url); }",
+      "}",
+      "export class Valued {",
+      '  constructor(private url = "/api/c") {}',
+      "  load() { return fetch(this.url); }",
+      "}",
+      "export class Parent {",
+      '  constructor(protected url = "/api/d") {}',
+      "  load() { return fetch(this.url); }",
+      "}",
+      "export class Child extends Parent {",
+      '  constructor() { super("/api/child"); }',
+      "}",
+      "export class Factory {",
+      '  constructor(private url = "/api/e") {}',
+      '  static shared = new this("/api/made");',
+      "  load() { return fetch(this.url); }",
+      "}",
+      "export class Never {",
+      '  constructor(private url = "/api/f") {}',
+      "  load() { return fetch(this.url); }",
+      "}",
+      "export class Initializer {",
+      '  constructor(private url = "/api/g") {}',
+      "  copy = fetch(this.url);",
+      "}",
+      "export class Reflected {",
+      '  constructor(private url = "/api/h") {}',
+      "  load() { return fetch(this.url); }",
+      "}",
+      "export class Undefined {",
+      '  constructor(private url = "/api/i") {}',
+      "  load() { return fetch(this.url); }",
+      "}",
+      "export class Listed {",
+      '  constructor(private url = "/api/k") {}',
+      "  load() { return fetch(this.url); }",
+      "}",
+      "export const registry = { Listed, made: new Listed() };",
+    ]);
+    await put("src/use.ts", [
+      'import { Passed, Spread, Valued, Parent, Factory, Initializer, Reflected, Undefined } from "./clients";',
+      "export const p = new Parent();",
+      'export const a = [new Passed(), new Passed("/api/other")];',
+      "const args: string[] = [];",
+      "export const b = new Spread(...args);",
+      "export const C = Valued;",
+      "export const c = new Valued();",
+      "export const f = new Factory();",
+      "export const g = new Initializer();",
+      "export const h = [Reflect.construct(Reflected, []), new Reflected()];",
+      "export const i = new Undefined(undefined);",
+    ]);
+    const DYNAMIC = "DYNAMIC_URL: the URL starts with a value only known at runtime";
+    expect(await normalized()).toEqual([
+      `src/clients.ts:3 ${DYNAMIC}`,
+      `src/clients.ts:7 ${DYNAMIC}`,
+      `src/clients.ts:11 ${DYNAMIC}`,
+      `src/clients.ts:15 ${DYNAMIC}`,
+      `src/clients.ts:23 ${DYNAMIC}`,
+      `src/clients.ts:27 ${DYNAMIC}`,
+      `src/clients.ts:31 ${DYNAMIC}`,
+      `src/clients.ts:35 ${DYNAMIC}`,
+      `src/clients.ts:39 ${DYNAMIC}`,
+      `src/clients.ts:43 ${DYNAMIC}`,
+    ]);
+  });
+
+  it("leaves every parameter property's default unread once a new x.constructor(…) is seen (M12.1d)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/clients.ts", [
+      "export class Rebuilt {",
+      '  constructor(private url = "/api/j") {}',
+      "  load() { return fetch(this.url); }",
+      "}",
+    ]);
+    await put("src/use.ts", [
+      'import { Rebuilt } from "./clients";',
+      "const r = new Rebuilt();",
+      'export const j = new (r as unknown as { constructor: new (u: string) => Rebuilt }).constructor("/x");',
+    ]);
+    expect(await normalized()).toEqual([
+      "src/clients.ts:3 DYNAMIC_URL: the URL starts with a value only known at runtime",
+    ]);
+  });
+
   it("reads static fields, static getters and methods, #private methods, and object literals' own properties through this (M9.1a7b)", async () => {
     await put("package.json", JSON.stringify({ name: "server" }));
     await put("src/members.js", [

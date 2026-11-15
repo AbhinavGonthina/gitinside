@@ -148,6 +148,7 @@ const EXPECTED: Record<string, string[]> = {
   "object-client": ["e43a79465232523c", "b88b0861a65ae784", "88fe59317e24fda9"],
   "ofetch-client": ["cb45e31a81e51089", "b5fe0e1f4f661b89", "c9f54236cf59e4f2"],
   "origin-parameters": ["20ff6ccdd55aabaf", "cc2b87b7af578d24", "fd4b584615921b55"],
+  "param-default-base": ["72532dff16fc9f8b", "f23067cf0a03554b", "bed427a83db53249"],
   "pnpm-monorepo": ["77e486ee1e387fd6", "7fc2768ddaedca19", "54850212b037364c"],
   "prisma-relations": ["fa788ac8d8cf3cce", "2f9ca2e017f04955", "686703b2cc019fb1"],
   "queues-bullmq": ["171ff8834dc5fe07", "1da2d0e97f6b2736", "a82cb33a1ba7a479"],

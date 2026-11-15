@@ -14,7 +14,8 @@
  * - The class writes the field exactly once, as a field initializer (`base = "…"`) or as a
  *   top-level `this.<name> = …;` statement of its constructor. A write in a nested block
  *   (`if (flag) this.url = …`), in another member (`init()`), or a second write leaves the
- *   read unanswered, as does a parameter property (`constructor(private api = …)`) alone.
+ *   read unanswered. A parameter property (`constructor(private api = …)`) is no such write:
+ *   with no other write, it's read as its default (M12.1d, below) or not at all.
  * - Nothing else in the program writes a property of that name on a value that may be an
  *   instance of the class: an assignment (`=`, `+=`, `??=`, …), `++`/`--`, `delete`, or a
  *   destructuring or `for…of` target. A write is set aside only when the checker types its
@@ -37,6 +38,21 @@
  *   field's initializer).
  *
  * The answer assumes no write the scan can't see, so the normalizer reads it at `heuristic`.
+ *
+ * Parameter property defaults (M12.1d, ADR-0306): sea-notes-saas-starter-kit's API clients
+ * declare `constructor(private baseURL = '/api/notes') {}` and read `${this.baseURL}/…`; the
+ * app builds them with `new NotesApiClient()`. When the class writes the field nowhere else,
+ * the read is the parameter's default if all of these hold (besides the write rules above):
+ * - The class is a named declaration (overloaded constructors too: arguments land at the same
+ *   positions of the implementation). A read in a field initializer stays unanswered.
+ * - The program constructs the class at least once, and only as `new <name>(…)` (its own name,
+ *   an import or export alias, or `ns.<name>` through a namespace import) with no argument at
+ *   the parameter's position and no spread argument. A passed `undefined` counts as passing.
+ * - Its name is used as a value nowhere else (passed, assigned, `{ C }`, `extends C`,
+ *   `Reflect.construct(C, …)`); types (`x: C`, `typeof C`, `implements C`) don't count. No
+ *   member of the class calls `new this(…)`, and nothing in the program calls
+ *   `new x.constructor(…)`.
+ * Code in another service's program that constructs the class isn't seen (as for writes).
  *
  * Static and object members (M9.1a7b): anything-llm's `FoundryCatalog.CATALOG_URL` (a static
  * field), `EmbeddedLemonadeEngine.baseUrl` (a static getter returning
@@ -294,6 +310,49 @@ function indexWrites(program: ts.Program): WriteIndex {
   return { named, unnamed };
 }
 
+/**
+ * The constructor parameter property (`private x = …`) of that name and its position, if the
+ * class has one. Only a constructor's implementation (the one with a body) declares them.
+ */
+function parameterProperty(
+  cls: ts.ClassLikeDeclaration,
+  name: string,
+): { parameter: ts.ParameterDeclaration; index: number } | undefined {
+  const ctor = cls.members.find(
+    (m): m is ts.ConstructorDeclaration => ts.isConstructorDeclaration(m) && m.body !== undefined,
+  );
+  const index =
+    ctor?.parameters.findIndex(
+      (p) => ts.isParameterPropertyDeclaration(p, ctor) && memberName(p.name) === name,
+    ) ?? -1;
+  const parameter = ctor?.parameters[index];
+  return parameter && index >= 0 ? { parameter, index } : undefined;
+}
+
+/** True for a node in a type (`x: C`, `typeof C`, `implements C`), not a value. */
+function inType(node: ts.Node): boolean {
+  for (let n = node.parent as ts.Node | undefined; n; n = n.parent as ts.Node | undefined) {
+    if (ts.isExpressionWithTypeArguments(n) && ts.isHeritageClause(n.parent)) {
+      return n.parent.token === ts.SyntaxKind.ImplementsKeyword || !ts.isClassLike(n.parent.parent);
+    }
+    if (ts.isTypeNode(n)) return true;
+    if (ts.isStatement(n) || ts.isSourceFile(n)) return false;
+  }
+  return false;
+}
+
+/** True for a name that only declares or passes on an alias of a value (imports, exports). */
+function isAliasName(id: ts.Identifier): boolean {
+  const p = id.parent;
+  return (
+    ts.isImportSpecifier(p) ||
+    ts.isImportClause(p) ||
+    ts.isNamespaceImport(p) ||
+    ts.isExportSpecifier(p) ||
+    (ts.isExportAssignment(p) && p.expression === id)
+  );
+}
+
 /** Create a {@link FieldReader} over a resolver's checkers. */
 export function createFieldReader(checkerOf: (sp: ServiceProgram) => ts.TypeChecker): FieldReader {
   const indexes = new WeakMap<ts.Program, WriteIndex>();
@@ -354,6 +413,89 @@ export function createFieldReader(checkerOf: (sp: ServiceProgram) => ts.TypeChec
     });
   };
 
+  const built = new WeakMap<ts.ClassLikeDeclaration, readonly ts.NewExpression[] | undefined>();
+  /**
+   * Every `new` of a named class declaration in the program (M12.1d), or `undefined` when it
+   * may be constructed some other way: its name used as a value other than `new <name>(…)`
+   * (passed, assigned, `extends`, `Reflect.construct`), `new this(…)` in one of its members,
+   * or `new x.constructor(…)` anywhere.
+   */
+  const constructions = (
+    sp: ServiceProgram,
+    cls: ts.ClassLikeDeclaration,
+  ): readonly ts.NewExpression[] | undefined => {
+    if (built.has(cls)) return built.get(cls);
+    const checker = checkerOf(sp);
+    const resolve = (s: ts.Symbol | undefined): ts.Symbol | undefined =>
+      s && s.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(s) : s;
+    const symbol =
+      ts.isClassDeclaration(cls) && cls.name ? checker.getSymbolAtLocation(cls.name) : undefined;
+    const files = sp.program.getSourceFiles().filter((f) => !f.isDeclarationFile);
+    // The names the class goes by: its own, and each import or export alias of it.
+    const names = new Set<string>(cls.name ? [cls.name.text] : []);
+    for (const file of files) {
+      for (const statement of file.statements) {
+        const aliases: ts.ModuleExportName[] = [];
+        if (ts.isImportDeclaration(statement) && statement.importClause) {
+          const { name, namedBindings } = statement.importClause;
+          if (name) aliases.push(name);
+          if (namedBindings && ts.isNamedImports(namedBindings)) {
+            aliases.push(...namedBindings.elements.map((e) => e.name));
+          }
+        } else if (
+          ts.isExportDeclaration(statement) &&
+          statement.exportClause &&
+          ts.isNamedExports(statement.exportClause)
+        ) {
+          aliases.push(...statement.exportClause.elements.map((e) => e.name));
+        }
+        for (const a of aliases) {
+          if (symbol && resolve(checker.getSymbolAtLocation(a)) === symbol) names.add(a.text);
+        }
+      }
+    }
+    let news: ts.NewExpression[] | undefined = [];
+    const visit = (node: ts.Node): void => {
+      if (!news) return;
+      if (ts.isNewExpression(node)) {
+        const callee = unwrap(node.expression);
+        const viaThis =
+          callee.kind === ts.SyntaxKind.ThisKeyword && thisMember(node)?.parent === cls;
+        if (
+          viaThis ||
+          (ts.isPropertyAccessExpression(callee) && callee.name.text === "constructor")
+        ) {
+          news = undefined;
+          return;
+        }
+      }
+      if (
+        ts.isIdentifier(node) &&
+        names.has(node.text) &&
+        node !== cls.name &&
+        !isAliasName(node)
+      ) {
+        // `{ C }` names the property; the value it holds is the class.
+        const at = ts.isShorthandPropertyAssignment(node.parent)
+          ? checker.getShorthandAssignmentValueSymbol(node.parent)
+          : checker.getSymbolAtLocation(node);
+        if (resolve(at) === symbol && !inType(node)) {
+          // `new C(…)`, or `new ns.C(…)` through a namespace import.
+          const named = ts.isPropertyAccessExpression(node.parent) && node.parent.name === node;
+          const e = named ? node.parent : node;
+          if (ts.isNewExpression(e.parent) && e.parent.expression === e) news.push(e.parent);
+          else news = undefined;
+          return;
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    if (symbol) for (const file of files) visit(file);
+    else news = undefined;
+    built.set(cls, news);
+    return news;
+  };
+
   const instanceField = (sp: ServiceProgram, read: ts.Expression): ts.Expression | undefined => {
     const name = thisProperty(read);
     const member = name === undefined ? undefined : thisMember(read);
@@ -403,7 +545,21 @@ export function createFieldReader(checkerOf: (sp: ServiceProgram) => ts.TypeChec
     if (index.unnamed.some(mayWrite)) return undefined;
 
     const [only, ...more] = own;
-    if (!only || more.length > 0) return undefined;
+    if (more.length > 0) return undefined;
+    if (!only) {
+      // A parameter property's default (M12.1d), set as the constructor starts, before any
+      // field initializer or statement can read it.
+      const property = parameterProperty(cls, name);
+      const value = property?.parameter.initializer;
+      if (!property || !value || ts.isPropertyDeclaration(member)) return undefined;
+      const news = constructions(sp, cls);
+      if (!news?.length) return undefined;
+      const bare = news.every((n) => {
+        const args = n.arguments ?? [];
+        return args.length <= property.index && !args.some(ts.isSpreadElement);
+      });
+      return bare ? value : undefined;
+    }
     const [value, at] = only;
     // A read that runs before the write sees `undefined`. Field initializers run first.
     if (ts.isConstructorDeclaration(member)) {
