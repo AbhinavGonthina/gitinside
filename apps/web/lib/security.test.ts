@@ -748,6 +748,10 @@ const ROUTES: Readonly<Record<string, { guard: string; tests: string }>> = {
     guard: "access check",
     tests: "security.test.ts",
   },
+  "timeline/[owner]/[repo]/route.ts": {
+    guard: "published public repos only; queuing capped per request, per repo, by compute",
+    tests: "timeline.test.ts",
+  },
   "github/webhook/route.ts": { guard: "GitHub's signature", tests: "security.test.ts" },
   "worker/installation-token/route.ts": {
     guard: "the worker's signature",

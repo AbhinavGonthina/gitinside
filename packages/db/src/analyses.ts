@@ -695,6 +695,44 @@ export async function listAnalysisCounts(
     .orderBy(analysisCounts.sha);
 }
 
+/** One commit's analysis row as {@link listAnalysisStates} returns it. */
+export interface AnalysisState {
+  sha: string;
+  status: AnalysisSummary["status"];
+  errorCode: string | null;
+  jobId: string | null;
+  snapshotKey: string | null;
+}
+
+/**
+ * The analysis rows of repo row `repoId`'s commits `shas` by `analyzerVersion`, sorted by SHA
+ * (M11.4b): where each of the architecture timeline's steps stands. A commit with no row
+ * (never analyzed, or its row evicted by retention) is left out.
+ */
+export async function listAnalysisStates(
+  db: AnyDatabase,
+  query: { repoId: string; analyzerVersion: string; shas: readonly string[] },
+): Promise<AnalysisState[]> {
+  if (query.shas.length === 0) return [];
+  return db
+    .select({
+      sha: analyses.sha,
+      status: analyses.status,
+      errorCode: analyses.errorCode,
+      jobId: analyses.jobId,
+      snapshotKey: analyses.snapshotKey,
+    })
+    .from(analyses)
+    .where(
+      and(
+        eq(analyses.repoId, query.repoId),
+        eq(analyses.analyzerVersion, query.analyzerVersion),
+        inArray(analyses.sha, [...query.shas]),
+      ),
+    )
+    .orderBy(analyses.sha);
+}
+
 /**
  * The status of analysis `id`, or `undefined` if no row has that ID (any more): when
  * {@link completeAnalysis} returns `false`, this tells a row already `done` from one the

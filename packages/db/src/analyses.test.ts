@@ -26,6 +26,7 @@ import {
   installations,
   isPrivateSnapshot,
   listAnalysisCounts,
+  listAnalysisStates,
   queueAnalysis,
   recentAnalysisStats,
   removedInstallationRepos,
@@ -673,6 +674,47 @@ describe("analysis counts (M11.4a)", () => {
     expect((await list(repoId, asked, "0.2.0")).map((row) => row.sha)).toEqual([shas[0]]);
     expect((await list(otherRepo, asked)).map((row) => row.sha)).toEqual([shas[1]]);
     expect(await list(repoId, [])).toEqual([]);
+  });
+});
+
+describe("listAnalysisStates (M11.4b)", () => {
+  it("lists the asked commits' rows by one analyzer version of one repo, sorted by SHA", async () => {
+    const { id: repoId } = await upsertRepo(t.db, FACTS);
+    const { id: otherRepo } = await upsertRepo(t.db, {
+      ...FACTS,
+      providerRepoId: FACTS.providerRepoId + 1,
+      name: "other",
+    });
+    const [a, b, c, d, e] = ["a", "b", "c", "d", "e"].map((x) => x.repeat(40)) as [
+      string,
+      string,
+      string,
+      string,
+      string,
+    ];
+    const key = (sha: string) => ({ repoId, sha, analyzerVersion: VERSION });
+    const done = await startAnalysis(t.db, key(c));
+    await completeAnalysis(t.db, done.id, { snapshotKey: "public/c", stats: STATS });
+    const failed = await startAnalysis(t.db, key(a));
+    await failAnalysis(t.db, failed.id, "LIMIT_FILES");
+    const jobId = `analyze-${"b".repeat(32)}`;
+    await queueAnalysis(t.db, key(b), { jobId });
+    await startAnalysis(t.db, key(e));
+    // Another version and another repo aren't this timeline's.
+    await startAnalysis(t.db, { ...key(d), analyzerVersion: "0.2.0" });
+    await startAnalysis(t.db, { ...key(d), repoId: otherRepo });
+
+    expect(
+      await listAnalysisStates(t.db, { repoId, analyzerVersion: VERSION, shas: [e, d, c, b, a] }),
+    ).toEqual([
+      { sha: a, status: "failed", errorCode: "LIMIT_FILES", jobId: null, snapshotKey: null },
+      { sha: b, status: "queued", errorCode: null, jobId, snapshotKey: null },
+      { sha: c, status: "done", errorCode: null, jobId: null, snapshotKey: "public/c" },
+      { sha: e, status: "running", errorCode: null, jobId: null, snapshotKey: null },
+    ]);
+    expect(await listAnalysisStates(t.db, { repoId, analyzerVersion: VERSION, shas: [] })).toEqual(
+      [],
+    );
   });
 });
 

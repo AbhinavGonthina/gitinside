@@ -776,13 +776,18 @@ export type HeadQueueDeps = Pick<
  * repo's {@link RECHECKS_PER_HOUR} slot, refunded when no new job was made, and
  * `enqueueAnalysis` (through `head.installationId` when set; an uninstalled or suspended
  * installation ⇒ `behind`, `failed` with its code, nothing charged). Shared by check-on-view
- * and the push webhook (M8.7, ADR-0246).
+ * and the push webhook (M8.7, ADR-0246); the architecture timeline charges its own `slot`
+ * instead (M11.4b, ADR-0302).
  */
 export async function queueHead(
   head: QueueRepo,
   inFlight: boolean,
   deps: HeadQueueDeps,
   github: GitHubOptions | undefined,
+  slot: { key: string; perHour: number } = {
+    key: `repo:${head.providerRepoId}`,
+    perHour: deps.rechecksPerHour ?? RECHECKS_PER_HOUR,
+  },
 ): Promise<HeadQueueing> {
   const { db } = deps;
   const updating: HeadQueueing = { state: "updating", sha: head.sha };
@@ -811,10 +816,10 @@ export async function queueHead(
     }
   }
 
-  const key = `repo:${head.providerRepoId}`;
+  const { key } = slot;
   let charged: Date | undefined;
   if (!inFlight) {
-    const limit = await consumeRateLimit(db, key, deps.rechecksPerHour ?? RECHECKS_PER_HOUR);
+    const limit = await consumeRateLimit(db, key, slot.perHour);
     if (!limit.allowed) return { state: "behind", sha: head.sha, reason: "limited" };
     charged = limit.windowStart;
   }
