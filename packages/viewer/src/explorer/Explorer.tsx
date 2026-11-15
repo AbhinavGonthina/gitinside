@@ -112,12 +112,15 @@ import {
   type HintStep,
   type OnboardingStore,
 } from "./onboarding.js";
+import { changesText, commitText, HistoryDrawer } from "./history.js";
 import { impactCountText, impactOf } from "./impact.js";
 import { ImpactPanel } from "./impactPanel.js";
 import { NodePanel, TracePanel, WARNINGS_SECTION } from "./panels.js";
 import { traceChoices, TracePicker } from "./picker.js";
 import { suggestTraces } from "./suggest.js";
 import {
+  HISTORY_ENTRY,
+  historyEntries,
   IMPACT_ENTRY,
   impactEntries,
   NOTES_ENTRY,
@@ -130,6 +133,7 @@ import {
 import { useSourceAccess, type SourceLoader } from "./sources.js";
 import { openForPath } from "./pathView.js";
 import { TOUR_DONE, TOUR_HOPS, TourCard, tourSteps, type TourStep } from "./tour.js";
+import { cannedHistory, type History } from "./timeline.js";
 import { tourBreak, type TourBreak } from "./tourBreak.js";
 import {
   canTraceFrom,
@@ -429,17 +433,37 @@ export function Explorer({
     tour && tourAt !== null && tour[tourAt]?.action.kind === "broken"
       ? tourPlan?.broken
       : undefined;
+  // The prototype's timeline drawer (M10.3f4, M10-design §3.4): its canned history, made when it
+  // first opens, and the commit drawn (0 the oldest). While it's open (and the tour's PR isn't
+  // shown) the canvas draws that commit as a diff against the one before it.
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyPlan, setHistoryPlan] = useState<History | null>(null);
+  const [historyAt, setHistoryAt] = useState(0);
+  const historyState = usePresence(historyOpen);
+  const historyOn = prototype && !heroOn && historyOpen && historyPlan !== null && !tourDiff;
+  const historyPair = useMemo(() => {
+    if (!historyOn || !historyPlan) return undefined;
+    const head = historyPlan.commits[historyAt];
+    const base = historyPlan.commits[Math.max(0, historyAt - 1)];
+    if (!head || !base) return undefined;
+    return { base, head, diff: historyPlan.diffAt(historyAt) };
+  }, [historyOn, historyPlan, historyAt]);
 
   // Diff mode (M6.9b): both versions in one graph, drawn with their states.
   const compareBase = compare?.base;
   const compareDiff = compare?.diff;
-  /** What diff mode's Base is: the given base, or the repo itself under the tour's canned PR. */
-  const diffBase = tourDiff ? given : compareBase;
-  const shownDiff = tourDiff ? tourDiff.diff : compareDiff;
+  /**
+   * What diff mode's Base is: the given base, the repo itself under the tour's canned PR, or the
+   * timeline's commit before the one drawn.
+   */
+  const diffBase = tourDiff ? given : historyPair ? historyPair.base.graph : compareBase;
+  const shownDiff = tourDiff ? tourDiff.diff : historyPair ? historyPair.diff : compareDiff;
   const compared = useMemo(() => {
     const pair = tourDiff
       ? { base: given, head: tourDiff.head, diff: tourDiff.diff }
-      : compareBase && compareDiff && { base: compareBase, head: given, diff: compareDiff };
+      : historyPair
+        ? { base: historyPair.base.graph, head: historyPair.head.graph, diff: historyPair.diff }
+        : compareBase && compareDiff && { base: compareBase, head: given, diff: compareDiff };
     if (!pair) return undefined;
     try {
       const built = buildDiffOverlay(pair.base, pair.head, pair.diff);
@@ -451,7 +475,7 @@ export function Explorer({
       if (e instanceof DiffMismatchError) return { mismatch: e.message };
       throw e;
     }
-  }, [tourDiff, compareBase, compareDiff, given, prototype]);
+  }, [tourDiff, historyPair, compareBase, compareDiff, given, prototype]);
   const overlay = compared?.overlay;
   const marks = useMemo(() => overlay && diffMarks(overlay), [overlay]);
   const [version, setVersion] = useState<DiffView>(() => {
@@ -539,6 +563,8 @@ export function Explorer({
   const [notesOpen, setNotesOpen] = useState(false);
 
   const [selected, setSelected] = useState<string | null>(initialSelected);
+  // A timeline commit without the selected node clears the selection.
+  if (historyPair && selected !== null && !index.byId.has(selected)) setSelected(null);
   /** `traceStart`, if it's in this graph and has somewhere to go. */
   const traceStartNode = traceStart === undefined ? undefined : shownIndex.byId.get(traceStart);
   const fallbackStart =
@@ -627,13 +653,14 @@ export function Explorer({
               selected === null ? undefined : impactable(shownIndex.byId.get(selected)),
             ),
             ...notesEntries(shownIndex.root, graph.warnings.length),
-            // And the tour (M10.3f2a), to start it again.
+            // And the tour (M10.3f2a), to start it again, and the timeline (M10.3f4).
             ...(heroOn ? [] : tourEntries(shownIndex.root)),
+            ...(heroOn || !topBar ? [] : historyEntries(shownIndex.root)),
           ]
         : []),
       ...searchEntries(shownIndex),
     ],
-    [shownIndex, prototype, graph.warnings.length, selected, heroOn],
+    [shownIndex, prototype, graph.warnings.length, selected, heroOn, topBar],
   );
   const [searching, setSearching] = useState(false);
   const searchState = usePresence(searching);
@@ -1477,6 +1504,7 @@ export function Explorer({
     setPicking(false);
     setFiltering(false);
     setLegend(false);
+    setHistoryOpen(false);
     setStep(null);
     setPlaying(false);
     setPlayStop(null);
@@ -1550,6 +1578,61 @@ export function Explorer({
       )?.focus();
     }
   }
+
+  /**
+   * History in the commit chip or Ctrl K (M10.3f4): the timeline drawer opens on the latest
+   * commit, drawn as a diff against the one before, with focus on its slider so ← → move at once.
+   * It ends the tour (whose PR is a diff of its own). A repo with nothing to make a history from
+   * says so instead.
+   */
+  function openHistory() {
+    const plan = historyPlan ?? cannedHistory(given) ?? null;
+    if (!plan) {
+      setAnnouncement("This repo has no pages or routes to make an example history from");
+      return;
+    }
+    if (tourAt !== null) {
+      setPlayStop(null);
+      setTourAt(null);
+      setTourPlan(null);
+    }
+    const at = plan.commits.length - 1;
+    setHistoryPlan(plan);
+    setHistoryAt(at);
+    setHistoryOpen(true);
+    setVersion("overlay");
+    setHistoryAsked((n) => n + 1);
+    setAnnouncement(`History: ${commitText(plan, at)}. Left and right arrows move between commits`);
+  }
+
+  /** ✕, Esc, or History again: the drawer goes and the canvas draws the repo; focus to History. */
+  function closeHistory() {
+    if (!historyOpen) return;
+    const root = rootRef.current;
+    const inside = root?.querySelector(".gi-history")?.contains(document.activeElement);
+    setHistoryOpen(false);
+    setAnnouncement("History closed");
+    if (inside) root?.querySelector<HTMLElement>(".gi-commit__history")?.focus();
+  }
+
+  /** The drawer's handle landed on a commit: draw it as a diff against the one before, said aloud. */
+  function moveHistory(at: number) {
+    if (!historyPlan || at === historyAt) return;
+    setHistoryAt(at);
+    const name = historyPlan.commits[at]?.name ?? "";
+    setAnnouncement(
+      at === 0 ? `Showing ${name}, the oldest` : `${name}: ${changesText(historyPlan.diffAt(at))}`,
+    );
+  }
+
+  // The slider takes focus once the drawer is drawn.
+  const [historyAsked, setHistoryAsked] = useState(0);
+  useEffect(() => {
+    if (historyAsked === 0) return;
+    rootRef.current
+      ?.querySelector<HTMLElement>(".gi-history__range")
+      ?.focus({ preventScroll: true });
+  }, [historyAsked]);
 
   // Each step's heading takes focus once its card is drawn, so the keys go on from the card and a
   // screen reader lands on the step.
@@ -1648,6 +1731,7 @@ export function Explorer({
     setSearching(false);
     if (id === NOTES_ENTRY) showWarnings();
     else if (id === TOUR_ENTRY) goTour(0);
+    else if (id === HISTORY_ENTRY) openHistory();
     else if (id === IMPACT_ENTRY) {
       if (selected !== null) startImpact(selected);
     } else reveal(id, true);
@@ -1720,8 +1804,8 @@ export function Explorer({
 
   /**
    * Esc: close the palette, the picker, or the legend → exit trace → (the
-   * prototype) end impact → cancel a break-down still laying out → go up a level → clear
-   * selection (UX.md keyboard table). T toggles trace, I (the prototype) impact, Ctrl+K
+   * prototype) end impact → close the timeline drawer → cancel a break-down still laying out →
+   * go up a level → clear selection (UX.md keyboard table). T toggles trace, I (the prototype) impact, Ctrl+K
    * or ⌘K the palette.
    */
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -1749,6 +1833,13 @@ export function Explorer({
       event.preventDefault();
       return;
     }
+    // Esc in the timeline drawer closes it (M10.3f4); its slider's arrows are the range's own.
+    const inHistory = event.target instanceof Element && event.target.closest(".gi-history");
+    if (historyOpen && inHistory && event.key === "Escape") {
+      closeHistory();
+      event.preventDefault();
+      return;
+    }
     if (event.key === "+" || event.key === "=" || event.key === "-" || event.key === "0") {
       if (isTextEntry(event.target)) return;
       if (event.key === "0") fitView();
@@ -1764,6 +1855,7 @@ export function Explorer({
       else if (legend) closeLegend();
       else if (tracing) toggleTrace();
       else if (impact) endImpact();
+      else if (historyOpen) closeHistory();
       else if (breaking.length > 0) cancelBreakDown();
       else if (goUp()) {
         // went up a level
@@ -1997,7 +2089,8 @@ export function Explorer({
    */
   const codeAt = (fromBase: boolean) =>
     // The tour's canned PR has the repo's own commit and files on both sides.
-    fromBase && compareBase && !tourDiff
+    // So do the timeline's canned commits.
+    fromBase && compareBase && !tourDiff && !historyPair
       ? { repo: compareBase.repo, sources: baseSourceAccess }
       : { repo, sources: sourceAccess };
   const fromBase = (has: ReadonlySet<string> | undefined, id: string | undefined) =>
@@ -2116,8 +2209,18 @@ export function Explorer({
           filtersOpen={filtering}
           onFilters={() => toggleFilters("top")}
           share={<ShareMenu link={() => linkTo(linkKey)} exports={() => exported} />}
-          // Not for the tour's example PR, which shows its overlay only (the bar keeps its path).
-          diff={overlay && !tourDiff ? { value: version, onChange: showVersion } : undefined}
+          // Not for the tour's example PR or the timeline, which show their overlay only (the bar
+          // keeps its path).
+          diff={
+            overlay && !tourDiff && !historyPair
+              ? { value: version, onChange: showVersion }
+              : undefined
+          }
+          history={
+            prototype && !heroOn
+              ? { open: historyOpen, onToggle: historyOpen ? closeHistory : openHistory }
+              : undefined
+          }
           tracing={tracing}
           onTrace={toggleTrace}
           {...pageBar}
@@ -2125,7 +2228,7 @@ export function Explorer({
           onCrumb={goTo}
         />
       )}
-      <div className="gi-explorer__main">
+      <div className="gi-explorer__main" data-history={historyState ? "" : undefined}>
         <div
           ref={canvasRef}
           className="gi-explorer__canvas"
@@ -2182,11 +2285,22 @@ export function Explorer({
             data-place="top-left"
             onClick={(e) => e.stopPropagation()}
           >
-            {overlay && (tourDiff || compare) && (
+            {overlay && (tourDiff || historyPair || compare) && (
               <div className="gi-explorer__diff">
                 <StatusChip tone="diff">
                   {tourDiff ? (
                     <>Comparing {compareName(undefined, given)} → an example PR</>
+                  ) : historyPair ? (
+                    historyAt === 0 ? (
+                      <>
+                        Showing <code>{historyPair.head.name}</code>, the oldest
+                      </>
+                    ) : (
+                      <>
+                        Comparing <code>{historyPair.base.name}</code> →{" "}
+                        <code>{historyPair.head.name}</code>
+                      </>
+                    )
                   ) : (
                     compare && (
                       <>
@@ -2197,7 +2311,7 @@ export function Explorer({
                   )}
                 </StatusChip>
                 {/* Without the top bar (the website), its Base / Head / Overlay go here. */}
-                {!bar && !tourDiff && (
+                {!bar && !tourDiff && !historyPair && (
                   <div className="gi-overlay gi-explorer__versions">
                     <SegmentedControl
                       label="Diff view"
@@ -2342,6 +2456,17 @@ export function Explorer({
             )}
           </div>
         </div>
+        {/* Under the canvas, not over it: the canvas (and its camera) shrinks by its height. */}
+        {historyState && historyPlan && (
+          <HistoryDrawer
+            history={historyPlan}
+            at={historyAt}
+            changes={historyAt === 0 ? "" : changesText(historyPlan.diffAt(historyAt))}
+            onMove={moveHistory}
+            onClose={closeHistory}
+            state={historyState}
+          />
+        )}
         {heroOn ? null : tour && tourAt !== null ? (
           // The tour's card docks at the top of the inspector (M10-design §3.1), over whatever
           // panel its step shows.

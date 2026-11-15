@@ -81,6 +81,208 @@
 }
 
 /*
+ * The timeline drawer (M10.3f4, M10-design §3.4) along the canvas's foot, in the canvas's column:
+ * the canvas shrinks by its height, so the camera fits above it and nothing hides under it. It
+ * rises in like the overlays and fades out faster.
+ */
+.gi-explorer__main[data-history] {
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.gi-explorer__main[data-history] > .gi-explorer__canvas {
+  grid-row: 1;
+  grid-column: 1;
+}
+
+.gi-explorer__main[data-history] > :not(.gi-explorer__canvas, .gi-history) {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+}
+
+.gi-history {
+  grid-row: 2;
+  grid-column: 1;
+  min-width: 0;
+  padding: var(--space-8) var(--space-16) var(--space-12);
+  border-top: 1px solid var(--border);
+  background: var(--surface-1);
+  animation: gi-rise-in var(--duration-standard) var(--ease-standard);
+}
+
+.gi-history[data-state="closing"] {
+  animation: gi-fade-out var(--duration-fast) var(--ease-exit) both;
+  pointer-events: none;
+}
+
+.gi-history__top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+  margin-right: -6px;
+}
+
+.gi-history__title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--font-size-13);
+  font-weight: var(--font-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gi-history__note {
+  color: var(--text-muted);
+  font-weight: var(--font-weight-regular);
+}
+
+.gi-history__sparks {
+  display: flex;
+  gap: var(--space-16);
+}
+
+.gi-history__spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: var(--font-size-12);
+  white-space: nowrap;
+}
+
+.gi-history__spark-value {
+  min-width: 3ch;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.gi-history__bar {
+  fill: var(--text-muted);
+  opacity: 0.45;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+
+.gi-history__bar[data-on] {
+  fill: var(--accent);
+  opacity: 1;
+}
+
+/*
+ * The slider: a native range (its keys, its drag), its track hidden, drawn over the ticks. The
+ * ticks sit between the thumb's centres at each end (8px in from each side).
+ */
+.gi-history__track {
+  position: relative;
+  height: 24px;
+  margin-top: var(--space-8);
+}
+
+.gi-history__ticks {
+  position: absolute;
+  inset: 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.gi-history__ticks::before {
+  content: "";
+  position: absolute;
+  inset: 50% 0 auto;
+  border-top: 1px solid var(--border);
+}
+
+.gi-history__tick {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  margin: 0 -4px;
+  border-radius: var(--radius-pill);
+  background: var(--text-muted);
+}
+
+.gi-history__tick[data-broken] {
+  background: var(--diff-removed);
+}
+
+.gi-history__range {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+}
+
+.gi-history__range::-webkit-slider-runnable-track {
+  height: 24px;
+  background: transparent;
+}
+
+.gi-history__range::-moz-range-track {
+  height: 24px;
+  background: transparent;
+}
+
+.gi-history__range::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+  margin-top: 4px;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-pill);
+  background: var(--surface-1);
+  appearance: none;
+}
+
+.gi-history__range::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-pill);
+  background: var(--surface-1);
+}
+
+.gi-history__range:focus {
+  outline: none;
+}
+
+.gi-history__range:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.gi-history__range:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.gi-history__caption {
+  display: flex;
+  gap: var(--space-16);
+  justify-content: space-between;
+  margin: var(--space-4) 0 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-12);
+}
+
+.gi-history__commit {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The pointer's tick, before the handle goes there. */
+.gi-history__commit[data-preview] {
+  color: var(--text-muted);
+}
+
+/*
  * The landing page's hero (M10.3e1): the canvas alone, as tall as its host makes it, and a
  * vertical swipe on a touch screen scrolls the page past it (a plain wheel does too, gestures.ts).
  */

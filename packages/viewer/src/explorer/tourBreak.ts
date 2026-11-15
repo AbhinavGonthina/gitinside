@@ -24,7 +24,8 @@ import {
  * when the diff doesn't call it broken; the tour then leaves the step out.
  */
 
-type RouteNode = Extract<GraphNode, { kind: "route" }>;
+/** A route node. */
+export type RouteNode = Extract<GraphNode, { kind: "route" }>;
 
 /** The canned PR: what it removes, and the diff of the repo against it. */
 export interface TourBreak {
@@ -52,8 +53,11 @@ function upTo(
   return undefined;
 }
 
-/** The graph with `route` removed, its callers' requests left unmatched, as the analyzer has them. */
-function withoutRoute(
+/**
+ * The graph with `route` removed, its callers' requests left unmatched, as the analyzer has them.
+ * `byId` is the repo's (callers are looked up in it), so `graph` may already lack other nodes.
+ */
+export function withoutRoute(
   graph: ArchitectureGraph,
   byId: ReadonlyMap<string, GraphNode>,
   route: RouteNode,
@@ -95,11 +99,11 @@ function withoutRoute(
   return { ...graph, nodes, edges };
 }
 
-/** The tour's canned PR on `graph`; see the module comment for the route it removes. */
-export function tourBreak(
+/** The route a canned PR removes to break a call; see the module comment for which. */
+export function breakableRoute(
   graph: ArchitectureGraph,
   prefer: readonly string[] = [],
-): TourBreak | undefined {
+): RouteNode | undefined {
   const rank = new Map<string, number>();
   prefer.forEach((id, i) => {
     if (!rank.has(id)) rank.set(id, i);
@@ -123,7 +127,17 @@ export function tourBreak(
   );
   const [first] = routes;
   const route = first === undefined ? undefined : byId.get(first);
-  if (route?.kind !== "route") return undefined;
+  return route?.kind === "route" ? route : undefined;
+}
+
+/** The tour's canned PR on `graph`; see the module comment for the route it removes. */
+export function tourBreak(
+  graph: ArchitectureGraph,
+  prefer: readonly string[] = [],
+): TourBreak | undefined {
+  const route = breakableRoute(graph, prefer);
+  if (!route) return undefined;
+  const byId = new Map(graph.nodes.map((n) => [n.id, n]));
   const head = withoutRoute(graph, byId, route);
   const diff = diffGraphs(graph, head);
   const broken = diff.broken.find((b) => b.to === route.id);
