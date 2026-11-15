@@ -48,6 +48,7 @@ Fixtures are never executed: no `npm install`, no scripts. Tests only call the a
 | `packages/diff` | ≥ 85% |
 | `packages/impact` | ≥ 85% |
 | `packages/api-map` | ≥ 85% |
+| `packages/rules` | ≥ 85% |
 | everything else | ≥ 70% |
 
 Coverage is a floor, not a goal. Don't write tests that only touch lines.
