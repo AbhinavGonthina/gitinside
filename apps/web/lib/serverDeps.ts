@@ -334,7 +334,9 @@ export function authDepsFromEnv(env: Env = process.env): AuthDeps | undefined {
  * that couldn't run as failed rather than it being half done. The task queue
  * ({@link taskQueue}, with the request's `oidcToken`) is optional: without it only
  * `pull_request` deliveries, and pushes that would queue, get `503` (M8.6d2, M8.7). A pushed
- * public repo's code count reads GitHub with `GITHUB_TOKEN`, as the pages do.
+ * public repo's code count reads GitHub with `GITHUB_TOKEN`, as the pages do. The App's own
+ * credentials ({@link githubAppFromEnv}) are optional too: a held pull request's Check Run is
+ * posted with them (I2.3), and only logged without them.
  */
 export function webhookDepsFromEnv(
   env: Env = process.env,
@@ -353,11 +355,13 @@ export function webhookDepsFromEnv(
   const stored = snapshotStore(env);
   if (!stored) return undefined;
   const queue = taskQueue(env, oidcToken);
+  const githubApp = githubAppFromEnv(env);
   return {
     ...stored,
     secrets,
     analyzerVersion: ANALYZER_VERSION,
     ...(queue !== undefined && { queue }),
+    ...(githubApp !== undefined && { app: githubApp }),
     github: env.GITHUB_TOKEN ? { token: env.GITHUB_TOKEN } : {},
     codeSizes,
   };

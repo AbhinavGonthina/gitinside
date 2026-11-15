@@ -48,6 +48,11 @@ export const POST_PERMISSIONS = {
   checks: "write",
   metadata: "read",
 } as const;
+/**
+ * The only permissions the webhook's held Check Run asks for (I2.3, `heldCheckRun.ts`): a Check
+ * Run saying a pull request's diff is paused or over the repo's limit, so nothing else.
+ */
+export const CHECK_PERMISSIONS = { checks: "write", metadata: "read" } as const;
 
 /** The app's own credentials, from `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY`. */
 export interface AppCredentials {

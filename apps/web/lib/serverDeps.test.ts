@@ -519,6 +519,17 @@ describe("webhookDepsFromEnv", () => {
     expect(webhookDepsFromEnv(HOOK)?.codeSizes).toBeDefined();
   });
 
+  it("adds the App's credentials when they're configured, for held pull requests' Check Runs (I2.3)", () => {
+    expect(webhookDepsFromEnv(HOOK)?.app).toBeUndefined();
+    const app = {
+      GITHUB_APP_ID: FAKE_APP_ID,
+      GITHUB_APP_PRIVATE_KEY: FAKE_KEYS.privateKey
+        .export({ type: "pkcs1", format: "pem" })
+        .toString(),
+    };
+    expect(webhookDepsFromEnv({ ...HOOK, ...app })?.app?.appId).toBe(FAKE_APP_ID);
+  });
+
   it("accepts the previous secret too during a rotation, if it's long enough", () => {
     const previous = "p".repeat(43);
     expect(

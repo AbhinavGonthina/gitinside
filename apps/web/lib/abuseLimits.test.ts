@@ -14,6 +14,7 @@ import { describe, expect, it } from "vitest";
 import { REPO_ANALYSIS_MINUTES } from "./analyze";
 import { CHALLENGE_AFTER_PER_ADDRESS, CHALLENGE_AFTER_SITE } from "./botCheck";
 import { MAX_GITHUB_CODE_BYTES } from "./codeSize";
+import { DIFFS_PER_HOUR } from "./githubWebhook";
 import { RECHECKS_PER_HOUR } from "./repoView";
 import { SIGNED_IN_HOURLY_LIMIT, SIGNED_OUT_HOURLY_LIMIT } from "./serverDeps";
 import { SIZE_HOLD_DAYS } from "./sizeHold";
@@ -74,6 +75,10 @@ const rows: [string, string][] = [
   [
     "Re-analysis on view (pages, README images)",
     `${RECHECKS_PER_HOUR} new commits per repo per hour`,
+  ],
+  [
+    "Pull requests' diff jobs",
+    `${DIFFS_PER_HOUR} new diff jobs per repo per hour, each up to two analyses`,
   ],
   [
     "Too much code, before any download",
