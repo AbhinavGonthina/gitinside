@@ -1,5 +1,5 @@
 {
-  "analyzerVersion": "0.3.10",
+  "analyzerVersion": "0.3.11",
   "edges": [
     {
       "confidence": "exact",
@@ -34,13 +34,29 @@
       "to": "route:axios-baseurl-instance/GET /api/orders/:id"
     },
     {
+      "confidence": "heuristic",
+      "from": "symbol:axios-baseurl-instance/src/orders.ts#refreshOrder",
+      "id": "http:symbol:axios-baseurl-instance/src/orders.ts#refreshOrder->route:axios-baseurl-instance/GET /api/orders/:id",
+      "kind": "http",
+      "label": "GET /api/orders/:id",
+      "sites": [
+        {
+          "column": 9,
+          "file": "src/orders.ts",
+          "line": 13,
+          "request": "GET {env:API_URL}/api/orders/{}"
+        }
+      ],
+      "to": "route:axios-baseurl-instance/GET /api/orders/:id"
+    },
+    {
       "confidence": "exact",
       "from": "file:axios-baseurl-instance/src/orders.ts",
       "id": "imports:file:axios-baseurl-instance/src/orders.ts->file:axios-baseurl-instance/src/api.ts",
       "kind": "imports",
       "sites": [
         {
-          "column": 21,
+          "column": 30,
           "file": "src/orders.ts",
           "line": 1
         }
@@ -50,7 +66,7 @@
   ],
   "nodes": [
     {
-      "hash": "28e2fa787308671365f6afb38ac7bfeb67a9e31fd29a92e884e67f00588195bb",
+      "hash": "fa8335d71a4e06e2d8c9415b8acea1bf7fcfb30cf7f126e96c3ee88bee624136",
       "id": "file:axios-baseurl-instance/src/api.ts",
       "kind": "file",
       "label": "api.ts",
@@ -58,7 +74,7 @@
       "path": "src/api.ts"
     },
     {
-      "hash": "4d185e72f9bb8c4a13976fa89f3cfe43e58c3ecc1bab1482f255589d8dc3e7b6",
+      "hash": "70dad5cdad1fdd1f88d181c39118bcdd4932fd2f633bdd1d8cb9d966a406f37a",
       "id": "file:axios-baseurl-instance/src/orders.ts",
       "kind": "file",
       "label": "orders.ts",
@@ -133,6 +149,20 @@
     },
     {
       "exported": true,
+      "id": "symbol:axios-baseurl-instance/src/api.ts#trimmed",
+      "kind": "symbol",
+      "label": "trimmed",
+      "parentId": "file:axios-baseurl-instance/src/api.ts",
+      "source": {
+        "column": 14,
+        "endLine": 9,
+        "file": "src/api.ts",
+        "line": 7
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
       "id": "symbol:axios-baseurl-instance/src/orders.ts#createOrder",
       "kind": "symbol",
       "label": "createOrder",
@@ -158,6 +188,21 @@
         "endLine": 6,
         "file": "src/orders.ts",
         "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:axios-baseurl-instance/src/orders.ts#refreshOrder",
+      "kind": "symbol",
+      "label": "refreshOrder",
+      "parentId": "file:axios-baseurl-instance/src/orders.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 14,
+        "file": "src/orders.ts",
+        "line": 12
       },
       "symbolKind": "function"
     },

@@ -867,6 +867,66 @@ describe("createUrlNormalizer", () => {
     ]);
   });
 
+  it("reads a value through a trailing-slash trim, and no other replace (M12.1a)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/api.ts", [
+      'import axios from "axios";',
+      'const all = axios.create({ baseURL: "/api//".replace(/\\/+$/, "") });',
+      "const fallback = axios.create({ baseURL: (process.env.API_URL || '/api/').replace(/\\/$/, '') });",
+      "const env = axios.create({ baseURL: `${process.env.API_URL}/v1/`.replace(/\\/+$/g, ``) });",
+      "export async function load(id: string, flag: boolean) {",
+      "  await all.get(`/users/${id}`);",
+      "  await fallback.get(`/users/${id}`);",
+      "  await env.get(`/users/${id}`);",
+      '  await fetch(`/api/items/${id}/`.replace(/\\/*$/, ""));',
+      '  await fetch("/api//".replace(/\\/+$/, "") + "v2");',
+      '  await fetch("/api//".replace(/\\/$/, "") + "v2");',
+      '  await fetch("/api/" + id + "/".replace(/\\/+$/, ""));',
+      '  await fetch(("/api/" + id + "/").replace(/\\/+$/, "") + "/x");',
+      '  await fetch("/api/old/x".replace(/old/, ""));',
+      '  await fetch("/api/x/".replace(/\\/+$/, "/y"));',
+      '  await fetch("/api/x/".replace(/\\/+$/m, ""));',
+      '  await fetch("/api/x/".replace(/^\\/+/, ""));',
+      '  await fetch("/api/x/".replace("/", ""));',
+      '  await fetch("/api/x/".replace(/\\/+$/, "", 1));',
+      '  await fetch((process.env.API_URL || "/api/").replace(/\\/+$/, "") + "v1");',
+      '  await fetch(((process.env.API_URL || "/api/") + "/").replace(/\\/+$/, "") + "v3");',
+      '  await fetch("/api/x/"?.replace(/\\/+$/, ""));',
+      '  await fetch(((process.env.API_URL || "/api/") + "/").replace(/\\/$/, "") + "v4");',
+      "}",
+    ]);
+    expect(await normalized()).toEqual([
+      "src/api.ts:6 /api/users/{}",
+      "src/api.ts:7 {env:API_URL}/api/users/{}",
+      "src/api.ts:8 {env:API_URL}/v1/users/{}",
+      "src/api.ts:9 /api/items/{}",
+      "src/api.ts:10 /apiv2",
+      "src/api.ts:11 /api/v2",
+      "src/api.ts:12 /api/{}",
+      "src/api.ts:13 /api/{}/x",
+      "src/api.ts:14 DYNAMIC_URL: the URL starts with a value only known at runtime",
+      "src/api.ts:15 DYNAMIC_URL: the URL starts with a value only known at runtime",
+      "src/api.ts:16 DYNAMIC_URL: the URL starts with a value only known at runtime",
+      "src/api.ts:17 DYNAMIC_URL: the URL starts with a value only known at runtime",
+      "src/api.ts:18 DYNAMIC_URL: the URL starts with a value only known at runtime",
+      "src/api.ts:19 DYNAMIC_URL: the URL starts with a value only known at runtime",
+      "src/api.ts:20 {env:API_URL}/apiv1",
+      "src/api.ts:21 {env:API_URL}/apiv3",
+      "src/api.ts:22 DYNAMIC_URL: the URL starts with a value only known at runtime",
+      "src/api.ts:23 {env:API_URL}/api/v4",
+    ]);
+  });
+
+  it("gives each alternative of a trimmed value (M12.1a)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/api.ts", [
+      "export async function load(flag: boolean) {",
+      '  await fetch((flag ? "/a/" : "/b//").replace(/\\/+$/, "") + "/x");',
+      "}",
+    ]);
+    expect(await alternativesOf()).toEqual(["src/api.ts:2 /a/x | /b/x"]);
+  });
+
   it("marks unreadable URLs dynamic", async () => {
     await put("package.json", JSON.stringify({ name: "web" }));
     await put("src/api.ts", [

@@ -27,6 +27,10 @@
  *   (ADR-0211), and the same goes for `window`, `location`, `URL`, and `String`.
  * - `window.location.origin` (also `location`, `self.location`, `globalThis.location`,
  *   `document.location`): the page's own origin, so the URL is root-relative.
+ * - A trailing-slash trim, `x.replace(/\/+$/, "")` (also `/\/*$/` and `/\/$/`, each maybe
+ *   with `g`, and `''` or an empty template; M12.1a, ADR-0303): `x`'s parts with the slashes
+ *   removed from its literal end (all, or the last one for `/\/$/`), or from the end of an env
+ *   var's fallback there. Any other `.replace` is a hole.
  * - `new URL(url, base?)`, `.href`, `.toString()`, and `String(x)`. A relative `url` is
  *   resolved with WHATWG rules when both sides are literal; a root-relative `url` (`/x`)
  *   keeps only the base's origin, which may be an env var or `location.origin`. A site the
@@ -359,6 +363,65 @@ function builderBody(fn: ts.FunctionLikeDeclaration): ts.Expression | undefined 
 const HOLE: UrlPart = { kind: "hole" };
 const OVERFLOW_HOLE: UrlPart = { kind: "hole", overflow: true };
 const text = (value: string): UrlPart => ({ kind: "text", text: value });
+
+/**
+ * The regex literals {@link trailingSlashTrim} reads, each with whether it removes every
+ * trailing slash (`/\/+$/`) or only the last one (`/\/$/`). Only `g` may follow: it changes
+ * nothing for a pattern anchored at the end, while `m` would also match before a line break.
+ */
+const TRAILING_SLASH_PATTERNS: ReadonlyMap<string, boolean> = new Map([
+  ["/\\/+$/", true],
+  ["/\\/+$/g", true],
+  ["/\\/*$/", true],
+  ["/\\/*$/g", true],
+  ["/\\/$/", false],
+  ["/\\/$/g", false],
+]);
+
+/**
+ * `value.replace(/\/+$/, "")` and its close spellings (M12.1a, ADR-0303): the value trimmed and
+ * whether every trailing slash goes. Undefined for any other call, including another pattern,
+ * a non-empty replacement, a third argument, or `?.`.
+ */
+function trailingSlashTrim(
+  e: ts.CallExpression,
+): { value: ts.Expression; all: boolean } | undefined {
+  const callee = unwrap(e.expression);
+  if (e.questionDotToken || e.arguments.length !== 2) return undefined;
+  if (!ts.isPropertyAccessExpression(callee) || callee.questionDotToken) return undefined;
+  if (callee.name.text !== "replace") return undefined;
+  const [pattern, replacement] = e.arguments.map(unwrap);
+  if (!pattern || !ts.isRegularExpressionLiteral(pattern)) return undefined;
+  const all = TRAILING_SLASH_PATTERNS.get(pattern.text);
+  if (all === undefined) return undefined;
+  if (!replacement || !ts.isStringLiteralLike(replacement) || replacement.text !== "") {
+    return undefined;
+  }
+  return { value: callee.expression, all };
+}
+
+/**
+ * `parts` with its trailing slashes removed (every one, or only the last): from the literal
+ * text at the end, and from an env var's fallback there. A hole or env value at the end is
+ * left as it is: its own slashes are unknown, and the matcher drops empty segments anyway.
+ */
+function trimTrailingSlashes(parts: readonly UrlPart[], all: boolean): UrlPart[] {
+  const out = [...parts];
+  for (let last = out.at(-1); last !== undefined; last = out.at(-1)) {
+    if (last.kind === "env" && last.fallback !== undefined) {
+      out[out.length - 1] = { ...last, fallback: trimTrailingSlashes(last.fallback, all) };
+      return out;
+    }
+    if (last.kind !== "text") return out;
+    const kept = all ? last.text.replace(/\/+$/, "") : last.text.replace(/\/$/, "");
+    const removed = last.text.length - kept.length;
+    if (kept === "") out.pop();
+    else out[out.length - 1] = text(kept);
+    // Stop at the first part that still ends in text, or once the one slash is gone.
+    if (kept !== "" || (!all && removed > 0)) return out;
+  }
+  return out;
+}
 
 /** `scheme://` or `//` at the start of a URL (axios's `isAbsoluteURL`). */
 const ABSOLUTE = /^([a-z][a-z\d+\-.]*:)?\/\//i;
@@ -1573,6 +1636,8 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
       if (e.arguments.length === 0 && ts.isPropertyAccessExpression(callee)) {
         if (callee.name.text === "toString") return partsOf(sp, callee.expression, hops + 1);
       }
+      const trim = trailingSlashTrim(e);
+      if (trim) return trimTrailingSlashes(partsOf(sp, trim.value, hops + 1), trim.all);
       const [only] = e.arguments;
       if (
         e.arguments.length === 1 &&
