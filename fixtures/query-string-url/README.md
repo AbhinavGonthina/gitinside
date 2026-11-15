@@ -1,0 +1,3 @@
+# query-string-url
+
+A URL built by the `query-string` package's `stringifyUrl({ url, query })` (M12.1e1), as in discord-clone's channel and member modals. `stringifyUrl` returns `url` with the query merged in, so the request's path is the `url` property's: `src/modals.ts` (a default import, `qs`) links `POST /api/channels`, `DELETE /api/channels/:channelId`, and `PATCH /api/members/:memberId`, and `page(url)` is a wrapper whose caller's `"/api/messages"` links `GET /api/messages`; `src/servers.ts` (a namespace import) links `GET /api/servers`. The controls stay unresolved (`DYNAMIC_URL`): `deleteMessage` takes its path from the modal's data, and `searchServers` calls a named `stringifyUrl` import, which isn't read.

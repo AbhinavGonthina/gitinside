@@ -1,0 +1,421 @@
+{
+  "analyzerVersion": "0.3.15",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:query-string-url/src/modals.ts#messages",
+      "id": "calls:symbol:query-string-url/src/modals.ts#messages->symbol:query-string-url/src/modals.ts#page",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 31,
+          "file": "src/modals.ts",
+          "line": 30
+        }
+      ],
+      "to": "symbol:query-string-url/src/modals.ts#page"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:query-string-url/src/modals.ts#changeRole",
+      "id": "http:symbol:query-string-url/src/modals.ts#changeRole->route:query-string-url/PATCH /api/members/:memberId",
+      "kind": "http",
+      "label": "PATCH /api/members/:memberId",
+      "sites": [
+        {
+          "column": 9,
+          "file": "src/modals.ts",
+          "line": 22,
+          "request": "PATCH /api/members/{}"
+        }
+      ],
+      "to": "route:query-string-url/PATCH /api/members/:memberId"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:query-string-url/src/modals.ts#createChannel",
+      "id": "http:symbol:query-string-url/src/modals.ts#createChannel->route:query-string-url/POST /api/channels",
+      "kind": "http",
+      "label": "POST /api/channels",
+      "sites": [
+        {
+          "column": 9,
+          "file": "src/modals.ts",
+          "line": 9,
+          "request": "POST /api/channels"
+        }
+      ],
+      "to": "route:query-string-url/POST /api/channels"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:query-string-url/src/modals.ts#deleteChannel",
+      "id": "http:symbol:query-string-url/src/modals.ts#deleteChannel->route:query-string-url/DELETE /api/channels/:channelId",
+      "kind": "http",
+      "label": "DELETE /api/channels/:channelId",
+      "sites": [
+        {
+          "column": 9,
+          "file": "src/modals.ts",
+          "line": 17,
+          "request": "DELETE /api/channels/{}"
+        }
+      ],
+      "to": "route:query-string-url/DELETE /api/channels/:channelId"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:query-string-url/src/modals.ts#deleteMessage",
+      "id": "http:symbol:query-string-url/src/modals.ts#deleteMessage->unresolved:query-string-url/src/modals.ts:35:9",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 9,
+          "file": "src/modals.ts",
+          "line": 35
+        }
+      ],
+      "to": "unresolved:query-string-url/src/modals.ts:35:9"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:query-string-url/src/modals.ts#messages",
+      "id": "http:symbol:query-string-url/src/modals.ts#messages->route:query-string-url/GET /api/messages",
+      "kind": "http",
+      "label": "GET /api/messages",
+      "sites": [
+        {
+          "column": 31,
+          "file": "src/modals.ts",
+          "line": 30,
+          "request": "GET /api/messages"
+        }
+      ],
+      "to": "route:query-string-url/GET /api/messages"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:query-string-url/src/servers.ts#listServers",
+      "id": "http:symbol:query-string-url/src/servers.ts#listServers->route:query-string-url/GET /api/servers",
+      "kind": "http",
+      "label": "GET /api/servers",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/servers.ts",
+          "line": 5,
+          "request": "GET /api/servers"
+        }
+      ],
+      "to": "route:query-string-url/GET /api/servers"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:query-string-url/src/servers.ts#searchServers",
+      "id": "http:symbol:query-string-url/src/servers.ts#searchServers->unresolved:query-string-url/src/servers.ts:10:10",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/servers.ts",
+          "line": 10
+        }
+      ],
+      "to": "unresolved:query-string-url/src/servers.ts:10:10"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "7541f1c05b8bb87910a9c77331f13dcac495bfb55b2e398257e2c2163c8e1386",
+      "id": "file:query-string-url/src/modals.ts",
+      "kind": "file",
+      "label": "modals.ts",
+      "parentId": "module:query-string-url/src",
+      "path": "src/modals.ts"
+    },
+    {
+      "hash": "6de4d4baf21aed27771c7d6945902c12e5a9c4883d47e59053465ff32d4309d7",
+      "id": "file:query-string-url/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:query-string-url/src",
+      "path": "src/server.ts"
+    },
+    {
+      "hash": "26b5b0381d1154155d1b6a7dfdd84c742af0e3ec34ce9f32facb26e106976f9f",
+      "id": "file:query-string-url/src/servers.ts",
+      "kind": "file",
+      "label": "servers.ts",
+      "parentId": "module:query-string-url/src",
+      "path": "src/servers.ts"
+    },
+    {
+      "id": "module:query-string-url/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:query-string-url/",
+      "path": "src"
+    },
+    {
+      "id": "route:query-string-url/DELETE /api/channels/:channelId",
+      "kind": "route",
+      "label": "DELETE /api/channels/:channelId",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:query-string-url/src/server.ts",
+      "path": "/api/channels/:channelId",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:query-string-url/GET /api/messages",
+      "kind": "route",
+      "label": "GET /api/messages",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:query-string-url/src/server.ts",
+      "path": "/api/messages",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 7
+      }
+    },
+    {
+      "id": "route:query-string-url/GET /api/servers",
+      "kind": "route",
+      "label": "GET /api/servers",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:query-string-url/src/server.ts",
+      "path": "/api/servers",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 8
+      }
+    },
+    {
+      "id": "route:query-string-url/PATCH /api/members/:memberId",
+      "kind": "route",
+      "label": "PATCH /api/members/:memberId",
+      "layer": "backend",
+      "method": "PATCH",
+      "parentId": "file:query-string-url/src/server.ts",
+      "path": "/api/members/:memberId",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:query-string-url/POST /api/channels",
+      "kind": "route",
+      "label": "POST /api/channels",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:query-string-url/src/server.ts",
+      "path": "/api/channels",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 4
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:query-string-url/",
+      "kind": "service",
+      "label": "query-string-url",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:query-string-url/src/modals.ts#changeRole",
+      "kind": "symbol",
+      "label": "changeRole",
+      "parentId": "file:query-string-url/src/modals.ts",
+      "requiredParams": 3,
+      "source": {
+        "column": 1,
+        "endLine": 23,
+        "file": "src/modals.ts",
+        "line": 20
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:query-string-url/src/modals.ts#createChannel",
+      "kind": "symbol",
+      "label": "createChannel",
+      "parentId": "file:query-string-url/src/modals.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 10,
+        "file": "src/modals.ts",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:query-string-url/src/modals.ts#deleteChannel",
+      "kind": "symbol",
+      "label": "deleteChannel",
+      "parentId": "file:query-string-url/src/modals.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 18,
+        "file": "src/modals.ts",
+        "line": 12
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:query-string-url/src/modals.ts#deleteMessage",
+      "kind": "symbol",
+      "label": "deleteMessage",
+      "parentId": "file:query-string-url/src/modals.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 36,
+        "file": "src/modals.ts",
+        "line": 33
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:query-string-url/src/modals.ts#messages",
+      "kind": "symbol",
+      "label": "messages",
+      "parentId": "file:query-string-url/src/modals.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 14,
+        "endLine": 30,
+        "file": "src/modals.ts",
+        "line": 30
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": false,
+      "id": "symbol:query-string-url/src/modals.ts#page",
+      "kind": "symbol",
+      "label": "page",
+      "parentId": "file:query-string-url/src/modals.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 28,
+        "file": "src/modals.ts",
+        "line": 26
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:query-string-url/src/server.ts#app",
+      "kind": "symbol",
+      "label": "app",
+      "parentId": "file:query-string-url/src/server.ts",
+      "source": {
+        "column": 7,
+        "endLine": 3,
+        "file": "src/server.ts",
+        "line": 3
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:query-string-url/src/servers.ts#listServers",
+      "kind": "symbol",
+      "label": "listServers",
+      "parentId": "file:query-string-url/src/servers.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 6,
+        "file": "src/servers.ts",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:query-string-url/src/servers.ts#searchServers",
+      "kind": "symbol",
+      "label": "searchServers",
+      "parentId": "file:query-string-url/src/servers.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 11,
+        "file": "src/servers.ts",
+        "line": 9
+      },
+      "symbolKind": "function"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "query-string-url",
+      "parentId": null
+    },
+    {
+      "detail": "the URL starts with a value only known at runtime",
+      "expression": "axios.delete(url)",
+      "id": "unresolved:query-string-url/src/modals.ts:35:9",
+      "kind": "unresolved",
+      "label": "DELETE url",
+      "parentId": "service:query-string-url/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 9,
+        "file": "src/modals.ts",
+        "line": 35
+      }
+    },
+    {
+      "detail": "the URL starts with a value only known at runtime",
+      "expression": "fetch(stringifyUrl({ url: \"…\", query: { term } }))",
+      "id": "unresolved:query-string-url/src/servers.ts:10:10",
+      "kind": "unresolved",
+      "label": "GET stringifyUrl({ url: \"…\", query: { term } })",
+      "parentId": "service:query-string-url/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 10,
+        "file": "src/servers.ts",
+        "line": 10
+      }
+    }
+  ],
+  "repo": {
+    "name": "query-string-url",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}
