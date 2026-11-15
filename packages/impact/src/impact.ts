@@ -145,18 +145,29 @@ function standInOf(edge: GraphEdge, node: GraphNode): StandIn | undefined {
   }
 }
 
-/** For keys sorted ascending in `0 .. n - 1`: where each key's run starts (`n + 1` offsets). */
-function starts(n: number, sortedKeys: readonly number[]): Int32Array {
-  const out = new Int32Array(n + 1);
-  let k = 0;
-  for (let i = 0; i <= n; i++) {
-    out[i] = k;
-    while (k < sortedKeys.length && sortedKeys[k] === i) k++;
+/**
+ * A counting sort of `m` items by `key` (each in `0 .. n - 1`): where each key's items start
+ * (`n + 1` offsets), and the items in key order, each key's in item order.
+ */
+function bucketed(n: number, m: number, key: Int32Array): { start: Int32Array; items: Int32Array } {
+  const start = new Int32Array(n + 1);
+  for (let j = 0; j < m; j++) {
+    const k = (key[j] as number) + 1;
+    start[k] = (start[k] as number) + 1;
   }
-  return out;
+  for (let i = 0; i < n; i++) start[i + 1] = (start[i + 1] as number) + (start[i] as number);
+  const fill = start.slice(0, n);
+  const items = new Int32Array(m);
+  for (let j = 0; j < m; j++) {
+    const k = key[j] as number;
+    const at = fill[k] as number;
+    items[at] = j;
+    fill[k] = at + 1;
+  }
+  return { start, items };
 }
 
-/** Index a graph for {@link impactOf}: O(nodes + edges · log edges). */
+/** Index a graph for {@link impactOf}: O(nodes · log nodes + edges · log edges). */
 export function impactIndex(graph: ArchitectureGraph): ImpactIndex {
   const nodes = [...graph.nodes].sort((a, b) => compareStrings(a.id, b.id));
   const n = nodes.length;
@@ -169,28 +180,43 @@ export function impactIndex(graph: ArchitectureGraph): ImpactIndex {
     const p = nodes[i]?.parentId;
     if (p !== null && p !== undefined) parent[i] = at(p);
   }
-  const kids = [...parent].map((p, i) => [p, i] as const).filter(([p]) => p >= 0);
-  // Stable sort by parent keeps each node's children in number order.
-  kids.sort((a, b) => a[0] - b[0]);
-  const childStart = starts(
+  // The system node, with no parent, goes in a last bucket past every node's.
+  const byParent = bucketed(
+    n + 1,
     n,
-    kids.map(([p]) => p),
+    parent.map((p) => (p < 0 ? n : p)),
   );
-  const children = Int32Array.from(kids, ([, i]) => i);
+  const childStart = byParent.start;
+  const children = byParent.items;
 
-  // Edges into each node, from the node that depends on it.
-  type Entry = { to: number; from: number; edge: number; rank: number; kind: number };
-  const entries: Entry[] = [];
+  // Edges into each node, from the node that depends on it (a `consumes` edge twice).
+  const edges = graph.edges;
+  let m = 0;
+  for (const edge of edges) m += FORWARD.has(edge.kind) ? 1 : edge.kind === "consumes" ? 2 : 0;
+  const eTo = new Int32Array(m);
+  const eFrom = new Int32Array(m);
+  const eEdge = new Int32Array(m);
+  const eRank = new Uint8Array(m);
+  const eKind = new Uint8Array(m);
   const standSets = new Map<StandIn, Set<number>>();
-  graph.edges.forEach((edge, e) => {
+  let j = 0;
+  const push = (to: number, from: number, e: number, rank: number, kind: number) => {
+    eTo[j] = to;
+    eFrom[j] = from;
+    eEdge[j] = e;
+    eRank[j] = rank;
+    eKind[j] = kind;
+    j++;
+  };
+  edges.forEach((edge, e) => {
     const from = at(edge.from);
     const to = at(edge.to);
     const rank = RANK[edge.confidence];
     const kind = (KIND_NUMBER.get(edge.kind) as number) * 2;
-    if (FORWARD.has(edge.kind)) entries.push({ to, from, edge: e, rank, kind });
+    if (FORWARD.has(edge.kind)) push(to, from, e, rank, kind);
     else if (edge.kind === "consumes") {
-      entries.push({ to, from, edge: e, rank, kind });
-      entries.push({ to: from, from: to, edge: e, rank, kind: kind + 1 });
+      push(to, from, e, rank, kind);
+      push(from, to, e, rank, kind + 1);
     }
     const stands = standInOf(edge, nodes[to] as GraphNode);
     if (stands) {
@@ -199,14 +225,15 @@ export function impactIndex(graph: ArchitectureGraph): ImpactIndex {
       else standSets.set(stands, new Set([to]));
     }
   });
-  entries.sort((a, b) => a.to - b.to || a.rank - b.rank || a.from - b.from || a.kind - b.kind);
-  const inStart = starts(
-    n,
-    entries.map((x) => x.to),
-  );
-  const inFrom = Int32Array.from(entries, (x) => x.from);
-  const inEdge = Int32Array.from(entries, (x) => x.edge);
-  const inRank = Uint8Array.from(entries, (x) => x.rank);
+  const { start: inStart, items } = bucketed(n, m, eTo);
+  const order = (a: number, b: number) =>
+    (eRank[a] as number) - (eRank[b] as number) ||
+    (eFrom[a] as number) - (eFrom[b] as number) ||
+    (eKind[a] as number) - (eKind[b] as number);
+  for (let i = 0; i < n; i++) items.subarray(inStart[i], inStart[i + 1]).sort(order);
+  const inFrom = items.map((x) => eFrom[x] as number);
+  const inEdge = items.map((x) => eEdge[x] as number);
+  const inRank = Uint8Array.from(items, (x) => eRank[x] as number);
 
   const standIns = new Map(
     [...standSets].map(([k, set]) => [k, Int32Array.from(set).sort()] as const),
