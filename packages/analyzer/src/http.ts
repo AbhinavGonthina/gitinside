@@ -70,6 +70,18 @@
  * - Method strings: literals, no-substitution templates, consts holding them (imported
  *   too), properties of const object literals (`METHODS.post`), and string enum members.
  *   Lowercase is accepted; methods outside `HttpMethod` are unknown.
+ * - A method chosen by a condition (M12.1e2, ADR-0308): a `method` that is a conditional,
+ *   nested too, directly or through a `const`, whose every branch is a method string as above
+ *   (`method: isSuspended ? "DELETE" : "POST"`), or a whole config chosen by one whose every
+ *   branch is an object literal (or a `const` holding one, unmutated) with such a `method` or
+ *   none (the default): `const init = del ? { method: "DELETE" } : { method: "PATCH", body }`.
+ *   The site keeps every method (`methods`); when it resolves to exactly one URL, that's one
+ *   request per method (`wrappers.ts`). Several URLs (`url = id ? "/x/:id" : "/x"`) aren't
+ *   paired with the methods, even on the same condition, so the method stays unknown there,
+ *   as before, rather than sending every URL with every method. A branch that is anything
+ *   else (a parameter, `||`, an unknown method, a spread that could set it, a `let`) leaves
+ *   the method unknown too. A conditional `method` a wrapper's caller passes in its
+ *   arguments isn't read either.
  * - RTK Query endpoints (ADR-0196): `build.query|mutation|infiniteQuery({ query })` (or
  *   `query(…)` destructured from the builder, `({ query, mutation: send }) => …`) inside
  *   the `endpoints` function (arrow or method) of `createApi(options)` or of
@@ -273,6 +285,12 @@ export interface HttpCallSite {
    * caller's arguments. Absent when the method is known or hidden some other way.
    */
   methodSource?: MethodSource;
+  /**
+   * The methods a condition chooses between when that's why `method` is `null` (M12.1e2,
+   * ADR-0308): two or more, sorted. Each URL the site resolves to is then one request per
+   * method; an unresolved URL stays one request. Absent otherwise.
+   */
+  methods?: HttpMethod[];
   /** The URL argument or `url` config property, or `null` when it can't be read. */
   url: ProgramExpression | null;
   /**
@@ -683,15 +701,94 @@ export function createHttpSiteCollector(
     return { kind: "spreads", spreads, fallback };
   };
 
+  // ---- methods chosen by a condition (M12.1e2, ADR-0308) ----
+
+  /**
+   * The initializer of the `const` an identifier names, unless the variable's members are
+   * written after it is declared ({@link isMutated}).
+   */
+  const constInitializer = (
+    sp: ServiceProgram,
+    e: ts.Identifier,
+    hops: number,
+  ): ProgramExpression | undefined => {
+    const symbol = symbolAt(sp, e);
+    const found = symbol && resolveDeclaration(sp, symbol, hops + 1);
+    const d = found?.declaration;
+    if (!found || !d || !ts.isVariableDeclaration(d) || !d.initializer) return undefined;
+    if (!isConst(d) || isMutated(found.sp, d)) return undefined;
+    return { sp: found.sp, expression: d.initializer };
+  };
+
+  /**
+   * The methods a `method` value may name when it's a conditional (nested too, directly or
+   * through a `const`) whose every branch reads as a string naming an {@link HttpMethod}:
+   * `c ? "DELETE" : "POST"`. `undefined` when any branch doesn't.
+   */
+  const methodChoices = (value: ProgramExpression, hops: number): HttpMethod[] | undefined => {
+    if (hops > MAX_HOPS) return undefined;
+    const e = unwrap(value.expression);
+    if (ts.isConditionalExpression(e)) {
+      const a = methodChoices({ sp: value.sp, expression: e.whenTrue }, hops + 1);
+      const b = a && methodChoices({ sp: value.sp, expression: e.whenFalse }, hops + 1);
+      return a && b && [...a, ...b];
+    }
+    const text = constString(value.sp, e, 0);
+    if (text === undefined && ts.isIdentifier(e)) {
+      const initializer = constInitializer(value.sp, e, hops);
+      return initializer && methodChoices(initializer, hops + 1);
+    }
+    const method = text === undefined ? null : toMethod(text);
+    return method === null ? undefined : [method];
+  };
+
+  /**
+   * The methods a config chosen by a condition sends: `c ? { method: "DELETE" } : { method:
+   * "PATCH", body }`, directly or through a `const` nobody mutates, each branch an object
+   * literal (or such a const, or a nested conditional) whose `method` is absent (`fallback`) or
+   * reads as {@link methodChoices}. `undefined` when any branch doesn't.
+   */
+  const configChoices = (
+    value: ProgramExpression,
+    fallback: HttpMethod,
+    hops: number,
+  ): HttpMethod[] | undefined => {
+    if (hops > MAX_HOPS) return undefined;
+    const e = unwrap(value.expression);
+    if (ts.isConditionalExpression(e)) {
+      const a = configChoices({ sp: value.sp, expression: e.whenTrue }, fallback, hops + 1);
+      const b = a && configChoices({ sp: value.sp, expression: e.whenFalse }, fallback, hops + 1);
+      return a && b && [...a, ...b];
+    }
+    if (ts.isIdentifier(e)) {
+      const initializer = constInitializer(value.sp, e, hops);
+      return initializer && configChoices(initializer, fallback, hops + 1);
+    }
+    if (!ts.isObjectLiteralExpression(e)) return undefined;
+    const method = objectProperty(value.sp, e, "method");
+    if (method === undefined) return [fallback];
+    return method === null ? undefined : methodChoices(method, hops + 1);
+  };
+
+  /** A site's method from the methods a condition chooses between: one, or `methods`. */
+  const chosen = (choices: HttpMethod[]): Pick<HttpCallSite, "method" | "methods"> => {
+    const methods = [...new Set(choices)].sort(compareStrings);
+    const [only] = methods;
+    return only !== undefined && methods.length === 1
+      ? { method: only }
+      : { method: null, methods };
+  };
+
   /**
    * The `method` a config passes (absent ⇒ `fallback`), with the {@link MethodSource} of an
-   * unreadable one. `config` is `null` when a spread hides it.
+   * unreadable one, or the `methods` a condition chooses between (M12.1e2). `config` is `null`
+   * when a spread hides it.
    */
   const configMethod = (
     sp: ServiceProgram,
     config: ts.Expression | null | undefined,
     fallback: HttpMethod,
-  ): Pick<HttpCallSite, "method" | "methodSource"> => {
+  ): Pick<HttpCallSite, "method" | "methodSource" | "methods"> => {
     if (config === null) return { method: null };
     const value = configProperty(sp, config, "method");
     const method = methodOf(value, fallback);
@@ -701,11 +798,15 @@ export function createHttpSiteCollector(
       // literal whose `method` a spread could supply.
       const object = configObject(sp, config, 0);
       if (!object) {
+        const choices = configChoices({ sp, expression: config }, fallback, 0);
+        if (choices) return chosen(choices);
         return { method, methodSource: { kind: "config", config: { sp, expression: config } } };
       }
       const spreads = spreadMethod(object.sp, object.expression);
       return spreads ? { method, methodSource: spreads } : { method };
     }
+    const choices = value && methodChoices(value, 0);
+    if (choices) return chosen(choices);
     return value && constString(value.sp, value.expression, 0) === undefined
       ? { method, methodSource: { kind: "value", value } }
       : { method };
@@ -1379,7 +1480,7 @@ export function createHttpSiteCollector(
       options === null ? null : configProperty(sp, options, name);
     const ownBase = own("baseURL");
     const ownMethod = own("method");
-    let method: Pick<HttpCallSite, "method" | "methodSource">;
+    let method: Pick<HttpCallSite, "method" | "methodSource" | "methods">;
     if (instance.method === undefined || (ownMethod !== undefined && ownMethod !== null)) {
       method = configMethod(sp, options, "GET");
     } else if (ownMethod === undefined) {
@@ -1422,7 +1523,7 @@ export function createHttpSiteCollector(
   ): RequestShape => {
     const own = (name: string): ConfigValue =>
       options === null ? null : configProperty(sp, options, name);
-    let method: Pick<HttpCallSite, "method" | "methodSource">;
+    let method: Pick<HttpCallSite, "method" | "methodSource" | "methods">;
     const ownMethod = shorthand === undefined ? own("method") : undefined;
     if (shorthand !== undefined) {
       method = { method: shorthand };
@@ -1785,7 +1886,7 @@ export function createHttpSiteCollector(
   ): RequestShape => {
     const shape = (
       url: ProgramExpression | null,
-      method: Pick<HttpCallSite, "method" | "methodSource">,
+      method: Pick<HttpCallSite, "method" | "methodSource" | "methods">,
     ): RequestShape => ({ client: "fetch", ...method, url, baseURL, confidence });
     if (configObject(sp, args, 0)) {
       const url = configProperty(sp, args, "url");

@@ -1,0 +1,562 @@
+{
+  "analyzerVersion": "0.3.16",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:conditional-method/src/admin.ts#upvote",
+      "id": "calls:symbol:conditional-method/src/admin.ts#upvote->symbol:conditional-method/src/admin.ts#vote",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 52,
+          "file": "src/admin.ts",
+          "line": 26
+        }
+      ],
+      "to": "symbol:conditional-method/src/admin.ts#vote"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:conditional-method/src/admin.ts#archive",
+      "id": "http:symbol:conditional-method/src/admin.ts#archive->route:conditional-method/PUT /api/posts/:id/archive",
+      "kind": "http",
+      "label": "PUT /api/posts/:id/archive",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/admin.ts",
+          "line": 19,
+          "request": "PUT /api/posts/{}/archive"
+        }
+      ],
+      "to": "route:conditional-method/PUT /api/posts/:id/archive"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:conditional-method/src/admin.ts#archive",
+      "id": "http:symbol:conditional-method/src/admin.ts#archive->unresolved:conditional-method/src/admin.ts:19:10",
+      "kind": "http",
+      "reason": "NO_MATCHING_ROUTE",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/admin.ts",
+          "line": 19
+        }
+      ],
+      "to": "unresolved:conditional-method/src/admin.ts:19:10"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:conditional-method/src/admin.ts#edit",
+      "id": "http:symbol:conditional-method/src/admin.ts#edit->unresolved:conditional-method/src/admin.ts:30:10",
+      "kind": "http",
+      "reason": "AMBIGUOUS",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/admin.ts",
+          "line": 30
+        }
+      ],
+      "to": "unresolved:conditional-method/src/admin.ts:30:10"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:conditional-method/src/admin.ts#moderate",
+      "id": "http:symbol:conditional-method/src/admin.ts#moderate->route:conditional-method/DELETE /api/blog-comments/:id",
+      "kind": "http",
+      "label": "DELETE /api/blog-comments/:id",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/admin.ts",
+          "line": 14,
+          "request": "DELETE /api/blog-comments/{}"
+        }
+      ],
+      "to": "route:conditional-method/DELETE /api/blog-comments/:id"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:conditional-method/src/admin.ts#moderate",
+      "id": "http:symbol:conditional-method/src/admin.ts#moderate->route:conditional-method/PATCH /api/blog-comments/:id",
+      "kind": "http",
+      "label": "PATCH /api/blog-comments/:id",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/admin.ts",
+          "line": 14,
+          "request": "PATCH /api/blog-comments/{}"
+        }
+      ],
+      "to": "route:conditional-method/PATCH /api/blog-comments/:id"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:conditional-method/src/admin.ts#report",
+      "id": "http:symbol:conditional-method/src/admin.ts#report->unresolved:conditional-method/src/admin.ts:42:10",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/admin.ts",
+          "line": 42
+        }
+      ],
+      "to": "unresolved:conditional-method/src/admin.ts:42:10"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:conditional-method/src/admin.ts#saveDraft",
+      "id": "http:symbol:conditional-method/src/admin.ts#saveDraft->route:conditional-method/POST /api/drafts",
+      "kind": "http",
+      "label": "POST /api/drafts",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/admin.ts",
+          "line": 37,
+          "request": "? /api/drafts"
+        }
+      ],
+      "to": "route:conditional-method/POST /api/drafts"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:conditional-method/src/admin.ts#saveDraft",
+      "id": "http:symbol:conditional-method/src/admin.ts#saveDraft->route:conditional-method/PUT /api/drafts/:id",
+      "kind": "http",
+      "label": "PUT /api/drafts/:id",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/admin.ts",
+          "line": 37,
+          "request": "? /api/drafts/{}"
+        }
+      ],
+      "to": "route:conditional-method/PUT /api/drafts/:id"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:conditional-method/src/admin.ts#toggleSuspend",
+      "id": "http:symbol:conditional-method/src/admin.ts#toggleSuspend->route:conditional-method/DELETE /api/admin/users/:id/suspend",
+      "kind": "http",
+      "label": "DELETE /api/admin/users/:id/suspend",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/admin.ts",
+          "line": 4,
+          "request": "DELETE /api/admin/users/{}/suspend"
+        }
+      ],
+      "to": "route:conditional-method/DELETE /api/admin/users/:id/suspend"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:conditional-method/src/admin.ts#toggleSuspend",
+      "id": "http:symbol:conditional-method/src/admin.ts#toggleSuspend->route:conditional-method/POST /api/admin/users/:id/suspend",
+      "kind": "http",
+      "label": "POST /api/admin/users/:id/suspend",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/admin.ts",
+          "line": 4,
+          "request": "POST /api/admin/users/{}/suspend"
+        }
+      ],
+      "to": "route:conditional-method/POST /api/admin/users/:id/suspend"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:conditional-method/src/admin.ts#upvote",
+      "id": "http:symbol:conditional-method/src/admin.ts#upvote->route:conditional-method/DELETE /api/posts/:id/vote",
+      "kind": "http",
+      "label": "DELETE /api/posts/:id/vote",
+      "sites": [
+        {
+          "column": 52,
+          "file": "src/admin.ts",
+          "line": 26,
+          "request": "DELETE /api/posts/{}/vote"
+        }
+      ],
+      "to": "route:conditional-method/DELETE /api/posts/:id/vote"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:conditional-method/src/admin.ts#upvote",
+      "id": "http:symbol:conditional-method/src/admin.ts#upvote->route:conditional-method/POST /api/posts/:id/vote",
+      "kind": "http",
+      "label": "POST /api/posts/:id/vote",
+      "sites": [
+        {
+          "column": 52,
+          "file": "src/admin.ts",
+          "line": 26,
+          "request": "POST /api/posts/{}/vote"
+        }
+      ],
+      "to": "route:conditional-method/POST /api/posts/:id/vote"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "9d1e7215fb2faae7875dae5ca99cf4eb93661f890138bdb3a2c64fb96fcd3584",
+      "id": "file:conditional-method/src/admin.ts",
+      "kind": "file",
+      "label": "admin.ts",
+      "parentId": "module:conditional-method/src",
+      "path": "src/admin.ts"
+    },
+    {
+      "hash": "5a3ad68fcf797e111a6b704c90e8074973fae78e897c7ea3906ae6bad31332b1",
+      "id": "file:conditional-method/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:conditional-method/src",
+      "path": "src/server.ts"
+    },
+    {
+      "id": "module:conditional-method/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:conditional-method/",
+      "path": "src"
+    },
+    {
+      "id": "route:conditional-method/DELETE /api/admin/users/:id/suspend",
+      "kind": "route",
+      "label": "DELETE /api/admin/users/:id/suspend",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:conditional-method/src/server.ts",
+      "path": "/api/admin/users/:id/suspend",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:conditional-method/DELETE /api/blog-comments/:id",
+      "kind": "route",
+      "label": "DELETE /api/blog-comments/:id",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:conditional-method/src/server.ts",
+      "path": "/api/blog-comments/:id",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 7
+      }
+    },
+    {
+      "id": "route:conditional-method/DELETE /api/posts/:id/vote",
+      "kind": "route",
+      "label": "DELETE /api/posts/:id/vote",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:conditional-method/src/server.ts",
+      "path": "/api/posts/:id/vote",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 10
+      }
+    },
+    {
+      "id": "route:conditional-method/PATCH /api/blog-comments/:id",
+      "kind": "route",
+      "label": "PATCH /api/blog-comments/:id",
+      "layer": "backend",
+      "method": "PATCH",
+      "parentId": "file:conditional-method/src/server.ts",
+      "path": "/api/blog-comments/:id",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:conditional-method/POST /api/admin/users/:id/suspend",
+      "kind": "route",
+      "label": "POST /api/admin/users/:id/suspend",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:conditional-method/src/server.ts",
+      "path": "/api/admin/users/:id/suspend",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 4
+      }
+    },
+    {
+      "id": "route:conditional-method/POST /api/drafts",
+      "kind": "route",
+      "label": "POST /api/drafts",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:conditional-method/src/server.ts",
+      "path": "/api/drafts",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 11
+      }
+    },
+    {
+      "id": "route:conditional-method/POST /api/posts/:id/vote",
+      "kind": "route",
+      "label": "POST /api/posts/:id/vote",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:conditional-method/src/server.ts",
+      "path": "/api/posts/:id/vote",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 9
+      }
+    },
+    {
+      "id": "route:conditional-method/PUT /api/drafts/:id",
+      "kind": "route",
+      "label": "PUT /api/drafts/:id",
+      "layer": "backend",
+      "method": "PUT",
+      "parentId": "file:conditional-method/src/server.ts",
+      "path": "/api/drafts/:id",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 12
+      }
+    },
+    {
+      "id": "route:conditional-method/PUT /api/posts/:id/archive",
+      "kind": "route",
+      "label": "PUT /api/posts/:id/archive",
+      "layer": "backend",
+      "method": "PUT",
+      "parentId": "file:conditional-method/src/server.ts",
+      "path": "/api/posts/:id/archive",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 8
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:conditional-method/",
+      "kind": "service",
+      "label": "conditional-method",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:conditional-method/src/admin.ts#archive",
+      "kind": "symbol",
+      "label": "archive",
+      "parentId": "file:conditional-method/src/admin.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 20,
+        "file": "src/admin.ts",
+        "line": 18
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:conditional-method/src/admin.ts#edit",
+      "kind": "symbol",
+      "label": "edit",
+      "parentId": "file:conditional-method/src/admin.ts",
+      "requiredParams": 3,
+      "source": {
+        "column": 1,
+        "endLine": 31,
+        "file": "src/admin.ts",
+        "line": 29
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:conditional-method/src/admin.ts#moderate",
+      "kind": "symbol",
+      "label": "moderate",
+      "parentId": "file:conditional-method/src/admin.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 15,
+        "file": "src/admin.ts",
+        "line": 9
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:conditional-method/src/admin.ts#report",
+      "kind": "symbol",
+      "label": "report",
+      "parentId": "file:conditional-method/src/admin.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 43,
+        "file": "src/admin.ts",
+        "line": 41
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:conditional-method/src/admin.ts#saveDraft",
+      "kind": "symbol",
+      "label": "saveDraft",
+      "parentId": "file:conditional-method/src/admin.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 38,
+        "file": "src/admin.ts",
+        "line": 35
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:conditional-method/src/admin.ts#toggleSuspend",
+      "kind": "symbol",
+      "label": "toggleSuspend",
+      "parentId": "file:conditional-method/src/admin.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "src/admin.ts",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:conditional-method/src/admin.ts#upvote",
+      "kind": "symbol",
+      "label": "upvote",
+      "parentId": "file:conditional-method/src/admin.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 14,
+        "endLine": 26,
+        "file": "src/admin.ts",
+        "line": 26
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:conditional-method/src/admin.ts#vote",
+      "kind": "symbol",
+      "label": "vote",
+      "parentId": "file:conditional-method/src/admin.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 24,
+        "file": "src/admin.ts",
+        "line": 22
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:conditional-method/src/server.ts#app",
+      "kind": "symbol",
+      "label": "app",
+      "parentId": "file:conditional-method/src/server.ts",
+      "source": {
+        "column": 7,
+        "endLine": 3,
+        "file": "src/server.ts",
+        "line": 3
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "conditional-method",
+      "parentId": null
+    },
+    {
+      "detail": "no route matches DELETE to /api/posts/{}/archive",
+      "expression": "fetch(`/api/posts/${id}/archive`, { method: undo ? \"…\" : \"…\" })",
+      "id": "unresolved:conditional-method/src/admin.ts:19:10",
+      "kind": "unresolved",
+      "label": "DELETE /api/posts/{}/archive",
+      "parentId": "service:conditional-method/",
+      "reason": "NO_MATCHING_ROUTE",
+      "source": {
+        "column": 10,
+        "file": "src/admin.ts",
+        "line": 19
+      }
+    },
+    {
+      "detail": "the method isn't read, and routes for DELETE, PATCH match /api/blog-comments/{}",
+      "expression": "fetch(`/api/blog-comments/${id}`, { method: hide ? verb : \"…\" })",
+      "id": "unresolved:conditional-method/src/admin.ts:30:10",
+      "kind": "unresolved",
+      "label": "? /api/blog-comments/{}",
+      "parentId": "service:conditional-method/",
+      "reason": "AMBIGUOUS",
+      "source": {
+        "column": 10,
+        "file": "src/admin.ts",
+        "line": 30
+      }
+    },
+    {
+      "detail": "the URL starts with a value only known at runtime",
+      "expression": "fetch(window.location.href, { method: urgent ? \"…\" : \"…\" })",
+      "id": "unresolved:conditional-method/src/admin.ts:42:10",
+      "kind": "unresolved",
+      "label": "? window.location.href",
+      "parentId": "service:conditional-method/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 10,
+        "file": "src/admin.ts",
+        "line": 42
+      }
+    }
+  ],
+  "repo": {
+    "name": "conditional-method",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

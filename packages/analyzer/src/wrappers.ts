@@ -561,12 +561,30 @@ function symbolName(id: string): string {
 const compareLocations = (a: SourceLocation, b: SourceLocation): number =>
   compareStrings(a.file, b.file) || a.line - b.line || a.column - b.column;
 
+/**
+ * The methods the requests to `urls` are made with (M12.1e2, ADR-0308): each of the site's
+ * `methods` when it resolves to one URL, else just `method` (`null`: unknown). An unresolved
+ * URL stays one request, and several URLs aren't paired with the methods: `url = id ?
+ * "/x/:id" : "/x"` beside `method: id ? "PUT" : "POST"` never sends `POST /x/:id`.
+ */
+function methodsFor(
+  site: HttpCallSite,
+  method: HttpMethod | null,
+  urls: readonly NormalizedUrl[],
+): (HttpMethod | null)[] {
+  const [only, ...rest] = urls;
+  return method === null && site.methods && only?.resolved && rest.length === 0
+    ? site.methods
+    : [method];
+}
+
 /** The text an unresolved node shows for a site's own request (see {@link HttpRequest}). */
 function ownText(
   site: HttpCallSite,
   url: NormalizedUrl,
+  known: HttpMethod | null,
 ): Pick<HttpRequest, "label" | "expression"> {
-  const method = site.method ?? "?";
+  const method = known ?? "?";
   const urlNode = site.url?.expression;
   const base = site.baseURL?.expression;
   const expression = redactedText(
@@ -702,18 +720,26 @@ export function collectHttpFacts(
     return undefined;
   };
 
-  /** A site's own requests, as when nothing inlines it: one per URL alternative (M5A.3h). */
-  const own = (site: HttpCallSite): HttpRequestFact[] =>
-    normalizer.alternatives(site).map((url) => ({
-      call: { client: site.client, file: site.file, site: site.site },
-      file: site.file,
-      site: site.site,
-      owners: site.owners,
-      method: site.method,
-      url,
-      confidence: url.resolved ? weaker(site.confidence, url.confidence) : site.confidence,
-      ...ownText(site, url),
-    }));
+  /**
+   * A site's own requests, as when nothing inlines it: one per URL alternative (M5A.3h) and
+   * method a condition chooses (M12.1e2).
+   */
+  const own = (site: HttpCallSite): HttpRequestFact[] => {
+    const urls = normalizer.alternatives(site);
+    const methods = methodsFor(site, site.method, urls);
+    return urls.flatMap((url) =>
+      methods.map((method) => ({
+        call: { client: site.client, file: site.file, site: site.site },
+        file: site.file,
+        site: site.site,
+        owners: site.owners,
+        method,
+        url,
+        confidence: url.resolved ? weaker(site.confidence, url.confidence) : site.confidence,
+        ...ownText(site, url, method),
+      })),
+    );
+  };
 
   // ---- per service: find wrappers ----
 
@@ -1481,22 +1507,25 @@ export function collectHttpFacts(
           const arg = args[i];
           return read.has(d) && arg ? [arg] : [];
         });
-      const method = fromSpread ? fromSpread.method : boundMethod(site);
+      const known = fromSpread ? fromSpread.method : boundMethod(site);
       const expression = redactedText(caller.call, urlArgs);
-      return urls.map((url) => ({
-        call: { client: site.client, file: site.file, site: site.site },
-        ...via,
-        file: caller.file,
-        site: caller.site,
-        owners: caller.owners,
-        method,
-        url,
-        confidence: url.resolved ? weaker(confidence, url.confidence) : confidence,
-        label: url.resolved
-          ? clip(`${method ?? "?"} ${url.text}`)
-          : `${method ?? "?"} ${expression}`,
-        expression,
-      }));
+      const methods = methodsFor(site, known, urls);
+      return urls.flatMap((url) =>
+        methods.map((method) => ({
+          call: { client: site.client, file: site.file, site: site.site },
+          ...via,
+          file: caller.file,
+          site: caller.site,
+          owners: caller.owners,
+          method,
+          url,
+          confidence: url.resolved ? weaker(confidence, url.confidence) : confidence,
+          label: url.resolved
+            ? clip(`${method ?? "?"} ${url.text}`)
+            : `${method ?? "?"} ${expression}`,
+          expression,
+        })),
+      );
     });
 
     // Its calls to wrappers it passes its parameters to (M5C.7f): each inlined with this

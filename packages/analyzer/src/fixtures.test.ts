@@ -71,6 +71,7 @@ const NAMES = [
   "let-callback-base",
   "param-default-base",
   "query-string-url",
+  "conditional-method",
   "conditional-spread-method",
   "ambiguous-routes",
   "wrapper-fetch",
@@ -952,6 +953,38 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       `symbol:${p}/src/modals.ts#messages -> route:${p}/GET /api/messages exact`,
       `symbol:${p}/src/servers.ts#listServers -> route:${p}/GET /api/servers exact`,
       `symbol:${p}/src/servers.ts#searchServers -> unresolved:${p}/src/servers.ts:10:10 unresolved DYNAMIC_URL`,
+    ]);
+  });
+
+  it("conditional-method: a method chosen between literals links one route per method (M12.1e2)", async () => {
+    const g = await run("conditional-method");
+    const p = "conditional-method";
+    const admin = `symbol:${p}/src/admin.ts`;
+    expect(links(g, "http")).toEqual([
+      `${admin}#archive -> route:${p}/PUT /api/posts/:id/archive exact`,
+      // `DELETE` has no route on that path: shown, not dropped.
+      `${admin}#archive -> unresolved:${p}/src/admin.ts:19:10 unresolved NO_MATCHING_ROUTE`,
+      // One branch is a parameter, so only the method would pick a route.
+      `${admin}#edit -> unresolved:${p}/src/admin.ts:30:10 unresolved AMBIGUOUS`,
+      `${admin}#moderate -> route:${p}/DELETE /api/blog-comments/:id exact`,
+      `${admin}#moderate -> route:${p}/PATCH /api/blog-comments/:id exact`,
+      `${admin}#report -> unresolved:${p}/src/admin.ts:42:10 unresolved DYNAMIC_URL`,
+      // Two URLs, so the method isn't split: each path's one route at an unknown method's
+      // `heuristic` (as before), and no unsent pair.
+      `${admin}#saveDraft -> route:${p}/POST /api/drafts heuristic`,
+      `${admin}#saveDraft -> route:${p}/PUT /api/drafts/:id heuristic`,
+      `${admin}#toggleSuspend -> route:${p}/DELETE /api/admin/users/:id/suspend exact`,
+      `${admin}#toggleSuspend -> route:${p}/POST /api/admin/users/:id/suspend exact`,
+      `${admin}#upvote -> route:${p}/DELETE /api/posts/:id/vote exact`,
+      `${admin}#upvote -> route:${p}/POST /api/posts/:id/vote exact`,
+    ]);
+    // The runtime URL is one request, so its node names no one method; `archive`'s names the
+    // method no route serves.
+    const labels = g.nodes.flatMap((n) => (n.kind === "unresolved" ? [n.label] : [])).sort();
+    expect(labels).toEqual([
+      "? /api/blog-comments/{}",
+      "? window.location.href",
+      "DELETE /api/posts/{}/archive",
     ]);
   });
 

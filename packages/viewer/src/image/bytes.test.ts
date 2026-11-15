@@ -106,6 +106,7 @@ const EXPECTED: Record<string, string[]> = {
   "checker-crash": ["9ad3cd1ca9d2a5d3", "d1fca9dd0afd2e51", "1032d01b33fc2f77"],
   "class-field-base": ["0f49bf3480063c30", "90c96b4ca1a5ecbb", "9b04efc32328d771"],
   "compose-and-env": ["b6618b99ea80f918", "23ed7bbed43183c3", "37f6b284edd90c05"],
+  "conditional-method": ["57ac83f7cd5296fc", "f374c9b891309f83", "e77e234ad9db54c5"],
   "conditional-spread-method": ["c008213a195d3094", "4cd4041530228760", "d0abec034df6c3b8"],
   "conditional-urls": ["7b80835ae2dfcaff", "b3eda9136ca3c9be", "f958152dcfcae400"],
   "config-wrapper": ["9b37fdeb4f08d807", "d1474590e6a2dab0", "4e7661c56985e3aa"],

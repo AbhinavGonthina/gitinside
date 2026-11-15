@@ -1,0 +1,4 @@
+{
+  "name": "conditional-method",
+  "dependencies": { "express": "4" }
+}
