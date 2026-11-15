@@ -569,8 +569,9 @@ const compareLocations = (a: SourceLocation, b: SourceLocation): number =>
 /**
  * The methods the requests to `urls` are made with (M12.1e2, ADR-0308): each of the site's
  * `methods` when it resolves to one URL, else just `method` (`null`: unknown). An unresolved
- * URL stays one request, and several URLs aren't paired with the methods: `url = id ?
- * "/x/:id" : "/x"` beside `method: id ? "PUT" : "POST"` never sends `POST /x/:id`.
+ * URL stays one request, and several URLs aren't crossed with the methods: `url = id ?
+ * "/x/:id" : "/x"` beside `method: id ? "PUT" : "POST"` never sends `POST /x/:id` (such a
+ * site is paired by `requestsFor` instead, when `id` can't change between the reads).
  */
 function methodsFor(
   site: HttpCallSite,
@@ -726,24 +727,55 @@ export function collectHttpFacts(
   };
 
   /**
+   * The (URL, method) pairs a site's requests are made with, given its `urls` and `method`
+   * (`null`: unknown). When the site's `methodPairing` binding also chooses its URL, and taking
+   * each truth leaves one URL, each truth's URL goes with that truth's method (M12.1e5,
+   * ADR-0311): `editing ? "/x/:id" : "/x"` beside `editing ? "PUT" : "POST"` is `PUT /x/:id`
+   * and `POST /x`, never the cross product. Otherwise every URL with {@link methodsFor}'s
+   * methods. `scope` is the bindings the URLs were read with, `null` when they weren't read
+   * from the site's own URL (nothing to pair).
+   */
+  const requestsFor = (
+    site: HttpCallSite,
+    method: HttpMethod | null,
+    urls: readonly NormalizedUrl[],
+    scope: ParameterBindings | undefined | null,
+  ): { url: NormalizedUrl; method: HttpMethod | null }[] => {
+    const pairing = site.methodPairing;
+    if (method === null && pairing && scope !== null && urls.length > 1) {
+      const { condition } = pairing;
+      const yes = normalizer.alternatives(site, scope, { condition, truth: true });
+      const no = normalizer.alternatives(site, scope, { condition, truth: false });
+      const [onlyYes] = yes;
+      const [onlyNo] = no;
+      // Every path takes one truth or the other, so two URLs here are `urls`' two.
+      if (onlyYes && onlyNo && yes.length === 1 && no.length === 1) {
+        return [
+          { url: onlyYes, method: pairing.whenTrue },
+          { url: onlyNo, method: pairing.whenFalse },
+        ];
+      }
+    }
+    const methods = methodsFor(site, method, urls);
+    return urls.flatMap((url) => methods.map((m) => ({ url, method: m })));
+  };
+
+  /**
    * A site's own requests, as when nothing inlines it: one per URL alternative (M5A.3h) and
-   * method a condition chooses (M12.1e2).
+   * method a condition chooses (M12.1e2), paired when one binding chooses both (M12.1e5).
    */
   const own = (site: HttpCallSite): HttpRequestFact[] => {
     const urls = normalizer.alternatives(site);
-    const methods = methodsFor(site, site.method, urls);
-    return urls.flatMap((url) =>
-      methods.map((method) => ({
-        call: { client: site.client, file: site.file, site: site.site },
-        file: site.file,
-        site: site.site,
-        owners: site.owners,
-        method,
-        url,
-        confidence: url.resolved ? weaker(site.confidence, url.confidence) : site.confidence,
-        ...ownText(site, url, method),
-      })),
-    );
+    return requestsFor(site, site.method, urls, undefined).map(({ url, method }) => ({
+      call: { client: site.client, file: site.file, site: site.site },
+      file: site.file,
+      site: site.site,
+      owners: site.owners,
+      method,
+      url,
+      confidence: url.resolved ? weaker(site.confidence, url.confidence) : site.confidence,
+      ...ownText(site, url, method),
+    }));
   };
 
   // ---- per service: find wrappers ----
@@ -1554,23 +1586,22 @@ export function collectHttpFacts(
         });
       const known = fromSpread ? fromSpread.method : boundMethod(site);
       const expression = redactedText(caller.call, urlArgs);
-      const methods = methodsFor(site, known, urls);
-      return urls.flatMap((url) =>
-        methods.map((method) => ({
-          call: { client: site.client, file: site.file, site: site.site },
-          ...via,
-          file: caller.file,
-          site: caller.site,
-          owners: caller.owners,
-          method,
-          url,
-          confidence: url.resolved ? weaker(confidence, url.confidence) : confidence,
-          label: url.resolved
-            ? clip(`${method ?? "?"} ${url.text}`)
-            : `${method ?? "?"} ${expression}`,
-          expression,
-        })),
-      );
+      // Only the site's own URL, read with this call's bindings, can be paired (M12.1e5).
+      const ownUrl = !inner && given !== undefined && !fromSpread && !fromConfig;
+      return requestsFor(site, known, urls, ownUrl ? bindings : null).map(({ url, method }) => ({
+        call: { client: site.client, file: site.file, site: site.site },
+        ...via,
+        file: caller.file,
+        site: caller.site,
+        owners: caller.owners,
+        method,
+        url,
+        confidence: url.resolved ? weaker(confidence, url.confidence) : confidence,
+        label: url.resolved
+          ? clip(`${method ?? "?"} ${url.text}`)
+          : `${method ?? "?"} ${expression}`,
+        expression,
+      }));
     });
 
     // Its calls to wrappers it passes its parameters to (M5C.7f): each inlined with this

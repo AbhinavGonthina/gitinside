@@ -30,8 +30,8 @@ export async function edit(id: string, verb: string, hide: boolean) {
   return fetch(`/api/blog-comments/${id}`, { method: hide ? verb : "PATCH" });
 }
 
-// The URL and the method come from one condition. Which URL goes with which method isn't
-// read, so the method isn't split: `POST /api/drafts/:id` and `PUT /api/drafts` aren't sent.
+// The URL and the method come from one unassigned parameter, so they pair branch by branch
+// (M12.1e5): `POST /api/drafts/:id` and `PUT /api/drafts` aren't sent, and aren't drawn.
 export async function saveDraft(id: string | undefined) {
   const url = id ? `/api/drafts/${id}` : "/api/drafts";
   return fetch(url, { method: id ? "PUT" : "POST" });

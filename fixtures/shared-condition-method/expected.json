@@ -1,0 +1,931 @@
+{
+  "analyzerVersion": "0.3.18",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:shared-condition-method/src/forms.ts#saveDraft",
+      "id": "calls:symbol:shared-condition-method/src/forms.ts#saveDraft->symbol:shared-condition-method/src/forms.ts#save",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 2,
+          "column": 43,
+          "file": "src/forms.ts",
+          "line": 48
+        }
+      ],
+      "to": "symbol:shared-condition-method/src/forms.ts#save"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:shared-condition-method/src/controls.ts#draftAssigned",
+      "id": "http:symbol:shared-condition-method/src/controls.ts#draftAssigned->unresolved:shared-condition-method/src/controls.ts:16:10",
+      "kind": "http",
+      "reason": "AMBIGUOUS",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/controls.ts",
+          "line": 16
+        }
+      ],
+      "to": "unresolved:shared-condition-method/src/controls.ts:16:10"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:shared-condition-method/src/controls.ts#draftCall",
+      "id": "http:symbol:shared-condition-method/src/controls.ts#draftCall->unresolved:shared-condition-method/src/controls.ts:40:10",
+      "kind": "http",
+      "reason": "AMBIGUOUS",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/controls.ts",
+          "line": 40
+        }
+      ],
+      "to": "unresolved:shared-condition-method/src/controls.ts:40:10"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:shared-condition-method/src/controls.ts#draftLet",
+      "id": "http:symbol:shared-condition-method/src/controls.ts#draftLet->unresolved:shared-condition-method/src/controls.ts:9:10",
+      "kind": "http",
+      "reason": "AMBIGUOUS",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/controls.ts",
+          "line": 9
+        }
+      ],
+      "to": "unresolved:shared-condition-method/src/controls.ts:9:10"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:shared-condition-method/src/controls.ts#draftNested",
+      "id": "http:symbol:shared-condition-method/src/controls.ts#draftNested->unresolved:shared-condition-method/src/controls.ts:34:10",
+      "kind": "http",
+      "reason": "AMBIGUOUS",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/controls.ts",
+          "line": 34
+        }
+      ],
+      "to": "unresolved:shared-condition-method/src/controls.ts:34:10"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:shared-condition-method/src/controls.ts#draftNestedMethod",
+      "id": "http:symbol:shared-condition-method/src/controls.ts#draftNestedMethod->unresolved:shared-condition-method/src/controls.ts:46:10",
+      "kind": "http",
+      "reason": "AMBIGUOUS",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/controls.ts",
+          "line": 46
+        }
+      ],
+      "to": "unresolved:shared-condition-method/src/controls.ts:46:10"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:shared-condition-method/src/controls.ts#draftOther",
+      "id": "http:symbol:shared-condition-method/src/controls.ts#draftOther->unresolved:shared-condition-method/src/controls.ts:28:10",
+      "kind": "http",
+      "reason": "AMBIGUOUS",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/controls.ts",
+          "line": 28
+        }
+      ],
+      "to": "unresolved:shared-condition-method/src/controls.ts:28:10"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:shared-condition-method/src/controls.ts#draftProperty",
+      "id": "http:symbol:shared-condition-method/src/controls.ts#draftProperty->unresolved:shared-condition-method/src/controls.ts:22:10",
+      "kind": "http",
+      "reason": "AMBIGUOUS",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/controls.ts",
+          "line": 22
+        }
+      ],
+      "to": "unresolved:shared-condition-method/src/controls.ts:22:10"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:shared-condition-method/src/forms.ts#agentForm",
+      "id": "http:symbol:shared-condition-method/src/forms.ts#agentForm->route:shared-condition-method/POST /api/agents",
+      "kind": "http",
+      "label": "POST /api/agents",
+      "sites": [
+        {
+          "column": 12,
+          "file": "src/forms.ts",
+          "line": 9,
+          "request": "POST /api/agents"
+        }
+      ],
+      "to": "route:shared-condition-method/POST /api/agents"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:shared-condition-method/src/forms.ts#agentForm",
+      "id": "http:symbol:shared-condition-method/src/forms.ts#agentForm->route:shared-condition-method/PUT /api/agents/:id",
+      "kind": "http",
+      "label": "PUT /api/agents/:id",
+      "sites": [
+        {
+          "column": 12,
+          "file": "src/forms.ts",
+          "line": 9,
+          "request": "PUT /api/agents/{}"
+        }
+      ],
+      "to": "route:shared-condition-method/PUT /api/agents/:id"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:shared-condition-method/src/forms.ts#saveDraft",
+      "id": "http:symbol:shared-condition-method/src/forms.ts#saveDraft->route:shared-condition-method/POST /api/drafts",
+      "kind": "http",
+      "label": "POST /api/drafts",
+      "sites": [
+        {
+          "column": 43,
+          "file": "src/forms.ts",
+          "line": 48,
+          "request": "POST /api/drafts"
+        }
+      ],
+      "to": "route:shared-condition-method/POST /api/drafts"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:shared-condition-method/src/forms.ts#saveDraft",
+      "id": "http:symbol:shared-condition-method/src/forms.ts#saveDraft->route:shared-condition-method/PUT /api/drafts/:id",
+      "kind": "http",
+      "label": "PUT /api/drafts/:id",
+      "sites": [
+        {
+          "column": 43,
+          "file": "src/forms.ts",
+          "line": 48,
+          "request": "PUT /api/drafts/{}"
+        }
+      ],
+      "to": "route:shared-condition-method/PUT /api/drafts/:id"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:shared-condition-method/src/forms.ts#saveKey",
+      "id": "http:symbol:shared-condition-method/src/forms.ts#saveKey->route:shared-condition-method/POST /api/upstreams/:upstreamId/keys",
+      "kind": "http",
+      "label": "POST /api/upstreams/:upstreamId/keys",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/forms.ts",
+          "line": 24,
+          "request": "POST /api/upstreams/{}/keys"
+        }
+      ],
+      "to": "route:shared-condition-method/POST /api/upstreams/:upstreamId/keys"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:shared-condition-method/src/forms.ts#saveKey",
+      "id": "http:symbol:shared-condition-method/src/forms.ts#saveKey->route:shared-condition-method/PUT /api/upstreams/:upstreamId/keys/:id",
+      "kind": "http",
+      "label": "PUT /api/upstreams/:upstreamId/keys/:id",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/forms.ts",
+          "line": 24,
+          "request": "PUT /api/upstreams/{}/keys/{}"
+        }
+      ],
+      "to": "route:shared-condition-method/PUT /api/upstreams/:upstreamId/keys/:id"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:shared-condition-method/src/forms.ts#saveNote",
+      "id": "http:symbol:shared-condition-method/src/forms.ts#saveNote->route:shared-condition-method/POST /api/notes",
+      "kind": "http",
+      "label": "POST /api/notes",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/forms.ts",
+          "line": 31,
+          "request": "POST /api/notes"
+        }
+      ],
+      "to": "route:shared-condition-method/POST /api/notes"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:shared-condition-method/src/forms.ts#saveNote",
+      "id": "http:symbol:shared-condition-method/src/forms.ts#saveNote->route:shared-condition-method/PUT /api/notes/:id",
+      "kind": "http",
+      "label": "PUT /api/notes/:id",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/forms.ts",
+          "line": 31,
+          "request": "PUT /api/notes/{}"
+        }
+      ],
+      "to": "route:shared-condition-method/PUT /api/notes/:id"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:shared-condition-method/src/forms.ts#saveProject",
+      "id": "http:symbol:shared-condition-method/src/forms.ts#saveProject->route:shared-condition-method/POST /api/projects",
+      "kind": "http",
+      "label": "POST /api/projects",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/forms.ts",
+          "line": 38,
+          "request": "POST /api/projects"
+        }
+      ],
+      "to": "route:shared-condition-method/POST /api/projects"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:shared-condition-method/src/forms.ts#saveProject",
+      "id": "http:symbol:shared-condition-method/src/forms.ts#saveProject->route:shared-condition-method/PUT /api/projects/:id",
+      "kind": "http",
+      "label": "PUT /api/projects/:id",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/forms.ts",
+          "line": 38,
+          "request": "PUT /api/projects/{}"
+        }
+      ],
+      "to": "route:shared-condition-method/PUT /api/projects/:id"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "d528f505c5d052f7c42d197e3cbaa00790b688b981b16bc081fc5fdfaedea897",
+      "id": "file:shared-condition-method/src/controls.ts",
+      "kind": "file",
+      "label": "controls.ts",
+      "parentId": "module:shared-condition-method/src",
+      "path": "src/controls.ts"
+    },
+    {
+      "hash": "ca0dbf1553753aad594e9672f80bdae2f234dd23372fb07a4bf54d7704d58423",
+      "id": "file:shared-condition-method/src/forms.ts",
+      "kind": "file",
+      "label": "forms.ts",
+      "parentId": "module:shared-condition-method/src",
+      "path": "src/forms.ts"
+    },
+    {
+      "hash": "7d74df7a9ab7d3ad76670d20247142ae83d028356cba1492f7cdf5387c09b23c",
+      "id": "file:shared-condition-method/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:shared-condition-method/src",
+      "path": "src/server.ts"
+    },
+    {
+      "id": "module:shared-condition-method/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:shared-condition-method/",
+      "path": "src"
+    },
+    {
+      "id": "route:shared-condition-method/DELETE /api/agents/:id",
+      "kind": "route",
+      "label": "DELETE /api/agents/:id",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:shared-condition-method/src/server.ts",
+      "path": "/api/agents/:id",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 8
+      }
+    },
+    {
+      "id": "route:shared-condition-method/DELETE /api/drafts/:id",
+      "kind": "route",
+      "label": "DELETE /api/drafts/:id",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:shared-condition-method/src/server.ts",
+      "path": "/api/drafts/:id",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 24
+      }
+    },
+    {
+      "id": "route:shared-condition-method/DELETE /api/notes/:id",
+      "kind": "route",
+      "label": "DELETE /api/notes/:id",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:shared-condition-method/src/server.ts",
+      "path": "/api/notes/:id",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 16
+      }
+    },
+    {
+      "id": "route:shared-condition-method/DELETE /api/projects/:id",
+      "kind": "route",
+      "label": "DELETE /api/projects/:id",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:shared-condition-method/src/server.ts",
+      "path": "/api/projects/:id",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 20
+      }
+    },
+    {
+      "id": "route:shared-condition-method/DELETE /api/upstreams/:upstreamId/keys/:id",
+      "kind": "route",
+      "label": "DELETE /api/upstreams/:upstreamId/keys/:id",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:shared-condition-method/src/server.ts",
+      "path": "/api/upstreams/:upstreamId/keys/:id",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 12
+      }
+    },
+    {
+      "id": "route:shared-condition-method/GET /api/agents",
+      "kind": "route",
+      "label": "GET /api/agents",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:shared-condition-method/src/server.ts",
+      "path": "/api/agents",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:shared-condition-method/GET /api/drafts",
+      "kind": "route",
+      "label": "GET /api/drafts",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:shared-condition-method/src/server.ts",
+      "path": "/api/drafts",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 22
+      }
+    },
+    {
+      "id": "route:shared-condition-method/GET /api/notes",
+      "kind": "route",
+      "label": "GET /api/notes",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:shared-condition-method/src/server.ts",
+      "path": "/api/notes",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 14
+      }
+    },
+    {
+      "id": "route:shared-condition-method/GET /api/projects",
+      "kind": "route",
+      "label": "GET /api/projects",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:shared-condition-method/src/server.ts",
+      "path": "/api/projects",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 18
+      }
+    },
+    {
+      "id": "route:shared-condition-method/GET /api/upstreams/:upstreamId/keys",
+      "kind": "route",
+      "label": "GET /api/upstreams/:upstreamId/keys",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:shared-condition-method/src/server.ts",
+      "path": "/api/upstreams/:upstreamId/keys",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 10
+      }
+    },
+    {
+      "id": "route:shared-condition-method/POST /api/agents",
+      "kind": "route",
+      "label": "POST /api/agents",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:shared-condition-method/src/server.ts",
+      "path": "/api/agents",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:shared-condition-method/POST /api/drafts",
+      "kind": "route",
+      "label": "POST /api/drafts",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:shared-condition-method/src/server.ts",
+      "path": "/api/drafts",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 21
+      }
+    },
+    {
+      "id": "route:shared-condition-method/POST /api/notes",
+      "kind": "route",
+      "label": "POST /api/notes",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:shared-condition-method/src/server.ts",
+      "path": "/api/notes",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 13
+      }
+    },
+    {
+      "id": "route:shared-condition-method/POST /api/projects",
+      "kind": "route",
+      "label": "POST /api/projects",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:shared-condition-method/src/server.ts",
+      "path": "/api/projects",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 17
+      }
+    },
+    {
+      "id": "route:shared-condition-method/POST /api/upstreams/:upstreamId/keys",
+      "kind": "route",
+      "label": "POST /api/upstreams/:upstreamId/keys",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:shared-condition-method/src/server.ts",
+      "path": "/api/upstreams/:upstreamId/keys",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 9
+      }
+    },
+    {
+      "id": "route:shared-condition-method/PUT /api/agents/:id",
+      "kind": "route",
+      "label": "PUT /api/agents/:id",
+      "layer": "backend",
+      "method": "PUT",
+      "parentId": "file:shared-condition-method/src/server.ts",
+      "path": "/api/agents/:id",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 7
+      }
+    },
+    {
+      "id": "route:shared-condition-method/PUT /api/drafts/:id",
+      "kind": "route",
+      "label": "PUT /api/drafts/:id",
+      "layer": "backend",
+      "method": "PUT",
+      "parentId": "file:shared-condition-method/src/server.ts",
+      "path": "/api/drafts/:id",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 23
+      }
+    },
+    {
+      "id": "route:shared-condition-method/PUT /api/notes/:id",
+      "kind": "route",
+      "label": "PUT /api/notes/:id",
+      "layer": "backend",
+      "method": "PUT",
+      "parentId": "file:shared-condition-method/src/server.ts",
+      "path": "/api/notes/:id",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 15
+      }
+    },
+    {
+      "id": "route:shared-condition-method/PUT /api/projects/:id",
+      "kind": "route",
+      "label": "PUT /api/projects/:id",
+      "layer": "backend",
+      "method": "PUT",
+      "parentId": "file:shared-condition-method/src/server.ts",
+      "path": "/api/projects/:id",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 19
+      }
+    },
+    {
+      "id": "route:shared-condition-method/PUT /api/upstreams/:upstreamId/keys/:id",
+      "kind": "route",
+      "label": "PUT /api/upstreams/:upstreamId/keys/:id",
+      "layer": "backend",
+      "method": "PUT",
+      "parentId": "file:shared-condition-method/src/server.ts",
+      "path": "/api/upstreams/:upstreamId/keys/:id",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 11
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:shared-condition-method/",
+      "kind": "service",
+      "label": "shared-condition-method",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:shared-condition-method/src/controls.ts#draftAssigned",
+      "kind": "symbol",
+      "label": "draftAssigned",
+      "parentId": "file:shared-condition-method/src/controls.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 17,
+        "file": "src/controls.ts",
+        "line": 13
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:shared-condition-method/src/controls.ts#draftCall",
+      "kind": "symbol",
+      "label": "draftCall",
+      "parentId": "file:shared-condition-method/src/controls.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 41,
+        "file": "src/controls.ts",
+        "line": 38
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:shared-condition-method/src/controls.ts#draftLet",
+      "kind": "symbol",
+      "label": "draftLet",
+      "parentId": "file:shared-condition-method/src/controls.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 10,
+        "file": "src/controls.ts",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:shared-condition-method/src/controls.ts#draftNested",
+      "kind": "symbol",
+      "label": "draftNested",
+      "parentId": "file:shared-condition-method/src/controls.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 35,
+        "file": "src/controls.ts",
+        "line": 32
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:shared-condition-method/src/controls.ts#draftNestedMethod",
+      "kind": "symbol",
+      "label": "draftNestedMethod",
+      "parentId": "file:shared-condition-method/src/controls.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 47,
+        "file": "src/controls.ts",
+        "line": 44
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:shared-condition-method/src/controls.ts#draftOther",
+      "kind": "symbol",
+      "label": "draftOther",
+      "parentId": "file:shared-condition-method/src/controls.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 29,
+        "file": "src/controls.ts",
+        "line": 26
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:shared-condition-method/src/controls.ts#draftProperty",
+      "kind": "symbol",
+      "label": "draftProperty",
+      "parentId": "file:shared-condition-method/src/controls.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 23,
+        "file": "src/controls.ts",
+        "line": 20
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:shared-condition-method/src/forms.ts#agentForm",
+      "kind": "symbol",
+      "label": "agentForm",
+      "parentId": "file:shared-condition-method/src/forms.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 12,
+        "file": "src/forms.ts",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:shared-condition-method/src/forms.ts#save",
+      "kind": "symbol",
+      "label": "save",
+      "parentId": "file:shared-condition-method/src/forms.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 46,
+        "file": "src/forms.ts",
+        "line": 43
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:shared-condition-method/src/forms.ts#saveDraft",
+      "kind": "symbol",
+      "label": "saveDraft",
+      "parentId": "file:shared-condition-method/src/forms.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 14,
+        "endLine": 48,
+        "file": "src/forms.ts",
+        "line": 48
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:shared-condition-method/src/forms.ts#saveKey",
+      "kind": "symbol",
+      "label": "saveKey",
+      "parentId": "file:shared-condition-method/src/forms.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 25,
+        "file": "src/forms.ts",
+        "line": 14
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:shared-condition-method/src/forms.ts#saveNote",
+      "kind": "symbol",
+      "label": "saveNote",
+      "parentId": "file:shared-condition-method/src/forms.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 32,
+        "file": "src/forms.ts",
+        "line": 28
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:shared-condition-method/src/forms.ts#saveProject",
+      "kind": "symbol",
+      "label": "saveProject",
+      "parentId": "file:shared-condition-method/src/forms.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 39,
+        "file": "src/forms.ts",
+        "line": 35
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:shared-condition-method/src/server.ts#app",
+      "kind": "symbol",
+      "label": "app",
+      "parentId": "file:shared-condition-method/src/server.ts",
+      "source": {
+        "column": 7,
+        "endLine": 4,
+        "file": "src/server.ts",
+        "line": 4
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "shared-condition-method",
+      "parentId": null
+    },
+    {
+      "detail": "the method isn't read, and routes for DELETE, PUT match /api/drafts/{}",
+      "expression": "fetch(url, { method: id ? \"…\" : \"…\" })",
+      "id": "unresolved:shared-condition-method/src/controls.ts:16:10",
+      "kind": "unresolved",
+      "label": "? /api/drafts/{}",
+      "parentId": "service:shared-condition-method/",
+      "reason": "AMBIGUOUS",
+      "source": {
+        "column": 10,
+        "file": "src/controls.ts",
+        "line": 16
+      }
+    },
+    {
+      "detail": "the method isn't read, and routes for DELETE, PUT match /api/drafts/{}",
+      "expression": "fetch(url, { method: draft.id ? \"…\" : \"…\" })",
+      "id": "unresolved:shared-condition-method/src/controls.ts:22:10",
+      "kind": "unresolved",
+      "label": "? /api/drafts/{}",
+      "parentId": "service:shared-condition-method/",
+      "reason": "AMBIGUOUS",
+      "source": {
+        "column": 10,
+        "file": "src/controls.ts",
+        "line": 22
+      }
+    },
+    {
+      "detail": "the method isn't read, and routes for DELETE, PUT match /api/drafts/{}",
+      "expression": "fetch(url, { method: exists ? \"…\" : \"…\" })",
+      "id": "unresolved:shared-condition-method/src/controls.ts:28:10",
+      "kind": "unresolved",
+      "label": "? /api/drafts/{}",
+      "parentId": "service:shared-condition-method/",
+      "reason": "AMBIGUOUS",
+      "source": {
+        "column": 10,
+        "file": "src/controls.ts",
+        "line": 28
+      }
+    },
+    {
+      "detail": "the method isn't read, and routes for DELETE, PUT match /api/drafts/{}",
+      "expression": "fetch(url, { method: id ? \"…\" : \"…\" })",
+      "id": "unresolved:shared-condition-method/src/controls.ts:34:10",
+      "kind": "unresolved",
+      "label": "? /api/drafts/{}",
+      "parentId": "service:shared-condition-method/",
+      "reason": "AMBIGUOUS",
+      "source": {
+        "column": 10,
+        "file": "src/controls.ts",
+        "line": 34
+      }
+    },
+    {
+      "detail": "the method isn't read, and routes for DELETE, PUT match /api/drafts/{}",
+      "expression": "fetch(url, { method: isSaved() ? \"…\" : \"…\" })",
+      "id": "unresolved:shared-condition-method/src/controls.ts:40:10",
+      "kind": "unresolved",
+      "label": "? /api/drafts/{}",
+      "parentId": "service:shared-condition-method/",
+      "reason": "AMBIGUOUS",
+      "source": {
+        "column": 10,
+        "file": "src/controls.ts",
+        "line": 40
+      }
+    },
+    {
+      "detail": "the method isn't read, and routes for DELETE, PUT match /api/drafts/{}",
+      "expression": "fetch(url, { method: id ? (force ? \"…\" : \"…\") : \"…\" })",
+      "id": "unresolved:shared-condition-method/src/controls.ts:46:10",
+      "kind": "unresolved",
+      "label": "? /api/drafts/{}",
+      "parentId": "service:shared-condition-method/",
+      "reason": "AMBIGUOUS",
+      "source": {
+        "column": 10,
+        "file": "src/controls.ts",
+        "line": 46
+      }
+    },
+    {
+      "detail": "the method isn't read, and routes for DELETE, PUT match /api/drafts/{}",
+      "expression": "fetch(url, { method: editing ? \"…\" : \"…\" })",
+      "id": "unresolved:shared-condition-method/src/controls.ts:9:10",
+      "kind": "unresolved",
+      "label": "? /api/drafts/{}",
+      "parentId": "service:shared-condition-method/",
+      "reason": "AMBIGUOUS",
+      "source": {
+        "column": 10,
+        "file": "src/controls.ts",
+        "line": 9
+      }
+    }
+  ],
+  "repo": {
+    "name": "shared-condition-method",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}
