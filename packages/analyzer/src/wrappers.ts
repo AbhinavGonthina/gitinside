@@ -1443,7 +1443,11 @@ export function collectHttpFacts(
       return {
         // The caller's argument is read in the caller's scope (its own bindings, M5C.7f).
         urls: normalizer.alternatives(
-          { url: url ? { sp: caller.sp, expression: url } : null, baseURL: site.baseURL },
+          {
+            client: site.client,
+            url: url ? { sp: caller.sp, expression: url } : null,
+            baseURL: site.baseURL,
+          },
           outer?.bindings ?? bindings,
         ),
         shown: url ? [url] : [],

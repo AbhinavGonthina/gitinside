@@ -1,5 +1,5 @@
 {
-  "analyzerVersion": "0.3.12",
+  "analyzerVersion": "0.3.13",
   "edges": [
     {
       "confidence": "exact",
@@ -284,6 +284,53 @@
       "to": "unresolved:task-board/store/labels.ts:6:19"
     },
     {
+      "confidence": "unresolved",
+      "from": "symbol:task-board/store/origin.ts#hostnameApi",
+      "id": "http:symbol:task-board/store/origin.ts#hostnameApi->unresolved:task-board/store/origin.ts:27:20",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 20,
+          "file": "store/origin.ts",
+          "line": 27
+        }
+      ],
+      "to": "unresolved:task-board/store/origin.ts:27:20"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:task-board/store/origin.ts#originApi",
+      "id": "http:symbol:task-board/store/origin.ts#originApi->route:task-board/ALL /api/stats",
+      "kind": "http",
+      "label": "ALL /api/stats",
+      "sites": [
+        {
+          "column": 18,
+          "file": "store/origin.ts",
+          "line": 9,
+          "request": "GET /api/stats"
+        }
+      ],
+      "to": "route:task-board/ALL /api/stats"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:task-board/store/origin.ts#templateApi",
+      "id": "http:symbol:task-board/store/origin.ts#templateApi->route:task-board/GET /api/tasks",
+      "kind": "http",
+      "label": "GET /api/tasks",
+      "sites": [
+        {
+          "column": 20,
+          "file": "store/origin.ts",
+          "line": 17,
+          "request": "GET /api/tasks"
+        }
+      ],
+      "to": "route:task-board/GET /api/tasks"
+    },
+    {
       "confidence": "exact",
       "from": "symbol:task-board/store/session.ts#baseQueryWithReauth",
       "id": "http:symbol:task-board/store/session.ts#baseQueryWithReauth->route:task-board/ALL /api/session/refresh",
@@ -474,6 +521,14 @@
       "label": "labels.ts",
       "parentId": "module:task-board/store",
       "path": "store/labels.ts"
+    },
+    {
+      "hash": "0f97e0ac93b955b20f54aa9e0f14a2c8699303cc2725d879f762535c3bc98081",
+      "id": "file:task-board/store/origin.ts",
+      "kind": "file",
+      "label": "origin.ts",
+      "parentId": "module:task-board/store",
+      "path": "store/origin.ts"
     },
     {
       "hash": "95c443e8dffbc912efda49e941dae11856e3c326deb0b2f7b4b4e10553c54117",
@@ -863,6 +918,48 @@
       "symbolKind": "variable"
     },
     {
+      "exported": true,
+      "id": "symbol:task-board/store/origin.ts#hostnameApi",
+      "kind": "symbol",
+      "label": "hostnameApi",
+      "parentId": "file:task-board/store/origin.ts",
+      "source": {
+        "column": 14,
+        "endLine": 29,
+        "file": "store/origin.ts",
+        "line": 21
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:task-board/store/origin.ts#originApi",
+      "kind": "symbol",
+      "label": "originApi",
+      "parentId": "file:task-board/store/origin.ts",
+      "source": {
+        "column": 14,
+        "endLine": 11,
+        "file": "store/origin.ts",
+        "line": 3
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:task-board/store/origin.ts#templateApi",
+      "kind": "symbol",
+      "label": "templateApi",
+      "parentId": "file:task-board/store/origin.ts",
+      "source": {
+        "column": 14,
+        "endLine": 19,
+        "file": "store/origin.ts",
+        "line": 13
+      },
+      "symbolKind": "variable"
+    },
+    {
       "exported": false,
       "id": "symbol:task-board/store/session.ts#baseQueryWithReauth",
       "kind": "symbol",
@@ -951,6 +1048,20 @@
         "column": 19,
         "file": "store/labels.ts",
         "line": 6
+      }
+    },
+    {
+      "detail": "the fetchBaseQuery baseUrl starts with a value only known at runtime",
+      "expression": "build.query<unknown, void>({ query: () => \"stats\" })",
+      "id": "unresolved:task-board/store/origin.ts:27:20",
+      "kind": "unresolved",
+      "label": "GET \"stats\"",
+      "parentId": "service:task-board/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 20,
+        "file": "store/origin.ts",
+        "line": 27
       }
     }
   ],

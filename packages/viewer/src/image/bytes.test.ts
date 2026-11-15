@@ -153,7 +153,7 @@ const EXPECTED: Record<string, string[]> = {
   "queues-bullmq": ["171ff8834dc5fe07", "1da2d0e97f6b2736", "a82cb33a1ba7a479"],
   "rest-method-spread": ["f008eec1e40d9195", "cd1ea43f651d9d58", "b103f50848c41649"],
   "url-builders": ["bfe36221b674891f", "c8da918990bf46d9", "16b4a396e095f42a"],
-  "rtk-query": ["1dcc5ffd993bcc95", "4a8dfd57c432dfd8", "8fd9f9f594059b9b"],
+  "rtk-query": ["616b4c69c6eed7d4", "be82de0bb830a121", "51a3a9f13d58db6b"],
   "shop-demo": ["a293bcabb8929d22", "d5cbf1bed672075b", "24c3b4e9fa0d57ac"],
   "sibling-apps": ["661d856493c7cb37", "fd9db09229cd509d", "3397c2b738f0e5c3"],
   "static-member-base": ["528a2f24dabb646c", "c0c0087f23e66c95", "41c3ebbc26f6cb05"],

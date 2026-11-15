@@ -771,18 +771,108 @@ describe("createUrlNormalizer", () => {
     await put("package.json", JSON.stringify({ name: "web" }));
     await put("src/api.ts", [
       "const process = { env: { API: '/fake' } };",
-      "const location = { origin: 'https://fake.com' };",
+      "const location = { origin: 'https://fake.com', protocol: 'http:', host: 'spelled.com' };",
       "class URL { constructor(public a: string, public b?: string) {} }",
       "export async function load() {",
       "  await fetch(`${process.env.API}/x`);",
       "  await fetch(`${location.origin}/y`);",
       "  await fetch(new URL('/z', 'https://h.com') as unknown as string);",
+      "  await fetch(location.protocol + '//' + location.host + '/w');",
+      "  await fetch(`${location.protocol}//${location.host}/v`);",
       "}",
     ]);
     expect(await normalized()).toEqual([
       "src/api.ts:5 /fake/x",
       "src/api.ts:6 https://fake.com/y",
       "src/api.ts:7 DYNAMIC_URL: the URL starts with a value only known at runtime",
+      "src/api.ts:8 http://spelled.com/w",
+      "src/api.ts:9 http://spelled.com/v",
+    ]);
+  });
+
+  it("reads the page's origin spelled as protocol, //, and host (M12.1c)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/api.ts", [
+      "export async function load(id: string) {",
+      '  await fetch(window.location.protocol + "//" + window.location.host + "/api/a");',
+      "  await fetch(location.protocol + '//' + location.host + `/api/b/${id}`);",
+      "  await fetch(`${window.location.protocol}//${window.location.host}/api/c`);",
+      "  await fetch(`${self.location.protocol}//${document.location.host}/api/d/${id}`);",
+      '  await fetch((globalThis.location.protocol + "//" + location.host) + "/api/e");',
+      '  await fetch(location.protocol + "//" + location.hostname + "/api/f");',
+      '  await fetch(location.protocol + "/" + location.host + "/api/g");',
+      '  await fetch(location.host + "//" + location.protocol + "/api/h");',
+      "  await fetch(`${location.protocol}//${location.hostname}/api/i`);",
+      "  await fetch(`/x${location.protocol}//${location.host}/api/j`);",
+      '  await fetch(location.protocol + "//" + location.host + location.pathname);',
+      "}",
+    ]);
+    expect(await normalized()).toEqual([
+      "src/api.ts:2 /api/a",
+      "src/api.ts:3 /api/b/{}",
+      "src/api.ts:4 /api/c",
+      "src/api.ts:5 /api/d/{}",
+      "src/api.ts:6 /api/e",
+      "src/api.ts:7 DYNAMIC_URL: the URL starts with a value only known at runtime",
+      "src/api.ts:8 DYNAMIC_URL: the URL starts with a value only known at runtime",
+      "src/api.ts:9 DYNAMIC_URL: the URL starts with a value only known at runtime",
+      "src/api.ts:10 DYNAMIC_URL: the URL starts with a value only known at runtime",
+      "src/api.ts:11 /x{}/{}/api/j",
+      "src/api.ts:12 DYNAMIC_URL: every path segment is only known at runtime",
+    ]);
+  });
+
+  it("names the client's base option in a base's details, unreadable too (M12.1c)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/api.ts", [
+      'import axios from "axios";',
+      'import { ofetch } from "ofetch";',
+      'import ky from "ky";',
+      'import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";',
+      "declare function makeBase(): string;",
+      "const ax = axios.create({ baseURL: makeBase() });",
+      "const of = ofetch.create({ baseURL: makeBase() });",
+      "const k1 = ky.create({ prefixUrl: makeBase() });",
+      "const k2 = ky.create({ prefix: makeBase() });",
+      "const k3 = ky.create({ baseUrl: makeBase() });",
+      "export const api = createApi({",
+      "  baseQuery: fetchBaseQuery({ baseUrl: makeBase() }),",
+      '  endpoints: (b) => ({ one: b.query<unknown, void>({ query: () => "one" }) }),',
+      "});",
+      "export async function load() {",
+      '  await ax.get("/a");',
+      '  await of("/b");',
+      '  await k1.get("c");',
+      '  await k2.get("d");',
+      '  await k3.get("e");',
+      "}",
+    ]);
+    await put("src/unread.ts", [
+      'import { ofetch } from "ofetch";',
+      'import ky from "ky";',
+      'import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";',
+      "declare const options: { baseUrl: string };",
+      "const of = ofetch.create(options);",
+      "const k = ky.create(options);",
+      "export const api = createApi({",
+      "  baseQuery: fetchBaseQuery(options),",
+      '  endpoints: (b) => ({ two: b.query<unknown, void>({ query: () => "two" }) }),',
+      "});",
+      "export async function load() {",
+      '  await of("/b");',
+      '  await k.get("c");',
+      "}",
+    ]);
+    expect(await normalized()).toEqual([
+      "src/api.ts:13 DYNAMIC_URL: the fetchBaseQuery baseUrl starts with a value only known at runtime",
+      "src/api.ts:16 DYNAMIC_URL: the axios baseURL starts with a value only known at runtime",
+      "src/api.ts:17 DYNAMIC_URL: the ofetch baseURL starts with a value only known at runtime",
+      "src/api.ts:18 DYNAMIC_URL: the ky prefixUrl starts with a value only known at runtime",
+      "src/api.ts:19 DYNAMIC_URL: the ky prefix starts with a value only known at runtime",
+      "src/api.ts:20 DYNAMIC_URL: the ky baseUrl starts with a value only known at runtime",
+      "src/unread.ts:9 DYNAMIC_URL: the fetchBaseQuery baseUrl can't be read statically",
+      "src/unread.ts:12 DYNAMIC_URL: the ofetch baseURL can't be read statically",
+      "src/unread.ts:13 DYNAMIC_URL: the ky prefixUrl, prefix, or baseUrl can't be read statically",
     ]);
   });
 
