@@ -1,11 +1,14 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import {
+  consumeRateLimit,
   DeletedInstallationError,
   deleteInstallationData,
+  findComputePause,
   findStoredAnalysis,
   linkInstallationRepos,
   queuePullRequestDiff,
   recordPullRequestHead,
+  refundRateLimit,
   upsertInstallation,
   type AnyDatabase,
   type InstallationDeletion,
@@ -26,7 +29,9 @@ import {
   type StoreRepo,
 } from "./enqueue";
 import type { GitHubOptions } from "./github";
+import type { AppCredentials } from "./githubApp";
 import { field, LOGIN } from "./githubOAuth";
+import { heldCheckRunText, postHeldCheckRun, type DiffHold } from "./heldCheckRun";
 import { queueHead } from "./repoView";
 import { WorkerUnavailableError, type DiffJob } from "./worker";
 
@@ -57,7 +62,14 @@ import { WorkerUnavailableError, type DiffJob } from "./worker";
  *   linked to it; `recordPullRequestHead` records the base and head, ordered by GitHub's
  *   `updated_at`; and for a current pair without a diff, `queuePullRequestDiff` names the job
  *   and one task is created, named from that job's queue time, so a redelivery recreates the
- *   same name and Cloud Tasks refuses it. No queue configured, or the task can't be created:
+ *   same name and Cloud Tasks refuses it.
+ * - **Held back (I2.3, ADR-0296):** a pair whose job isn't named yet is first checked against
+ *   the compute pause (`findComputePause`) and then charged one of the repo's
+ *   {@link DIFFS_PER_HOUR} slots (`diffs:<GitHub repo ID>`; refunded when no new task was
+ *   made). Paused or over the limit: nothing is queued or charged, the head commit gets a
+ *   neutral Check Run saying until when (`heldCheckRun.ts`), and the next push or a redelivery
+ *   after then queues it normally. A redelivery of a named job isn't checked or charged again:
+ *   its slot was charged when it was named, and stays charged if its task couldn't be created. No queue configured, or the task can't be created:
  *   `503`, so GitHub shows the delivery failed and "Redeliver" can queue it (GitHub doesn't
  *   retry on its own). An `edited` that retargeted the base (`changes.base`, M8.10c) is a new
  *   pair and is handled the same way; other edits and other actions answer `202` ignored.
@@ -116,7 +128,20 @@ export interface WebhookDeps {
   github?: GitHubOptions;
   /** GitHub's code counts by commit, shared with the pages; without it, asked every time. */
   codeSizes?: CodeSizeCache;
+  /**
+   * The App's own credentials, to post a held pull request's Check Run (`heldCheckRun.ts`);
+   * without them the hold is only logged.
+   */
+  app?: AppCredentials;
+  /** Default {@link DIFFS_PER_HOUR}. */
+  diffsPerHour?: number;
 }
+
+/**
+ * New diff jobs a repo's pull requests may queue an hour (I2.3, ADR-0296), each up to two
+ * analyses: `diffs:<GitHub repo ID>`, apart from check-on-view's `RECHECKS_PER_HOUR`.
+ */
+export const DIFFS_PER_HOUR = 6;
 
 /** The answer's `status`: what was done with the delivery. */
 export type WebhookOutcome = "ok" | "ignored";
@@ -338,7 +363,7 @@ class QueueUnavailableError extends Error {
  * What a handled `pull_request` delivery did about the diff: `queued` (a task created),
  * `already-queued` (its name was used: a redelivery), `diffed` (the pair has its diff),
  * `stale` (an event older than the recorded one), or `moved` (the record changed between the
- * two writes: a newer event or the diff landed).
+ * two writes: a newer event or the diff landed). A held diff's detail is its `DiffHold` reason.
  */
 type DiffQueueing = "queued" | "already-queued" | "diffed" | "stale" | "moved";
 
@@ -375,18 +400,35 @@ async function pullRequest(
     installationId: event.repo.installationId,
   };
   const jobId = jobIdFor(job, deps.analyzerVersion);
+  // A job already named for this pair was charged when it was named: a redelivery follows it.
+  let charged: Date | undefined;
+  const key = `diffs:${event.repo.providerRepoId}`;
+  if (record.diffJobId !== jobId) {
+    const pause = await findComputePause(db);
+    if (pause !== undefined)
+      return hold(event, action, { reason: "paused", until: pause.until }, deps);
+    const limit = await consumeRateLimit(db, key, deps.diffsPerHour ?? DIFFS_PER_HOUR);
+    if (!limit.allowed)
+      return hold(event, action, { reason: "limited", until: limit.resetAt }, deps);
+    charged = limit.windowStart;
+  }
   const queuedAt = await queuePullRequestDiff(db, { ...pair, jobId });
-  if (queuedAt === undefined) return diffDone(action, "moved");
+  if (queuedAt === undefined) {
+    if (charged) await refundRateLimit(db, key, charged);
+    return diffDone(action, "moved");
+  }
   let created: boolean;
   try {
     ({ created } = await queue.createTask(job, taskIdFor(jobId, queuedAt)));
   } catch (error) {
     await countTaskOperation(db);
-    // The record keeps naming the job: a redelivery makes the same task name and creates it.
+    // The record keeps naming the job: a redelivery makes the same task name and creates it,
+    // uncharged, so this delivery's slot stays charged for it.
     if (error instanceof WorkerUnavailableError) throw new QueueUnavailableError(error.reason);
     throw error;
   }
   await countTaskOperation(db);
+  if (!created && charged) await refundRateLimit(db, key, charged);
   return diffDone(action, created ? "queued" : "already-queued");
 }
 
@@ -395,6 +437,33 @@ const diffDone = (action: string, diff: DiffQueueing): Dispatched => ({
   action,
   detail: diff,
 });
+
+/**
+ * A pull request's diff held back (I2.3): nothing queued or charged, and the head commit gets
+ * a neutral Check Run saying why and until when (`heldCheckRun.ts`). A post that fails is
+ * logged and the delivery still answered `200`: a redelivery would only be held again.
+ */
+async function hold(
+  event: PullRequestEvent,
+  action: string,
+  held: DiffHold,
+  deps: WebhookDeps,
+): Promise<Dispatched> {
+  const done: Dispatched = { outcome: "ok", action, detail: held.reason };
+  if (deps.app === undefined) return { ...done, checkRun: "unconfigured" };
+  const { installationId, owner, name } = event.repo;
+  try {
+    await postHeldCheckRun(
+      deps.app,
+      { installationId, owner, name, headSha: event.headSha },
+      heldCheckRunText(held, deps.diffsPerHour ?? DIFFS_PER_HOUR),
+      Date.now(),
+    );
+  } catch {
+    return { ...done, checkRun: "failed" };
+  }
+  return { ...done, checkRun: "posted" };
+}
 
 /** A `push` event's facts: the repo, the ref pushed, and its new commit (absent if deleted). */
 interface PushEvent {
@@ -481,6 +550,8 @@ interface Dispatched {
   action?: string;
   /** Why it was ignored, or what happened to a pull request's diff. */
   detail?: string;
+  /** What became of a held pull request's Check Run. */
+  checkRun?: "posted" | "failed" | "unconfigured";
   deletion?: Deletion;
 }
 
@@ -570,8 +641,8 @@ export async function handleWebhook(
     return json(400, { error: "INVALID_JSON" });
   }
   try {
-    const { outcome, action, detail, deletion } = await dispatch(event, payload, deps);
-    if (deletion === undefined) log({ delivery, name: event, action, outcome, detail });
+    const { outcome, action, detail, checkRun, deletion } = await dispatch(event, payload, deps);
+    if (deletion === undefined) log({ delivery, name: event, action, outcome, detail, checkRun });
     else {
       const { prefixes, ...counts } = deletion;
       log({ delivery, name: event, action, outcome, prefixes: prefixes.length, ...counts });

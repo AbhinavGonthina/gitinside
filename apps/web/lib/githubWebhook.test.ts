@@ -4,6 +4,7 @@ import {
   analyses,
   computeUsage,
   computeUsageThisMonth,
+  countComputeUsage,
   deletedInstallations,
   failAnalysis,
   findInstallation,
@@ -23,7 +24,9 @@ import type { ListedObject, ObjectStore } from "@gitinside/worker/storage";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { taskIdFor, type TaskQueue } from "./cloudTasks";
 import { MAX_GITHUB_CODE_BYTES } from "./codeSize";
+import { fakeApp } from "./githubApp.testkit";
 import {
+  DIFFS_PER_HOUR,
   handleWebhook,
   MAX_WEBHOOK_BYTES,
   purgeObjects,
@@ -91,6 +94,7 @@ beforeEach(async () => {
   await t.db.delete(deletedInstallations);
   await t.db.delete(removedInstallationRepos);
   await t.db.delete(computeUsage);
+  await t.db.delete(rateLimits);
   store = new FakeStore();
   queue = new FakeQueue();
   deps = { db: t.db, store, secrets: [SECRET], queue, analyzerVersion: VERSION };
@@ -937,6 +941,216 @@ describe("handleWebhook: pull requests (M8.6d2)", () => {
     }
     expect(await t.db.select().from(repos)).toEqual([]);
     expect(queue.calls).toBe(0);
+  });
+
+  describe("held back by the compute pause or the repo's hourly limit (I2.3)", () => {
+    /** Each delivery's logged detail and Check Run outcome, in order. */
+    const held = () => logged().map((line) => `${String(line.detail)}:${String(line.checkRun)}`);
+    /** The repo's diff slots counted this hour. */
+    const charged = async () =>
+      (await t.db.select().from(rateLimits)).find((r) => r.key === "diffs:501")?.count ?? 0;
+    const pause = () => countComputeUsage(t.db, { taskOperations: 800_000 });
+    /** The `n`th new head (1-based), each pushed a minute after the last. */
+    const push = (n: number) =>
+      pr("synchronize", {
+        head: n.toString(16).repeat(40),
+        at: `2026-11-08T11:${String(n).padStart(2, "0")}:00Z`,
+      });
+
+    /** GitHub's app endpoints plus `POST …/check-runs`, recorded; `checkStatus` answers it. */
+    function github() {
+      const fake = fakeApp([
+        {
+          id: 41,
+          owner: "octo-org",
+          repos: ["shop"],
+          permissions: { checks: "write", pull_requests: "write", metadata: "read" },
+        },
+      ]);
+      const checkRuns: { path: string; authorization: string | null; body: unknown }[] = [];
+      const gh = { fake, checkRuns, checkStatus: 201 };
+      const fetch: typeof globalThis.fetch = async (input, init) => {
+        const request = new Request(input, init);
+        const { pathname } = new URL(request.url);
+        if (request.method !== "POST" || !pathname.endsWith("/check-runs")) {
+          return fake.fetch(input, init);
+        }
+        checkRuns.push({
+          path: pathname,
+          authorization: request.headers.get("authorization"),
+          body: (await request.json()) as unknown,
+        });
+        return Response.json({ id: 77 }, { status: gh.checkStatus });
+      };
+      deps = { ...deps, app: { appId: fake.appId, privateKey: fake.privateKey, fetch } };
+      return gh;
+    }
+
+    it("queues nothing while analyses are paused, and says so in a neutral Check Run", async () => {
+      const gh = github();
+      await installation41();
+      await pause();
+      expect(await answer(delivery("pull_request", pr("opened")))).toEqual({
+        status: 200,
+        body: { status: "ok" },
+      });
+      expect(queue.calls).toBe(0);
+      expect(await charged()).toBe(0);
+      expect(await record()).toMatchObject({ headSha: HEAD, diffJobId: null, diffKey: null });
+      // A token for the one repo, to write checks and nothing else.
+      expect(gh.fake.requests.map((r) => r.body)).toEqual([
+        { repositories: ["shop"], permissions: { checks: "write", metadata: "read" } },
+      ]);
+      const until = (await computeUsageThisMonth(t.db)).nextMonthStart;
+      const when = `${until.toISOString().slice(0, 16).replace("T", " ")} UTC`;
+      expect(gh.checkRuns).toEqual([
+        {
+          path: "/repos/octo-org/shop/check-runs",
+          authorization: `Bearer ${gh.fake.issued[0]?.token}`,
+          body: {
+            name: "GitInside",
+            head_sha: HEAD,
+            status: "completed",
+            conclusion: "neutral",
+            output: {
+              title: `Paused until ${when}`,
+              summary: expect.stringContaining(`push a new commit after ${when}`) as unknown,
+            },
+          },
+        },
+      ]);
+      expect(held()).toEqual(["paused:posted"]);
+
+      // The pause over (the next month): a redelivery, or the next push, queues it normally.
+      await t.db.delete(computeUsage);
+      await answer(delivery("pull_request", pr("opened")));
+      expect(queue.tasks.map((task) => task.job)).toEqual([diffJob()]);
+      expect(await charged()).toBe(1);
+      expect(gh.checkRuns).toHaveLength(1);
+    });
+
+    it("stops at the repo's diff jobs an hour, with a Check Run saying when it resumes", async () => {
+      const gh = github();
+      await installation41();
+      for (let n = 1; n <= DIFFS_PER_HOUR + 1; n++) {
+        expect((await answer(delivery("pull_request", push(n)))).status).toBe(200);
+      }
+      expect(queue.tasks).toHaveLength(DIFFS_PER_HOUR);
+      expect(await charged()).toBe(DIFFS_PER_HOUR);
+      const last = (DIFFS_PER_HOUR + 1).toString(16).repeat(40);
+      expect(await record()).toMatchObject({ headSha: last, diffJobId: null });
+      const [window] = await t.db.select().from(rateLimits);
+      const resumes = new Date((window?.windowStart.getTime() ?? NaN) + 3_600_000);
+      const when = `${resumes.toISOString().slice(0, 16).replace("T", " ")} UTC`;
+      expect(gh.checkRuns.map((c) => c.body)).toEqual([
+        {
+          name: "GitInside",
+          head_sha: last,
+          status: "completed",
+          conclusion: "neutral",
+          output: {
+            title: `Skipped: this repo's ${DIFFS_PER_HOUR} diffs this hour are used`,
+            summary: expect.stringContaining(`push a new commit after ${when}`) as unknown,
+          },
+        },
+      ]);
+      expect(held().at(-1)).toBe("limited:posted");
+      expect(held().slice(0, -1)).toEqual(Array(DIFFS_PER_HOUR).fill("queued:undefined"));
+
+      // Another repo has its own slots.
+      const other = pr("opened");
+      other.repository = { ...other.repository, id: 502, name: "cart" };
+      await answer(delivery("pull_request", other));
+      expect(queue.tasks).toHaveLength(DIFFS_PER_HOUR + 1);
+    });
+
+    it("charges a pair's job once: a redelivery follows it, even past the pause or the limit", async () => {
+      const gh = github();
+      await installation41();
+      await answer(delivery("pull_request", pr("opened")));
+      expect(await charged()).toBe(1);
+      await answer(delivery("pull_request", pr("opened")));
+      expect(await charged()).toBe(1);
+      await pause();
+      expect((await answer(delivery("pull_request", pr("opened")))).status).toBe(200);
+      expect(queue.calls).toBe(3);
+      expect(queue.tasks).toHaveLength(1);
+      expect(await charged()).toBe(1);
+      expect(gh.checkRuns).toEqual([]);
+      expect(held()).toEqual([
+        "queued:undefined",
+        "already-queued:undefined",
+        "already-queued:undefined",
+      ]);
+    });
+
+    it("refunds the slot when the pair's diff lands before its job is named", async () => {
+      await installation41();
+      let landed = false;
+      // The rate limit counts in a raw statement: the diff lands just before it.
+      const execute = async (query: Parameters<typeof t.db.execute>[0]) => {
+        const [row] = await t.db.select().from(repos);
+        if (!landed && row !== undefined) {
+          landed = await recordPullRequestDiff(t.db, {
+            repoId: row.id,
+            number: 7,
+            baseSha: BASE,
+            headSha: HEAD,
+            diffKey: "private/41/x/diffs/y/0.1.0.json.gz",
+            brokenCount: 0,
+          });
+        }
+        return t.db.execute(query);
+      };
+      const db = new Proxy(t.db, {
+        get: (target, name) => (name === "execute" ? execute : Reflect.get(target, name, target)),
+      });
+      await answer(delivery("pull_request", pr("opened")), { ...deps, db });
+      expect(landed).toBe(true);
+      expect(details()).toEqual(["ok:moved"]);
+      expect(queue.calls).toBe(0);
+      expect(await charged()).toBe(0);
+    });
+
+    it("keeps the slot for a named job whose task failed: its redelivery isn't charged again", async () => {
+      await installation41();
+      queue.fail = new WorkerUnavailableError("status 503");
+      expect((await answer(delivery("pull_request", pr("opened")))).status).toBe(503);
+      expect(await charged()).toBe(1);
+      queue.fail = undefined;
+      expect((await answer(delivery("pull_request", pr("opened")))).status).toBe(200);
+      expect(await charged()).toBe(1);
+      expect(queue.tasks.map((task) => task.job)).toEqual([diffJob()]);
+    });
+
+    it("refunds the slot when the queue already had the task's name", async () => {
+      await installation41();
+      const jobId = jobIdFor(diffJob(), VERSION);
+      // Another delivery's task under the name this one will make: refused as a duplicate.
+      const createTask = queue.createTask.bind(queue);
+      queue.createTask = async (job, taskId) => {
+        queue.tasks.push({ job, taskId });
+        return createTask(job, taskId);
+      };
+      await answer(delivery("pull_request", pr("opened")));
+      expect((await record())?.diffJobId).toBe(jobId);
+      expect(details()).toEqual(["ok:already-queued"]);
+      expect(await charged()).toBe(0);
+    });
+
+    it("answers GitHub the same when the Check Run can't be posted or isn't configured", async () => {
+      const gh = github();
+      await installation41();
+      await pause();
+      gh.checkStatus = 500;
+      expect((await answer(delivery("pull_request", pr("opened")))).status).toBe(200);
+      gh.fake.failNext(new Error("socket hang up"));
+      expect((await answer(delivery("pull_request", push(1)))).status).toBe(200);
+      const { app: _, ...unconfigured } = deps;
+      expect((await answer(delivery("pull_request", push(2)), unconfigured)).status).toBe(200);
+      expect(queue.calls).toBe(0);
+      expect(held()).toEqual(["paused:failed", "paused:failed", "paused:unconfigured"]);
+    });
   });
 });
 
