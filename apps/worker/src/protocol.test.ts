@@ -134,6 +134,16 @@ describe("parseChildReport", () => {
     });
   });
 
+  it("keeps the timeline's counts when present (M11.4a)", () => {
+    const stats = { ...STATS, services: 3, broken: 0 };
+    expect(parseChildReport(JSON.stringify({ ok: true, stats }))).toEqual({ ok: true, stats });
+    const servicesOnly = { ...STATS, services: 3 };
+    expect(parseChildReport(JSON.stringify({ ok: true, stats: servicesOnly }))).toEqual({
+      ok: true,
+      stats: servicesOnly,
+    });
+  });
+
   it("keeps the child's collector pauses when present (M5.13a5)", () => {
     const stats = { ...STATS, gcMs: { minor: 4100, major: 900, incremental: 30 } };
     expect(parseChildReport(JSON.stringify({ ok: true, stats }))).toEqual({ ok: true, stats });
@@ -161,6 +171,8 @@ describe("parseChildReport", () => {
     ["stage times as an array", JSON.stringify({ ok: true, stats: { ...STATS, stageMs: [1] } })],
     ["a negative peak RSS", JSON.stringify({ ok: true, stats: { ...STATS, peakRssBytes: -1 } })],
     ["a heap as text", JSON.stringify({ ok: true, stats: { ...STATS, heapBytes: "1" } })],
+    ["a negative service count", JSON.stringify({ ok: true, stats: { ...STATS, services: -1 } })],
+    ["a broken count as text", JSON.stringify({ ok: true, stats: { ...STATS, broken: "2" } })],
     ["a bad pause", JSON.stringify({ ok: true, stats: { ...STATS, gcMs: { minor: 1.5 } } })],
     ["pauses as a number", JSON.stringify({ ok: true, stats: { ...STATS, gcMs: 3 } })],
     ["cache counts as a number", JSON.stringify({ ok: true, stats: { ...STATS, cache: 3 } })],

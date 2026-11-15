@@ -520,6 +520,8 @@ describe("processDiffJob with stored graphs (M8.6d3c2)", () => {
       nodes: head.nodes.length,
       edges: head.edges.length,
       unresolved: head.nodes.filter((n) => n.kind === "unresolved").length,
+      services: head.nodes.filter((n) => n.kind === "service").length,
+      broken: 0, // the head calls no missing route
       warnings: head.warnings.length,
       graphBytes: Buffer.byteLength(storedText(HEAD)),
       stageMs: {},

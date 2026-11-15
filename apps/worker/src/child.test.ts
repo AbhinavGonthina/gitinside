@@ -36,6 +36,9 @@ describe("runChildJob", () => {
         edges: graph.edges.length,
         warnings: graph.warnings.length,
         graphBytes: Buffer.byteLength(text),
+        // The timeline's counts (M11.4a, counts.test.ts): one service, no requests.
+        services: 1,
+        broken: 0,
       },
     });
     if (report.ok) {
