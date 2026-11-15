@@ -69,6 +69,7 @@ const NAMES = [
   "local-helpers",
   "let-query-urls",
   "let-callback-base",
+  "param-default-base",
   "conditional-spread-method",
   "ambiguous-routes",
   "wrapper-fetch",
@@ -923,6 +924,19 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       `file:${p}/test/tasks.test.js -> route:${p}/GET /api/v1/tasks heuristic`,
       `file:${p}/test/tasks.test.js -> route:${p}/GET /api/v1/tasks/:taskId heuristic`,
       `file:${p}/test/tasks.test.js -> route:${p}/POST /api/v1/tasks heuristic`,
+    ]);
+  });
+
+  it("param-default-base: a parameter property's default is the base when no new passes it (M12.1d)", async () => {
+    const g = await run("param-default-base");
+    const p = "param-default-base";
+    const at = `unresolved:${p}/src/clients.ts`;
+    expect(links(g, "http")).toEqual([
+      `symbol:${p}/src/clients.ts#BillingClient.plans -> route:${p}/GET /api/billing/plans heuristic`,
+      `symbol:${p}/src/clients.ts#NotesClient.create -> route:${p}/POST /api/notes heuristic`,
+      `symbol:${p}/src/clients.ts#NotesClient.list -> route:${p}/GET /api/notes heuristic`,
+      `symbol:${p}/src/clients.ts#TeamsClient.teams -> ${at}:37:12 unresolved DYNAMIC_URL`,
+      `symbol:${p}/src/clients.ts#UsersClient.users -> ${at}:29:12 unresolved DYNAMIC_URL`,
     ]);
   });
 

@@ -1,0 +1,508 @@
+{
+  "analyzerVersion": "0.3.14",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:param-default-base/src/pages.ts#dashboard",
+      "id": "calls:symbol:param-default-base/src/pages.ts#dashboard->symbol:param-default-base/src/clients.ts#BillingClient.plans",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 70,
+          "file": "src/pages.ts",
+          "line": 15
+        }
+      ],
+      "to": "symbol:param-default-base/src/clients.ts#BillingClient.plans"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:param-default-base/src/pages.ts#dashboard",
+      "id": "calls:symbol:param-default-base/src/pages.ts#dashboard->symbol:param-default-base/src/clients.ts#NotesClient.create",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 43,
+          "file": "src/pages.ts",
+          "line": 15
+        }
+      ],
+      "to": "symbol:param-default-base/src/clients.ts#NotesClient.create"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:param-default-base/src/pages.ts#dashboard",
+      "id": "calls:symbol:param-default-base/src/pages.ts#dashboard->symbol:param-default-base/src/clients.ts#NotesClient.list",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 23,
+          "file": "src/pages.ts",
+          "line": 15
+        }
+      ],
+      "to": "symbol:param-default-base/src/clients.ts#NotesClient.list"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:param-default-base/src/pages.ts#dashboard",
+      "id": "calls:symbol:param-default-base/src/pages.ts#dashboard->symbol:param-default-base/src/clients.ts#UsersClient.users",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 0,
+          "column": 91,
+          "file": "src/pages.ts",
+          "line": 15
+        }
+      ],
+      "to": "symbol:param-default-base/src/clients.ts#UsersClient.users"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:param-default-base/src/pages.ts#dashboard",
+      "id": "calls:symbol:param-default-base/src/pages.ts#dashboard->symbol:param-default-base/src/pages.ts#register",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 3,
+          "file": "src/pages.ts",
+          "line": 14
+        }
+      ],
+      "to": "symbol:param-default-base/src/pages.ts#register"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:param-default-base/src/clients.ts#BillingClient.plans",
+      "id": "http:symbol:param-default-base/src/clients.ts#BillingClient.plans->route:param-default-base/GET /api/billing/plans",
+      "kind": "http",
+      "label": "GET /api/billing/plans",
+      "sites": [
+        {
+          "column": 12,
+          "file": "src/clients.ts",
+          "line": 20,
+          "request": "GET /api/billing/plans"
+        }
+      ],
+      "to": "route:param-default-base/GET /api/billing/plans"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:param-default-base/src/clients.ts#NotesClient.create",
+      "id": "http:symbol:param-default-base/src/clients.ts#NotesClient.create->route:param-default-base/POST /api/notes",
+      "kind": "http",
+      "label": "POST /api/notes",
+      "sites": [
+        {
+          "column": 12,
+          "file": "src/clients.ts",
+          "line": 9,
+          "request": "POST /api/notes"
+        }
+      ],
+      "to": "route:param-default-base/POST /api/notes"
+    },
+    {
+      "confidence": "heuristic",
+      "from": "symbol:param-default-base/src/clients.ts#NotesClient.list",
+      "id": "http:symbol:param-default-base/src/clients.ts#NotesClient.list->route:param-default-base/GET /api/notes",
+      "kind": "http",
+      "label": "GET /api/notes",
+      "sites": [
+        {
+          "column": 12,
+          "file": "src/clients.ts",
+          "line": 5,
+          "request": "GET /api/notes"
+        }
+      ],
+      "to": "route:param-default-base/GET /api/notes"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:param-default-base/src/clients.ts#TeamsClient.teams",
+      "id": "http:symbol:param-default-base/src/clients.ts#TeamsClient.teams->unresolved:param-default-base/src/clients.ts:37:12",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 12,
+          "file": "src/clients.ts",
+          "line": 37
+        }
+      ],
+      "to": "unresolved:param-default-base/src/clients.ts:37:12"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:param-default-base/src/clients.ts#UsersClient.users",
+      "id": "http:symbol:param-default-base/src/clients.ts#UsersClient.users->unresolved:param-default-base/src/clients.ts:29:12",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 12,
+          "file": "src/clients.ts",
+          "line": 29
+        }
+      ],
+      "to": "unresolved:param-default-base/src/clients.ts:29:12"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:param-default-base/src/pages.ts",
+      "id": "imports:file:param-default-base/src/pages.ts->file:param-default-base/src/clients.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 70,
+          "file": "src/pages.ts",
+          "line": 1
+        }
+      ],
+      "to": "file:param-default-base/src/clients.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "cb75cfdf51fcfa1589eaa08a24c8e5238807d3c43cffe86defd3a63267e1ac4d",
+      "id": "file:param-default-base/src/clients.ts",
+      "kind": "file",
+      "label": "clients.ts",
+      "parentId": "module:param-default-base/src",
+      "path": "src/clients.ts"
+    },
+    {
+      "hash": "b4058230081e9e89f866feee5d9cb8b0775a72a0313f0a2bb2cf5515875c3a0c",
+      "id": "file:param-default-base/src/pages.ts",
+      "kind": "file",
+      "label": "pages.ts",
+      "parentId": "module:param-default-base/src",
+      "path": "src/pages.ts"
+    },
+    {
+      "hash": "8ea6a3fd934ab8e6e51be5e928047dc96c9d6fb6b00afc6d7b83aa24bb076f7b",
+      "id": "file:param-default-base/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:param-default-base/src",
+      "path": "src/server.ts"
+    },
+    {
+      "id": "module:param-default-base/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:param-default-base/",
+      "path": "src"
+    },
+    {
+      "id": "route:param-default-base/GET /api/billing/plans",
+      "kind": "route",
+      "label": "GET /api/billing/plans",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:param-default-base/src/server.ts",
+      "path": "/api/billing/plans",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 8
+      }
+    },
+    {
+      "id": "route:param-default-base/GET /api/notes",
+      "kind": "route",
+      "label": "GET /api/notes",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:param-default-base/src/server.ts",
+      "path": "/api/notes",
+      "source": {
+        "column": 7,
+        "file": "src/server.ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:param-default-base/GET /api/teams",
+      "kind": "route",
+      "label": "GET /api/teams",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:param-default-base/src/server.ts",
+      "path": "/api/teams",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 10
+      }
+    },
+    {
+      "id": "route:param-default-base/GET /api/users",
+      "kind": "route",
+      "label": "GET /api/users",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:param-default-base/src/server.ts",
+      "path": "/api/users",
+      "source": {
+        "column": 5,
+        "file": "src/server.ts",
+        "line": 9
+      }
+    },
+    {
+      "id": "route:param-default-base/POST /api/notes",
+      "kind": "route",
+      "label": "POST /api/notes",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:param-default-base/src/server.ts",
+      "path": "/api/notes",
+      "source": {
+        "column": 7,
+        "file": "src/server.ts",
+        "line": 6
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:param-default-base/",
+      "kind": "service",
+      "label": "param-default-base",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:param-default-base/src/clients.ts#BillingClient",
+      "kind": "symbol",
+      "label": "BillingClient",
+      "parentId": "file:param-default-base/src/clients.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 22,
+        "file": "src/clients.ts",
+        "line": 13
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:param-default-base/src/clients.ts#BillingClient.plans",
+      "kind": "symbol",
+      "label": "plans",
+      "parentId": "symbol:param-default-base/src/clients.ts#BillingClient",
+      "requiredParams": 0,
+      "source": {
+        "column": 3,
+        "endLine": 21,
+        "file": "src/clients.ts",
+        "line": 19
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:param-default-base/src/clients.ts#NotesClient",
+      "kind": "symbol",
+      "label": "NotesClient",
+      "parentId": "file:param-default-base/src/clients.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 11,
+        "file": "src/clients.ts",
+        "line": 1
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:param-default-base/src/clients.ts#NotesClient.create",
+      "kind": "symbol",
+      "label": "create",
+      "parentId": "symbol:param-default-base/src/clients.ts#NotesClient",
+      "requiredParams": 1,
+      "source": {
+        "column": 3,
+        "endLine": 10,
+        "file": "src/clients.ts",
+        "line": 8
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:param-default-base/src/clients.ts#NotesClient.list",
+      "kind": "symbol",
+      "label": "list",
+      "parentId": "symbol:param-default-base/src/clients.ts#NotesClient",
+      "requiredParams": 0,
+      "source": {
+        "column": 3,
+        "endLine": 6,
+        "file": "src/clients.ts",
+        "line": 4
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:param-default-base/src/clients.ts#TeamsClient",
+      "kind": "symbol",
+      "label": "TeamsClient",
+      "parentId": "file:param-default-base/src/clients.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 39,
+        "file": "src/clients.ts",
+        "line": 33
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:param-default-base/src/clients.ts#TeamsClient.teams",
+      "kind": "symbol",
+      "label": "teams",
+      "parentId": "symbol:param-default-base/src/clients.ts#TeamsClient",
+      "requiredParams": 0,
+      "source": {
+        "column": 3,
+        "endLine": 38,
+        "file": "src/clients.ts",
+        "line": 36
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:param-default-base/src/clients.ts#UsersClient",
+      "kind": "symbol",
+      "label": "UsersClient",
+      "parentId": "file:param-default-base/src/clients.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 31,
+        "file": "src/clients.ts",
+        "line": 25
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:param-default-base/src/clients.ts#UsersClient.users",
+      "kind": "symbol",
+      "label": "users",
+      "parentId": "symbol:param-default-base/src/clients.ts#UsersClient",
+      "requiredParams": 0,
+      "source": {
+        "column": 3,
+        "endLine": 30,
+        "file": "src/clients.ts",
+        "line": 28
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:param-default-base/src/pages.ts#dashboard",
+      "kind": "symbol",
+      "label": "dashboard",
+      "parentId": "file:param-default-base/src/pages.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 16,
+        "file": "src/pages.ts",
+        "line": 13
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:param-default-base/src/pages.ts#register",
+      "kind": "symbol",
+      "label": "register",
+      "parentId": "file:param-default-base/src/pages.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 11,
+        "file": "src/pages.ts",
+        "line": 9
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:param-default-base/src/server.ts#app",
+      "kind": "symbol",
+      "label": "app",
+      "parentId": "file:param-default-base/src/server.ts",
+      "source": {
+        "column": 7,
+        "endLine": 3,
+        "file": "src/server.ts",
+        "line": 3
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "param-default-base",
+      "parentId": null
+    },
+    {
+      "detail": "the URL starts with a value only known at runtime",
+      "expression": "fetch(`${this.baseURL}/users`)",
+      "id": "unresolved:param-default-base/src/clients.ts:29:12",
+      "kind": "unresolved",
+      "label": "GET `${this.baseURL}/users`",
+      "parentId": "service:param-default-base/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 12,
+        "file": "src/clients.ts",
+        "line": 29
+      }
+    },
+    {
+      "detail": "the URL starts with a value only known at runtime",
+      "expression": "fetch(`${this.baseURL}/teams`)",
+      "id": "unresolved:param-default-base/src/clients.ts:37:12",
+      "kind": "unresolved",
+      "label": "GET `${this.baseURL}/teams`",
+      "parentId": "service:param-default-base/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 12,
+        "file": "src/clients.ts",
+        "line": 37
+      }
+    }
+  ],
+  "repo": {
+    "name": "param-default-base",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}
