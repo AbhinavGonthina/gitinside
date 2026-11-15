@@ -151,6 +151,7 @@ const EXPECTED: Record<string, string[]> = {
   "param-default-base": ["72532dff16fc9f8b", "f23067cf0a03554b", "bed427a83db53249"],
   "pnpm-monorepo": ["77e486ee1e387fd6", "7fc2768ddaedca19", "54850212b037364c"],
   "prisma-relations": ["fa788ac8d8cf3cce", "2f9ca2e017f04955", "686703b2cc019fb1"],
+  "query-string-url": ["767844427bea68f8", "0641057d82a48fa4", "dc656c29a0569cb8"],
   "queues-bullmq": ["171ff8834dc5fe07", "1da2d0e97f6b2736", "a82cb33a1ba7a479"],
   "rest-method-spread": ["f008eec1e40d9195", "cd1ea43f651d9d58", "b103f50848c41649"],
   "url-builders": ["bfe36221b674891f", "c8da918990bf46d9", "16b4a396e095f42a"],

@@ -70,6 +70,7 @@ const NAMES = [
   "let-query-urls",
   "let-callback-base",
   "param-default-base",
+  "query-string-url",
   "conditional-spread-method",
   "ambiguous-routes",
   "wrapper-fetch",
@@ -937,6 +938,20 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       `symbol:${p}/src/clients.ts#NotesClient.list -> route:${p}/GET /api/notes heuristic`,
       `symbol:${p}/src/clients.ts#TeamsClient.teams -> ${at}:37:12 unresolved DYNAMIC_URL`,
       `symbol:${p}/src/clients.ts#UsersClient.users -> ${at}:29:12 unresolved DYNAMIC_URL`,
+    ]);
+  });
+
+  it("query-string-url: stringifyUrl's url is the request's path (M12.1e1)", async () => {
+    const g = await run("query-string-url");
+    const p = "query-string-url";
+    expect(links(g, "http")).toEqual([
+      `symbol:${p}/src/modals.ts#changeRole -> route:${p}/PATCH /api/members/:memberId exact`,
+      `symbol:${p}/src/modals.ts#createChannel -> route:${p}/POST /api/channels exact`,
+      `symbol:${p}/src/modals.ts#deleteChannel -> route:${p}/DELETE /api/channels/:channelId exact`,
+      `symbol:${p}/src/modals.ts#deleteMessage -> unresolved:${p}/src/modals.ts:35:9 unresolved DYNAMIC_URL`,
+      `symbol:${p}/src/modals.ts#messages -> route:${p}/GET /api/messages exact`,
+      `symbol:${p}/src/servers.ts#listServers -> route:${p}/GET /api/servers exact`,
+      `symbol:${p}/src/servers.ts#searchServers -> unresolved:${p}/src/servers.ts:10:10 unresolved DYNAMIC_URL`,
     ]);
   });
 

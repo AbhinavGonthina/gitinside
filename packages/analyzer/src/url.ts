@@ -34,6 +34,12 @@
  *   with `g`, and `''` or an empty template; M12.1a, ADR-0303): `x`'s parts with the slashes
  *   removed from its literal end (all, or the last one for `/\/$/`), or from the end of an env
  *   var's fallback there. Any other `.replace` is a hole.
+ * - `qs.stringifyUrl({ url, query })` with `qs` the `query-string` package's default or
+ *   namespace import (M12.1e1, ADR-0307): the package returns `url` with the query merged in
+ *   before any `#`, so it reads as `url`'s parts and a `?`. Text appended to the result is
+ *   read as query, as it is whenever the query isn't empty. A named import, another package's
+ *   `stringifyUrl`, `require("query-string")`, and a first argument that isn't an object
+ *   literal with a readable `url` (a variable, a spread that may supply it) are holes.
  * - `new URL(url, base?)`, `.href`, `.toString()`, and `String(x)`. A relative `url` is
  *   resolved with WHATWG rules when both sides are literal; a root-relative `url` (`/x`)
  *   keeps only the base's origin, which may be an env var or `location.origin`. A site the
@@ -152,6 +158,7 @@ import {
   objectProperty,
   ownProperty,
   weaker,
+  type ConfigValue,
   type ProgramExpression,
 } from "./values.js";
 
@@ -1464,6 +1471,27 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
   };
 
   /**
+   * The `url` property of `qs.stringifyUrl({ url, query })` when `qs` is the `query-string`
+   * package's default or namespace import (M12.1e1, ADR-0307): `undefined` for any other call,
+   * `null` when the first argument isn't an object literal whose `url` can be read.
+   */
+  const stringifyUrlTarget = (sp: ServiceProgram, call: ts.CallExpression): ConfigValue => {
+    const callee = unwrap(call.expression);
+    if (!ts.isPropertyAccessExpression(callee) || callee.name.text !== "stringifyUrl") {
+      return undefined;
+    }
+    const object = unwrap(callee.expression);
+    const found = ts.isIdentifier(object) ? importOf(sp, object) : undefined;
+    if (found?.module !== "query-string" || !(found.name === "default" || found.name === "*")) {
+      return undefined;
+    }
+    const [first] = call.arguments;
+    const literal = first && unwrap(first);
+    if (!literal || !ts.isObjectLiteralExpression(literal)) return null;
+    return objectProperty(sp, literal, "url") ?? null;
+  };
+
+  /**
    * The repo function an expression holds: a function written in place, a name or const
    * object property holding one, or React's `useCallback(fn, deps)` (`fn`) and
    * `useMemo(() => fn, deps)` (what the factory returns).
@@ -1730,6 +1758,11 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
       }
       const trim = trailingSlashTrim(e);
       if (trim) return trimTrailingSlashes(partsOf(sp, trim.value, hops + 1), trim.all);
+      const withQuery = stringifyUrlTarget(sp, e);
+      if (withQuery !== undefined) {
+        if (!withQuery) return [HOLE];
+        return mergeParts([...partsOf(withQuery.sp, withQuery.expression, hops + 1), text("?")]);
+      }
       const [only] = e.arguments;
       if (
         e.arguments.length === 1 &&

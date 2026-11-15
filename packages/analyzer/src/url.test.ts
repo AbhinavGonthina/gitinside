@@ -1017,6 +1017,50 @@ describe("createUrlNormalizer", () => {
     expect(await alternativesOf()).toEqual(["src/api.ts:2 /a/x | /b/x"]);
   });
 
+  it("reads query-string's stringifyUrl as its url's path (M12.1e1)", async () => {
+    await put("package.json", JSON.stringify({ name: "web" }));
+    await put("src/api.ts", [
+      'import axios from "axios";',
+      'import qs from "query-string";',
+      'import * as queryString from "query-string";',
+      'import other from "qs-lite";',
+      'import { stringifyUrl, exclude } from "query-string";',
+      "declare const rest: { url: string };",
+      "export async function load(id: string, serverId: string, query: object) {",
+      "  await axios.patch(qs.stringifyUrl({ url: `/api/members/${id}`, query: { serverId } }));",
+      '  const channel = queryString.stringifyUrl({ url: "/api/channels#top", query });',
+      "  await axios.post(channel);",
+      '  await fetch(qs.stringifyUrl({ query: { a: 1 }, url: "/api/a?x=1" }, { skipNull: true }));',
+      "  const url = `/api/b/${id}`;",
+      "  await fetch(qs.stringifyUrl({ url }));",
+      '  await fetch(qs.stringifyUrl({ url: "/api/c", query }) + "&page=2");',
+      '  await fetch(other.stringifyUrl({ url: "/api/d", query }));',
+      '  await fetch(stringifyUrl({ url: "/api/e", query }));',
+      "  await fetch(qs.stringifyUrl({ ...rest, query }));",
+      '  await fetch(qs.stringifyUrl({ url: "/api/f", ...rest }));',
+      "  await fetch(qs.stringifyUrl(rest));",
+      '  await fetch(qs.stringify({ url: "/api/g" }));',
+      "  await fetch(qs.stringifyUrl({ query }));",
+      '  await fetch(exclude.stringifyUrl({ url: "/api/h", query }));',
+      "}",
+    ]);
+    expect(await normalized()).toEqual([
+      "src/api.ts:8 /api/members/{}",
+      "src/api.ts:10 /api/channels",
+      "src/api.ts:11 /api/a",
+      "src/api.ts:13 /api/b/{}",
+      "src/api.ts:14 /api/c",
+      "src/api.ts:15 DYNAMIC_URL: the URL starts with a value only known at runtime",
+      "src/api.ts:16 DYNAMIC_URL: the URL starts with a value only known at runtime",
+      "src/api.ts:17 DYNAMIC_URL: the URL starts with a value only known at runtime",
+      "src/api.ts:18 DYNAMIC_URL: the URL starts with a value only known at runtime",
+      "src/api.ts:19 DYNAMIC_URL: the URL starts with a value only known at runtime",
+      "src/api.ts:20 DYNAMIC_URL: the URL starts with a value only known at runtime",
+      "src/api.ts:21 DYNAMIC_URL: the URL starts with a value only known at runtime",
+      "src/api.ts:22 DYNAMIC_URL: the URL starts with a value only known at runtime",
+    ]);
+  });
+
   it("marks unreadable URLs dynamic", async () => {
     await put("package.json", JSON.stringify({ name: "web" }));
     await put("src/api.ts", [
