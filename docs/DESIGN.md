@@ -87,6 +87,7 @@ flowchart LR
 - **`packages/diff`:** library: `diffGraphs`, `applyDiff`, and `renderMermaidSummary` (the Mermaid summary of a diff). No Node or TypeScript dependency, so browsers can use it.
 - **`packages/impact`:** library: `impactIndex` (a reverse index, built once per graph) and `impactOf` (what depends on a node, with paths, the weakest confidence per path, and "may also reach" through unresolved nodes; ADR-0298), plus `impactPath` and `impactByService`. Browser-safe like `packages/diff`; it runs in the visitor's browser, never on a server (ADR-0295).
 - **`packages/api-map`:** library: `apiMap(graph)`, one deterministic JSON value listing every route with its callers (each call site's confidence, ambiguous ones flagged), dead routes (no caller in the repo), broken calls, requests that match no route for another reason or couldn't be read, and routes whose path couldn't be read (ADR-0299). Browser-safe; built in the visitor's browser from the CDN-cached graph, never stored (ADR-0295).
+- **`packages/rules`:** library: `parseRulesConfig` (a `.gitinside.yml` checked by a strict Zod schema, every problem returned with its line), `evaluateRules(config, graph)`, and `evaluateRulesOnDiff(config, base, head, { diff })` (only the violations a PR introduces), with a linear-time glob matcher and a time budget (ADR-0300, docs/RULES.md). Browser-safe; M15.1 runs it inside the PR diff job (ADR-0295).
 - **`packages/viewer`:** React components for the explorer (React Flow + ELK). Used by `apps/web` and Storybook.
 
 ## 5. Analyzer pipeline

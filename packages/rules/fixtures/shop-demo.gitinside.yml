@@ -1,0 +1,40 @@
+# Architecture rules for fixtures/shop-demo (M11.3): a Next.js web app calling an Express API
+# that keeps orders in Postgres and charges cards through Stripe. Format: docs/RULES.md.
+version: 1
+
+layers:
+  web:
+    services: ["@shop/web"]
+  api:
+    services: ["@shop/api"]
+  billing:
+    paths: ["apps/api/src/billing/**"]
+  routes:
+    paths: ["apps/api/src/routes/**"]
+
+rules:
+  # The web app talks to the API over HTTP only; this rule records each request as a dependency,
+  # so the fixture's two order requests are the expected violations.
+  - id: web-independent-of-api
+    type: forbid-dependency
+    from: web
+    to: api
+
+  # Route files go through handlers, never straight to billing.
+  - id: routes-skip-billing
+    type: forbid-dependency
+    from: routes
+    to: billing
+    edges: [calls, imports]
+
+  - type: no-service-cycles
+
+  - id: only-api-touches-postgres
+    type: datastore-access
+    datastore: postgres
+    only: [api]
+
+  - id: known-hosts
+    type: no-new-hosts
+    level: warning
+    allow: ["*.stripe.com"]
