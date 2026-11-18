@@ -2274,7 +2274,81 @@
           "Zlvsky/realm-of-dungeons"
         ]
       },
-      "examined": []
+      "examined": [
+        {
+          "repo": "stalniy/casl-examples",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): the only React app that calls a server, packages/react-blog, sends its 6 ky requests (src/services/AppStore.ts) through `ky.create({ prefix: import.meta.env.VITE_API_URL })` (src/services/http.ts), which has no fallback and no value in any committed env file (only the CI workflow's job env sets it, pairing the app with the Fastify server); unset, `/session` and `/articles…` stay on the Vite dev server, whose proxy forwards only `/api`, so none reach express-blog's routes under `/api` (src/app.ts). react-todo uses localStorage; vue-blog is Vue"
+        },
+        {
+          "repo": "Ebo1996/mintnavigation",
+          "verdict": "pinned",
+          "sha": "4598824c2d9bd5cabdfb74cc8e6c640359456f0a",
+          "reason": "axios-baseurl: Vite React SPA in frontend/ beside Express in backend/; ~110 requests via the shared axios instance (frontend/src/services/api.js) from services and admin, sector-manager, and analytics pages on `import.meta.env.VITE_API_URL || \"http://localhost:5000/api\"` (the dev fallback; frontend/.env.production names a Render host); backend/src/server.js listens on `PORT || 5000` (backend/.env.example PORT=5000) and mounts /api/sectors, /api/departments, /api/feedback, /api/admin, /api/analytics, /api/sector, /api/announcements, /api/system-complaints; ~115 files"
+        },
+        {
+          "repo": "Vincent440/hotel-worx",
+          "verdict": "pinned",
+          "sha": "2cffd2e3813cd609d33dc32f60d7ef961f0eabbf",
+          "reason": "spa-plus-express: CRA client in client/ beside a root Express server; ~36 requests via axios in client/src/utils/api.js and authapi.js on root-relative /api/... paths, which reach Express because server.js serves the built SPA itself (`express.static('client/build')` in production, a catch-all sendFile in routes/index.js, Procfile and heroku-postbuild; the CRA dev proxy's port 3001 has no committed value); routes/index.js mounts /api, routes/api/index.js /login, /logout, /users, /customers, /current, /reservations, /rooms, /room/types, /hw; ~65 files"
+        },
+        {
+          "repo": "springdotnew/echoform",
+          "verdict": "rejected",
+          "reason": "Rule 3 (receiving side): no Express or Next.js handlers; the servers are raw Bun.serve fetch handlers upgrading /ws to WebSocket (packages/wmux/src/server.ts, plugins/bun-ws-server/src/index.ts) and a socket.io server (plugins/socket-server/src/index.tsx), and the React clients talk to them only over WebSocket/socket.io; `express` appears only in a package.json keywords list"
+        },
+        {
+          "repo": "HalcyonVector/Petrichor",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): the Vite React client sends 4 requests that reach the Express routes through its `/api` dev proxy to port 3001: GET /api/weather (client/src/inputs/useWeather.ts) and GET, POST, DELETE /api/presets (client/src/lib/presetsStore.ts); its other fetch goes to Open-Meteo, and the service worker's fetches pass requests through"
+        },
+        {
+          "repo": "AMLChecker/monero-web-wallet",
+          "verdict": "pinned",
+          "sha": "1556234333df9bde1685e95a67ed3e7d940d6288",
+          "reason": "spa-plus-express: Vite React SPA in frontend/ beside an Express TS backend in backend/; 19 one-line `api` methods over the `request()`/`post()` fetch wrapper (frontend/src/api/client.ts), called from pages and state, on root-relative /api/... paths through the Vite dev proxy `/api` → `http://127.0.0.1:18082` (the backend also serves frontend/dist with express.static); backend/src/config.ts listens on `PORT || 18082`, and backend/src/server.ts registers every route as a full /api/... path; ~43 files"
+        },
+        {
+          "repo": "axisj/react-multi-email",
+          "verdict": "rejected",
+          "reason": "Rule 3 (receiving side): an npm React email-input component (react-multi-email/) with a Next.js pages demo that has no pages/api, no route.ts, and no Express server; the source sends no fetch or axios request at all"
+        },
+        {
+          "repo": "ap211unitech/Blog-Website-MERN",
+          "verdict": "pinned",
+          "sha": "70dc0360a94af1dc9d73897d7d4a9200160d30c4",
+          "reason": "axios-baseurl: CRA client in client/ beside Express in server/; 31 axios requests in client/src/features/*Service.js on the literal `BACKEND_HOST_URL = \"https://blog-website-mern-navy.vercel.app\"` (client/src/config/defaults.js), followed into the repo under ADR-0209 because server/vercel.json routes every path (`/(.*)`) to server.js and every path sent there is one of its routes; server/server.js mounts the auth, profile, category, and blog routers at / and admin at /admin; 3 Cloudinary uploads are external; ~60 files"
+        },
+        {
+          "repo": "vincenzo-afk/SPORTS",
+          "verdict": "rejected",
+          "reason": "Rule 3 (receiving side): the client calls only tRPC (`httpBatchLink({ url: \"/api/trpc\" })` in client/src/main.tsx, `createExpressMiddleware` at /api/trpc in server/_core/index.ts); the only plain Express routes, GET /api/oauth/callback and GET /manus-storage/*, get no fetch or axios request from the client"
+        },
+        {
+          "repo": "shoaibsayyed03/pdf-chat-app",
+          "verdict": "pinned",
+          "sha": "627fa909b6e4b642bc9bd42dc97ba63c926e80da",
+          "reason": "spa-plus-express: bun workspace with a Vite React SPA in packages/client beside Express in packages/server; 5 requests via the shared axios instance (packages/client/src/api.ts) on `import.meta.env.VITE_API_URL`, which the committed packages/client/.env.example sets to http://localhost:3000, the server's `PORT || 3000`; packages/server/index.ts mounts the router (/session/verify, /session/status, /session/delete, /upload, /chat) at /api; ~64 files"
+        },
+        {
+          "repo": "ConvoBrains/zero-cost-crm",
+          "verdict": "pinned",
+          "sha": "99e9ca02fdc9cfef5632db4a78b376124c2eaf8b",
+          "reason": "spa-plus-express: Vite React SPA in src/ beside an Express 5 server in server/, one package; ~37 requests via the `api()` fetch wrapper (src/lib/api.ts) and 2 direct `fetch` calls on root-relative /api/... paths through vite.config.ts's `/api` proxy to http://127.0.0.1:4000 (server/config.ts `PORT ?? 4000`; server/app.ts also serves the built dist); full /api/... paths registered on `app` in server/app.ts, server/activityRoutes.ts, and server/conversations.ts; a presigned S3 upload is external; ~111 files (47 tests)"
+        },
+        {
+          "repo": "SoCloseSociety/neowatch",
+          "verdict": "pinned",
+          "sha": "a71b1a243c22e33c9cecf6397daa01795aa38741",
+          "reason": "spa-plus-express: npm workspaces with a Vite React SPA in web/ beside Express in server/; ~50 requests via the `api.get/post/put/patch/del` wrapper (web/src/lib/api.ts, `fetch` on `/api` + path) and one direct `fetch('/api/auth/me/export')`, through web/vite.config.ts's `/api` proxy to `API_TARGET || 'http://localhost:8787'` (server/src/config.js `PORT || 8787`; Express also serves web/dist); server/src/index.js mounts /api, /api/auth, /api/admin routers and direct /api/config, /api/catalog/*, /api/epg/grid routes; ~86 files"
+        },
+        {
+          "repo": "AuthSphere/AuthSphere",
+          "verdict": "pinned",
+          "sha": "1187496de4e9d7b36e5ddaa35d9850d82467496e",
+          "reason": "axios-baseurl: Vite React SPA in frontend/ beside an Express 5 server in backend/; ~39 requests via the shared axios instance (frontend/src/api/axios.js, used by src/api/*.js, stores, hooks, pages) on `import.meta.env.VITE_API_URL || \"http://localhost:8000/api/v1\"` (also in frontend/.env.example), and the server listens on `PORT || 8000` (backend/src/configs/env.js, backend/.env.example); backend/src/routes/index.js mounts /api/v1/developers, /projects, /analytics, /sessions, /audit-logs, /notifications, with /auth and /sdk at the root (so the client's 4 /sdk and /auth requests on the /api/v1 base reach no route); ~228 files"
+        }
+      ]
     },
     {
       "name": "nextjs-prisma",
@@ -2597,7 +2671,141 @@
           "zyadhajaji/threadforge"
         ]
       },
-      "examined": []
+      "examined": [
+        {
+          "repo": "onurdev17/next.js-ecommerce-app",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): the App Router frontend sends 4 requests to its own routes (`/api/create-payment-intent` in src/components/main/cart/CheckoutStripeForm.tsx, `/api/s?q=` in src/components/shared/ui/Searchbar.tsx, `/api/categories/<slug>` in src/components/store/products/HierarchicalCategorySelector.tsx, `/api/products` in src/lib/helpers.ts); every other read and write is a server action under src/actions/"
+        },
+        {
+          "repo": "jacobrdz77/selfwork",
+          "verdict": "pinned",
+          "sha": "9870aa0937580edefd3f5e5a3c327842adbe272a",
+          "reason": "axios-baseurl: Next.js pages router, one app; ~47 requests via the shared axios instance `axios.create({ baseURL: \"/api\" })` (src/libs/axios.ts) in 9 src/utils/*Functions.ts modules, on the app itself; src/pages/api/ serves clients, links, projects, sections, sketches, tags, tasks, users, workspaces with `[id]` and nested invite, invite_link, members, sections, sketches, projects routes; ~167 files (108 bundled Excalidraw chunks under public/assets/ not counted)"
+        },
+        {
+          "repo": "pirmax/bluesky-oauth-nextjs",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): no fetch or axios request in the source; sign-in and sign-out are server actions (src/lib/actions.ts, the atproto SDK's `authorize`), and the two route handlers (src/app/oauth/callback/route.ts, src/app/client-metadata.json/route.ts) are reached only by Bluesky's OAuth redirect and metadata fetch"
+        },
+        {
+          "repo": "CiroMirkin/Capo",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): the App Router app's only route handler is better-auth's catch-all (web-app/app/api/auth/[...all]/route.ts); all data goes through `'use server'` actions under web-app/src/features/*/api/actions/, auth through the better-auth client library, and the one fetch is to api.github.com (web-app/src/shared/lib/githubStars.ts)"
+        },
+        {
+          "repo": "vinimatheus/Dog-SaaS-Starter-KIT",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): the App Router frontend mostly uses server actions (src/actions/); 4 requests reach its routes (GET and PATCH /api/admin/security-dashboard in src/components/admin/security-alerts-panel.tsx, GET /api/organizations in src/hooks/useOrganizations.ts and src/lib/api-client.ts); `/api/organizations/${orgId}` (api-client.ts) has no route"
+        },
+        {
+          "repo": "RicardoGEsteves/SprintEase",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): 2 requests reach its routes, both through `fetcher` (lib/fetcher.ts) in components/modals/card-modal/index.tsx (`/api/cards/{id}` and `/api/cards/{id}/logs`); every board, list, and card change is a server action under actions/, and app/api/webhook is Stripe's"
+        },
+        {
+          "repo": "Snouzy/workout-cool",
+          "verdict": "rejected",
+          "reason": "Rule 5 (size): 623 TS/JS source files (none under node_modules or build output), above 400; rules 2–4 pass (MIT, 38 App Router handlers, ~9 root-relative fetches reaching them)"
+        },
+        {
+          "repo": "mbeps/magician-ai",
+          "verdict": "pinned",
+          "sha": "57283c12cf3fc2cfa08f3d9d729be30b7fb8d30b",
+          "reason": "next-api-routes: Next.js 13 App Router, one app; 7 requests via axios on root-relative /api/* paths from the dashboard pages and two Stripe buttons (no basePath); app/api/{code,conversation,image,music,stripe,video,webhook}/route.ts; ~65 files"
+        },
+        {
+          "repo": "harshdwivediiiii/pathfinder-ai",
+          "verdict": "rejected",
+          "reason": "Rule 5 (size): 956 TS/JS source files (957 tracked less the minified public/pdf.worker.min.mjs; ~767 without tests/), above 400; rules 2–4 pass (MIT, App Router handlers in app/api/**/route.js, at least 8 root-relative fetches reaching them)"
+        },
+        {
+          "repo": "redpangilinan/iotawise",
+          "verdict": "pinned",
+          "sha": "563115d47923ec768210026b7000cb0c94c626cb",
+          "reason": "next-api-routes: Next.js 13 App Router, one app; 8 requests via `fetch` from client components on root-relative /api/... paths; app/api/activities, activities/[activityId], activities/[activityId]/logs, activities/[activityId]/logs/[logId], users/[userId] route.ts handlers; a GitHub API fetch is external; ~109 files"
+        },
+        {
+          "repo": "oyanmuhammad/codenight-starter",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): no fetch, axios, or ky request in the source; the client reaches its two routes (app/api/auth/[...all], app/api/uploadthing) only through better-auth's client and UploadThing's `useUploadThing`, library requests"
+        },
+        {
+          "repo": "748811693aB/Management-System",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): 1 request, `fetch(\"/api/auth/login\")` in src/features/auth/login-form.tsx; the other route (src/app/api/customers/route.ts) is never called, and the dashboard shows static demo data"
+        },
+        {
+          "repo": "vercel/kirimase",
+          "verdict": "rejected",
+          "reason": "Rule 3 (receiving side): a scaffolding CLI for new Next.js apps (package.json bin `kirimase`); its `route.ts` handlers and client `fetch` calls are text inside template-literal generators under src/commands/, the repo has no app or server, and its one real request posts analytics to an external host (src/utils.ts)"
+        },
+        {
+          "repo": "programming-with-ia/create-own-app",
+          "verdict": "rejected",
+          "reason": "Rule 3 (receiving side): a create-t3-app-style scaffolding CLI (cli/src/) whose only route handlers are template fragments for tRPC (cli/template/extras/src/app/api/trpc/[trpc]/route.ts, pages/api/trpc/[trpc].ts) and NextAuth; no Express routes, and no fetch, axios, or ky request anywhere"
+        },
+        {
+          "repo": "ronitrajfr/ayoni",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): no fetch, axios, or ky request in the source; the dashboard reads Prisma in server components, create and delete are server actions (src/actions/index.ts), and the only request is a plain embed script's `navigator.sendBeacon` to a literal public host (public/tracker.js)"
+        },
+        {
+          "repo": "MatheusBomtempo/JornAI",
+          "verdict": "pinned",
+          "sha": "f6c4b308f3b5ba4ce57ab41d995869b63d296d74",
+          "reason": "next-api-routes: Next.js App Router, one app under src/; ~45 requests via the `api`/`apiGet`/`apiPost`/`apiPatch`/`apiDelete` fetch wrapper (src/lib/api-client.ts) and one direct fetch (src/components/ArtEditor.tsx) on root-relative /api/... paths; 34 route.ts handlers under src/app/api/ (auth, posts and versions, users, api-keys, companies, settings, style-examples, art-templates, upload, photo-search, documents, ai-balance, admin, fonts); XMLHttpRequest uploads and server calls to Instagram, AI, and photo services aren't counted; ~174 files"
+        },
+        {
+          "repo": "mohammed-bahumaish/prisma-editor",
+          "verdict": "rejected",
+          "reason": "Rule 3 (receiving side): the only API routes are a tRPC handler (src/pages/api/trpc/[trpc].ts, `createNextApiHandler`) and NextAuth (src/pages/api/auth/[...nextauth].ts); the frontend calls only through tRPC (src/utils/api.ts), and its one direct fetch is to api.github.com"
+        },
+        {
+          "repo": "shafaypro/DecisionOS",
+          "verdict": "pinned",
+          "sha": "af288e9f1e6c6c097e3eccd30f3b97a85ac22a69",
+          "reason": "next-api-routes: Next.js App Router, one app under src/; ~40 requests via direct root-relative `fetch(\"/api/...\")` in client components (src/app/(app)/**, src/components/**) and a local `call(url)` wrapper, to 59 route.ts handlers under src/app/api/ (decisions, action-items, templates, integrations, notifications, platform/workspaces, settings, tags, team); Slack and SSO calls are external; ~306 files (incl. ~40 tests and ~38 stories)"
+        },
+        {
+          "repo": "basitaminbhatti/Invoxify",
+          "verdict": "rejected",
+          "reason": "Rule 4 (calling side): 1 request reaches a route, `fetch` POST `/api/email/${id}` in app/components/InvoiceActions.tsx; a second fetch there is commented out, `/api/invoice/${id}` is only an `<a href>`, and every other change is a server action (app/actions.ts, app/utils/serverActions.ts)"
+        },
+        {
+          "repo": "erich2s/maintenance-management-system",
+          "verdict": "pinned",
+          "sha": "8c0f55a77652cf1e080452a45ca37660a4f4a132",
+          "reason": "next-api-routes: Next.js App Router, one app under src/; ~26 requests via direct root-relative `fetch` (22 sites) and SWR on the repo's own fetchers (src/components/admin/DataTable.tsx's `url` prop, ReportsTable.tsx, MyReports.tsx, src/hooks/useUncompletedReports.ts) on /api/... paths; 15 route.ts files under src/app/api/ (locations, reports, types, users, workers, subscribe, unsubscribe, push); ~86 files"
+        },
+        {
+          "repo": "acmutsa/Portal",
+          "verdict": "rejected",
+          "reason": "Rule 3 (receiving side): the frontend calls only tRPC (`getBaseUrl() + '/api/trpc'` in src/utils/trpc.ts and src/app/ClientProvider.tsx, `createNextApiHandler` in src/pages/api/trpc/[trpc].ts); its three other API routes (src/pages/api/private/addMember.ts, getAllUsers.ts, webhooks/typeform.ts) get no request from the repo, which has no fetch, axios, or ky call"
+        },
+        {
+          "repo": "stackbase-labs/stackbase",
+          "verdict": "rejected",
+          "reason": "Rule 5 (size): 594 TS/JS source files (templates/base 220, templates/web 197, templates/api 98, apps/docs 45, packages 33, scripts 1; nothing to subtract), above 400; a scaffolding CLI shipping three near-copy monorepo templates"
+        },
+        {
+          "repo": "aifuxi/fuxiaochen",
+          "verdict": "rejected",
+          "reason": "Rule 3 (receiving side): the only Next.js route handler, app/api/[[...route]]/route.ts, hands every request to a Hono app (`handle(api)` from `@hono/vercel`); lib/api.ts builds it as `new Hono().basePath(\"/api\")` and mounts the `new Hono()` routers of lib/*/routes.ts, so every route the frontend calls is a Hono handler"
+        },
+        {
+          "repo": "NishantJLU/AI-LMS",
+          "verdict": "pinned",
+          "sha": "2b47762e05931b05a8f65e314160449cf35dc2a2",
+          "reason": "next-api-routes: Next.js 15 App Router, one app under src/; 5 requests via `fetch`, 4 through the path-taking wrapper `run(path, body)` in src/components/ai/ai-studio-client.tsx (labeled at its callers: /api/ai/summarize, /quiz, /flashcards, /feedback) and 1 direct `fetch(\"/api/search\")` (src/components/search/semantic-search-client.tsx), root-relative on the app (no basePath or rewrites); POST handlers in src/app/api/ai/*/route.ts and src/app/api/search/route.ts; NextAuth `signIn` calls aren't counted; ~76 files"
+        },
+        {
+          "repo": "hunterZh37/agentic-scheduling",
+          "verdict": "pinned",
+          "sha": "3c15438de9735980384c50104cd6c03ad325fd91",
+          "reason": "next-api-routes: Next.js 16 App Router, one app under src/; ~70 requests via root-relative `fetch(\"/api/...\")` in components and pages (no basePath or rewrites in next.config.ts), plus a few on variable paths (`availabilityPath`, `submitPath`, `endpoint`); ~65 route.ts handlers under src/app/api/ (accounts, blocks, bookings, todos and items, recurring, checkoffs, reminders, cohosts, teams, settings, events, public/bookings, login, logout, usage); server calls to Google, Microsoft Graph, Resend, Slack, Twilio, OpenAI are external; ~360 files (122 tests)"
+        }
+      ]
     }
   ]
 }
