@@ -10,7 +10,8 @@
  *    folder is unknown, so the path is read from the root. An env-var base is `heuristic` when
  *    its name is on the list of API-base names ({@link API_BASE_ENV_ENDINGS}: `API_URL`,
  *    `VITE_API_PATH`, `NEXT_PUBLIC_BACKEND_URL`, …, ADR-0165) or the code's fallback for it is
- *    a loopback URL (`?? "http://localhost:9000"`, ADR-0158);
+ *    a loopback URL (`?? "http://localhost:9000"`, ADR-0158) or a root-relative path
+ *    (`|| "/auth"`: unset, the request goes to the page's own origin, ADR-0310);
  *    any other env var matches nothing. When a committed example env file gives such a base
  *    a URL path (`VITE_API_URL=http://localhost:5000/api` in `.env.example`), the path is
  *    tried in front of the request's first, then the request alone (`envExamples.ts`,
@@ -250,10 +251,11 @@ function mayBeInRepo(host: string): boolean {
 
 /**
  * True when an env-var base may point at this repo: its name looks like an API base, or the
- * code's fallback for it is a loopback host (ADR-0158).
+ * code's fallback for it is a loopback host (ADR-0158) or a root-relative path, the page's own
+ * origin (ADR-0310).
  */
 function reachesRepo(base: Extract<UrlBase, { kind: "env" }>): boolean {
-  if (API_BASE_ENV.test(base.name)) return true;
+  if (API_BASE_ENV.test(base.name) || base.fallbackRoot === true) return true;
   return base.fallbackHost !== undefined && isLoopbackHost(base.fallbackHost);
 }
 

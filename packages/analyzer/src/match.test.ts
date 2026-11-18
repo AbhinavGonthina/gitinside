@@ -494,9 +494,34 @@ describe("createRouteMatcher", () => {
     expect(withFallback("ANALYTICS_HOST", "https://stats.example.com", "/api/session")).toBe(
       "NO_MATCHING_ROUTE: the env var ANALYTICS_HOST isn't named like an API base (*_API_URL, *_API_PATH, …)",
     );
+    // A root-relative fallback is the page's own origin (ADR-0310), even in its own service.
     expect(withFallback("ANALYTICS_HOST", "/api", "/session")).toBe(
-      "NO_MATCHING_ROUTE: the env var ANALYTICS_HOST isn't named like an API base (*_API_URL, *_API_PATH, …)",
+      "heuristic route:web/GET /api/session",
     );
+    expect(withFallback("VITE_AUTH_BASE", "/api/users", "/me")).toBe(
+      "heuristic route:api/GET /api/users/me",
+    );
+    expect(withFallback("VITE_AUTH_BASE", "/", "api/users/me")).toBe(
+      "heuristic route:api/GET /api/users/me",
+    );
+    // Page-relative, protocol-relative, or holed fallbacks say nothing of this origin.
+    for (const fallback of ["api", "./api", "//stats.example.com/api"]) {
+      expect(withFallback("ANALYTICS_HOST", fallback, "/session")).toBe(
+        "NO_MATCHING_ROUTE: the env var ANALYTICS_HOST isn't named like an API base (*_API_URL, *_API_PATH, …)",
+      );
+    }
+    for (const start of ["/", "/t/"]) {
+      const holed = toUrlPattern([
+        {
+          kind: "env",
+          name: "ANALYTICS_HOST",
+          fallback: [{ kind: "text", text: start }, { kind: "hole" }],
+        },
+        { kind: "text", text: "/api/session" },
+      ]);
+      if (!("pattern" in holed)) throw new Error("test URL doesn't normalize");
+      expect(holed.pattern.base).toEqual({ kind: "env", name: "ANALYTICS_HOST" });
+    }
   });
 
   it("treats loopback hosts as this repo and other hosts as external", () => {

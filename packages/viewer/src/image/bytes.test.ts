@@ -118,7 +118,7 @@ const EXPECTED: Record<string, string[]> = {
   "diff-rename-head": ["a53ced415c16a067", "ecee12699249acfa", "eae6dd240d0a5018"],
   "env-base-heuristic": ["a216e46368f855ac", "73491fd94efdfefc", "7f66af5403b0ff2f"],
   "env-example-prefix": ["d23a8bcad9c46467", "1c9aaea04b4e77af", "9eb0739f05c9269e"],
-  "env-fallback": ["dea6e2b7dd86b09d", "1788d3bf662ac404", "ad970af5ea6cc0ed"],
+  "env-fallback": ["a84e4268734179e1", "5dfa56295720a536", "357b2a81931ede06"],
   "express-basic": ["150630b64739a03b", "a2501be7e8df0957", "1690776ab8c727e7"],
   "express-class-app": ["cea90d7538203382", "877fd0d58e60eca2", "f6d61bbeb918eeb3"],
   "express-folder-routers": ["0e884762784a4c80", "160f20f42f2f1633", "a63dd2a977adfdfc"],

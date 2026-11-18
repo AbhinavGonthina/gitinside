@@ -199,8 +199,24 @@ describe("toUrlPattern", () => {
     expect(base([envOr("X", [t("/api")]), t("/a")])).toEqual({
       kind: "env",
       name: "X",
+      fallbackRoot: true,
       fallbackSegments: 1,
     });
+    // A root-relative fallback is recorded even when it adds no whole segment (ADR-0310).
+    expect(base([envOr("X", [t("/")]), t("a")])).toEqual({
+      kind: "env",
+      name: "X",
+      fallbackRoot: true,
+    });
+    expect(base([envOr("X", [t("/api")]), t("-v2/a")])).toEqual({
+      kind: "env",
+      name: "X",
+      fallbackRoot: true,
+    });
+    // Page-relative or holed: not.
+    expect(base([envOr("X", [t("api")]), t("/a")])).toEqual({ kind: "env", name: "X" });
+    expect(base([envOr("X", [t("/"), H]), t("/a")])).toEqual({ kind: "env", name: "X" });
+    expect(base([envOr("X", [t("/t/"), H]), t("/a")])).toEqual({ kind: "env", name: "X" });
     expect(base([envOr("X", [t("http://localhost/"), H]), t("/a")])).toEqual({
       kind: "env",
       name: "X",
@@ -228,6 +244,19 @@ describe("toUrlPattern", () => {
     if (!("pattern" in result)) throw new Error("doesn't normalize");
     expect(partsText(patternParts(result.pattern))).toBe("{env:X}/users/{}");
     expect(toUrlPattern(patternParts(result.pattern))).toEqual(result);
+  });
+
+  it("reads a root-relative fallback back from the pattern's own parts (ADR-0310)", () => {
+    for (const input of [
+      [envOr("X", [t("/auth")]), t("/refresh")],
+      [envOr("X", [t("/api")]), t("-v2/a")],
+      [envOr("X", [t("/")]), t("a/"), H],
+      [envOr("X", [t("/")])],
+    ]) {
+      const result = toUrlPattern(input);
+      if (!("pattern" in result)) throw new Error("doesn't normalize");
+      expect(toUrlPattern(patternParts(result.pattern))).toEqual(result);
+    }
   });
 
   it("collapses runaway concatenations to a hole", () => {
