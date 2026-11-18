@@ -1,0 +1,289 @@
+{
+  "repo": "Vincent440/hotel-worx",
+  "sha": "2cffd2e3813cd609d33dc32f60d7ef961f0eabbf",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 7 },
+      "method": "GET",
+      "target": { "file": "routes/api/hw.js", "line": 195, "route": "GET /api/hw/reservation/:id" },
+      "notes": "getReservation(): plain axios.get('/api/hw/reservation/' + id) inside axios.all, root-relative with no baseURL, so it goes to the page's own origin: server.js serves client/build (NODE_ENV production, Procfile + heroku-postbuild) beside the API, and CRA's package.json proxy forwards it in dev. routes/index.js mounts /api, routes/api/index.js mounts /hw; router.get('/reservation/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 8 },
+      "method": "GET",
+      "target": { "file": "routes/api/hw.js", "line": 201, "route": "GET /api/hw/res_rooms/:id" },
+      "notes": "getReservation(): axios.get('/api/hw/res_rooms/' + id), same origin as line 7; /api + /hw mounts; router.get('/res_rooms/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 18 },
+      "method": "POST",
+      "target": { "file": "routes/api/hw.js", "line": 145, "route": "POST /api/hw/reservation" },
+      "notes": "createReservation(): axios (line 18) .post('/api/hw/reservation', …) on line 19, same origin; /api + /hw mounts; router.post('/reservation')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 51 },
+      "method": "PUT",
+      "target": { "file": "routes/api/hw.js", "line": 156, "route": "PUT /api/hw/reservation" },
+      "notes": "updateReservation(): axios (line 51) .put('/api/hw/reservation', …) on line 52, same origin; router.put('/reservation')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 85 },
+      "method": "PUT",
+      "target": {
+        "file": "routes/api/hw.js",
+        "line": 294,
+        "route": "PUT /api/hw/cancelReservation/:id"
+      },
+      "notes": "cancelReservation(): axios (line 85) .put(`/api/hw/cancelReservation/<id>`) on line 86, same origin; router.put('/cancelReservation/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 92 },
+      "method": "GET",
+      "target": { "file": "routes/api/hw.js", "line": 166, "route": "GET /api/hw/reservations" },
+      "notes": "getReservations(): axios (line 92) .get('/api/hw/reservations') on line 93, same origin; router.get('/reservations') (not the /api/reservations router)"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 105 },
+      "method": "GET",
+      "target": {
+        "file": "routes/api/hw.js",
+        "line": 172,
+        "route": "GET /api/hw/reservations_list/:fname/:lname/:sdate/:edate/:cnum"
+      },
+      "notes": "getSomeReservations(): axios (line 105) .get(`/api/hw/reservations_list/<fname>/<lname>/<sdate>/<edate>/<cnum>`) on lines 106-108, each hole defaulting to 'undefined'; same origin; router.get('/reservations_list/:fname/:lname/:sdate/:edate/:cnum')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 115 },
+      "method": "GET",
+      "target": { "file": "routes/api/room-types.js", "line": 10, "route": "GET /api/room/types" },
+      "notes": "getRoomTypes(): axios (line 115) .get('/api/room/types') on line 116, same origin; routes/api/index.js mounts /room/types; router.route('/').get(getAllRoomTypes)"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 130 },
+      "method": "GET",
+      "target": {
+        "file": "routes/api/hw.js",
+        "line": 207,
+        "route": "GET /api/hw/arrivals/:sdate/:fname/:lname/:cnum"
+      },
+      "notes": "getArrivalsNew(): axios.get(`/api/hw/arrivals/<sdate>/<fname>/<lname>/<cnum>`) inside axios.all, same origin; router.get('/arrivals/:sdate/:fname/:lname/:cnum')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 131 },
+      "method": "GET",
+      "target": {
+        "file": "routes/api/hw.js",
+        "line": 255,
+        "route": "GET /api/hw/rooms_arrivals/:date"
+      },
+      "notes": "getArrivalsNew(): axios.get(`/api/hw/rooms_arrivals/<date>`) inside axios.all, same origin; router.get('/rooms_arrivals/:date')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 132 },
+      "method": "GET",
+      "target": {
+        "file": "routes/api/hw.js",
+        "line": 261,
+        "route": "GET /api/hw/pending_departures/:date"
+      },
+      "notes": "getArrivalsNew(): axios.get(`/api/hw/pending_departures/<date>`) inside axios.all, same origin; router.get('/pending_departures/:date')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 159 },
+      "method": "GET",
+      "target": {
+        "file": "routes/api/hw.js",
+        "line": 255,
+        "route": "GET /api/hw/rooms_arrivals/:date"
+      },
+      "notes": "getRoomsArrivals(): axios (line 159) .get(`/api/hw/rooms_arrivals/<date>`) on line 160, same origin; router.get('/rooms_arrivals/:date')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 171 },
+      "method": "GET",
+      "target": {
+        "file": "routes/api/hw.js",
+        "line": 229,
+        "route": "GET /api/hw/departures/:fname/:lname/:rnum/:sover/:dout/:dpart"
+      },
+      "notes": "getDepartures(): axios (line 171) .get(`/api/hw/departures/<fname>/<lname>/<rnum>/<sover>/<dout>/<dpart>`) on lines 172-174, same origin; router.get('/departures/:fname/:lname/:rnum/:sover/:dout/:dpart')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 186 },
+      "method": "GET",
+      "target": {
+        "file": "routes/api/hw.js",
+        "line": 267,
+        "route": "GET /api/hw/guests/:fname/:lname/:rnum/:cnum"
+      },
+      "notes": "getGuests(): axios (line 186) .get(`/api/hw/guests/<fname>/<lname>/<rnum>/<cnum>`) on line 187, same origin; router.get('/guests/:fname/:lname/:rnum/:cnum')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 194 },
+      "method": "PUT",
+      "target": {
+        "file": "routes/api/hw.js",
+        "line": 302,
+        "route": "PUT /api/hw/checkinRoom/:id/:room_id"
+      },
+      "notes": "updateRoomCheckin(): axios (line 194) .put(`/api/hw/checkinRoom/<id>/<room_id>`) on line 195, same origin; router.put('/checkinRoom/:id/:room_id')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 203 },
+      "method": "PUT",
+      "target": {
+        "file": "routes/api/hw.js",
+        "line": 312,
+        "route": "PUT /api/hw/checkoutRoom/:id/:room_num"
+      },
+      "notes": "updateRoomCheckout(): axios.put(`/api/hw/checkoutRoom/<id>/<room_num>`) inside axios.all, same origin; router.put('/checkoutRoom/:id/:room_num')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 204 },
+      "method": "POST",
+      "target": { "file": "routes/api/hw.js", "line": 320, "route": "POST /api/hw/invoice" },
+      "notes": "updateRoomCheckout(): axios.post('/api/hw/invoice', { id, payment_type }) inside axios.all, same origin; router.post('/invoice')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 208 },
+      "method": "GET",
+      "target": { "file": "routes/api/hw.js", "line": 344, "route": "GET /api/hw/pre_invoice/:id" },
+      "notes": "getPreInvoice(): axios (line 208) .get(`/api/hw/pre_invoice/<id>`) on line 209, same origin; router.get('/pre_invoice/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 215 },
+      "method": "GET",
+      "target": { "file": "routes/api/hw.js", "line": 372, "route": "GET /api/hw/invoice/:id" },
+      "notes": "getInvoice(): axios (line 215) .get(`/api/hw/invoice/<id>`) on line 216, same origin; router.get('/invoice/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 222 },
+      "method": "GET",
+      "target": { "file": "routes/api/hw.js", "line": 378, "route": "GET /api/hw/invoice_id/:id" },
+      "notes": "getInvoiceId(): axios (line 222) .get(`/api/hw/invoice_id/<id>`) on line 223, same origin; router.get('/invoice_id/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 229 },
+      "method": "PUT",
+      "target": {
+        "file": "routes/api/hw.js",
+        "line": 384,
+        "route": "PUT /api/hw/updateCleanStatus/:status/:room_id"
+      },
+      "notes": "updateCleanStatus(): axios (line 229) .put(`/api/hw/updateCleanStatus/<status>/<room_id>`) on line 230, same origin; router.put('/updateCleanStatus/:status/:room_id')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 238 },
+      "method": "GET",
+      "target": { "file": "routes/api/room-types.js", "line": 10, "route": "GET /api/room/types" },
+      "notes": "getAvailableRooms(): axios.get('/api/room/types') inside axios.all, same origin; /room/types mount; router.route('/').get(getAllRoomTypes)"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 239 },
+      "method": "GET",
+      "target": {
+        "file": "routes/api/room-types.js",
+        "line": 29,
+        "route": "GET /api/room/types/available/:date"
+      },
+      "notes": "getAvailableRooms(): axios.get(`/api/room/types/available/<date>`) inside axios.all, same origin; router.get('/available/:date')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 248 },
+      "method": "GET",
+      "target": {
+        "file": "routes/api/hw.js",
+        "line": 64,
+        "route": "GET /api/hw/housekeeping_status/:clean/:dirty/:vacant/:occupied/:arrived/:stayOver/:dueOut/:departed/:notReserved"
+      },
+      "notes": "getHouseKeepingStatus(): axios (line 248) .get(`/api/hw/housekeeping_status/<9 checkbox values>`) on lines 249-251, same origin; router.get('/housekeeping_status/:clean/…/:notReserved') on line 64"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 257 },
+      "method": "GET",
+      "target": { "file": "routes/api/hw.js", "line": 391, "route": "GET /api/hw/tax_rates" },
+      "notes": "getTaxRates(): axios (line 257) .get('/api/hw/tax_rates') on line 258, same origin; router.get('/tax_rates')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 264 },
+      "method": "GET",
+      "target": { "file": "routes/api/hw.js", "line": 397, "route": "GET /api/hw/hotel_info/:id" },
+      "notes": "getHotelInfo(): axios (line 264) .get(`/api/hw/hotel_info/<id>`) on line 265, same origin; router.get('/hotel_info/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 271 },
+      "method": "GET",
+      "target": { "file": "routes/api/hw.js", "line": 52, "route": "GET /api/hw/roomsIdNum" },
+      "notes": "getRoomsIdNum(): axios (line 271) .get('/api/hw/roomsIdNum') on line 272, same origin; router.get('/roomsIdNum') (a literal segment, not /rooms/:id)"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 278 },
+      "method": "GET",
+      "target": { "file": "routes/api/hw.js", "line": 403, "route": "GET /api/hw/room_issues" },
+      "notes": "getRoomIssues(): axios (line 278) .get('/api/hw/room_issues') on line 279, same origin; router.get('/room_issues')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 285 },
+      "method": "PUT",
+      "target": { "file": "routes/api/hw.js", "line": 409, "route": "PUT /api/hw/room_issues/:id" },
+      "notes": "updateRoomIssues(): axios (line 285) .put(`/api/hw/room_issues/<id>`, { vals }) on line 286, same origin; router.put('/room_issues/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 292 },
+      "method": "PUT",
+      "target": {
+        "file": "routes/api/hw.js",
+        "line": 419,
+        "route": "PUT /api/hw/room_issues_fixed/:id"
+      },
+      "notes": "updateRoomIssuesFixed(): axios (line 292) .put(`/api/hw/room_issues_fixed/<id>`) on line 293, same origin; router.put('/room_issues_fixed/:id')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 299 },
+      "method": "POST",
+      "target": { "file": "routes/api/hw.js", "line": 429, "route": "POST /api/hw/room_issues" },
+      "notes": "createRoomIssue(): axios (line 299) .post('/api/hw/room_issues', { vals }) on line 300, same origin; router.post('/room_issues')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 308 },
+      "method": "GET",
+      "target": {
+        "file": "routes/api/hw.js",
+        "line": 441,
+        "route": "GET /api/hw/house_status_rooms"
+      },
+      "notes": "getHouseStatus(): axios.get('/api/hw/house_status_rooms') inside axios.all, same origin; router.get('/house_status_rooms')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/api.js", "line": 309 },
+      "method": "GET",
+      "target": {
+        "file": "routes/api/hw.js",
+        "line": 435,
+        "route": "GET /api/hw/house_status_res_rooms/:date"
+      },
+      "notes": "getHouseStatus(): axios.get(`/api/hw/house_status_res_rooms/<date>`) inside axios.all, same origin; router.get('/house_status_res_rooms/:date')"
+    },
+    {
+      "callSite": { "file": "client/src/utils/authapi.js", "line": 6 },
+      "method": "GET",
+      "target": { "file": "routes/api/login.js", "line": 11, "route": "GET /api/login/status" },
+      "notes": "getLoginStatus(): plain axios.get('/api/login/status'), root-relative, same origin as api.js; routes/api/index.js mounts /login; router.route('/status').get(…)"
+    },
+    {
+      "callSite": { "file": "client/src/utils/authapi.js", "line": 14 },
+      "method": "POST",
+      "target": { "file": "routes/api/login.js", "line": 5, "route": "POST /api/login" },
+      "notes": "postUserLogin(): axios.post('/api/login', user), same origin; /login mount; router.route('/').post(passport.authenticate('local'), …)"
+    },
+    {
+      "callSite": { "file": "client/src/utils/authapi.js", "line": 25 },
+      "method": "GET",
+      "target": { "file": "routes/api/logout.js", "line": 4, "route": "GET /api/logout" },
+      "notes": "getLoggedOut(): axios.get('/api/logout'), same origin; /logout mount; router.route('/').get(…)"
+    }
+  ]
+}

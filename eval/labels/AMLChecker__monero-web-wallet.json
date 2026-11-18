@@ -1,0 +1,193 @@
+{
+  "repo": "AMLChecker/monero-web-wallet",
+  "sha": "1556234333df9bde1685e95a67ed3e7d940d6288",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["backend", "frontend"],
+  "edges": [
+    {
+      "callSite": { "file": "backend/src/daemon.ts", "line": 71, "column": 64 },
+      "method": "POST",
+      "target": null,
+      "notes": "tryGetInfo(url) -> postJson(url, get_info JSON-RPC body) -> fetch(url, { method: 'POST' }); url = getDaemonUrl() (config.ts): the Monero daemon at MONERO_DAEMON_ADDRESS ?? node-address.txt ?? '127.0.0.1:18081' (monerod, not in the repo; no repo server listens on 18081), or any node the user sets. External, null"
+    },
+    {
+      "callSite": { "file": "backend/src/daemon.ts", "line": 71, "column": 88 },
+      "method": "GET",
+      "target": null,
+      "notes": "tryGetHeight(url) -> fetch(`${url}/get_height`); url = getDaemonUrl(), the Monero daemon (default 127.0.0.1:18081, not in the repo). External, null"
+    },
+    {
+      "callSite": { "file": "backend/src/price.ts", "line": 173 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetchQuote(): fetch(info.url), the current price source's URL: Kraken's or CoinGecko's public API, or PRICE_API_URL (custom, no value in the repo). External hosts, null"
+    },
+    {
+      "callSite": { "file": "backend/src/walletManager.ts", "line": 654 },
+      "method": "POST",
+      "target": null,
+      "notes": "estimatedFeeAtomic(): fetch(`${status.url}/json_rpc`), status.url = the daemon's getDaemonUrl() (default 127.0.0.1:18081, monerod, not in the repo). External, null"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 70 },
+      "method": "GET",
+      "target": { "file": "backend/src/server.ts", "line": 88, "route": "GET /api/health" },
+      "notes": "api.health(): request('/api/health') -> fetch(path) (default GET). Root-relative; Vite proxies /api to http://127.0.0.1:(MONERO_BACKEND_PORT || 18082) = backend PORT || 18082 (config.ts), and in production the backend serves frontend/dist on the same origin. app.get('/api/health')"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 71 },
+      "method": "GET",
+      "target": { "file": "backend/src/server.ts", "line": 103, "route": "GET /api/wallets" },
+      "notes": "api.wallets(): request('/api/wallets'), same-origin /api (proxied to :18082). app.get('/api/wallets')"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 72 },
+      "method": "GET",
+      "target": { "file": "backend/src/server.ts", "line": 146, "route": "GET /api/wallet/info" },
+      "notes": "api.walletInfo(): request('/api/wallet/info'), same-origin /api (proxied to :18082). app.get('/api/wallet/info')"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 73 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/server.ts",
+        "line": 153,
+        "route": "GET /api/wallet/balance"
+      },
+      "notes": "api.balance(): request('/api/wallet/balance'), same-origin /api (proxied to :18082). app.get('/api/wallet/balance')"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 74 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/server.ts",
+        "line": 160,
+        "route": "GET /api/wallet/address"
+      },
+      "notes": "api.address(): request('/api/wallet/address'), same-origin /api (proxied to :18082). app.get('/api/wallet/address')"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 75 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/server.ts",
+        "line": 167,
+        "route": "GET /api/wallet/transactions"
+      },
+      "notes": "api.transactions(limit): request(`/api/wallet/transactions?limit=${limit}`) (query dropped), same-origin /api (proxied to :18082). app.get('/api/wallet/transactions')"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 76 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/server.ts",
+        "line": 118,
+        "route": "POST /api/wallet/create"
+      },
+      "notes": "api.createWallet(): post('/api/wallet/create', body) -> request(path, { method: 'POST' }), same-origin /api (proxied to :18082). app.post('/api/wallet/create')"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 77 },
+      "method": "POST",
+      "target": { "file": "backend/src/server.ts", "line": 128, "route": "POST /api/wallet/open" },
+      "notes": "api.openWallet(): post('/api/wallet/open', body), same-origin /api (proxied to :18082). app.post('/api/wallet/open')"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 78 },
+      "method": "POST",
+      "target": { "file": "backend/src/server.ts", "line": 143, "route": "POST /api/wallet/close" },
+      "notes": "api.closeWallet(): post('/api/wallet/close', {}), same-origin /api (proxied to :18082). app.post('/api/wallet/close', closeHandler)"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 79 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/server.ts",
+        "line": 185,
+        "route": "POST /api/wallet/phrase"
+      },
+      "notes": "api.revealPhrase(): post('/api/wallet/phrase', body), same-origin /api (proxied to :18082). app.post('/api/wallet/phrase')"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 80 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/server.ts",
+        "line": 175,
+        "route": "POST /api/wallet/subaddress"
+      },
+      "notes": "api.createSubaddress(): post('/api/wallet/subaddress', body), same-origin /api (proxied to :18082). app.post('/api/wallet/subaddress')"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 81 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/server.ts",
+        "line": 195,
+        "route": "POST /api/wallet/address/validate"
+      },
+      "notes": "api.validateAddress(): post('/api/wallet/address/validate', body), same-origin /api (proxied to :18082). app.post('/api/wallet/address/validate')"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 82 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/server.ts",
+        "line": 203,
+        "route": "POST /api/wallet/refresh"
+      },
+      "notes": "api.refreshWallet(): post('/api/wallet/refresh', {}), same-origin /api (proxied to :18082). app.post('/api/wallet/refresh')"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 83 },
+      "method": "GET",
+      "target": { "file": "backend/src/server.ts", "line": 212, "route": "GET /api/price" },
+      "notes": "api.price(): request('/api/price'), same-origin /api (proxied to :18082). app.get('/api/price')"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 84 },
+      "method": "GET",
+      "target": { "file": "backend/src/server.ts", "line": 276, "route": "GET /api/support" },
+      "notes": "api.support(): request('/api/support'), same-origin /api (proxied to :18082). app.get('/api/support')"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 86 },
+      "method": "POST",
+      "target": { "file": "backend/src/server.ts", "line": 223, "route": "POST /api/price/source" },
+      "notes": "api.setPriceSource(): post('/api/price/source', body) (the call starts on the method's second line), same-origin /api (proxied to :18082). app.post('/api/price/source')"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 88 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/server.ts",
+        "line": 244,
+        "route": "POST /api/wallet/send/prepare"
+      },
+      "notes": "api.prepareSend(): post('/api/wallet/send/prepare', input) (the call starts on the method's second line), same-origin /api (proxied to :18082). app.post('/api/wallet/send/prepare')"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 89 },
+      "method": "POST",
+      "target": { "file": "backend/src/server.ts", "line": 252, "route": "POST /api/wallet/send" },
+      "notes": "api.send(): post('/api/wallet/send', body), same-origin /api (proxied to :18082). app.post('/api/wallet/send')"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 90 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/server.ts",
+        "line": 261,
+        "route": "POST /api/wallet/send/cancel"
+      },
+      "notes": "api.cancelSend(): post('/api/wallet/send/cancel', body), same-origin /api (proxied to :18082). app.post('/api/wallet/send/cancel')"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/client.ts", "line": 91 },
+      "method": "POST",
+      "target": { "file": "backend/src/server.ts", "line": 306, "route": "POST /api/node/daemon" },
+      "notes": "api.setDaemon(): post('/api/node/daemon', body), same-origin /api (proxied to :18082). app.post('/api/node/daemon')"
+    }
+  ]
+}

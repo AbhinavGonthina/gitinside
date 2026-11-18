@@ -1,0 +1,273 @@
+{
+  "repo": "ap211unitech/Blog-Website-MERN",
+  "sha": "70dc0360a94af1dc9d73897d7d4a9200160d30c4",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["client", "server"],
+  "edges": [
+    {
+      "callSite": { "file": "client/src/features/admin/adminService.js", "line": 11 },
+      "method": "GET",
+      "target": { "file": "server/routes/admin.js", "line": 13, "route": "GET /admin/getAllUsers" },
+      "notes": "getAllUsers(): axios.get(`${BACKEND_HOST_URL}/admin/getAllUsers`, config). BACKEND_HOST_URL is the literal \"https://blog-website-mern-navy.vercel.app\" (client/src/config/defaults.js line 1, no env var or fallback). That host is this repo's server: server/vercel.json routes every path (\"/(.*)\") to server.js, and every path the client sends there is one of its routes, so the host is followed into the repo (ADR-0209). server.js mounts the admin router at /admin; router.get('/getAllUsers')"
+    },
+    {
+      "callSite": { "file": "client/src/features/admin/adminService.js", "line": 22 },
+      "method": "POST",
+      "target": { "file": "server/routes/admin.js", "line": 7, "route": "POST /admin/toggleRole" },
+      "notes": "toggleRole(): axios.post(`${BACKEND_HOST_URL}/admin/toggleRole`, data, config); /admin mount + router.post('/toggleRole')"
+    },
+    {
+      "callSite": { "file": "client/src/features/admin/adminService.js", "line": 33 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/admin.js",
+        "line": 10,
+        "route": "POST /admin/toggleBlock"
+      },
+      "notes": "toggleBlock(): axios.post(`${BACKEND_HOST_URL}/admin/toggleBlock`, data, config); /admin mount + router.post('/toggleBlock')"
+    },
+    {
+      "callSite": { "file": "client/src/features/admin/adminService.js", "line": 44 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/admin.js",
+        "line": 16,
+        "route": "POST /admin/getUserDetailsByUserId"
+      },
+      "notes": "getUserDetails(): axios.post(`${BACKEND_HOST_URL}/admin/getUserDetailsByUserId`, data, config); /admin mount + router.post('/getUserDetailsByUserId')"
+    },
+    {
+      "callSite": { "file": "client/src/features/auth/authService.js", "line": 8 },
+      "method": "POST",
+      "target": { "file": "server/routes/auth.js", "line": 6, "route": "POST /auth/register" },
+      "notes": "registerUserForm(): axios.post(`${URL}/auth/register`, user) with const URL = BACKEND_HOST_URL, the literal \"https://blog-website-mern-navy.vercel.app\" (client/src/config/defaults.js), the repo's own server deployed on Vercel (server/vercel.json routes /(.*) to server.js), so followed into the repo. server.js mounts the auth router at /; router.post('/auth/register')"
+    },
+    {
+      "callSite": { "file": "client/src/features/auth/authService.js", "line": 17 },
+      "method": "POST",
+      "target": { "file": "server/routes/auth.js", "line": 7, "route": "POST /auth/login" },
+      "notes": "loginUserForm(): axios.post(`${URL}/auth/login`, user)"
+    },
+    {
+      "callSite": { "file": "client/src/features/auth/authService.js", "line": 31 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/auth.js",
+        "line": 15,
+        "route": "POST /auth/forgotpassword"
+      },
+      "notes": "forgotPassword(): axios.post(`${URL}/auth/forgotpassword`, { email })"
+    },
+    {
+      "callSite": { "file": "client/src/features/auth/authService.js", "line": 37 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/auth.js",
+        "line": 16,
+        "route": "POST /auth/resetpassword/:token"
+      },
+      "notes": "resetPassword(): axios.post(`${URL}/auth/resetpassword/${token}`, { newPassword })"
+    },
+    {
+      "callSite": { "file": "client/src/features/auth/authService.js", "line": 48 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/auth.js",
+        "line": 11,
+        "route": "GET /auth/activate/:token"
+      },
+      "notes": "activateAccount(): axios.get(`${URL}/auth/activate/${token}`, config)"
+    },
+    {
+      "callSite": { "file": "client/src/features/auth/authService.js", "line": 59 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/auth.js",
+        "line": 12,
+        "route": "GET /auth/send-activation-link"
+      },
+      "notes": "sendActivationMail(): axios.get(`${URL}/auth/send-activation-link`, config)"
+    },
+    {
+      "callSite": { "file": "client/src/features/auth/authService.js", "line": 65 },
+      "method": "POST",
+      "target": { "file": "server/routes/auth.js", "line": 8, "route": "POST /auth/googlesignin" },
+      "notes": "googleSignInAuthentication(): axios.post(`${URL}/auth/googlesignin`, { idToken })"
+    },
+    {
+      "callSite": { "file": "client/src/features/auth/authService.js", "line": 79 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/auth.js",
+        "line": 19,
+        "route": "POST /auth/change-password"
+      },
+      "notes": "changePassword(): axios.post(`${URL}/auth/change-password`, data, config)"
+    },
+    {
+      "callSite": { "file": "client/src/features/blog/blogService.js", "line": 8 },
+      "method": "GET",
+      "target": { "file": "server/routes/blog.js", "line": 6, "route": "GET /blog/latest" },
+      "notes": "getLatestBlogs(): axios.get(`${URL}/blog/latest`) with URL = BACKEND_HOST_URL (the repo's own Vercel-deployed server, followed in as above); blog router mounted at /. GET /blog/latest (line 6) is registered before GET /blog/:categoryId (line 9), so Express dispatches the literal route"
+    },
+    {
+      "callSite": { "file": "client/src/features/blog/blogService.js", "line": 14 },
+      "method": "GET",
+      "target": { "file": "server/routes/blog.js", "line": 9, "route": "GET /blog/:categoryId" },
+      "notes": "getBlogsByCategoryId(): axios.get(`${URL}/blog/${categoryId}`)"
+    },
+    {
+      "callSite": { "file": "client/src/features/blog/blogService.js", "line": 20 },
+      "method": "GET",
+      "target": { "file": "server/routes/blog.js", "line": 12, "route": "GET /blog/user/:userId" },
+      "notes": "getBlogsOfUser(): axios.get(`${URL}/blog/user/${userId}`); two segments after /blog, so GET /blog/:categoryId (one segment) can't match"
+    },
+    {
+      "callSite": { "file": "client/src/features/blog/blogService.js", "line": 27 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/blog.js",
+        "line": 15,
+        "route": "POST /blog/single/:blogId"
+      },
+      "notes": "getBlogByBlogID(): axios.post(`${URL}/blog/single/${blogId}`, { token })"
+    },
+    {
+      "callSite": { "file": "client/src/features/blog/blogService.js", "line": 38 },
+      "method": "POST",
+      "target": { "file": "server/routes/blog.js", "line": 18, "route": "POST /blog/like/:blogId" },
+      "notes": "likeBlogByBlogID(): axios.post(`${URL}/blog/like/${blogId}`, {}, config)"
+    },
+    {
+      "callSite": { "file": "client/src/features/blog/blogService.js", "line": 49 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/blog.js",
+        "line": 21,
+        "route": "POST /blog/dislike/:blogId"
+      },
+      "notes": "dislikeBlogByBlogID(): axios.post(`${URL}/blog/dislike/${blogId}`, {}, config)"
+    },
+    {
+      "callSite": { "file": "client/src/features/blog/blogService.js", "line": 60 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/blog.js",
+        "line": 24,
+        "route": "POST /blog/comment/:blogId"
+      },
+      "notes": "commentBlogByBlogID(): axios.post(`${URL}/blog/comment/${blogId}`, { text }, config)"
+    },
+    {
+      "callSite": { "file": "client/src/features/blog/blogService.js", "line": 71 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/blog.js",
+        "line": 27,
+        "route": "DELETE /blog/comment/:blogId/:commentId"
+      },
+      "notes": "deleteCommentBlogByBlogID(): axios.delete(`${URL}/blog/comment/${blogId}/${commentId}`, config)"
+    },
+    {
+      "callSite": { "file": "client/src/features/blog/blogService.js", "line": 82 },
+      "method": "POST",
+      "target": { "file": "server/routes/blog.js", "line": 30, "route": "POST /blog/write" },
+      "notes": "writeNewBlog(): axios.post(`${URL}/blog/write`, data, config)"
+    },
+    {
+      "callSite": { "file": "client/src/features/blog/blogService.js", "line": 94 },
+      "method": "DELETE",
+      "target": { "file": "server/routes/blog.js", "line": 36, "route": "DELETE /blog/delete/:id" },
+      "notes": "deleteBlog(): axios.delete(`${URL}/blog/delete/${id}`, config) with { prime } as the request body"
+    },
+    {
+      "callSite": { "file": "client/src/features/blog/blogService.js", "line": 105 },
+      "method": "POST",
+      "target": { "file": "server/routes/blog.js", "line": 33, "route": "POST /blog/edit/:id" },
+      "notes": "editBlog(): axios.post(`${URL}/blog/edit/${data.blogId}`, data, config)"
+    },
+    {
+      "callSite": { "file": "client/src/features/category/categoryService.js", "line": 13 },
+      "method": "GET",
+      "target": { "file": "server/routes/category.js", "line": 7, "route": "GET /category" },
+      "notes": "getAllCategory(): axios.get(`${URL}/category`, config) with URL = BACKEND_HOST_URL (the repo's own Vercel-deployed server, followed in as above); category router mounted at /"
+    },
+    {
+      "callSite": { "file": "client/src/features/category/categoryService.js", "line": 27 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/routes/category.js",
+        "line": 16,
+        "route": "DELETE /category/:id"
+      },
+      "notes": "deleteCategory(): axios.delete(`${URL}/category/${data.categoryId}`, config)"
+    },
+    {
+      "callSite": { "file": "client/src/features/category/categoryService.js", "line": 38 },
+      "method": "POST",
+      "target": { "file": "server/routes/category.js", "line": 10, "route": "POST /category" },
+      "notes": "addCategory(): axios.post(`${URL}/category`, data, config)"
+    },
+    {
+      "callSite": { "file": "client/src/features/category/categoryService.js", "line": 49 },
+      "method": "PATCH",
+      "target": { "file": "server/routes/category.js", "line": 13, "route": "PATCH /category/:id" },
+      "notes": "editCategory(): axios.patch(`${URL}/category/${data.categoryId}`, data, config)"
+    },
+    {
+      "callSite": { "file": "client/src/features/profile/profileService.js", "line": 13 },
+      "method": "GET",
+      "target": { "file": "server/routes/profile.js", "line": 6, "route": "GET /profile/me" },
+      "notes": "getMyProfile(): axios.get(`${URL}/profile/me`, config) with URL = BACKEND_HOST_URL (the repo's own Vercel-deployed server, followed in as above); profile router mounted at /"
+    },
+    {
+      "callSite": { "file": "client/src/features/profile/profileService.js", "line": 24 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/profile.js",
+        "line": 9,
+        "route": "POST /profile/update-profile"
+      },
+      "notes": "editMyProfile(): axios.post(`${URL}/profile/update-profile`, data, config)"
+    },
+    {
+      "callSite": { "file": "client/src/features/profile/profileService.js", "line": 31 },
+      "method": "POST",
+      "target": {
+        "file": "server/routes/profile.js",
+        "line": 12,
+        "route": "POST /profile/view/:id"
+      },
+      "notes": "getAnyUserProfile(): axios.post(`${URL}/profile/view/${profileId}`, { token })"
+    },
+    {
+      "callSite": { "file": "client/src/features/profile/profileService.js", "line": 42 },
+      "method": "GET",
+      "target": {
+        "file": "server/routes/profile.js",
+        "line": 15,
+        "route": "GET /profile/follow/:id"
+      },
+      "notes": "followAnyUserProfile(): axios.get(`${URL}/profile/follow/${profileId}`, config)"
+    },
+    {
+      "callSite": { "file": "client/src/pages/EditBlog.js", "line": 86 },
+      "method": "POST",
+      "target": null,
+      "notes": "image upload: axios.post(`https://api.cloudinary.com/v1_1/${CLOUDINARY_USER_NAME}/image/upload`, data); Cloudinary is an external host"
+    },
+    {
+      "callSite": { "file": "client/src/pages/UpdateProfile.js", "line": 75 },
+      "method": "POST",
+      "target": null,
+      "notes": "profile image upload: axios.post to api.cloudinary.com; external host"
+    },
+    {
+      "callSite": { "file": "client/src/pages/WriteBlog.js", "line": 107 },
+      "method": "POST",
+      "target": null,
+      "notes": "image upload: axios.post to api.cloudinary.com; external host"
+    }
+  ]
+}
