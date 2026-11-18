@@ -1,0 +1,1061 @@
+{
+  "repo": "Ebo1996/mintnavigation",
+  "sha": "4598824c2d9bd5cabdfb74cc8e6c640359456f0a",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "frontend/src/components/AnnouncementBanner.jsx", "line": 54 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/announcementRoutes.js",
+        "line": 14,
+        "route": "GET /api/announcements"
+      },
+      "notes": "API.get(\"/announcements?active=true\") on the shared instance (frontend/src/services/api.js: baseURL import.meta.env.VITE_API_URL || \"http://localhost:5000/api\"; dev fallback, backend/src/server.js PORT || 5000, backend/.env.example PORT=5000). announcementRoutes mounted at /api/announcements; router.get(\"/\"); query dropped"
+    },
+    {
+      "callSite": {
+        "file": "frontend/src/components/sector-manager/SectorDashboard.jsx",
+        "line": 149
+      },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/sectorAdminRoutes.js",
+        "line": 21,
+        "route": "GET /api/sectors/public/:id"
+      },
+      "notes": "File-local API = axios.create({ baseURL: VITE_API_URL || \"http://localhost:5000/api\" }) (line 23). sectorAdminRoutes mounted at /api/sectors; router.get(\"/public/:id\")"
+    },
+    {
+      "callSite": {
+        "file": "frontend/src/components/sector-manager/SectorDashboard.jsx",
+        "line": 159
+      },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/sectorRoutes.js",
+        "line": 28,
+        "route": "GET /api/sector/:sectorId/stats"
+      },
+      "notes": "File-local API, base http://localhost:5000/api (fallback). sectorRoutes mounted at /api/sector; router.get(\"/:sectorId/stats\")"
+    },
+    {
+      "callSite": {
+        "file": "frontend/src/components/sector-manager/SectorDashboard.jsx",
+        "line": 166
+      },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/sectorRoutes.js",
+        "line": 27,
+        "route": "GET /api/sector/:sectorId/feedback"
+      },
+      "notes": "File-local API, base http://localhost:5000/api (fallback). sectorRoutes at /api/sector; router.get(\"/:sectorId/feedback\")"
+    },
+    {
+      "callSite": {
+        "file": "frontend/src/components/sector-manager/SectorDashboard.jsx",
+        "line": 185
+      },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/sectorRoutes.js",
+        "line": 27,
+        "route": "GET /api/sector/:sectorId/feedback"
+      },
+      "notes": "File-local API, base http://localhost:5000/api (fallback). sectorRoutes at /api/sector; router.get(\"/:sectorId/feedback\")"
+    },
+    {
+      "callSite": {
+        "file": "frontend/src/components/sector-manager/SectorDashboard.jsx",
+        "line": 195
+      },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/sectorRoutes.js",
+        "line": 29,
+        "route": "GET /api/sector/:sectorId/pending-count"
+      },
+      "notes": "File-local API, base http://localhost:5000/api (fallback). sectorRoutes at /api/sector; router.get(\"/:sectorId/pending-count\")"
+    },
+    {
+      "callSite": {
+        "file": "frontend/src/components/sector-manager/SectorDashboard.jsx",
+        "line": 200
+      },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/sectorRoutes.js",
+        "line": 27,
+        "route": "GET /api/sector/:sectorId/feedback"
+      },
+      "notes": "File-local API, base http://localhost:5000/api (fallback). sectorRoutes at /api/sector; router.get(\"/:sectorId/feedback\")"
+    },
+    {
+      "callSite": {
+        "file": "frontend/src/components/sector-manager/SectorDashboard.jsx",
+        "line": 217
+      },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/sectorRoutes.js",
+        "line": 109,
+        "route": "GET /api/sector/alerts/my"
+      },
+      "notes": "File-local API, base http://localhost:5000/api (fallback). sectorRoutes at /api/sector; router.get(\"/alerts/my\") (no earlier GET matches: \"my\" isn't feedback/stats/pending-count)"
+    },
+    {
+      "callSite": {
+        "file": "frontend/src/components/sector-manager/SectorDashboard.jsx",
+        "line": 229
+      },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/sectorRoutes.js",
+        "line": 121,
+        "route": "PUT /api/sector/alerts/:alertId/read"
+      },
+      "notes": "File-local API, base http://localhost:5000/api (fallback). sectorRoutes at /api/sector; router.put(\"/alerts/:alertId/read\")"
+    },
+    {
+      "callSite": {
+        "file": "frontend/src/components/sector-manager/SectorDashboard.jsx",
+        "line": 237
+      },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/sectorRoutes.js",
+        "line": 138,
+        "route": "PUT /api/sector/alerts/read-all"
+      },
+      "notes": "File-local API, base http://localhost:5000/api (fallback). sectorRoutes at /api/sector; router.put(\"/alerts/read-all\")"
+    },
+    {
+      "callSite": {
+        "file": "frontend/src/components/sector-manager/SectorDashboard.jsx",
+        "line": 248
+      },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/feedbackRoutes.js",
+        "line": 73,
+        "route": "POST /api/feedback/:id/reply"
+      },
+      "notes": "File-local API, base http://localhost:5000/api (fallback). feedbackRoutes mounted at /api/feedback; router.post(\"/:id/reply\")"
+    },
+    {
+      "callSite": {
+        "file": "frontend/src/components/sector-manager/SectorDashboard.jsx",
+        "line": 267
+      },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/sectorRoutes.js",
+        "line": 32,
+        "route": "PUT /api/sector/feedback/:id/resolve"
+      },
+      "notes": "File-local API, base http://localhost:5000/api (fallback). sectorRoutes at /api/sector; router.put(\"/feedback/:id/resolve\")"
+    },
+    {
+      "callSite": {
+        "file": "frontend/src/components/sector-manager/SectorDashboard.jsx",
+        "line": 278
+      },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/sectorRoutes.js",
+        "line": 30,
+        "route": "GET /api/sector/:sectorId/export/csv"
+      },
+      "notes": "File-local API, base http://localhost:5000/api (fallback). sectorRoutes at /api/sector; router.get(\"/:sectorId/export/csv\")"
+    },
+    {
+      "callSite": {
+        "file": "frontend/src/components/sector-manager/SectorDashboard.jsx",
+        "line": 350
+      },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/sectorRoutes.js",
+        "line": 35,
+        "route": "PUT /api/sector/profile/update"
+      },
+      "notes": "File-local API, base http://localhost:5000/api (fallback). sectorRoutes at /api/sector; router.put(\"/profile/update\")"
+    },
+    {
+      "callSite": {
+        "file": "frontend/src/components/sector-manager/SectorDashboard.jsx",
+        "line": 366
+      },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/sectorRoutes.js",
+        "line": 36,
+        "route": "PUT /api/sector/profile/change-password"
+      },
+      "notes": "File-local API, base http://localhost:5000/api (fallback). sectorRoutes at /api/sector; router.put(\"/profile/change-password\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/GeneralFeedback.jsx", "line": 110 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/systemComplaintRoutes.js",
+        "line": 14,
+        "route": "POST /api/system-complaints"
+      },
+      "notes": "Shared API (services/api.js), base http://localhost:5000/api (fallback). systemComplaintRoutes mounted at /api/system-complaints; router.post(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/Home.jsx", "line": 144 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/feedbackRoutes.js",
+        "line": 35,
+        "route": "GET /api/feedback/stats"
+      },
+      "notes": "File-local API = axios.create({ baseURL: VITE_API_URL || \"http://localhost:5000/api\" }) (line 19). feedbackRoutes at /api/feedback; router.get(\"/stats\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/Home.jsx", "line": 157 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/announcementRoutes.js",
+        "line": 14,
+        "route": "GET /api/announcements"
+      },
+      "notes": "File-local API, base http://localhost:5000/api (fallback). announcementRoutes at /api/announcements; router.get(\"/\"); query dropped"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/AdminLayout.jsx", "line": 50 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/systemComplaintRoutes.js",
+        "line": 17,
+        "route": "GET /api/system-complaints/stats"
+      },
+      "notes": "Shared API (services/api.js), base http://localhost:5000/api (fallback). systemComplaintRoutes at /api/system-complaints; router.get(\"/stats\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/AdminLayout.jsx", "line": 51 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/systemComplaintRoutes.js",
+        "line": 18,
+        "route": "GET /api/system-complaints"
+      },
+      "notes": "Shared API, base http://localhost:5000/api (fallback). systemComplaintRoutes at /api/system-complaints; router.get(\"/\"); query dropped"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/AdminLayout.jsx", "line": 52 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/announcementRoutes.js",
+        "line": 14,
+        "route": "GET /api/announcements"
+      },
+      "notes": "Shared API, base http://localhost:5000/api (fallback). announcementRoutes at /api/announcements; router.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/Announcements.jsx", "line": 106 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/announcementRoutes.js",
+        "line": 14,
+        "route": "GET /api/announcements"
+      },
+      "notes": "Shared API (services/api.js), base http://localhost:5000/api (fallback). announcementRoutes at /api/announcements; router.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/Announcements.jsx", "line": 192 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/announcementRoutes.js",
+        "line": 19,
+        "route": "POST /api/announcements"
+      },
+      "notes": "Shared API, base http://localhost:5000/api (fallback). announcementRoutes at /api/announcements; router.post(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/Announcements.jsx", "line": 215 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/announcementRoutes.js",
+        "line": 20,
+        "route": "PUT /api/announcements/:id"
+      },
+      "notes": "Shared API, base http://localhost:5000/api (fallback). announcementRoutes at /api/announcements; router.put(\"/:id\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/Announcements.jsx", "line": 233 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/src/routes/announcementRoutes.js",
+        "line": 21,
+        "route": "DELETE /api/announcements/:id"
+      },
+      "notes": "Shared API, base http://localhost:5000/api (fallback). announcementRoutes at /api/announcements; router.delete(\"/:id\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/Announcements.jsx", "line": 245 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/src/routes/announcementRoutes.js",
+        "line": 22,
+        "route": "PATCH /api/announcements/:id/toggle"
+      },
+      "notes": "Shared API, base http://localhost:5000/api (fallback). announcementRoutes at /api/announcements; router.patch(\"/:id/toggle\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/Announcements.jsx", "line": 269 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/announcementRoutes.js",
+        "line": 19,
+        "route": "POST /api/announcements"
+      },
+      "notes": "Shared API, base http://localhost:5000/api (fallback). announcementRoutes at /api/announcements; router.post(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/Dashboard.jsx", "line": 91 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/systemComplaintRoutes.js",
+        "line": 17,
+        "route": "GET /api/system-complaints/stats"
+      },
+      "notes": "File-local API = axios.create({ baseURL: \"http://localhost:5000/api\" }) (line 25, literal). systemComplaintRoutes at /api/system-complaints; router.get(\"/stats\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/Dashboard.jsx", "line": 92 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/systemComplaintRoutes.js",
+        "line": 18,
+        "route": "GET /api/system-complaints"
+      },
+      "notes": "File-local API, literal base http://localhost:5000/api. systemComplaintRoutes at /api/system-complaints; router.get(\"/\"); query dropped"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/DepartmentManager.jsx", "line": 100 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/sectorAdminRoutes.js",
+        "line": 20,
+        "route": "GET /api/sectors"
+      },
+      "notes": "API = (await import(\"../../services/api\")).default (line 99), the shared instance, base http://localhost:5000/api (fallback). sectorAdminRoutes at /api/sectors; router.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/DepartmentsManager.jsx", "line": 79 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/sectorAdminRoutes.js",
+        "line": 20,
+        "route": "GET /api/sectors"
+      },
+      "notes": "Shared API (services/api.js), base http://localhost:5000/api (fallback). sectorAdminRoutes at /api/sectors; router.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/FeedbackManager.jsx", "line": 60 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/feedbackRoutes.js",
+        "line": 30,
+        "route": "GET /api/feedback"
+      },
+      "notes": "File-local API = axios.create({ baseURL: \"http://localhost:5000/api\" }) (line 19, literal). feedbackRoutes at /api/feedback; router.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/FeedbackManager.jsx", "line": 61 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/feedbackRoutes.js",
+        "line": 35,
+        "route": "GET /api/feedback/stats"
+      },
+      "notes": "File-local API, literal base http://localhost:5000/api. feedbackRoutes at /api/feedback; router.get(\"/stats\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/SectorManagers.jsx", "line": 68 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/adminRoutes.js",
+        "line": 60,
+        "route": "GET /api/admin/sector-managers"
+      },
+      "notes": "File-local API = axios.create({ baseURL: VITE_API_URL || \"http://localhost:5000/api\" }) (line 10). adminRoutes mounted at /api/admin; router.get(\"/sector-managers\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/SectorManagers.jsx", "line": 111 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/adminRoutes.js",
+        "line": 61,
+        "route": "POST /api/admin/sector-managers"
+      },
+      "notes": "File-local API, base http://localhost:5000/api (fallback). adminRoutes at /api/admin; router.post(\"/sector-managers\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/SectorManagers.jsx", "line": 121 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/adminRoutes.js",
+        "line": 62,
+        "route": "PUT /api/admin/sector-managers/:id"
+      },
+      "notes": "File-local API, base http://localhost:5000/api (fallback). adminRoutes at /api/admin; router.put(\"/sector-managers/:id\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/SectorManagers.jsx", "line": 133 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/adminRoutes.js",
+        "line": 63,
+        "route": "POST /api/admin/sector-managers/:id/reset-password"
+      },
+      "notes": "File-local API, base http://localhost:5000/api (fallback). adminRoutes at /api/admin; router.post(\"/sector-managers/:id/reset-password\") (statement starts line 63)"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/SectorManagers.jsx", "line": 142 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/src/routes/adminRoutes.js",
+        "line": 68,
+        "route": "DELETE /api/admin/sector-managers/:id"
+      },
+      "notes": "File-local API, base http://localhost:5000/api (fallback). adminRoutes at /api/admin; router.delete(\"/sector-managers/:id\") (before the one-segment \"/:id\" at line 80)"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/Settings.jsx", "line": 68 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/adminRoutes.js",
+        "line": 52,
+        "route": "GET /api/admin/profile"
+      },
+      "notes": "File-local API = axios.create({ baseURL: \"http://localhost:5000/api\" }) (line 23, literal). adminRoutes at /api/admin; router.get(\"/profile\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/Settings.jsx", "line": 85 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/adminRoutes.js",
+        "line": 53,
+        "route": "PUT /api/admin/profile"
+      },
+      "notes": "File-local API, literal base http://localhost:5000/api. adminRoutes at /api/admin; router.put(\"/profile\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/Settings.jsx", "line": 116 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/adminRoutes.js",
+        "line": 54,
+        "route": "PUT /api/admin/change-password"
+      },
+      "notes": "File-local API, literal base http://localhost:5000/api. adminRoutes at /api/admin; router.put(\"/change-password\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/SystemComplaints.jsx", "line": 77 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/systemComplaintRoutes.js",
+        "line": 18,
+        "route": "GET /api/system-complaints"
+      },
+      "notes": "File-local API = axios.create({ baseURL: VITE_API_URL || \"http://localhost:5000/api\" }) (line 10). systemComplaintRoutes at /api/system-complaints; router.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/SystemComplaints.jsx", "line": 78 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/systemComplaintRoutes.js",
+        "line": 17,
+        "route": "GET /api/system-complaints/stats"
+      },
+      "notes": "File-local API, base http://localhost:5000/api (fallback). systemComplaintRoutes at /api/system-complaints; router.get(\"/stats\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/SystemComplaints.jsx", "line": 98 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/systemComplaintRoutes.js",
+        "line": 20,
+        "route": "PUT /api/system-complaints/:id"
+      },
+      "notes": "File-local API, base http://localhost:5000/api (fallback). systemComplaintRoutes at /api/system-complaints; router.put(\"/:id\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/SystemComplaints.jsx", "line": 115 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/src/routes/systemComplaintRoutes.js",
+        "line": 21,
+        "route": "DELETE /api/system-complaints/:id"
+      },
+      "notes": "File-local API, base http://localhost:5000/api (fallback). systemComplaintRoutes at /api/system-complaints; router.delete(\"/:id\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/admin/Users.jsx", "line": 61 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/adminRoutes.js",
+        "line": 71,
+        "route": "GET /api/admin/users"
+      },
+      "notes": "File-local API = axios.create({ baseURL: \"http://localhost:5000/api\" }) (line 20, literal). adminRoutes at /api/admin; router.get(\"/users\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/adminService.js", "line": 6 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/adminRoutes.js",
+        "line": 40,
+        "route": "POST /api/admin/login"
+      },
+      "notes": "adminService.login(): shared API (services/api.js), base http://localhost:5000/api (fallback). adminRoutes at /api/admin; router.post(\"/login\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/adminService.js", "line": 16 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/adminRoutes.js",
+        "line": 52,
+        "route": "GET /api/admin/profile"
+      },
+      "notes": "adminService.getProfile(): shared API, base http://localhost:5000/api. adminRoutes at /api/admin; router.get(\"/profile\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/adminService.js", "line": 29 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/adminRoutes.js",
+        "line": 53,
+        "route": "PUT /api/admin/profile"
+      },
+      "notes": "adminService.updateProfile(): shared API, base http://localhost:5000/api. adminRoutes at /api/admin; router.put(\"/profile\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/adminService.js", "line": 42 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/adminRoutes.js",
+        "line": 45,
+        "route": "POST /api/admin/logout"
+      },
+      "notes": "adminService.logout(): shared API, base http://localhost:5000/api. adminRoutes at /api/admin; router.post(\"/logout\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/analyticsService.js", "line": 7 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/analyticsRoutes.js",
+        "line": 20,
+        "route": "GET /api/analytics/overview"
+      },
+      "notes": "analyticsService.getOverview(): shared API, base http://localhost:5000/api (fallback). analyticsRoutes mounted at /api/analytics; router.get(\"/overview\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/analyticsService.js", "line": 20 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/analyticsRoutes.js",
+        "line": 24,
+        "route": "GET /api/analytics/rankings"
+      },
+      "notes": "analyticsService.getRankings(): shared API. analyticsRoutes at /api/analytics; router.get(\"/rankings\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/analyticsService.js", "line": 31 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/analyticsRoutes.js",
+        "line": 28,
+        "route": "GET /api/analytics/department/:id"
+      },
+      "notes": "analyticsService.getDepartmentAnalytics(): shared API. analyticsRoutes at /api/analytics; router.get(\"/department/:id\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/analyticsService.js", "line": 42 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/analyticsRoutes.js",
+        "line": 36,
+        "route": "GET /api/analytics/inbox"
+      },
+      "notes": "analyticsService.getInbox(): shared API. analyticsRoutes at /api/analytics; router.get(\"/inbox\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/analyticsService.js", "line": 53 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/analyticsRoutes.js",
+        "line": 32,
+        "route": "POST /api/analytics/report"
+      },
+      "notes": "analyticsService.generateReport(): shared API. analyticsRoutes at /api/analytics; router.post(\"/report\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/analyticsService.js", "line": 64 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/feedbackRoutes.js",
+        "line": 68,
+        "route": "PUT /api/feedback/:id/respond"
+      },
+      "notes": "analyticsService.respondToFeedback(): shared API. feedbackRoutes at /api/feedback; router.put(\"/:id/respond\") (the earlier \"/:id\" PUT matches one segment only)"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/analyticsService.js", "line": 75 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/feedbackRoutes.js",
+        "line": 73,
+        "route": "POST /api/feedback/:id/reply"
+      },
+      "notes": "analyticsService.addReply(): shared API. feedbackRoutes at /api/feedback; router.post(\"/:id/reply\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/analyticsService.js", "line": 86 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/analyticsRoutes.js",
+        "line": 40,
+        "route": "PUT /api/analytics/feedback/:id/assign"
+      },
+      "notes": "analyticsService.assignFeedback(): shared API, path on line 87. analyticsRoutes at /api/analytics; router.put(\"/feedback/:id/assign\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/analyticsService.js", "line": 100 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/feedbackRoutes.js",
+        "line": 35,
+        "route": "GET /api/feedback/stats"
+      },
+      "notes": "analyticsService.getFeedbackStats(): shared API. feedbackRoutes at /api/feedback; router.get(\"/stats\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/analyticsService.js", "line": 111 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/feedbackRoutes.js",
+        "line": 53,
+        "route": "GET /api/feedback/:id"
+      },
+      "notes": "analyticsService.getFeedbackById(): shared API. feedbackRoutes at /api/feedback; router.get(\"/:id\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/analyticsService.js", "line": 122 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/feedbackRoutes.js",
+        "line": 58,
+        "route": "PUT /api/feedback/:id"
+      },
+      "notes": "analyticsService.updateFeedback(): shared API. feedbackRoutes at /api/feedback; router.put(\"/:id\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/analyticsService.js", "line": 133 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/src/routes/feedbackRoutes.js",
+        "line": 63,
+        "route": "DELETE /api/feedback/:id"
+      },
+      "notes": "analyticsService.deleteFeedback(): shared API. feedbackRoutes at /api/feedback; router.delete(\"/:id\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/analyticsService.js", "line": 144 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/src/routes/feedbackRoutes.js",
+        "line": 48,
+        "route": "DELETE /api/feedback/bulk"
+      },
+      "notes": "analyticsService.bulkDeleteFeedback(): shared API. feedbackRoutes at /api/feedback; router.delete(\"/bulk\") registered before \"/:id\""
+    },
+    {
+      "callSite": { "file": "frontend/src/services/analyticsService.js", "line": 155 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/feedbackRoutes.js",
+        "line": 42,
+        "route": "GET /api/feedback/analytics"
+      },
+      "notes": "analyticsService.getFeedbackAnalytics(): shared API. feedbackRoutes at /api/feedback; router.get(\"/analytics\") (before \"/:id\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/analyticsService.js", "line": 166 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/sectorRoutes.js",
+        "line": 40,
+        "route": "POST /api/sector/alerts/send"
+      },
+      "notes": "analyticsService.sendAlert(): shared API. sectorRoutes mounted at /api/sector; router.post(\"/alerts/send\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/analyticsService.js", "line": 184 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/sectorRoutes.js",
+        "line": 109,
+        "route": "GET /api/sector/alerts/my"
+      },
+      "notes": "analyticsService.getMyAlerts(): shared API. sectorRoutes at /api/sector; router.get(\"/alerts/my\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/analyticsService.js", "line": 195 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/sectorRoutes.js",
+        "line": 121,
+        "route": "PUT /api/sector/alerts/:alertId/read"
+      },
+      "notes": "analyticsService.markAlertRead(): shared API. sectorRoutes at /api/sector; router.put(\"/alerts/:alertId/read\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/analyticsService.js", "line": 206 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/sectorRoutes.js",
+        "line": 138,
+        "route": "PUT /api/sector/alerts/read-all"
+      },
+      "notes": "analyticsService.markAllAlertsRead(): shared API. sectorRoutes at /api/sector; router.put(\"/alerts/read-all\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/analyticsService.js", "line": 217 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/feedbackRoutes.js",
+        "line": 53,
+        "route": "GET /api/feedback/:id"
+      },
+      "notes": "analyticsService.exportFeedback(): GET /api/feedback/export. No /export route exists; Express dispatches it to feedbackRoutes' router.get(\"/:id\") with id \"export\" (one segment; /stats and /analytics don't match)"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/departmentService.js", "line": 49 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/departmentRoutes.js",
+        "line": 24,
+        "route": "GET /api/departments"
+      },
+      "notes": "departmentService.getAll() (cached branch): shared API, base http://localhost:5000/api (fallback). departmentRoutes mounted at /api/departments; router.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/departmentService.js", "line": 53 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/departmentRoutes.js",
+        "line": 24,
+        "route": "GET /api/departments"
+      },
+      "notes": "departmentService.getAll() (filtered branch): shared API. departmentRoutes at /api/departments; router.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/departmentService.js", "line": 64 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/departmentRoutes.js",
+        "line": 34,
+        "route": "GET /api/departments/:id"
+      },
+      "notes": "departmentService.getById(): shared API. departmentRoutes at /api/departments; router.get(\"/:id\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/departmentService.js", "line": 75 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/departmentRoutes.js",
+        "line": 24,
+        "route": "GET /api/departments"
+      },
+      "notes": "departmentService.getByBuilding(): shared API, building as a query param. departmentRoutes at /api/departments; router.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/departmentService.js", "line": 86 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/departmentRoutes.js",
+        "line": 29,
+        "route": "GET /api/departments/stats/buildings"
+      },
+      "notes": "departmentService.getBuildingStats(): shared API. departmentRoutes at /api/departments; router.get(\"/stats/buildings\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/departmentService.js", "line": 97 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/departmentRoutes.js",
+        "line": 34,
+        "route": "GET /api/departments/:id"
+      },
+      "notes": "departmentService.getStats(): GET /api/departments/stats. No /stats route (only /stats/buildings and /admin/stats); Express dispatches it to router.get(\"/:id\") with id \"stats\""
+    },
+    {
+      "callSite": { "file": "frontend/src/services/departmentService.js", "line": 109 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/departmentRoutes.js",
+        "line": 47,
+        "route": "POST /api/departments"
+      },
+      "notes": "departmentService.create(): shared API, multipart. departmentRoutes at /api/departments; router.post(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/departmentService.js", "line": 124 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/departmentRoutes.js",
+        "line": 52,
+        "route": "PUT /api/departments/:id"
+      },
+      "notes": "departmentService.update(): shared API, multipart. departmentRoutes at /api/departments; router.put(\"/:id\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/departmentService.js", "line": 138 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/src/routes/departmentRoutes.js",
+        "line": 57,
+        "route": "DELETE /api/departments/:id"
+      },
+      "notes": "departmentService.delete(): shared API. departmentRoutes at /api/departments; router.delete(\"/:id\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/feedbackService.js", "line": 6 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/feedbackRoutes.js",
+        "line": 30,
+        "route": "GET /api/feedback"
+      },
+      "notes": "feedbackService.getAll(): shared API, base http://localhost:5000/api (fallback). feedbackRoutes at /api/feedback; router.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/feedbackService.js", "line": 16 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/feedbackRoutes.js",
+        "line": 30,
+        "route": "GET /api/feedback"
+      },
+      "notes": "feedbackService.getByDepartment(): shared API, department as a query param. feedbackRoutes at /api/feedback; router.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/feedbackService.js", "line": 28 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/feedbackRoutes.js",
+        "line": 35,
+        "route": "GET /api/feedback/stats"
+      },
+      "notes": "feedbackService.getStats(): shared API. feedbackRoutes at /api/feedback; router.get(\"/stats\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/feedbackService.js", "line": 38 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/feedbackRoutes.js",
+        "line": 25,
+        "route": "POST /api/feedback"
+      },
+      "notes": "feedbackService.create(): shared API. feedbackRoutes at /api/feedback; router.post(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/feedbackService.js", "line": 48 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/feedbackRoutes.js",
+        "line": 68,
+        "route": "PUT /api/feedback/:id/respond"
+      },
+      "notes": "feedbackService.respond(): shared API. feedbackRoutes at /api/feedback; router.put(\"/:id/respond\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/feedbackService.js", "line": 58 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/src/routes/feedbackRoutes.js",
+        "line": 63,
+        "route": "DELETE /api/feedback/:id"
+      },
+      "notes": "feedbackService.delete(): shared API. feedbackRoutes at /api/feedback; router.delete(\"/:id\") (\"/bulk\" at line 48 doesn't match an id)"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/sectorService.js", "line": 10 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/sectorRoutes.js",
+        "line": 28,
+        "route": "GET /api/sector/:sectorId/stats"
+      },
+      "notes": "sectorService.getStats(): shared API, base http://localhost:5000/api (fallback). sectorRoutes mounted at /api/sector; router.get(\"/:sectorId/stats\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/sectorService.js", "line": 21 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/sectorRoutes.js",
+        "line": 27,
+        "route": "GET /api/sector/:sectorId/feedback"
+      },
+      "notes": "sectorService.getFeedback(): shared API. sectorRoutes at /api/sector; router.get(\"/:sectorId/feedback\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/sectorService.js", "line": 34 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/sectorRoutes.js",
+        "line": 29,
+        "route": "GET /api/sector/:sectorId/pending-count"
+      },
+      "notes": "sectorService.getPendingCount(): shared API. sectorRoutes at /api/sector; router.get(\"/:sectorId/pending-count\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/sectorService.js", "line": 45 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/sectorRoutes.js",
+        "line": 31,
+        "route": "PUT /api/sector/feedback/:id/respond"
+      },
+      "notes": "sectorService.respondToFeedback(): shared API. sectorRoutes at /api/sector; router.put(\"/feedback/:id/respond\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/sectorService.js", "line": 58 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/sectorRoutes.js",
+        "line": 32,
+        "route": "PUT /api/sector/feedback/:id/resolve"
+      },
+      "notes": "sectorService.resolveFeedback(): shared API. sectorRoutes at /api/sector; router.put(\"/feedback/:id/resolve\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/sectorService.js", "line": 69 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/sectorRoutes.js",
+        "line": 30,
+        "route": "GET /api/sector/:sectorId/export/csv"
+      },
+      "notes": "sectorService.exportCSV(): shared API. sectorRoutes at /api/sector; router.get(\"/:sectorId/export/csv\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/sectorService.js", "line": 82 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/sectorRoutes.js",
+        "line": 35,
+        "route": "PUT /api/sector/profile/update"
+      },
+      "notes": "sectorService.updateProfile(): shared API. sectorRoutes at /api/sector; router.put(\"/profile/update\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/sectorService.js", "line": 93 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/sectorRoutes.js",
+        "line": 36,
+        "route": "PUT /api/sector/profile/change-password"
+      },
+      "notes": "sectorService.changePassword(): shared API, path on line 94. sectorRoutes at /api/sector; router.put(\"/profile/change-password\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/sectorService.js", "line": 109 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/sectorAdminRoutes.js",
+        "line": 29,
+        "route": "GET /api/sectors/admin/all"
+      },
+      "notes": "sectorService.getAllSectors(): shared API. sectorAdminRoutes mounted at /api/sectors; router.get(\"/admin/all\") (before \"/admin/:id\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/sectorService.js", "line": 120 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/sectorAdminRoutes.js",
+        "line": 30,
+        "route": "GET /api/sectors/admin/:id"
+      },
+      "notes": "sectorService.getSectorById(): shared API. sectorAdminRoutes at /api/sectors; router.get(\"/admin/:id\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/sectorService.js", "line": 131 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/sectorAdminRoutes.js",
+        "line": 31,
+        "route": "POST /api/sectors/admin"
+      },
+      "notes": "sectorService.createSector(): shared API, multipart. sectorAdminRoutes at /api/sectors; router.post(\"/admin\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/sectorService.js", "line": 144 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/sectorAdminRoutes.js",
+        "line": 32,
+        "route": "PUT /api/sectors/admin/:id"
+      },
+      "notes": "sectorService.updateSector(): shared API, multipart. sectorAdminRoutes at /api/sectors; router.put(\"/admin/:id\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/sectorService.js", "line": 157 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/src/routes/sectorAdminRoutes.js",
+        "line": 33,
+        "route": "DELETE /api/sectors/admin/:id"
+      },
+      "notes": "sectorService.deleteSector(): shared API. sectorAdminRoutes at /api/sectors; router.delete(\"/admin/:id\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/sectorService.js", "line": 168 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/src/routes/sectorAdminRoutes.js",
+        "line": 34,
+        "route": "PATCH /api/sectors/admin/:id/toggle"
+      },
+      "notes": "sectorService.toggleSectorStatus(): shared API. sectorAdminRoutes at /api/sectors; router.patch(\"/admin/:id/toggle\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/sectorService.js", "line": 179 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/sectorAdminRoutes.js",
+        "line": 26,
+        "route": "GET /api/sectors/stats"
+      },
+      "notes": "sectorService.getSectorStats(): shared API. sectorAdminRoutes at /api/sectors; router.get(\"/stats\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/sectorService.js", "line": 193 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/sectorAdminRoutes.js",
+        "line": 20,
+        "route": "GET /api/sectors"
+      },
+      "notes": "sectorService.getPublicSectors(), inside cache.fetch's fetcher: shared API. sectorAdminRoutes at /api/sectors; router.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/services/sectorService.js", "line": 206 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/sectorAdminRoutes.js",
+        "line": 21,
+        "route": "GET /api/sectors/public/:id"
+      },
+      "notes": "sectorService.getPublicSectorById(), inside cache.fetch's fetcher: shared API. sectorAdminRoutes at /api/sectors; router.get(\"/public/:id\")"
+    }
+  ]
+}

@@ -21,6 +21,26 @@
       "heldOut": 6
     },
     {
+      "owner": "AMLChecker",
+      "name": "monero-web-wallet",
+      "url": "https://github.com/AMLChecker/monero-web-wallet",
+      "sha": "1556234333df9bde1685e95a67ed3e7d940d6288",
+      "license": "MIT",
+      "shape": "spa-plus-express",
+      "why": "Held out, batch 7 (M12.2b1, drawn in stratum react-express). Two npm packages: a Vite React SPA (frontend/) and a TypeScript Express server (backend/) that listens on PORT || 18082 (backend/src/config.ts) and, once built, also serves frontend/dist with express.static plus a RegExp SPA fallback. The SPA sends every request through request(path, init) in frontend/src/api/client.ts, a fetch(path) wrapped by post(path, body) for POSTs, called by 20 one-line api methods that each fix a root-relative /api/... literal or template (one with a ?limit= query), so each label sits on its method's line (two methods start the call on their second line); pages and state call the methods with arguments only. Vite proxies /api to http://127.0.0.1:(MONERO_BACKEND_PORT || 18082), the backend's port. backend/src/server.ts registers every route inline on app with its full /api/... path (no routers or mounts), followed by an /api 404 catch-all; /api/wallet/send is registered after /api/wallet/send/prepare, with no shadowing. The backend's own fetches go to the Monero daemon (getDaemonUrl(), default 127.0.0.1:18081, which no repo server listens on: two probes through helpers taking the URL, labeled at their caller's line with columns, and a /json_rpc fee estimate) and to Kraken, CoinGecko, or a PRICE_API_URL with no value in the repo, all null. Not labeled: the wallet RPC client's node:http request (backend/src/moneroRpc.ts) to monero-wallet-rpc, and the diagnostic script that calls it. Two routes (POST /api/wallet/lock, GET /api/node/status) have no caller. ~43 TS/JS source files.",
+      "heldOut": 7
+    },
+    {
+      "owner": "ap211unitech",
+      "name": "Blog-Website-MERN",
+      "url": "https://github.com/ap211unitech/Blog-Website-MERN",
+      "sha": "70dc0360a94af1dc9d73897d7d4a9200160d30c4",
+      "license": "MIT",
+      "shape": "axios-baseurl",
+      "why": "Held out, batch 7 (M12.2b1, drawn in stratum react-express). A CRA client in client/ beside an Express server in server/. Every request is a plain axios call in the five redux service modules (client/src/features/{admin,auth,blog,category,profile}/*Service.js), 31 in all, each on `${URL}/<path>` or `${BACKEND_HOST_URL}/<path>` where URL = BACKEND_HOST_URL, the literal \"https://blog-website-mern-navy.vercel.app\" in client/src/config/defaults.js (no env var, no fallback, no dev proxy). That public host is followed into the repo under ADR-0209: server/vercel.json routes every path (`/(.*)`) to server.js, and every path the client sends there is one of its routes. server/server.js mounts the auth, profile, category, and blog routers at / (their paths spell /auth/…, /profile/…, /category…, /blog/… themselves) and the admin router at /admin. Trap: blog.js registers GET /blog/latest before GET /blog/:categoryId, so getLatestBlogs reaches the literal route, and GET /blog/user/:userId has two segments, out of :categoryId's reach. The 3 image uploads in pages/EditBlog.js, UpdateProfile.js, and WriteBlog.js post to api.cloudinary.com, an external host (null). Not labeled: TextEditor.js's XMLHttpRequest upload to Cloudinary (not fetch/axios), the server's SDK requests (@sendgrid/mail, google-auth-library), and the react-google-login button. 61 TS/JS source files.",
+      "heldOut": 7
+    },
+    {
       "owner": "Avinash905",
       "name": "Recipen",
       "url": "https://github.com/Avinash905/Recipen",
@@ -69,6 +89,16 @@
       "shape": "next-plus-server-monorepo",
       "why": "Held out, batch 5 (M5C.8b2, drawn in stratum react-express after PingUp's rejection). A pnpm workspace with a Next.js App Router client (client/), a TypeScript Express server (server/), and a shared types package. Every request is a direct fetch in client/src/lib/{auth,game,user}.ts on API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001' (client/src/config.ts), the server's PORT fallback; they are called from server components (generateMetadata and page bodies) and client components. One PATCH sends /v1/auth/ with a trailing slash, and fetchArchivedGame builds its URL in a let with an id= or userid= query appended in either branch (one route). server/src/server.ts mounts routes/index.ts at /v1, which mounts the games, auth, and users routers; each registers router.route(path).<method>(…) chains on one line. The game itself runs over socket.io (not labeled). 52 TS/JS source files.",
       "heldOut": 5
+    },
+    {
+      "owner": "Ebo1996",
+      "name": "mintnavigation",
+      "url": "https://github.com/Ebo1996/mintnavigation",
+      "sha": "4598824c2d9bd5cabdfb74cc8e6c640359456f0a",
+      "license": "MIT",
+      "shape": "axios-baseurl",
+      "why": "Held out, batch 7 (M12.2b1, drawn in stratum react-express). Vite React SPA in frontend/ beside an Express server in backend/ (backend/src/server.js, listening on `PORT || 5000`, backend/.env.example PORT=5000). All 101 requests are axios calls on instances named `API`: the shared one in frontend/src/services/api.js (`baseURL: import.meta.env.VITE_API_URL || \"http://localhost:5000/api\"`), called from five service objects (adminService, analyticsService, departmentService, feedbackService, sectorService, labeled at each one-line method's `API.<method>(...)`, two of them inside a `cache.fetch` fetcher) and from AnnouncementBanner, GeneralFeedback, AdminLayout, Announcements, DepartmentsManager, and DepartmentManager (which loads it with a dynamic `import()`); plus eight page-local `axios.create` copies, four with the same env fallback (SectorDashboard, Home, SectorManagers, SystemComplaints) and four with a literal `http://localhost:5000/api` (Dashboard, FeedbackManager, Settings, Users). The env var has no development value (frontend/.env.production and netlify.toml name the Render host `api-mint-navigation.onrender.com/api`, which render.yaml deploys from backend/), so every target follows the dev fallback. server.js mounts /api/sectors (sectorAdminRoutes), /api/departments, /api/feedback, /api/admin, /api/analytics, /api/sector (sectorRoutes: a different router from /api/sectors), /api/announcements, and /api/system-complaints. Traps: `/api/sector` vs `/api/sectors`; `GET /api/departments/stats` (no such route) and `GET /api/feedback/export` (no such route) are dispatched to the earlier one-segment `router.get(\"/:id\")`; `DELETE /api/feedback/bulk` is registered before `/:id`; multi-segment paths like `/:id/respond` aren't shadowed by `/:id`. Page calls of the service methods aren't labeled (the path is fixed in the service); backend/ sends no requests (nodemailer only), and vite-project/src/pages/Feedback.jsx is empty. 115 TS/JS source files.",
+      "heldOut": 7
     },
     {
       "owner": "elyse502",
@@ -556,6 +586,16 @@
       "heldOut": 6
     },
     {
+      "owner": "Vincent440",
+      "name": "hotel-worx",
+      "url": "https://github.com/Vincent440/hotel-worx",
+      "sha": "2cffd2e3813cd609d33dc32f60d7ef961f0eabbf",
+      "license": "MIT",
+      "shape": "spa-plus-express",
+      "why": "Held out, batch 7 (M12.2b1, drawn in stratum react-express). A Create React App SPA (client/, JS) beside a CommonJS Express + MySQL server at the repo root (server.js, routes/, controllers/, models/), no workspace. Every request is plain imported axios (no instance or baseURL) on a root-relative /api/... path in two service objects: client/src/utils/api.js (33 requests in one-call methods, several written `axios` then `.get(…)` on the next line, and seven as `axios.get`/`put`/`post` elements of `axios.all([...])` arrays) and client/src/utils/authapi.js (3: login status, login, logout); pages and App.js call those methods, so the paths are fixed inside them. The root-relative paths reach Express on the page's own origin: server.js serves client/build with express.static when NODE_ENV is production and routes/index.js ends with a catch-all router.get('*') sending client/build/index.html, built by heroku-postbuild and started by the Procfile; in dev CRA's package.json proxy forwards to http://localhost:3001 (server.js reads PORT with no fallback and no committed env file). routes/index.js mounts /api, and routes/api/index.js mounts /login, /logout, /users, /customers, /current, /reservations, /rooms, /room/types, and /hw (router.route(path) chains and flat router.<method>() calls). Traps: the client uses the legacy /api/hw/... router, not the newer /api/reservations, /api/rooms, and /api/customers routers with similar names (/api/hw/reservations vs /api/reservations), /api/hw/roomsIdNum is a literal segment beside /rooms/:id, /api/room/types is a two-segment mount distinct from /rooms, and search helpers fill empty template segments with the string 'undefined' (up to nine holes in housekeeping_status). Not labeled: a commented-out getArrivals helper, the axios.all/axios.spread wrappers around the labeled calls; the server makes no outbound requests. 66 JS source files.",
+      "heldOut": 7
+    },
+    {
       "owner": "Vishwajit1610",
       "name": "Resonance",
       "url": "https://github.com/Vishwajit1610/Resonance",
@@ -620,6 +660,10 @@
     {
       "batch": 6,
       "seen": "Its blind result was 100.0% precision and 69.0% recall (6 of 16 mapped completely). Its misses were diagnosed in eval/results/2026-11-batch6-diagnosis.md, and M12.1's fixes were chosen from them, each written from a library's or the language's contract with its own fixture, starting with M12.1a (a trailing-slash trim reads as the value before it, ADR-0303)."
+    },
+    {
+      "batch": 7,
+      "seen": null
     }
   ]
 }
