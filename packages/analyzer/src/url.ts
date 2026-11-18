@@ -109,6 +109,19 @@
  * argument is falsy, a literal (or a literal or nullish type) is what it is; any other
  * condition keeps both. See `wrappers.ts`.
  *
+ * Props and options (M12.1e6, ADR-0312): in a React function component or hook (a function
+ * named, or assigned to a name, that is capitalized or `use` then a capital, React's naming
+ * contract), a property of an identifier parameter (`props.x`, not `.href`), or a property
+ * destructured from one in the parameter (`({ x })`, `({ y: x = "/d" })`) or by a `const`
+ * (`const { x } = props`), reads that parameter: unbound, a `param`
+ * hole, so the function is a wrapper when it leads the URL; bound, the argument's property `x`
+ * (an object literal's, an element's attributes, `jsxAttribute`, a const object's, or a prop of
+ * the caller's own parameter passed on whole), read in the caller's scope, or the binding's
+ * default when the argument certainly lacks it. A spread that may set it, or any other
+ * argument, is a hole. A ternary on a prop keeps both branches. Any other function's object
+ * parameter reads as before (a hole). An unbound parameter or prop before `||` or `??` keeps
+ * its own hole, so one only in the query (`?q=${q || ""}`) isn't leading.
+ *
  * TanStack Query's key in a function's context (M5C.3f, ADR-0196's amendment): `queryKey`
  * destructured from a parameter (`({ queryKey })`, also its elements `({ queryKey: [url] })`),
  * `ctx.queryKey` on an identifier parameter, and an element at a literal index of either
@@ -122,8 +135,10 @@
  *   the other forms its comment lists.
  * - A `+=` that may change the path (`url += "/" + id`, `url += suffix()` before any `?`),
  *   though `url = url + "/" + id` is read (ADR-0166).
- * - `var` variables, `let`s `lets.ts` can't follow, destructured parameters other than a
- *   context's `queryKey`, `queryKey.join("/")`, a key element read at a computed index, array
+ * - `var` variables, `let`s `lets.ts` can't follow, nested, array, and rest patterns in
+ *   parameters (other than a context's `queryKey` elements), a property of a property
+ *   (`props.api.path`), a string builder's destructured parameters,
+ *   `queryKey.join("/")`, a key element read at a computed index, array
  *   `.join()`, `.concat()`, `path.join`, `URLSearchParams` built into the path.
  * - Results of functions that aren't string builders: a body doing anything before its
  *   `return` (`const p = …; return p;`), returning something else (`base.replace(…)`, a
@@ -154,6 +169,7 @@ import { isJsExpando, propertyName, unwrap } from "./symbols.js";
 import {
   createValueReader,
   isConst,
+  jsxAttribute,
   MAX_HOPS,
   objectProperty,
   ownProperty,
@@ -1423,6 +1439,137 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     }
   };
 
+  /**
+   * A read of one property of a parameter (M12.1e6, ADR-0312): `props.x` on an identifier
+   * parameter, or `x` destructured from one, in the parameter itself (`({ x = d })`) or from it
+   * by a `const` (`const { x } = props`). `fallback` is the binding's default, if any.
+   */
+  interface PropRead {
+    param: ts.ParameterDeclaration;
+    name: string;
+    fallback: ts.Expression | undefined;
+  }
+
+  /** The identifier parameter (not a rest) an identifier names, if any. */
+  const identifierParameter = (
+    sp: ServiceProgram,
+    e: ts.Identifier,
+  ): ts.ParameterDeclaration | undefined => {
+    const d = reader.symbolAt(sp, e)?.valueDeclaration;
+    return d && ts.isParameter(d) && ts.isIdentifier(d.name) && !d.dotDotDotToken ? d : undefined;
+  };
+
+  /**
+   * True when `param` is a React function component's or hook's, by React's own naming
+   * contract: a component is capitalized (JSX treats a lowercase tag as HTML), a hook is
+   * `use` then a capital or digit. The name is the function's own, or the `const` or property
+   * it is assigned to. Any other function's object parameter reads as before (ADR-0312).
+   */
+  const reactFunctionParameter = (param: ts.ParameterDeclaration): boolean => {
+    const fn = param.parent;
+    let name: ts.Node | undefined =
+      ts.isFunctionDeclaration(fn) || ts.isFunctionExpression(fn) ? fn.name : undefined;
+    if (!name && (ts.isArrowFunction(fn) || ts.isFunctionExpression(fn))) {
+      let holder: ts.Node = fn.parent;
+      while (ts.isParenthesizedExpression(holder) || ts.isAsExpression(holder)) {
+        holder = holder.parent;
+      }
+      if (ts.isVariableDeclaration(holder) || ts.isPropertyAssignment(holder)) name = holder.name;
+    }
+    if (!name || !ts.isIdentifier(name)) return false;
+    return /^[A-Z]/.test(name.text) || /^use[A-Z0-9]/.test(name.text);
+  };
+
+  /**
+   * A {@link PropRead}, if `e` is one. A string builder's parameter (M5C.7d) isn't: those read
+   * as before. A nested pattern, a rest element, or a computed key isn't either.
+   */
+  const propRead = (sp: ServiceProgram, e: ts.Expression): PropRead | undefined => {
+    let read: PropRead | undefined;
+    // `url.href` reads the URL a parameter holds, as before.
+    if (ts.isPropertyAccessExpression(e) && e.name.text !== "href") {
+      const object = unwrap(e.expression);
+      const param = ts.isIdentifier(object) ? identifierParameter(sp, object) : undefined;
+      if (param) read = { param, name: e.name.text, fallback: undefined };
+    } else if (ts.isIdentifier(e)) {
+      const d = reader.symbolAt(sp, e)?.valueDeclaration;
+      const pattern = d && ts.isBindingElement(d) ? d.parent : undefined;
+      if (!d || !ts.isBindingElement(d) || !pattern || !ts.isObjectBindingPattern(pattern)) {
+        return undefined;
+      }
+      const key = d.propertyName ?? d.name;
+      if (d.dotDotDotToken || !(ts.isIdentifier(key) || ts.isStringLiteralLike(key))) {
+        return undefined;
+      }
+      const holder = pattern.parent;
+      let param: ts.ParameterDeclaration | undefined;
+      if (ts.isParameter(holder)) param = holder.dotDotDotToken ? undefined : holder;
+      else if (ts.isVariableDeclaration(holder) && isConst(holder) && holder.initializer) {
+        const from = unwrap(holder.initializer);
+        param = ts.isIdentifier(from) ? identifierParameter(sp, from) : undefined;
+      }
+      if (param) read = { param, name: key.text, fallback: d.initializer };
+    }
+    return read && reactFunctionParameter(read.param) && !frame?.args.has(read.param)
+      ? read
+      : undefined;
+  };
+
+  /**
+   * The parts a {@link PropRead} gives: while inlining a call that binds the parameter, the
+   * argument's property `name` (an object literal's, an element's attributes, a `const`
+   * object's, or a prop of the caller's own parameter), read in the caller's scope; if the
+   * argument certainly lacks it, the binding's default, read here. Unbound, a parameter hole,
+   * so a function whose URL starts with a prop is a wrapper. `e` is the read, for its type.
+   */
+  const propParts = (
+    sp: ServiceProgram,
+    e: ts.Expression | undefined,
+    read: PropRead,
+    hops: number,
+  ): UrlPart[] => {
+    const { param } = read;
+    if (bindings?.has(param)) {
+      const bound = bindings.get(param);
+      if (!bound || bindings.missing?.has(param)) return [HOLE];
+      let value: ConfigValue;
+      // The argument is read in the caller's scope, with the caller's own bindings if any.
+      const outer = { bindings, frame };
+      bindings = bindings.outer;
+      frame = undefined;
+      try {
+        const object = unwrap(bound.expression);
+        if (ts.isJsxAttributes(object)) value = jsxAttribute(bound.sp, object, read.name);
+        else if (ts.isObjectLiteralExpression(object)) {
+          value = objectProperty(bound.sp, object, read.name);
+        } else {
+          const passed = ts.isIdentifier(object)
+            ? identifierParameter(bound.sp, object)
+            : undefined;
+          // The caller's own props, passed on whole (`useThing(props)`).
+          if (passed && reactFunctionParameter(passed)) {
+            const whole = { param: passed, name: read.name, fallback: undefined };
+            return propParts(bound.sp, undefined, whole, hops + 1);
+          }
+          const found = reader.constObject(bound.sp, object, hops + 1);
+          value = found ? objectProperty(found.sp, found.expression, read.name) : null;
+          if (found && value) note(found.confidence);
+        }
+        if (value) return partsOf(value.sp, value.expression, hops + 1);
+      } finally {
+        ({ bindings, frame } = outer);
+      }
+      return value === undefined && read.fallback ? partsOf(sp, read.fallback, hops + 1) : [HOLE];
+    }
+    used.add(param);
+    const literal = e && literalType(sp, e);
+    if (literal) return literal;
+    // A hole of its own, so `leadingParameters` can tell where this parameter landed.
+    const hole: UrlPart = { kind: "hole", param: true };
+    holes.set(hole, param);
+    return [hole];
+  };
+
   const identifierParts = (sp: ServiceProgram, e: ts.Identifier, hops: number): UrlPart[] => {
     const symbol = reader.symbolAt(sp, e);
     const found = symbol && reader.resolveDeclaration(sp, symbol, hops + 1);
@@ -1755,6 +1902,9 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
         // the fallback says what follows it and where it points by default (ADR-0158).
         const left = partsOf(sp, e.left, hops + 1);
         const [env] = left;
+        // An unbound parameter or prop, or its fallback: its hole keeps its place, so one in the
+        // query (`?q=${props.q || ""}`) doesn't count as leading (M12.1e6).
+        if (env?.kind === "hole" && env.param && left.length === 1) return left;
         if (left.length !== 1 || env?.kind !== "env") return [HOLE];
         if (env.fallback !== undefined) return left;
         // A parameter only in the fallback doesn't make the function a wrapper.
@@ -1813,9 +1963,14 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     if (isLocationProperty(sp, e, "origin")) return [{ kind: "origin" }];
     const key = keyRead(sp, e, hops);
     if (key !== undefined) return keyParts(key, hops);
-    if (ts.isIdentifier(e)) return identifierParts(sp, e, hops);
+    if (ts.isIdentifier(e)) {
+      const prop = propRead(sp, e);
+      return prop ? propParts(sp, e, prop, hops) : identifierParts(sp, e, hops);
+    }
     const field = fieldParts(sp, e, hops);
     if (field) return field;
+    const prop = propRead(sp, e);
+    if (prop) return propParts(sp, e, prop, hops);
     if (ts.isPropertyAccessExpression(e)) {
       const fromEnum = reader.enumString(sp, e);
       if (fromEnum !== undefined) return [text(fromEnum)];

@@ -73,6 +73,7 @@ const NAMES = [
   "query-string-url",
   "conditional-method",
   "shared-condition-method",
+  "component-props",
   "spread-chain-method",
   "conditional-spread-method",
   "ambiguous-routes",
@@ -1020,6 +1021,45 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     // No unsent pair is drawn: no `PUT` to a collection or `POST` to an item.
     const labels = g.nodes.flatMap((n) => (n.kind === "unresolved" ? [n.label] : []));
     expect(labels.filter((l) => /^(PUT \/api\/[a-z]+$|POST \/api\/[a-z]+\/)/.test(l))).toEqual([]);
+  });
+
+  it("component-props: an element is a call of its component, its attributes the props (M12.1e6)", async () => {
+    const g = await run("component-props");
+    const p = "component-props";
+    const pages = `symbol:${p}/src/pages.tsx`;
+    const reports = `symbol:${p}/src/reports.tsx`;
+    const controls = `symbol:${p}/src/controls.tsx`;
+    const dynamic = (from: string, at: string) =>
+      `${from} -> unresolved:${p}/src/controls.tsx:${at} unresolved DYNAMIC_URL`;
+    expect(links(g, "http")).toEqual([
+      // Children given by the element's body, not the prop's default.
+      dynamic(`${controls}#ChildrenPage`, "58:10"),
+      // A `memo` component; a component only passed around as a value.
+      dynamic(`${controls}#MemoDelete`, "11:26"),
+      dynamic(`${controls}#ReportButton`, "21:26"),
+      // A prop only in the query.
+      `${controls}#SearchBox -> route:${p}/GET /api/messages exact`,
+      // A spread after the prop, and spread attributes alone.
+      dynamic(`${controls}#SpreadLastPage`, "48:10"),
+      dynamic(`${controls}#SpreadPage`, "6:10"),
+      // A plain function's options; `.href` on a hook's parameter, read as before.
+      dynamic(`${controls}#notify`, "39:10"),
+      `${controls}#useReportDownload -> route:${p}/GET /api/reports/:id pattern`,
+      `${pages}#AgentsPage -> route:${p}/DELETE /api/agents/:id exact`,
+      // Through a hook's destructured options, and an element inside a `.map`.
+      `${pages}#ChannelPage -> route:${p}/GET /api/messages exact`,
+      `${pages}#ChannelPage -> route:${p}/PATCH /api/socket/messages/:messageId exact`,
+      `${pages}#ChannelPage -> route:${p}/POST /api/socket/messages exact`,
+      `${pages}#NotesPage -> route:${p}/POST /api/notes/archive exact`,
+      // Props passed on whole; a prop's default (its literal `id` fills `:id`); a `const` object.
+      `${reports}#FeedPage -> route:${p}/GET /api/messages exact`,
+      `${reports}#ReportPage -> route:${p}/GET /api/reports/:id pattern`,
+      // A prop written after every spread.
+      `${reports}#SpreadFirstPage -> route:${p}/DELETE /api/agents/:id pattern`,
+      `${reports}#useInbox -> route:${p}/GET /api/messages exact`,
+    ]);
+    // A lowercase tag is HTML: `LowercasePage`'s element makes no request.
+    expect(links(g, "http").filter((l) => l.includes("#LowercasePage"))).toEqual([]);
   });
 
   it("spread-chain-method: a caller's method reaches the request through a spread two helpers deep (M12.1e3)", async () => {
