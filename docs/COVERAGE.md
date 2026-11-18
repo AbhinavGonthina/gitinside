@@ -122,5 +122,5 @@ Before fixing a recall pattern (3–5), its task first shows it outside batch 5:
 - **W (10 FN): one condition picks both the URL and the method.** Unresolved as `AMBIGUOUS`, M5C.7a's deliberate precision trade; pairing a ternary method with its URL is the fix if it recurs.
 - **X (6 FN): a base from React context** (`useContext(C)` to `<C.Provider value>`). Needs the provider's value read across files; one repo.
 - **V (5 FN): a component fetching a path prop** (`<DeleteButton endpoint={…}>`). A prop as a wrapper parameter is a new kind of wrapper; one repo.
-- **U (4 FN): an env base not named like an API base.** By design (ADR-0165).
+- **U (4 FN): an env base not named like an API base.** By design (ADR-0165). **Later fixed** for a root-relative fallback (`VITE_AUTH_BASE || '/auth'`), the page's own origin (M12.1e7, ADR-0313): all 4 match. A public-host fallback with such a name stays unresolved (ADR-0310).
 - **Y (2 FN): a literal with a trailing space,** which the URL parser trims. One repo, two sites.

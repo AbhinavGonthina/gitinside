@@ -20,8 +20,9 @@
  *   `const { X } = process.env`. `env ?? fallback` and `env || fallback` read as the env var
  *   carrying the fallback's parts (ADR-0158): at the start of a URL, a literal fallback URL or
  *   root-relative path adds its path after the env base (`?? "http://localhost:4000/api/v1"`
- *   ⇒ `{env:X}/api/v1/…`) and records its host and how many segments it added (which a set
- *   env var replaces, M9.1a3); later on, a fallback of text and holes takes
+ *   ⇒ `{env:X}/api/v1/…`) and records its host, or that it's root-relative (ADR-0310), and
+ *   how many segments it added (which a set env var replaces, M9.1a3); later on, a fallback
+ *   of text and holes takes
  *   the env var's place (`/api/${process.env.V || "v1"}` ⇒ `/api/v1`). `process` is the
  *   global unless the repo declares it; a JS file's `process.env.NODE_ENV = "test"` doesn't
  *   (ADR-0211), and the same goes for `window`, `location`, `URL`, and `String`.
@@ -235,9 +236,17 @@ export type UrlBase =
    * `fallbackSegments` counts the leading segments that are the fallback's path
    * (`API_BASE || "/api"` ⇒ 1): a set env var replaces them, so an example env file's path
    * goes in their place (ADR-0202's M9.1a3 amendment). Absent when there are none, or when
-   * the next text glues onto them (`/api` + `-v2/x`).
+   * the next text glues onto them (`/api` + `-v2/x`). `fallbackRoot` is set when the fallback
+   * is a root-relative path with no hole (`VITE_AUTH_BASE || "/auth"`): unset, the request
+   * goes to the page's own origin (ADR-0310).
    */
-  | { kind: "env"; name: string; fallbackHost?: string; fallbackSegments?: number };
+  | {
+      kind: "env";
+      name: string;
+      fallbackHost?: string;
+      fallbackRoot?: true;
+      fallbackSegments?: number;
+    };
 
 /** A normalized URL: a base and its path segments. */
 export interface UrlPattern {
@@ -626,12 +635,15 @@ function laterPart(part: UrlPart): UrlPart[] {
 
 /**
  * What an env base's fallback adds (ADR-0158): a literal URL or root-relative path
- * (`?? "http://localhost:4000/api/v1"`) gives its path as a prefix and its host, if any.
- * A fallback whose path has a hole, or that isn't such a URL, adds nothing.
+ * (`?? "http://localhost:4000/api/v1"`) gives its path as a prefix and its host, or `root`
+ * when it has no host (`|| "/auth"`, ADR-0310). A fallback whose path has a hole, or that
+ * isn't such a URL (page-relative `"auth"`), adds nothing.
  */
 function envFallback(fallback: readonly UrlPart[] | undefined): {
   prefix: UrlPart[];
   host?: string;
+  /** The fallback is a root-relative path: unset, the request goes to the page's origin. */
+  root?: true;
 } {
   if (fallback === undefined) return { prefix: [] };
   const result = toUrlPattern(fallback);
@@ -644,7 +656,7 @@ function envFallback(fallback: readonly UrlPart[] | undefined): {
   const last = stripQuery(fallback).at(-1);
   const slash = last?.kind === "text" && last.text.endsWith("/") ? "/" : "";
   const prefix = path + slash === "" ? [] : [text(path + slash)];
-  return base.kind === "host" ? { prefix, host: base.host } : { prefix };
+  return base.kind === "host" ? { prefix, host: base.host } : { prefix, root: true };
 }
 
 /** A literal segment's text (holes are `{}`). */
@@ -669,7 +681,7 @@ export function toUrlPattern(
   let base: UrlBase;
   let rest: UrlPart[];
   if (first.kind === "env") {
-    const { prefix, host } = envFallback(first.fallback);
+    const { prefix, host, root } = envFallback(first.fallback);
     rest = mergeParts([...prefix, ...parts.slice(1)]);
     // The fallback's own segments, when they come out whole after the rest is joined on.
     const own = toSegments(prefix).length;
@@ -678,6 +690,7 @@ export function toUrlPattern(
     const whole = own > 0 && JSON.stringify(all.slice(own)) === JSON.stringify(after);
     const envBase: Extract<UrlBase, { kind: "env" }> = { kind: "env", name: first.name };
     if (host !== undefined) envBase.fallbackHost = host;
+    if (root) envBase.fallbackRoot = true;
     if (whole) envBase.fallbackSegments = own;
     base = envBase;
   } else if (first.kind === "origin") {
@@ -745,10 +758,12 @@ export function patternParts(pattern: UrlPattern): UrlPart[] {
       .slice(0, fromFallback)
       .map((segment) => "/" + segmentText(segment))
       .join("");
+    // A root-relative fallback that adds no whole segment reads back as `"/"`, which adds none.
+    const fallback = host + path === "" && base.fallbackRoot ? "/" : host + path;
     out.push(
-      host + path === ""
+      fallback === ""
         ? { kind: "env", name: base.name }
-        : { kind: "env", name: base.name, fallback: [text(host + path)] },
+        : { kind: "env", name: base.name, fallback: [text(fallback)] },
     );
   }
   if (base.kind === "host")

@@ -518,13 +518,23 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     ]);
   });
 
-  it("env-fallback: a literal fallback's path and loopback host reach routes (ADR-0158)", async () => {
+  it("env-fallback: a fallback's path and a loopback or no host reach routes (ADR-0158, ADR-0310)", async () => {
     const g = await run("env-fallback");
     expect(links(g, "http")).toEqual([
       "symbol:web/src/client.ts#authenticate -> route:api/POST /api/v2/authenticate heuristic",
       "symbol:web/src/client.ts#loadUser -> route:api/GET /api/v1/users/:id heuristic",
       "symbol:web/src/client.ts#login -> route:api/POST /api/v1/auth/login heuristic",
+      // A root-relative fallback is the page's own origin, whatever the name (ADR-0310).
+      "symbol:web/src/client.ts#refresh -> route:api/POST /auth/refresh heuristic",
+      "symbol:web/src/client.ts#refreshPage -> unresolved:web/src/client.ts:32:9 unresolved NO_MATCHING_ROUTE",
+      "symbol:web/src/client.ts#refreshTenant -> unresolved:web/src/client.ts:37:9 unresolved NO_MATCHING_ROUTE",
       "symbol:web/src/client.ts#track -> unresolved:web/src/client.ts:22:9 unresolved NO_MATCHING_ROUTE",
+    ]);
+    const details = g.nodes.flatMap((n) => (n.kind === "unresolved" ? [n.detail] : [])).sort();
+    expect(details).toEqual([
+      "the env var REACT_APP_PAGES isn't named like an API base (*_API_URL, *_API_PATH, …)",
+      "the env var REACT_APP_TENANT isn't named like an API base (*_API_URL, *_API_PATH, …)",
+      "the env var STATS_HOST isn't named like an API base (*_API_URL, *_API_PATH, …)",
     ]);
   });
 

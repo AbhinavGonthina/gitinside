@@ -14,4 +14,8 @@ app.post("/api/v2/authenticate", (_req, res) => {
   res.json({ ok: true });
 });
 
+app.post("/auth/refresh", (_req, res) => {
+  res.json({ token: "t" });
+});
+
 app.listen(4000);
