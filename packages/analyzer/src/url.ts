@@ -992,6 +992,13 @@ export type SiteUrl = Pick<
 > &
   Partial<Pick<HttpCallSite, "client">>;
 
+/** A condition's truth taken as given while reading a site's URL (M12.1e5, ADR-0311). */
+export interface ConditionAssumption {
+  /** The declaration the condition's identifier names (a `MethodPairing`'s `condition`). */
+  condition: ts.Declaration;
+  truth: boolean;
+}
+
 /** Normalizes call-site URLs, reading values with one resolver's checkers. */
 export interface UrlNormalizer {
   /** The parts an expression evaluates to; anything not statically known is a hole. */
@@ -1006,9 +1013,15 @@ export interface UrlNormalizer {
    * Like `normalize`, but one result per URL the code fixes statically (M5A.3h, ADR-0166):
    * each ternary branch and each value a `let` may hold where it is read is followed on its
    * own path, and paths that read the same are kept once, in path order (`true` branches and
-   * earlier values first). Past {@link MAX_PATHS} paths, `normalize`'s single result.
+   * earlier values first). Past {@link MAX_PATHS} paths, `normalize`'s single result. With
+   * `assume`, a ternary whose condition is that declaration (maybe behind `!`) takes the branch
+   * its truth picks, unless bindings already fix it (M12.1e5, ADR-0311).
    */
-  alternatives(site: SiteUrl, bindings?: ParameterBindings): NormalizedUrl[];
+  alternatives(
+    site: SiteUrl,
+    bindings?: ParameterBindings,
+    assume?: ConditionAssumption,
+  ): NormalizedUrl[];
   /**
    * The parameters a call site's URL and `baseURL` read, which a wrapper caller could bind.
    * With `bindings`, the unbound ones read through them: a caller's own (M5C.7f).
@@ -1234,6 +1247,26 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
       truth = bindings.missing?.has(d) ? false : value && truthOf(value);
     }
     return truth === undefined ? undefined : truth !== negated;
+  };
+
+  /** The condition `alternatives` takes as given for the current read, if any. */
+  let assumed: ConditionAssumption | undefined;
+
+  /**
+   * A ternary's condition when it is {@link assumed}'s declaration, maybe behind `!`: the
+   * truth assumed for it. `undefined` for any other condition.
+   */
+  const assumedTruth = (sp: ServiceProgram, condition: ts.Expression): boolean | undefined => {
+    if (!assumed) return undefined;
+    let e = unwrap(condition);
+    let negated = false;
+    while (ts.isPrefixUnaryExpression(e) && e.operator === ts.SyntaxKind.ExclamationToken) {
+      negated = !negated;
+      e = unwrap(e.operand);
+    }
+    if (!ts.isIdentifier(e)) return undefined;
+    const declaration = reader.symbolAt(sp, e)?.valueDeclaration;
+    return declaration === assumed.condition ? assumed.truth !== negated : undefined;
   };
 
   /** A parameter read: its bound value while inlining, else a parameter hole. */
@@ -1734,7 +1767,7 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
       return [HOLE];
     }
     if (ts.isConditionalExpression(e)) {
-      const truth = boundTruth(sp, e.condition);
+      const truth = boundTruth(sp, e.condition) ?? assumedTruth(sp, e.condition);
       if (truth !== undefined) return partsOf(sp, truth ? e.whenTrue : e.whenFalse, hops + 1);
       return choose([
         () => partsOf(sp, e.whenTrue, hops + 1),
@@ -1887,7 +1920,21 @@ export function createUrlNormalizer(resolver: SymbolResolver): UrlNormalizer {
     };
   };
 
-  const alternatives = (site: SiteUrl, scope?: ParameterBindings): NormalizedUrl[] => {
+  const alternatives = (
+    site: SiteUrl,
+    scope?: ParameterBindings,
+    assume?: ConditionAssumption,
+  ): NormalizedUrl[] => {
+    assumed = assume;
+    try {
+      return paths(site, scope);
+    } finally {
+      assumed = undefined;
+    }
+  };
+
+  /** `alternatives`'s paths, with {@link assumed} set. */
+  const paths = (site: SiteUrl, scope?: ParameterBindings): NormalizedUrl[] => {
     const out: NormalizedUrl[] = [];
     const seen = new Set<string>();
     let forced: number[] = [];

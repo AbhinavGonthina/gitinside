@@ -1,5 +1,5 @@
 {
-  "analyzerVersion": "0.3.17",
+  "analyzerVersion": "0.3.18",
   "edges": [
     {
       "confidence": "exact",
@@ -110,7 +110,7 @@
       "to": "unresolved:conditional-method/src/admin.ts:42:10"
     },
     {
-      "confidence": "heuristic",
+      "confidence": "exact",
       "from": "symbol:conditional-method/src/admin.ts#saveDraft",
       "id": "http:symbol:conditional-method/src/admin.ts#saveDraft->route:conditional-method/POST /api/drafts",
       "kind": "http",
@@ -120,13 +120,13 @@
           "column": 10,
           "file": "src/admin.ts",
           "line": 37,
-          "request": "? /api/drafts"
+          "request": "POST /api/drafts"
         }
       ],
       "to": "route:conditional-method/POST /api/drafts"
     },
     {
-      "confidence": "heuristic",
+      "confidence": "exact",
       "from": "symbol:conditional-method/src/admin.ts#saveDraft",
       "id": "http:symbol:conditional-method/src/admin.ts#saveDraft->route:conditional-method/PUT /api/drafts/:id",
       "kind": "http",
@@ -136,7 +136,7 @@
           "column": 10,
           "file": "src/admin.ts",
           "line": 37,
-          "request": "? /api/drafts/{}"
+          "request": "PUT /api/drafts/{}"
         }
       ],
       "to": "route:conditional-method/PUT /api/drafts/:id"
@@ -208,7 +208,7 @@
   ],
   "nodes": [
     {
-      "hash": "9d1e7215fb2faae7875dae5ca99cf4eb93661f890138bdb3a2c64fb96fcd3584",
+      "hash": "bd65552e6a6faa5540011e378cdf409e6d7137ca13b8aff79df4990e7c24ff83",
       "id": "file:conditional-method/src/admin.ts",
       "kind": "file",
       "label": "admin.ts",

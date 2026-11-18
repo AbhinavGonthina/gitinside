@@ -76,9 +76,13 @@
  *   branch is an object literal (or a `const` holding one, unmutated) with such a `method` or
  *   none (the default): `const init = del ? { method: "DELETE" } : { method: "PATCH", body }`.
  *   The site keeps every method (`methods`); when it resolves to exactly one URL, that's one
- *   request per method (`wrappers.ts`). Several URLs (`url = id ? "/x/:id" : "/x"`) aren't
- *   paired with the methods, even on the same condition, so the method stays unknown there,
- *   as before, rather than sending every URL with every method. A branch that is anything
+ *   request per method (`wrappers.ts`). Several URLs (`url = id ? "/x/:id" : "/x"`) are never
+ *   crossed with the methods; they're paired branch by branch only when the method's
+ *   conditional and the URL's test one identifier bound to a `const` or a parameter nothing
+ *   assigns (`methodPairing`, M12.1e5, ADR-0311), and otherwise the method stays unknown
+ *   there. Not paired: a `let`, an assigned parameter, a property read or call as the
+ *   condition, different conditions, or a second condition in the URL or a method branch.
+ *   A branch that is anything
  *   else (a parameter, `||`, an unknown method, a spread that could set it, a `let`) leaves
  *   the method unknown too. A conditional `method` a wrapper's caller passes in its
  *   arguments isn't read either.
@@ -259,6 +263,20 @@ export type HttpClient = "fetch" | "axios" | "ofetch" | "ky";
 export type BaseJoin = "withBase" | "kyPrefixUrl" | "kyPrefix" | "kyBaseUrl";
 
 /**
+ * A method chosen by `condition ? a : b` (maybe behind `!`), where `condition` names a `const`
+ * or a parameter nothing assigns (M12.1e5, ADR-0311): its truthiness is the same wherever the
+ * site reads it, so a URL chosen by it takes the same branch.
+ */
+export interface MethodPairing {
+  /** The declaration the condition's identifier names. */
+  condition: ts.Declaration;
+  /** The method sent when the condition is truthy. */
+  whenTrue: HttpMethod;
+  /** The method sent when it is falsy. */
+  whenFalse: HttpMethod;
+}
+
+/**
  * One outbound HTTP request in the source. `null` means "set, but not statically readable"
  * and always leads to an unresolved edge later, never a guess.
  */
@@ -291,6 +309,12 @@ export interface HttpCallSite {
    * method; an unresolved URL stays one request. Absent otherwise.
    */
   methods?: HttpMethod[];
+  /**
+   * When `methods` come from one conditional on a binding that can't change between reads
+   * (M12.1e5, ADR-0311): that binding, and the method each of its truths sends. A URL chosen
+   * by the same binding is then paired with them branch by branch. Absent otherwise.
+   */
+  methodPairing?: MethodPairing;
   /** The URL argument or `url` config property, or `null` when it can't be read. */
   url: ProgramExpression | null;
   /**
@@ -753,13 +777,107 @@ export function createHttpSiteCollector(
     return method === null ? undefined : methodChoices(method, hops + 1);
   };
 
-  /** A site's method from the methods a condition chooses between: one, or `methods`. */
-  const chosen = (choices: HttpMethod[]): Pick<HttpCallSite, "method" | "methods"> => {
+  /**
+   * A site's method from the methods a condition chooses between: one, or `methods`, with the
+   * {@link MethodPairing} that chose them when there is one.
+   */
+  const chosen = (
+    choices: HttpMethod[],
+    pairing: MethodPairing | undefined,
+  ): Pick<HttpCallSite, "method" | "methods" | "methodPairing"> => {
     const methods = [...new Set(choices)].sort(compareStrings);
     const [only] = methods;
-    return only !== undefined && methods.length === 1
-      ? { method: only }
-      : { method: null, methods };
+    if (only !== undefined && methods.length === 1) return { method: only };
+    return pairing ? { method: null, methods, methodPairing: pairing } : { method: null, methods };
+  };
+
+  // ---- a URL and a method chosen by one condition (M12.1e5, ADR-0311) ----
+
+  /** True when an assignment, `++`/`--`, or `for…in/of` head inside `scope` writes `name`. */
+  const writesName = (scope: ts.Node, name: string): boolean => {
+    /** True when `target` mentions `name` at all (an over-approximation of writing it). */
+    const mentions = (target: ts.Node): boolean =>
+      (ts.isIdentifier(target) && target.text === name) ||
+      (ts.forEachChild(target, (n) => mentions(n) || undefined) ?? false);
+    let found = false;
+    const visit = (n: ts.Node): void => {
+      if (found) return;
+      if (
+        (ts.isBinaryExpression(n) &&
+          n.operatorToken.kind >= ts.SyntaxKind.FirstAssignment &&
+          n.operatorToken.kind <= ts.SyntaxKind.LastAssignment &&
+          mentions(n.left)) ||
+        ((ts.isPrefixUnaryExpression(n) || ts.isPostfixUnaryExpression(n)) &&
+          (n.operator === ts.SyntaxKind.PlusPlusToken ||
+            n.operator === ts.SyntaxKind.MinusMinusToken) &&
+          mentions(n.operand)) ||
+        ((ts.isForInStatement(n) || ts.isForOfStatement(n)) &&
+          !ts.isVariableDeclarationList(n.initializer) &&
+          mentions(n.initializer))
+      ) {
+        found = true;
+        return;
+      }
+      ts.forEachChild(n, visit);
+    };
+    visit(scope);
+    return found;
+  };
+
+  /**
+   * The binding a condition reads when it can't change between two reads: an identifier,
+   * maybe behind `!`s (`negated` for an odd number), naming a `const` or a parameter that
+   * nothing in its function assigns, destructured or not. `undefined` for anything else: a
+   * `let`, a property read (a getter, or a write in between), a call.
+   */
+  const fixedCondition = (
+    sp: ServiceProgram,
+    condition: ts.Expression,
+  ): { declaration: ts.Declaration; negated: boolean } | undefined => {
+    let e = unwrap(condition);
+    let negated = false;
+    while (ts.isPrefixUnaryExpression(e) && e.operator === ts.SyntaxKind.ExclamationToken) {
+      negated = !negated;
+      e = unwrap(e.operand);
+    }
+    if (!ts.isIdentifier(e)) return undefined;
+    const declaration = symbolAt(sp, e)?.valueDeclaration;
+    if (!declaration) return undefined;
+    let root: ts.Node = declaration;
+    while (ts.isBindingElement(root)) root = root.parent.parent;
+    const fixed = ts.isVariableDeclaration(root)
+      ? isConst(root)
+      : ts.isParameter(root) && !writesName(root.parent, e.text);
+    return fixed ? { declaration, negated } : undefined;
+  };
+
+  /**
+   * The {@link MethodPairing} of a value that is one conditional on a {@link fixedCondition},
+   * directly or through a `const`, whose branches `read` as one method each.
+   */
+  const pairingOf = (
+    value: ProgramExpression,
+    read: (branch: ProgramExpression) => HttpMethod[] | undefined,
+    hops: number,
+  ): MethodPairing | undefined => {
+    if (hops > MAX_HOPS) return undefined;
+    const e = unwrap(value.expression);
+    if (ts.isIdentifier(e)) {
+      const initializer = constInitializer(value.sp, e, hops);
+      return initializer && pairingOf(initializer, read, hops + 1);
+    }
+    if (!ts.isConditionalExpression(e)) return undefined;
+    const condition = fixedCondition(value.sp, e.condition);
+    const yes = read({ sp: value.sp, expression: e.whenTrue });
+    const no = read({ sp: value.sp, expression: e.whenFalse });
+    const [whenTrue] = yes ?? [];
+    const [whenFalse] = no ?? [];
+    if (!condition || yes?.length !== 1 || no?.length !== 1 || !whenTrue || !whenFalse) {
+      return undefined;
+    }
+    return condition.negated
+      ? { condition: condition.declaration, whenTrue: whenFalse, whenFalse: whenTrue }
+      : { condition: condition.declaration, whenTrue, whenFalse };
   };
 
   /**
@@ -771,7 +889,7 @@ export function createHttpSiteCollector(
     sp: ServiceProgram,
     config: ts.Expression | null | undefined,
     fallback: HttpMethod,
-  ): Pick<HttpCallSite, "method" | "methodSource" | "methods"> => {
+  ): Pick<HttpCallSite, "method" | "methodSource" | "methods" | "methodPairing"> => {
     if (config === null) return { method: null };
     const value = configProperty(sp, config, "method");
     const method = methodOf(value, fallback);
@@ -781,15 +899,22 @@ export function createHttpSiteCollector(
       // literal whose `method` a spread could supply.
       const object = configObject(sp, config, 0);
       if (!object) {
-        const choices = configChoices({ sp, expression: config }, fallback, 0);
-        if (choices) return chosen(choices);
+        const whole = { sp, expression: config };
+        const choices = configChoices(whole, fallback, 0);
+        if (choices) {
+          const read = (branch: ProgramExpression) => configChoices(branch, fallback, 1);
+          return chosen(choices, pairingOf(whole, read, 0));
+        }
         return { method, methodSource: { kind: "config", config: { sp, expression: config } } };
       }
       const spreads = spreadMethod(object.sp, object.expression);
       return spreads ? { method, methodSource: spreads } : { method };
     }
     const choices = value && methodChoices(value, 0);
-    if (choices) return chosen(choices);
+    if (choices) {
+      const read = (branch: ProgramExpression) => methodChoices(branch, 1);
+      return chosen(choices, pairingOf(value, read, 0));
+    }
     return value && constString(value.sp, value.expression, 0) === undefined
       ? { method, methodSource: { kind: "value", value } }
       : { method };

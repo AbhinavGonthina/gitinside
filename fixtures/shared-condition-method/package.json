@@ -1,0 +1,4 @@
+{
+  "name": "shared-condition-method",
+  "dependencies": { "express": "4" }
+}

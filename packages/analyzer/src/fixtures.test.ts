@@ -72,6 +72,7 @@ const NAMES = [
   "param-default-base",
   "query-string-url",
   "conditional-method",
+  "shared-condition-method",
   "spread-chain-method",
   "conditional-spread-method",
   "ambiguous-routes",
@@ -970,10 +971,10 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       `${admin}#moderate -> route:${p}/DELETE /api/blog-comments/:id exact`,
       `${admin}#moderate -> route:${p}/PATCH /api/blog-comments/:id exact`,
       `${admin}#report -> unresolved:${p}/src/admin.ts:42:10 unresolved DYNAMIC_URL`,
-      // Two URLs, so the method isn't split: each path's one route at an unknown method's
-      // `heuristic` (as before), and no unsent pair.
-      `${admin}#saveDraft -> route:${p}/POST /api/drafts heuristic`,
-      `${admin}#saveDraft -> route:${p}/PUT /api/drafts/:id heuristic`,
+      // Two URLs chosen by the method's own unassigned parameter: paired branch by branch
+      // (M12.1e5), so each is `exact`, and no unsent pair.
+      `${admin}#saveDraft -> route:${p}/POST /api/drafts exact`,
+      `${admin}#saveDraft -> route:${p}/PUT /api/drafts/:id exact`,
       `${admin}#toggleSuspend -> route:${p}/DELETE /api/admin/users/:id/suspend exact`,
       `${admin}#toggleSuspend -> route:${p}/POST /api/admin/users/:id/suspend exact`,
       `${admin}#upvote -> route:${p}/DELETE /api/posts/:id/vote exact`,
@@ -987,6 +988,38 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       "? window.location.href",
       "DELETE /api/posts/{}/archive",
     ]);
+  });
+
+  it("shared-condition-method: a URL and a method chosen by one unchanging binding pair branch by branch (M12.1e5)", async () => {
+    const g = await run("shared-condition-method");
+    const p = "shared-condition-method";
+    const forms = `symbol:${p}/src/forms.ts`;
+    const controls = `symbol:${p}/src/controls.ts`;
+    const ambiguous = (name: string, line: number) =>
+      `${controls}#${name} -> unresolved:${p}/src/controls.ts:${line}:10 unresolved AMBIGUOUS`;
+    expect(links(g, "http")).toEqual([
+      // Each control's two URLs, neither with a method: ambiguous on each path.
+      ambiguous("draftAssigned", 16),
+      ambiguous("draftCall", 40),
+      ambiguous("draftLet", 9),
+      ambiguous("draftNested", 34),
+      ambiguous("draftNestedMethod", 46),
+      ambiguous("draftOther", 28),
+      ambiguous("draftProperty", 22),
+      `${forms}#agentForm -> route:${p}/POST /api/agents exact`,
+      `${forms}#agentForm -> route:${p}/PUT /api/agents/:id exact`,
+      `${forms}#saveDraft -> route:${p}/POST /api/drafts exact`,
+      `${forms}#saveDraft -> route:${p}/PUT /api/drafts/:id exact`,
+      `${forms}#saveKey -> route:${p}/POST /api/upstreams/:upstreamId/keys exact`,
+      `${forms}#saveKey -> route:${p}/PUT /api/upstreams/:upstreamId/keys/:id exact`,
+      `${forms}#saveNote -> route:${p}/POST /api/notes exact`,
+      `${forms}#saveNote -> route:${p}/PUT /api/notes/:id exact`,
+      `${forms}#saveProject -> route:${p}/POST /api/projects exact`,
+      `${forms}#saveProject -> route:${p}/PUT /api/projects/:id exact`,
+    ]);
+    // No unsent pair is drawn: no `PUT` to a collection or `POST` to an item.
+    const labels = g.nodes.flatMap((n) => (n.kind === "unresolved" ? [n.label] : []));
+    expect(labels.filter((l) => /^(PUT \/api\/[a-z]+$|POST \/api\/[a-z]+\/)/.test(l))).toEqual([]);
   });
 
   it("spread-chain-method: a caller's method reaches the request through a spread two helpers deep (M12.1e3)", async () => {
