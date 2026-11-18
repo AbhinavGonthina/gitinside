@@ -160,6 +160,39 @@ export function objectProperty(
 }
 
 /**
+ * A prop an element's attributes pass its component (M12.1e6, ADR-0312), like
+ * {@link objectProperty}: the last attribute named `name` after every spread, its string or
+ * `{expression}` value; `undefined` when no attribute names it; `null` when it can't be read:
+ * a spread attribute after it, or with none (`{...rest}` could set it), an attribute with no
+ * value (`true`) or an element as its value, an empty `{}`, and `children` on an element that
+ * has children (they are the prop).
+ */
+export function jsxAttribute(
+  sp: ServiceProgram,
+  attributes: ts.JsxAttributes,
+  name: string,
+): ConfigValue {
+  const all = attributes.properties;
+  const opening = attributes.parent;
+  if (name === "children" && ts.isJsxOpeningElement(opening)) {
+    if (opening.parent.children.length > 0) return null;
+  }
+  for (let i = all.length - 1; i >= 0; i--) {
+    const attribute = all[i];
+    if (!attribute) continue;
+    if (ts.isJsxSpreadAttribute(attribute)) return null;
+    if (!ts.isIdentifier(attribute.name) || attribute.name.text !== name) continue;
+    const value = attribute.initializer;
+    if (value && ts.isStringLiteral(value)) return { sp, expression: value };
+    if (value && ts.isJsxExpression(value) && value.expression && !value.dotDotDotToken) {
+      return { sp, expression: value.expression };
+    }
+    return null;
+  }
+  return undefined;
+}
+
+/**
  * The spreads that could supply an object literal's property `name`, last first, and the
  * `name` property written before them, if any (`{ method: "GET", ...init }`). Spreads that
  * can't supply it ({@link spreadLacks}) are left out. `undefined` when something other than

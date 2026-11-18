@@ -1,0 +1,1185 @@
+{
+  "analyzerVersion": "0.3.19",
+  "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:component-props/src/components.tsx#ChatMessages",
+      "id": "calls:symbol:component-props/src/components.tsx#ChatMessages->symbol:component-props/src/hooks.ts#useChatQuery",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 16,
+          "file": "src/components.tsx",
+          "line": 33
+        }
+      ],
+      "to": "symbol:component-props/src/hooks.ts#useChatQuery"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:component-props/src/controls.tsx#alertAll",
+      "id": "calls:symbol:component-props/src/controls.tsx#alertAll->symbol:component-props/src/controls.tsx#notify",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 10,
+          "file": "src/controls.tsx",
+          "line": 43
+        }
+      ],
+      "to": "symbol:component-props/src/controls.tsx#notify"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:component-props/src/controls.tsx#useReportDownload",
+      "id": "calls:symbol:component-props/src/controls.tsx#useReportDownload->symbol:component-props/src/controls.tsx#useDownload",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 10,
+          "file": "src/controls.tsx",
+          "line": 72
+        }
+      ],
+      "to": "symbol:component-props/src/controls.tsx#useDownload"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:component-props/src/reports.tsx#Feed",
+      "id": "calls:symbol:component-props/src/reports.tsx#Feed->symbol:component-props/src/hooks.ts#useChatQuery",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 16,
+          "file": "src/reports.tsx",
+          "line": 28
+        }
+      ],
+      "to": "symbol:component-props/src/hooks.ts#useChatQuery"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:component-props/src/reports.tsx#useInbox",
+      "id": "calls:symbol:component-props/src/reports.tsx#useInbox->symbol:component-props/src/hooks.ts#useChatQuery",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 10,
+          "file": "src/reports.tsx",
+          "line": 23
+        }
+      ],
+      "to": "symbol:component-props/src/hooks.ts#useChatQuery"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:component-props/src/controls.tsx#ChildrenPage",
+      "id": "http:symbol:component-props/src/controls.tsx#ChildrenPage->unresolved:component-props/src/controls.tsx:58:10",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/controls.tsx",
+          "line": 58
+        }
+      ],
+      "to": "unresolved:component-props/src/controls.tsx:58:10"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:component-props/src/controls.tsx#MemoDelete",
+      "id": "http:symbol:component-props/src/controls.tsx#MemoDelete->unresolved:component-props/src/controls.tsx:11:26",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 26,
+          "file": "src/controls.tsx",
+          "line": 11
+        }
+      ],
+      "to": "unresolved:component-props/src/controls.tsx:11:26"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:component-props/src/controls.tsx#ReportButton",
+      "id": "http:symbol:component-props/src/controls.tsx#ReportButton->unresolved:component-props/src/controls.tsx:21:26",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 26,
+          "file": "src/controls.tsx",
+          "line": 21
+        }
+      ],
+      "to": "unresolved:component-props/src/controls.tsx:21:26"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:component-props/src/controls.tsx#SearchBox",
+      "id": "http:symbol:component-props/src/controls.tsx#SearchBox->route:component-props/GET /api/messages",
+      "kind": "http",
+      "label": "GET /api/messages",
+      "sites": [
+        {
+          "column": 24,
+          "file": "src/controls.tsx",
+          "line": 29,
+          "request": "GET /api/messages"
+        }
+      ],
+      "to": "route:component-props/GET /api/messages"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:component-props/src/controls.tsx#SpreadLastPage",
+      "id": "http:symbol:component-props/src/controls.tsx#SpreadLastPage->unresolved:component-props/src/controls.tsx:48:10",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/controls.tsx",
+          "line": 48
+        }
+      ],
+      "to": "unresolved:component-props/src/controls.tsx:48:10"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:component-props/src/controls.tsx#SpreadPage",
+      "id": "http:symbol:component-props/src/controls.tsx#SpreadPage->unresolved:component-props/src/controls.tsx:6:10",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/controls.tsx",
+          "line": 6
+        }
+      ],
+      "to": "unresolved:component-props/src/controls.tsx:6:10"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:component-props/src/controls.tsx#notify",
+      "id": "http:symbol:component-props/src/controls.tsx#notify->unresolved:component-props/src/controls.tsx:39:10",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/controls.tsx",
+          "line": 39
+        }
+      ],
+      "to": "unresolved:component-props/src/controls.tsx:39:10"
+    },
+    {
+      "confidence": "pattern",
+      "from": "symbol:component-props/src/controls.tsx#useReportDownload",
+      "id": "http:symbol:component-props/src/controls.tsx#useReportDownload->route:component-props/GET /api/reports/:id",
+      "kind": "http",
+      "label": "GET /api/reports/:id",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/controls.tsx",
+          "line": 72,
+          "request": "GET /api/reports/7"
+        }
+      ],
+      "to": "route:component-props/GET /api/reports/:id"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:component-props/src/pages.tsx#AgentsPage",
+      "id": "http:symbol:component-props/src/pages.tsx#AgentsPage->route:component-props/DELETE /api/agents/:id",
+      "kind": "http",
+      "label": "DELETE /api/agents/:id",
+      "sites": [
+        {
+          "column": 9,
+          "file": "src/pages.tsx",
+          "line": 7,
+          "request": "DELETE /api/agents/{}"
+        }
+      ],
+      "to": "route:component-props/DELETE /api/agents/:id"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:component-props/src/pages.tsx#ChannelPage",
+      "id": "http:symbol:component-props/src/pages.tsx#ChannelPage->route:component-props/GET /api/messages",
+      "kind": "http",
+      "label": "GET /api/messages",
+      "sites": [
+        {
+          "column": 7,
+          "file": "src/pages.tsx",
+          "line": 16,
+          "request": "GET /api/messages"
+        }
+      ],
+      "to": "route:component-props/GET /api/messages"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:component-props/src/pages.tsx#ChannelPage",
+      "id": "http:symbol:component-props/src/pages.tsx#ChannelPage->route:component-props/PATCH /api/socket/messages/:messageId",
+      "kind": "http",
+      "label": "PATCH /api/socket/messages/:messageId",
+      "sites": [
+        {
+          "column": 7,
+          "file": "src/pages.tsx",
+          "line": 16,
+          "request": "PATCH /api/socket/messages/{}"
+        }
+      ],
+      "to": "route:component-props/PATCH /api/socket/messages/:messageId"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:component-props/src/pages.tsx#ChannelPage",
+      "id": "http:symbol:component-props/src/pages.tsx#ChannelPage->route:component-props/POST /api/socket/messages",
+      "kind": "http",
+      "label": "POST /api/socket/messages",
+      "sites": [
+        {
+          "column": 7,
+          "file": "src/pages.tsx",
+          "line": 17,
+          "request": "POST /api/socket/messages"
+        }
+      ],
+      "to": "route:component-props/POST /api/socket/messages"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:component-props/src/pages.tsx#NotesPage",
+      "id": "http:symbol:component-props/src/pages.tsx#NotesPage->route:component-props/POST /api/notes/archive",
+      "kind": "http",
+      "label": "POST /api/notes/archive",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/pages.tsx",
+          "line": 23,
+          "request": "POST /api/notes/archive"
+        }
+      ],
+      "to": "route:component-props/POST /api/notes/archive"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:component-props/src/reports.tsx#FeedPage",
+      "id": "http:symbol:component-props/src/reports.tsx#FeedPage->route:component-props/GET /api/messages",
+      "kind": "http",
+      "label": "GET /api/messages",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/reports.tsx",
+          "line": 33,
+          "request": "GET /api/messages"
+        }
+      ],
+      "to": "route:component-props/GET /api/messages"
+    },
+    {
+      "confidence": "pattern",
+      "from": "symbol:component-props/src/reports.tsx#ReportPage",
+      "id": "http:symbol:component-props/src/reports.tsx#ReportPage->route:component-props/GET /api/reports/:id",
+      "kind": "http",
+      "label": "GET /api/reports/:id",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/reports.tsx",
+          "line": 16,
+          "request": "GET /api/reports/1"
+        }
+      ],
+      "to": "route:component-props/GET /api/reports/:id"
+    },
+    {
+      "confidence": "pattern",
+      "from": "symbol:component-props/src/reports.tsx#SpreadFirstPage",
+      "id": "http:symbol:component-props/src/reports.tsx#SpreadFirstPage->route:component-props/DELETE /api/agents/:id",
+      "kind": "http",
+      "label": "DELETE /api/agents/:id",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/reports.tsx",
+          "line": 6,
+          "request": "DELETE /api/agents/2"
+        }
+      ],
+      "to": "route:component-props/DELETE /api/agents/:id"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:component-props/src/reports.tsx#useInbox",
+      "id": "http:symbol:component-props/src/reports.tsx#useInbox->route:component-props/GET /api/messages",
+      "kind": "http",
+      "label": "GET /api/messages",
+      "sites": [
+        {
+          "column": 10,
+          "file": "src/reports.tsx",
+          "line": 23,
+          "request": "GET /api/messages"
+        }
+      ],
+      "to": "route:component-props/GET /api/messages"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:component-props/src/components.tsx",
+      "id": "imports:file:component-props/src/components.tsx->file:component-props/src/hooks.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 30,
+          "file": "src/components.tsx",
+          "line": 1
+        }
+      ],
+      "to": "file:component-props/src/hooks.ts"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:component-props/src/controls.tsx",
+      "id": "imports:file:component-props/src/controls.tsx->file:component-props/src/components.tsx",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 60,
+          "file": "src/controls.tsx",
+          "line": 2
+        }
+      ],
+      "to": "file:component-props/src/components.tsx"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:component-props/src/pages.tsx",
+      "id": "imports:file:component-props/src/pages.tsx->file:component-props/src/components.tsx",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 70,
+          "file": "src/pages.tsx",
+          "line": 1
+        }
+      ],
+      "to": "file:component-props/src/components.tsx"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:component-props/src/reports.tsx",
+      "id": "imports:file:component-props/src/reports.tsx->file:component-props/src/components.tsx",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 30,
+          "file": "src/reports.tsx",
+          "line": 1
+        }
+      ],
+      "to": "file:component-props/src/components.tsx"
+    },
+    {
+      "confidence": "exact",
+      "from": "file:component-props/src/reports.tsx",
+      "id": "imports:file:component-props/src/reports.tsx->file:component-props/src/hooks.ts",
+      "kind": "imports",
+      "sites": [
+        {
+          "column": 30,
+          "file": "src/reports.tsx",
+          "line": 2
+        }
+      ],
+      "to": "file:component-props/src/hooks.ts"
+    }
+  ],
+  "nodes": [
+    {
+      "hash": "d592ed892721b9417f97ac0d782628503b0da710d6c2a755b23587e977e49839",
+      "id": "file:component-props/src/components.tsx",
+      "kind": "file",
+      "label": "components.tsx",
+      "parentId": "module:component-props/src",
+      "path": "src/components.tsx"
+    },
+    {
+      "hash": "dffe04db4b2c89a82a4a7b91ddcb8e64c2cff50d0b2432e890bf54e757c8aa2d",
+      "id": "file:component-props/src/controls.tsx",
+      "kind": "file",
+      "label": "controls.tsx",
+      "parentId": "module:component-props/src",
+      "path": "src/controls.tsx"
+    },
+    {
+      "hash": "4e98ceda41c62c19fe363f6c2308bc0e758b579e8571e2c5abe058ca2edd66e8",
+      "id": "file:component-props/src/hooks.ts",
+      "kind": "file",
+      "label": "hooks.ts",
+      "parentId": "module:component-props/src",
+      "path": "src/hooks.ts"
+    },
+    {
+      "hash": "bf1b0d63bf934638b7f58b89df0cced2729efe45905fc05f9ee314f925a5f7c1",
+      "id": "file:component-props/src/pages.tsx",
+      "kind": "file",
+      "label": "pages.tsx",
+      "parentId": "module:component-props/src",
+      "path": "src/pages.tsx"
+    },
+    {
+      "hash": "85b26aed2de0c9887db1912f9d3b890d2a8f06ed07fba0205b4d1c3497409ad1",
+      "id": "file:component-props/src/reports.tsx",
+      "kind": "file",
+      "label": "reports.tsx",
+      "parentId": "module:component-props/src",
+      "path": "src/reports.tsx"
+    },
+    {
+      "hash": "f5fb038f9db0abf6f91dcba897ded131e0618180ba8d06dd9c7747a651ae5d5f",
+      "id": "file:component-props/src/server.ts",
+      "kind": "file",
+      "label": "server.ts",
+      "parentId": "module:component-props/src",
+      "path": "src/server.ts"
+    },
+    {
+      "id": "module:component-props/src",
+      "kind": "module",
+      "label": "src",
+      "parentId": "service:component-props/",
+      "path": "src"
+    },
+    {
+      "id": "route:component-props/DELETE /api/agents/:id",
+      "kind": "route",
+      "label": "DELETE /api/agents/:id",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:component-props/src/server.ts",
+      "path": "/api/agents/:id",
+      "source": {
+        "column": 8,
+        "file": "src/server.ts",
+        "line": 6
+      }
+    },
+    {
+      "id": "route:component-props/DELETE /api/reports/:id",
+      "kind": "route",
+      "label": "DELETE /api/reports/:id",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:component-props/src/server.ts",
+      "path": "/api/reports/:id",
+      "source": {
+        "column": 9,
+        "file": "src/server.ts",
+        "line": 19
+      }
+    },
+    {
+      "id": "route:component-props/DELETE /api/socket/messages/:messageId",
+      "kind": "route",
+      "label": "DELETE /api/socket/messages/:messageId",
+      "layer": "backend",
+      "method": "DELETE",
+      "parentId": "file:component-props/src/server.ts",
+      "path": "/api/socket/messages/:messageId",
+      "source": {
+        "column": 8,
+        "file": "src/server.ts",
+        "line": 15
+      }
+    },
+    {
+      "id": "route:component-props/GET /api/agents/:id",
+      "kind": "route",
+      "label": "GET /api/agents/:id",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:component-props/src/server.ts",
+      "path": "/api/agents/:id",
+      "source": {
+        "column": 8,
+        "file": "src/server.ts",
+        "line": 5
+      }
+    },
+    {
+      "id": "route:component-props/GET /api/messages",
+      "kind": "route",
+      "label": "GET /api/messages",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:component-props/src/server.ts",
+      "path": "/api/messages",
+      "source": {
+        "column": 10,
+        "file": "src/server.ts",
+        "line": 9
+      }
+    },
+    {
+      "id": "route:component-props/GET /api/reports/:id",
+      "kind": "route",
+      "label": "GET /api/reports/:id",
+      "layer": "backend",
+      "method": "GET",
+      "parentId": "file:component-props/src/server.ts",
+      "path": "/api/reports/:id",
+      "source": {
+        "column": 9,
+        "file": "src/server.ts",
+        "line": 18
+      }
+    },
+    {
+      "id": "route:component-props/PATCH /api/socket/messages/:messageId",
+      "kind": "route",
+      "label": "PATCH /api/socket/messages/:messageId",
+      "layer": "backend",
+      "method": "PATCH",
+      "parentId": "file:component-props/src/server.ts",
+      "path": "/api/socket/messages/:messageId",
+      "source": {
+        "column": 8,
+        "file": "src/server.ts",
+        "line": 14
+      }
+    },
+    {
+      "id": "route:component-props/POST /api/messages",
+      "kind": "route",
+      "label": "POST /api/messages",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:component-props/src/server.ts",
+      "path": "/api/messages",
+      "source": {
+        "column": 10,
+        "file": "src/server.ts",
+        "line": 10
+      }
+    },
+    {
+      "id": "route:component-props/POST /api/notes/archive",
+      "kind": "route",
+      "label": "POST /api/notes/archive",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:component-props/src/server.ts",
+      "path": "/api/notes/archive",
+      "source": {
+        "column": 4,
+        "file": "src/server.ts",
+        "line": 26
+      }
+    },
+    {
+      "id": "route:component-props/POST /api/socket/messages",
+      "kind": "route",
+      "label": "POST /api/socket/messages",
+      "layer": "backend",
+      "method": "POST",
+      "parentId": "file:component-props/src/server.ts",
+      "path": "/api/socket/messages",
+      "source": {
+        "column": 8,
+        "file": "src/server.ts",
+        "line": 13
+      }
+    },
+    {
+      "framework": "express",
+      "id": "service:component-props/",
+      "kind": "service",
+      "label": "component-props",
+      "layer": "backend",
+      "parentId": "system:root",
+      "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/components.tsx#ArchiveButton",
+      "kind": "symbol",
+      "label": "ArchiveButton",
+      "parentId": "file:component-props/src/components.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 48,
+        "file": "src/components.tsx",
+        "line": 44
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/components.tsx#ChatInput",
+      "kind": "symbol",
+      "label": "ChatInput",
+      "parentId": "file:component-props/src/components.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 15,
+        "file": "src/components.tsx",
+        "line": 12
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/components.tsx#ChatItem",
+      "kind": "symbol",
+      "label": "ChatItem",
+      "parentId": "file:component-props/src/components.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 21,
+        "file": "src/components.tsx",
+        "line": 18
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/components.tsx#ChatMessages",
+      "kind": "symbol",
+      "label": "ChatMessages",
+      "parentId": "file:component-props/src/components.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 41,
+        "file": "src/components.tsx",
+        "line": 24
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/components.tsx#DeleteButton",
+      "kind": "symbol",
+      "label": "DeleteButton",
+      "parentId": "file:component-props/src/components.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 9,
+        "file": "src/components.tsx",
+        "line": 4
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/controls.tsx#BUTTONS",
+      "kind": "symbol",
+      "label": "BUTTONS",
+      "parentId": "file:component-props/src/controls.tsx",
+      "source": {
+        "column": 14,
+        "endLine": 25,
+        "file": "src/controls.tsx",
+        "line": 25
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/controls.tsx#ChildrenPage",
+      "kind": "symbol",
+      "label": "ChildrenPage",
+      "parentId": "file:component-props/src/controls.tsx",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 59,
+        "file": "src/controls.tsx",
+        "line": 57
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/controls.tsx#Fetcher",
+      "kind": "symbol",
+      "label": "Fetcher",
+      "parentId": "file:component-props/src/controls.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 55,
+        "file": "src/controls.tsx",
+        "line": 52
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/controls.tsx#LowercasePage",
+      "kind": "symbol",
+      "label": "LowercasePage",
+      "parentId": "file:component-props/src/controls.tsx",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 64,
+        "file": "src/controls.tsx",
+        "line": 62
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/controls.tsx#MemoDelete",
+      "kind": "symbol",
+      "label": "MemoDelete",
+      "parentId": "file:component-props/src/controls.tsx",
+      "source": {
+        "column": 14,
+        "endLine": 13,
+        "file": "src/controls.tsx",
+        "line": 10
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/controls.tsx#ReportButton",
+      "kind": "symbol",
+      "label": "ReportButton",
+      "parentId": "file:component-props/src/controls.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 23,
+        "file": "src/controls.tsx",
+        "line": 20
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/controls.tsx#ReportsPage",
+      "kind": "symbol",
+      "label": "ReportsPage",
+      "parentId": "file:component-props/src/controls.tsx",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 17,
+        "file": "src/controls.tsx",
+        "line": 15
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/controls.tsx#SearchBox",
+      "kind": "symbol",
+      "label": "SearchBox",
+      "parentId": "file:component-props/src/controls.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 31,
+        "file": "src/controls.tsx",
+        "line": 28
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/controls.tsx#SearchPage",
+      "kind": "symbol",
+      "label": "SearchPage",
+      "parentId": "file:component-props/src/controls.tsx",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 35,
+        "file": "src/controls.tsx",
+        "line": 33
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/controls.tsx#SpreadLastPage",
+      "kind": "symbol",
+      "label": "SpreadLastPage",
+      "parentId": "file:component-props/src/controls.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 49,
+        "file": "src/controls.tsx",
+        "line": 47
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/controls.tsx#SpreadPage",
+      "kind": "symbol",
+      "label": "SpreadPage",
+      "parentId": "file:component-props/src/controls.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "src/controls.tsx",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/controls.tsx#alertAll",
+      "kind": "symbol",
+      "label": "alertAll",
+      "parentId": "file:component-props/src/controls.tsx",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 44,
+        "file": "src/controls.tsx",
+        "line": 42
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/controls.tsx#notify",
+      "kind": "symbol",
+      "label": "notify",
+      "parentId": "file:component-props/src/controls.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 40,
+        "file": "src/controls.tsx",
+        "line": 38
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/controls.tsx#useDownload",
+      "kind": "symbol",
+      "label": "useDownload",
+      "parentId": "file:component-props/src/controls.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 69,
+        "file": "src/controls.tsx",
+        "line": 67
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/controls.tsx#useReportDownload",
+      "kind": "symbol",
+      "label": "useReportDownload",
+      "parentId": "file:component-props/src/controls.tsx",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 73,
+        "file": "src/controls.tsx",
+        "line": 71
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/hooks.ts#useChatQuery",
+      "kind": "symbol",
+      "label": "useChatQuery",
+      "parentId": "file:component-props/src/hooks.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 13,
+        "file": "src/hooks.ts",
+        "line": 7
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/pages.tsx#AgentsPage",
+      "kind": "symbol",
+      "label": "AgentsPage",
+      "parentId": "file:component-props/src/pages.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 11,
+        "file": "src/pages.tsx",
+        "line": 3
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/pages.tsx#ChannelPage",
+      "kind": "symbol",
+      "label": "ChannelPage",
+      "parentId": "file:component-props/src/pages.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 20,
+        "file": "src/pages.tsx",
+        "line": 13
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/pages.tsx#NotesPage",
+      "kind": "symbol",
+      "label": "NotesPage",
+      "parentId": "file:component-props/src/pages.tsx",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 24,
+        "file": "src/pages.tsx",
+        "line": 22
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/reports.tsx#Feed",
+      "kind": "symbol",
+      "label": "Feed",
+      "parentId": "file:component-props/src/reports.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 30,
+        "file": "src/reports.tsx",
+        "line": 27
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/reports.tsx#FeedPage",
+      "kind": "symbol",
+      "label": "FeedPage",
+      "parentId": "file:component-props/src/reports.tsx",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 34,
+        "file": "src/reports.tsx",
+        "line": 32
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/reports.tsx#ReportPage",
+      "kind": "symbol",
+      "label": "ReportPage",
+      "parentId": "file:component-props/src/reports.tsx",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 17,
+        "file": "src/reports.tsx",
+        "line": 15
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/reports.tsx#ReportViewer",
+      "kind": "symbol",
+      "label": "ReportViewer",
+      "parentId": "file:component-props/src/reports.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 13,
+        "file": "src/reports.tsx",
+        "line": 10
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/reports.tsx#SpreadFirstPage",
+      "kind": "symbol",
+      "label": "SpreadFirstPage",
+      "parentId": "file:component-props/src/reports.tsx",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 7,
+        "file": "src/reports.tsx",
+        "line": 5
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/reports.tsx#useInbox",
+      "kind": "symbol",
+      "label": "useInbox",
+      "parentId": "file:component-props/src/reports.tsx",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 24,
+        "file": "src/reports.tsx",
+        "line": 22
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:component-props/src/server.ts#server",
+      "kind": "symbol",
+      "label": "server",
+      "parentId": "file:component-props/src/server.ts",
+      "source": {
+        "column": 14,
+        "endLine": 26,
+        "file": "src/server.ts",
+        "line": 21
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "id": "system:root",
+      "kind": "system",
+      "label": "component-props",
+      "parentId": null
+    },
+    {
+      "detail": "the URL starts with a value only known at runtime",
+      "expression": "fetch(endpoint, { method: \"DELETE\" })",
+      "id": "unresolved:component-props/src/controls.tsx:11:26",
+      "kind": "unresolved",
+      "label": "DELETE endpoint",
+      "parentId": "service:component-props/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 26,
+        "file": "src/controls.tsx",
+        "line": 11
+      }
+    },
+    {
+      "detail": "the URL starts with a value only known at runtime",
+      "expression": "fetch(endpoint, { method: \"DELETE\" })",
+      "id": "unresolved:component-props/src/controls.tsx:21:26",
+      "kind": "unresolved",
+      "label": "DELETE endpoint",
+      "parentId": "service:component-props/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 26,
+        "file": "src/controls.tsx",
+        "line": 21
+      }
+    },
+    {
+      "detail": "the URL starts with a value only known at runtime",
+      "expression": "fetch(config.url, { method: \"POST\" })",
+      "id": "unresolved:component-props/src/controls.tsx:39:10",
+      "kind": "unresolved",
+      "label": "POST config.url",
+      "parentId": "service:component-props/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 10,
+        "file": "src/controls.tsx",
+        "line": 39
+      }
+    },
+    {
+      "detail": "the URL starts with a value only known at runtime",
+      "expression": "<DeleteButton endpoint=\"…\" label=\"…\" {...rest} />",
+      "id": "unresolved:component-props/src/controls.tsx:48:10",
+      "kind": "unresolved",
+      "label": "DELETE <DeleteButton endpoint=\"…\" label=\"…\" {...rest} />",
+      "parentId": "service:component-props/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 10,
+        "file": "src/controls.tsx",
+        "line": 48
+      }
+    },
+    {
+      "detail": "the URL starts with a value only known at runtime",
+      "expression": "<Fetcher>",
+      "id": "unresolved:component-props/src/controls.tsx:58:10",
+      "kind": "unresolved",
+      "label": "GET <Fetcher>",
+      "parentId": "service:component-props/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 10,
+        "file": "src/controls.tsx",
+        "line": 58
+      }
+    },
+    {
+      "detail": "the URL starts with a value only known at runtime",
+      "expression": "<DeleteButton {...rest} />",
+      "id": "unresolved:component-props/src/controls.tsx:6:10",
+      "kind": "unresolved",
+      "label": "DELETE <DeleteButton {...rest} />",
+      "parentId": "service:component-props/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 10,
+        "file": "src/controls.tsx",
+        "line": 6
+      }
+    }
+  ],
+  "repo": {
+    "name": "component-props",
+    "owner": "fixtures"
+  },
+  "schemaVersion": "1.0.0",
+  "warnings": [
+    {
+      "code": "TSCONFIG_MISSING",
+      "message": "no tsconfig.json or jsconfig.json; using default compiler options"
+    }
+  ]
+}

@@ -116,7 +116,29 @@
  *   (`queryKey[0]`, `({ queryKey: [url] })`, `ctx.queryKey[1]`: `url.ts`); a key that is the
  *   caller's own parameter is `WRAPPER_DEPTH`.
  *
+ * - React function components (M12.1e6, ADR-0312), from React's contract: an element calls
+ *   its component with one object, its attributes, so `<C endpoint="/x" />` is
+ *   `C({ endpoint: "/x" })`. An element whose tag (a name or a member, `<ui.C>`) resolves to
+ *   a wrapper is a call of it, its first parameter bound to the attributes; the checker
+ *   resolves a lowercase tag as an HTML element, so it never names one. A
+ *   wrapper reads a prop as a parameter (`url.ts`): destructured (`({ endpoint })`, also
+ *   `const { endpoint } = props`) or `props.endpoint`. A hook (`use`-named, React's contract)
+ *   reads its options object the same way (`useChatQuery({ apiUrl })`); any other function's
+ *   doesn't (`notify(config)`'s `config.url` stays its own request). A component or hook
+ *   passing its own prop on (to a hook's options, or to an element inside it, a `.map`
+ *   callback's included) is a wrapper over wrappers: `passedThrough` reads the inner wrapper's
+ *   URL with the call's arguments bound, since each argument read alone is an object.
+ *
  * Patterns not handled:
+ * - Elements with spread attributes (`<C {...rest} />`: any prop may come from the spread),
+ *   a `children` prop given by an element's body, components wrapped in `memo`, `forwardRef`,
+ *   or another call (the symbol's value isn't a function), class components (`this.props`),
+ *   components defined inside another function (local helpers are called only by name), and
+ *   a component only passed around as a value (`{ report: ReportButton }`): their requests stay
+ *   at the component's own site. A method or axios config read from a prop (`fetch(url, {
+ *   method })` with a destructured `method`) is unknown, as is the whole URL of an element read
+ *   through a JSX spread. An element's attributes are masked in full in an unresolved
+ *   request's text.
  * - Nested functions that aren't local helpers (a `let` or `var` binding, an object literal's
  *   method or property, a callback), object literals that aren't exported `const`s (or
  *   `module.exports`), and wrappers only ever passed around as values (no visible call: a
@@ -132,8 +154,10 @@
  *   visible calls become requests.
  * - Calls spelled with neither a wrapper's name nor an import alias (`const g = get; g()`),
  *   unless some wrapper in the repo has that name: they aren't resolved.
- * - Destructured parameters (`({ path }) => fetch(path)`), `arguments`, and parameters
- *   reassigned in the body (the caller's value is assumed to reach the call).
+ * - Destructured parameters other than one object pattern's own properties (nested patterns,
+ *   array patterns, rest elements: `({ api: { path } })`), `arguments`, and parameters or
+ *   destructured props reassigned in the body (the caller's value is assumed to reach the
+ *   call).
  * - A rest element declared with `let` or `var`, nested in another pattern, or destructured
  *   from anything but a plain value (`const { ...rest } = init ?? {}`): the method it may
  *   carry is unknown.
@@ -362,12 +386,23 @@ interface Scope {
  */
 type HookKey = ts.Expression | "array";
 
+/** An element's tag, which calls its function component with the attributes (M12.1e6). */
+type JsxTag = ts.JsxSelfClosingElement | ts.JsxOpeningElement;
+
+/** A call, or an element calling its component (M12.1e6, ADR-0312). */
+type CallLike = ts.CallExpression | JsxTag;
+
+/** The arguments a call passes: an element passes one object, its attributes (the props). */
+function argumentsOf(call: CallLike): readonly ts.Expression[] {
+  return ts.isCallExpression(call) ? call.arguments : [call.attributes];
+}
+
 /** A resolved call to a wrapper. */
 interface Caller {
   sp: ServiceProgram;
   file: string;
-  /** The call to the wrapper, or the hook call that hands it to SWR. */
-  call: ts.CallExpression;
+  /** The call to the wrapper, the element rendering it, or the hook call that hands it to SWR. */
+  call: CallLike;
   site: SourceLocation;
   owners: Owners;
   confidence: Confidence;
@@ -710,9 +745,7 @@ export function collectHttpFacts(
     functionAround(site.call);
 
   /** Like {@link wrapperOf}, for any call: the symbol function it sits in, if any. */
-  const functionAround = (
-    call: ts.CallExpression,
-  ): { id: string; fn: FunctionWithBody } | undefined => {
+  const functionAround = (call: CallLike): { id: string; fn: FunctionWithBody } | undefined => {
     const byNode = resolver.callers.get(call.getSourceFile());
     if (!byNode) return undefined;
     let n: ts.Node | undefined = call.parent;
@@ -1295,6 +1328,23 @@ export function collectHttpFacts(
             }
           }
         }
+        // An element calls its function component with its attributes (M12.1e6, ADR-0312). The
+        // checker resolves a lowercase tag as an HTML element, so it never names a wrapper.
+        if (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) {
+          const tag = node.tagName;
+          const named = ts.isIdentifier(tag) || ts.isPropertyAccessExpression(tag);
+          const target = named ? wrapperAt(sp, tag) : undefined;
+          if (target) {
+            add(target.id, {
+              sp,
+              file,
+              call: node,
+              site: locationOf(node, file),
+              owners: current,
+              confidence: target.confidence,
+            });
+          }
+        }
         ts.forEachChild(node, (child) => {
           visit(child, current);
         });
@@ -1331,7 +1381,7 @@ export function collectHttpFacts(
    */
   const inline = (id: string | undefined, wrapper: Wrapper, caller: Caller): HttpRequestFact[] => {
     const { hook } = caller;
-    if (!hook) return inlineWith(id, wrapper, caller, caller.call.arguments, "missing");
+    if (!hook) return inlineWith(id, wrapper, caller, argumentsOf(caller.call), "missing");
     const seen = new Set<string>();
     return hook.keys
       .flatMap((key) =>
@@ -1407,6 +1457,18 @@ export function collectHttpFacts(
       if (spread !== -1 && spread <= i) return null;
       return args[i] ?? (rest === "unknown" ? null : undefined);
     };
+
+    /**
+     * The arguments for `read` parameters, whose URL text an unresolved request shows unmasked.
+     * An element's attributes are all masked (M12.1e6): which ones its URL reads isn't kept.
+     */
+    const shownArguments = (read: ReadonlySet<ts.ParameterDeclaration>): ts.Expression[] =>
+      ts.isCallExpression(caller.call)
+        ? wrapper.fn.parameters.flatMap((d, i) => {
+            const arg = args[i];
+            return read.has(d) && arg ? [arg] : [];
+          })
+        : [];
 
     /**
      * A value with this call's bindings, and the outer calls' (M5C.7f): `missing` for an
@@ -1577,13 +1639,8 @@ export function collectHttpFacts(
           ? [{ resolved: false, reason: "DYNAMIC_URL", detail: DYNAMIC_URL_DETAIL.hookKey }]
           : ((fromSpread ?? fromConfig)?.urls ?? normalizer.alternatives(site, bindings));
       const confidence = weaker(site.confidence, caller.confidence);
-      const read = normalizer.parameters(site);
       const urlArgs =
-        (fromSpread ?? fromConfig)?.shown ??
-        wrapper.fn.parameters.flatMap((d, i) => {
-          const arg = args[i];
-          return read.has(d) && arg ? [arg] : [];
-        });
+        (fromSpread ?? fromConfig)?.shown ?? shownArguments(normalizer.parameters(site));
       const known = fromSpread ? fromSpread.method : boundMethod(site);
       const expression = redactedText(caller.call, urlArgs);
       // Only the site's own URL, read with this call's bindings, can be paired (M12.1e5).
@@ -1618,21 +1675,19 @@ export function collectHttpFacts(
               innerId,
               innerWrapper,
               innerCall,
-              innerCall.call.arguments,
+              argumentsOf(innerCall.call),
               "missing",
               scope,
               ids,
             )
-          : inlineWith(innerId, innerWrapper, innerCall, innerCall.call.arguments, "missing").map(
-              tooDeepRequest,
-            );
-      const expression = redactedText(
-        caller.call,
-        wrapper.fn.parameters.flatMap((d, i) => {
-          const arg = args[i];
-          return reads.has(d) && arg ? [arg] : [];
-        }),
-      );
+          : inlineWith(
+              innerId,
+              innerWrapper,
+              innerCall,
+              argumentsOf(innerCall.call),
+              "missing",
+            ).map(tooDeepRequest);
+      const expression = redactedText(caller.call, shownArguments(reads));
       return followed.map((request) => ({
         ...request,
         ...via,
@@ -1680,9 +1735,9 @@ export function collectHttpFacts(
   // ---- wrappers over wrappers (M5C.7f) ----
 
   /** Calls that are some wrapper's {@link InnerCall}: its requests, not call facts. */
-  const innerCalls = new Set<ts.CallExpression>();
+  const innerCalls = new Set<CallLike>();
   /** Calls passing a parameter into a chain already {@link MAX_WRAPPER_DEPTH} deep. */
-  const tooDeep = new Set<ts.CallExpression>();
+  const tooDeep = new Set<CallLike>();
 
   /** True when wrapper `from` is `to` or reaches it through inner calls. */
   const reaches = (from: string, to: string, hops = 0): boolean =>
@@ -1735,7 +1790,7 @@ export function collectHttpFacts(
     path: Set<ts.ParameterDeclaration>;
   } => {
     const own = (d: ts.ParameterDeclaration): boolean => d.parent === fn;
-    const args = caller.call.arguments;
+    const args = argumentsOf(caller.call);
     const spread = args.findIndex((a) => ts.isSpreadElement(a));
     const toPath = pathParameters(wrapper);
     let leading = false;
@@ -1756,6 +1811,67 @@ export function collectHttpFacts(
   };
 
   /**
+   * {@link passedOn} read through bindings (M12.1e6, ADR-0312), for a call passing an object
+   * (a literal, or an element's attributes): `wrapper`'s sites, and down its chain its inner
+   * calls' (M5C.7f), read with this call's arguments bound, so a prop or option property `fn`
+   * passes on (`useChatQuery({ apiUrl })`, `<ChatItem socketUrl={socketUrl} />`) is seen where
+   * `passedOn`, reading each argument as a URL, sees an object. Its `path` leaves out what only
+   * a literal origin reads (M5C.10b). `undefined` for a call passing no object.
+   */
+  const passedThrough = (
+    wrapper: Wrapper,
+    caller: Caller,
+    fn: FunctionWithBody,
+  ): ReturnType<typeof passedOn> | undefined => {
+    const objects = argumentsOf(caller.call).some((a) => {
+      const e = unwrap(a);
+      return ts.isObjectLiteralExpression(e) || ts.isJsxAttributes(e);
+    });
+    if (!objects) return undefined;
+    const own = (d: ts.ParameterDeclaration): boolean => d.parent === fn;
+    let leading = false;
+    const reads = new Set<ts.ParameterDeclaration>();
+    const path = new Set<ts.ParameterDeclaration>();
+    const visit = (
+      w: Wrapper,
+      call: Caller,
+      outer: ParameterBindings | undefined,
+      depth: number,
+    ): void => {
+      const given = argumentsOf(call.call);
+      const { bindings } = bindArguments(w, call.sp, given, "missing", outer);
+      for (const site of w.sites) {
+        const origin = normalizer.originParameters(site, bindings);
+        for (const d of normalizer.parameters(site, bindings)) {
+          if (!own(d)) continue;
+          reads.add(d);
+          if (!origin.has(d)) path.add(d);
+        }
+        if ([...normalizer.leadingParameters(site, bindings)].some(own)) leading = true;
+      }
+      if (depth >= MAX_WRAPPER_DEPTH) return;
+      for (const inner of w.inner) {
+        const next = wrappers.get(inner.id);
+        if (next) visit(next, inner.caller, bindings, depth + 1);
+      }
+    };
+    visit(wrapper, caller, undefined, 1);
+    return { leading, reads, path };
+  };
+
+  /** What a call passes on of `fn`: {@link passedOn}, else {@link passedThrough}'s. */
+  const passing = (
+    wrapper: Wrapper,
+    caller: Caller,
+    fn: FunctionWithBody,
+  ): ReturnType<typeof passedOn> => {
+    const found = passedOn(wrapper, caller, fn);
+    if (found.leading) return found;
+    const through = passedThrough(wrapper, caller, fn);
+    return through?.leading ? through : found;
+  };
+
+  /**
    * The function a call to wrapper `callee` sits in that passes its own parameter on as the
    * start of a path (`passedOn`): the symbol function around it, else the innermost local
    * helper (M5C.10d) that does, by {@link localKey}.
@@ -1771,14 +1887,14 @@ export function collectHttpFacts(
     | undefined => {
     const around = functionAround(caller.call);
     if (around) {
-      const found = passedOn(callee, caller, around.fn);
+      const found = passing(callee, caller, around.fn);
       if (found.leading) return { ...around, found };
     }
     for (let f = enclosingFunction(caller.call); f; f = enclosingFunction(f)) {
       if (f === around?.fn) break;
       const local = localHelper(f);
       if (!local) continue;
-      const found = passedOn(callee, caller, f);
+      const found = passing(callee, caller, f);
       if (found.leading) return { id: localKey(caller.file, f), fn: f, found, local };
     }
     return undefined;

@@ -1,0 +1,4 @@
+{
+  "name": "component-props",
+  "dependencies": { "express": "4", "react": "19" }
+}
