@@ -326,7 +326,7 @@ describe("the committed draw records", () => {
     const { repos } = parseReposFile("repos.json", readFileSync(`${root}/repos.json`, "utf8"));
     const draws = loadDrawFiles(root);
     expect(draws.map((d) => d.file)).toEqual(
-      expect.arrayContaining(["batch-4.json", "batch-5.json"]),
+      expect.arrayContaining(["batch-4.json", "batch-5.json", "batch-6.json", "batch-7.json"]),
     );
     const all = draws.map((d) => d.draw);
     for (const file of all) expect(drawCrossCheck(file, repos, all)).toEqual([]);

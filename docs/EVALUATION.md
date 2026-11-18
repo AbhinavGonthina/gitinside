@@ -165,6 +165,12 @@ The sixth held-out batch (M9.2, drawn by the same rule with its exclusions; pins
 
 Each is pinned at its default-branch HEAD as `"heldOut": 6`; the SHAs are in `repos.json`.
 
+**Held-out batch 7: a fresh blind measurement after M12.1** (M12.2, ADR-0208's M12.2a1 amendment; rule committed 2026-11-18 in M12.2a1, before any candidate list was fetched). Batch 6 is seen since M12.1 fixed its misses (recall 69.0% blind, 97.2% after the fixes), so its later numbers show that the fixes work, not that they generalize. Batch 7 tests that. The rule, in [`eval/draws/batch-7.json`](../eval/draws/batch-7.json), is batch 6's with these changes:
+- **Same strata, queries, and quota** (`react-express`, `nextjs-prisma`, 8 pins each), so batch 7 describes the same population as batches 4–6. Before committing, only the totals were read (292 and 312 on 2026-11-18), both under the 1,000-result cap.
+- **Seed** `2026-11-18`, the day the rule was committed.
+- **Exclusions** (492 repos, each with why): batch 6's 454, carried whole, plus batch 6's 16 pins and the 22 candidates its walk rejected. Nothing else was read for a fix since batch 6's rule: M12.1's fixes were shaped on batch 5 and 6 checkouts and fixtures only, and no file was added to `docs/usage/`. A scratch check found every repo named in `repos.json`, `eval/backtest/repos.json`, `docs/demos/repos.json`, and `docs/usage/` among the exclusions.
+- **Unchanged:** the pool snapshot, the walk (no skipping, stop at 8 pins; each base joined with a request path and matched against a mounted route's full path), and inclusion rules 2–5. Labels are committed with each pin's `repos.json` entry (`"heldOut": 7`, batch 7 `"seen": null`) before the analyzer first runs on it (M12.2b), and the batch is scored once (M12.2c), its numbers reported as measured.
+
 The held-out candidates (M5A.2b, 2026-11-01; found with `gh search repos` for MIT-licensed React + Express apps, read but never analyzed):
 
 | Candidate | How it calls its API | Source files | Status |
