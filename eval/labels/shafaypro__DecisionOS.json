@@ -1,0 +1,693 @@
+{
+  "repo": "shafaypro/DecisionOS",
+  "sha": "af288e9f1e6c6c097e3eccd30f3b97a85ac22a69",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "src/app/(app)/board/kanban-board.tsx", "line": 182 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/action-items/route.ts",
+        "line": 39,
+        "route": "POST /api/action-items"
+      },
+      "notes": "fetch(\"/api/action-items\", { method: \"POST\" }) in the board's new-card form; root-relative, same Next app. src/app/api/action-items/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/board/kanban-board.tsx", "line": 191 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/action-items/[id]/route.ts",
+        "line": 13,
+        "route": "PATCH /api/action-items/:id"
+      },
+      "notes": "fetch(`/api/action-items/${json.item.id}`, { method: \"PATCH\" }) after creating a card in a non-open column; action-items/[id]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/board/kanban-board.tsx", "line": 282 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/action-items/[id]/route.ts",
+        "line": 13,
+        "route": "PATCH /api/action-items/:id"
+      },
+      "notes": "wrapper sendJson(`/api/action-items/${id}`, \"PATCH\", …) (src/lib/client-fetch.ts fetches its url argument); action-items/[id]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/board/kanban-board.tsx", "line": 295 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/action-items/[id]/route.ts",
+        "line": 83,
+        "route": "DELETE /api/action-items/:id"
+      },
+      "notes": "wrapper sendJson(`/api/action-items/${id}`, \"DELETE\", undefined); action-items/[id]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/[id]/action-items.tsx", "line": 59 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/action-items/[id]/route.ts",
+        "line": 13,
+        "route": "PATCH /api/action-items/:id"
+      },
+      "notes": "wrapper sendJson(`/api/action-items/${item.id}`, \"PATCH\", …); action-items/[id]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/[id]/action-items.tsx", "line": 71 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/action-items/route.ts",
+        "line": 39,
+        "route": "POST /api/action-items"
+      },
+      "notes": "wrapper sendJson(\"/api/action-items\", \"POST\", …); action-items/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/[id]/decision-actions.tsx", "line": 108 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/decisions/[id]/supersede/route.ts",
+        "line": 15,
+        "route": "POST /api/decisions/:id/supersede"
+      },
+      "notes": "fetch(`/api/decisions/${decisionId}/supersede`, { method: \"POST\" }); decisions/[id]/supersede/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/[id]/decision-actions.tsx", "line": 127 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/decisions/archive/route.ts",
+        "line": 8,
+        "route": "POST /api/decisions/archive"
+      },
+      "notes": "wrapper sendJson(\"/api/decisions/archive\", \"POST\", …); the static archive segment beats decisions/[id]; archive/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/[id]/delete-link-button.tsx", "line": 22 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/decisions/links/route.ts",
+        "line": 30,
+        "route": "DELETE /api/decisions/links"
+      },
+      "notes": "wrapper sendJson(\"/api/decisions/links\", \"DELETE\", { linkId }); links/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/[id]/delete-note-button.tsx", "line": 22 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/decisions/notes/route.ts",
+        "line": 35,
+        "route": "DELETE /api/decisions/notes"
+      },
+      "notes": "wrapper sendJson(\"/api/decisions/notes\", \"DELETE\", { noteId }); notes/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/[id]/editable.tsx", "line": 37 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/decisions/[id]/route.ts",
+        "line": 8,
+        "route": "PUT /api/decisions/:id"
+      },
+      "notes": "patchField(): fetch(`/api/decisions/${id}`, { method: \"PUT\" }) with the path fixed in the helper; decisions/[id]/route.ts exports only PUT"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/[id]/link-form.tsx", "line": 40 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/decisions/links/route.ts",
+        "line": 7,
+        "route": "POST /api/decisions/links"
+      },
+      "notes": "fetch(\"/api/decisions/links\", { method: \"POST\" }); links/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/[id]/note-form.tsx", "line": 28 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/decisions/notes/route.ts",
+        "line": 8,
+        "route": "POST /api/decisions/notes"
+      },
+      "notes": "fetch(\"/api/decisions/notes\", { method: \"POST\" }); notes/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/[id]/note-replies.tsx", "line": 55 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/decisions/notes/replies/route.ts",
+        "line": 8,
+        "route": "POST /api/decisions/notes/replies"
+      },
+      "notes": "fetch(\"/api/decisions/notes/replies\", { method: \"POST\" }); notes/replies/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/[id]/note-replies.tsx", "line": 73 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/decisions/notes/replies/route.ts",
+        "line": 39,
+        "route": "DELETE /api/decisions/notes/replies"
+      },
+      "notes": "wrapper sendJson(\"/api/decisions/notes/replies\", \"DELETE\", { replyId }); notes/replies/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/[id]/reactions-bar.tsx", "line": 60 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/decisions/[id]/reactions/route.ts",
+        "line": 34,
+        "route": "POST /api/decisions/:id/reactions"
+      },
+      "notes": "fetch(`/api/decisions/${decisionId}/reactions`, { method: \"POST\" }); decisions/[id]/reactions/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/[id]/relation-form.tsx", "line": 48 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/decisions/[id]/relations/route.ts",
+        "line": 36,
+        "route": "POST /api/decisions/:id/relations"
+      },
+      "notes": "fetch(`/api/decisions/${decisionId}/relations`, { method: \"POST\" }); decisions/[id]/relations/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/[id]/remove-relation-button.tsx", "line": 20 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/decisions/[id]/relations/route.ts",
+        "line": 65,
+        "route": "DELETE /api/decisions/:id/relations"
+      },
+      "notes": "wrapper sendJson(`/api/decisions/${decisionId}/relations`, \"DELETE\", { relationId }); decisions/[id]/relations/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/[id]/review-form.tsx", "line": 36 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/decisions/reviews/route.ts",
+        "line": 8,
+        "route": "POST /api/decisions/reviews"
+      },
+      "notes": "fetch(\"/api/decisions/reviews\", { method: \"POST\" }); reviews/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/[id]/share-panel.tsx", "line": 61 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/decisions/[id]/share/route.ts",
+        "line": 55,
+        "route": "DELETE /api/decisions/:id/share"
+      },
+      "notes": "request(method): fetch(`/api/decisions/${decisionId}/share`, { method }) with method typed \"POST\" | \"DELETE\" and both passed by the panel's buttons (lines 144, 158); this is the DELETE alternative. share/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/[id]/share-panel.tsx", "line": 61 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/decisions/[id]/share/route.ts",
+        "line": 26,
+        "route": "POST /api/decisions/:id/share"
+      },
+      "notes": "request(method), the POST alternative (line 158); share/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/[id]/tag-picker.tsx", "line": 58 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/decisions/tags/route.ts",
+        "line": 30,
+        "route": "DELETE /api/decisions/tags"
+      },
+      "notes": "wrapper sendJson(\"/api/decisions/tags\", method, …) inside mutate(method: \"POST\" | \"DELETE\"), both passed (lines 82, 111); the DELETE alternative. decisions/tags/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/[id]/tag-picker.tsx", "line": 58 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/decisions/tags/route.ts",
+        "line": 7,
+        "route": "POST /api/decisions/tags"
+      },
+      "notes": "sendJson in mutate(), the POST alternative (line 111); decisions/tags/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/[id]/watch-button.tsx", "line": 23 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/decisions/[id]/watch/route.ts",
+        "line": 33,
+        "route": "DELETE /api/decisions/:id/watch"
+      },
+      "notes": "fetch(`/api/decisions/${decisionId}/watch`, { method: watching ? \"DELETE\" : \"POST\" }); the DELETE alternative. watch/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/[id]/watch-button.tsx", "line": 23 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/decisions/[id]/watch/route.ts",
+        "line": 21,
+        "route": "POST /api/decisions/:id/watch"
+      },
+      "notes": "watch toggle, the POST alternative; watch/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/_forms/decision-form.tsx", "line": 48 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/decisions/similar/route.ts",
+        "line": 21,
+        "route": "GET /api/decisions/similar"
+      },
+      "notes": "debounced fetch(`/api/decisions/similar?q=…`, { signal }); query dropped, static similar segment beats decisions/[id]; similar/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/_forms/decision-form.tsx", "line": 362 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/decisions/ai-draft/route.ts",
+        "line": 9,
+        "route": "POST /api/decisions/ai-draft"
+      },
+      "notes": "fetch(\"/api/decisions/ai-draft\", { method: \"POST\" }); ai-draft/route.ts exports async function POST"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/_forms/decision-form.tsx", "line": 439 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/decisions/route.ts",
+        "line": 8,
+        "route": "POST /api/decisions"
+      },
+      "notes": "fetch(url, { method: isEdit ? \"PUT\" : \"POST\" }) with url = isEdit && decisionId ? `/api/decisions/${decisionId}` : \"/api/decisions\" (line 438); the create alternative. decisions/route.ts exports POST. The third combination (isEdit with no decisionId: PUT /api/decisions) reaches no route (decisions/route.ts exports only POST), so it gets no label"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/_forms/decision-form.tsx", "line": 439 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/decisions/[id]/route.ts",
+        "line": 8,
+        "route": "PUT /api/decisions/:id"
+      },
+      "notes": "the edit alternative of line 438/440; decisions/[id]/route.ts exports PUT"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/_forms/decision-form.tsx", "line": 458 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/decisions/[id]/supersede/route.ts",
+        "line": 15,
+        "route": "POST /api/decisions/:id/supersede"
+      },
+      "notes": "fetch(`/api/decisions/${supersedesId}/supersede`, { method: \"POST\" }) after creating a superseding decision; supersede/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/decisions/bulk-action-bar.tsx", "line": 32 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/decisions/bulk/route.ts",
+        "line": 8,
+        "route": "POST /api/decisions/bulk"
+      },
+      "notes": "fetch(\"/api/decisions/bulk\", { method: \"POST\" }); bulk/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/settings/account-data.tsx", "line": 33 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/account/route.ts",
+        "line": 18,
+        "route": "DELETE /api/account"
+      },
+      "notes": "fetch(url, { method: \"DELETE\" }) with url = deleting === \"workspace\" ? \"/api/settings/workspace\" : \"/api/account\" (line 30); the account alternative. account/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/settings/account-data.tsx", "line": 33 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/settings/workspace/route.ts",
+        "line": 14,
+        "route": "DELETE /api/settings/workspace"
+      },
+      "notes": "the workspace alternative of line 30; settings/workspace/route.ts exports DELETE"
+    },
+    {
+      "callSite": {
+        "file": "src/app/(app)/settings/integrations/integrations-form.tsx",
+        "line": 330
+      },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/integrations/route.ts",
+        "line": 48,
+        "route": "PUT /api/integrations"
+      },
+      "notes": "fetch(\"/api/integrations\", { method: \"PUT\" }); integrations/route.ts exports PUT"
+    },
+    {
+      "callSite": {
+        "file": "src/app/(app)/settings/integrations/integrations-form.tsx",
+        "line": 337
+      },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/integrations/route.ts",
+        "line": 28,
+        "route": "GET /api/integrations"
+      },
+      "notes": "fetch(\"/api/integrations\") reload after saving; integrations/route.ts exports GET"
+    },
+    {
+      "callSite": {
+        "file": "src/app/(app)/settings/integrations/integrations-form.tsx",
+        "line": 349
+      },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/integrations/route.ts",
+        "line": 104,
+        "route": "DELETE /api/integrations"
+      },
+      "notes": "fetch(\"/api/integrations\", { method: \"DELETE\" }); integrations/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/settings/sharing-toggle.tsx", "line": 26 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/settings/sharing/route.ts",
+        "line": 13,
+        "route": "PUT /api/settings/sharing"
+      },
+      "notes": "fetch(\"/api/settings/sharing\", { method: \"PUT\" }); settings/sharing/route.ts exports PUT"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/settings/templates/template-manager.tsx", "line": 73 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/templates/route.ts",
+        "line": 16,
+        "route": "POST /api/templates"
+      },
+      "notes": "fetch(url, { method }) with url = editingId ? `/api/templates/${editingId}` : \"/api/templates\" and method = editingId ? \"PUT\" : \"POST\" (lines 71-72); the create alternative. templates/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/settings/templates/template-manager.tsx", "line": 73 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/templates/[id]/route.ts",
+        "line": 6,
+        "route": "PUT /api/templates/:id"
+      },
+      "notes": "the edit alternative of lines 71-72; templates/[id]/route.ts exports PUT"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/settings/templates/template-manager.tsx", "line": 81 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/templates/route.ts",
+        "line": 7,
+        "route": "GET /api/templates"
+      },
+      "notes": "fetch(\"/api/templates\") reload after saving; templates/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/settings/templates/template-manager.tsx", "line": 91 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/templates/[id]/route.ts",
+        "line": 29,
+        "route": "DELETE /api/templates/:id"
+      },
+      "notes": "fetch(`/api/templates/${id}`, { method: \"DELETE\" }); templates/[id]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/settings/update-workspace-form.tsx", "line": 30 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/settings/route.ts",
+        "line": 7,
+        "route": "PUT /api/settings"
+      },
+      "notes": "fetch(\"/api/settings\", { method: \"PUT\" }); settings/route.ts exports PUT"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/tags/create-tag-form.tsx", "line": 29 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/tags/route.ts",
+        "line": 12,
+        "route": "POST /api/tags"
+      },
+      "notes": "fetch(\"/api/tags\", { method: \"POST\" }); tags/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/tags/delete-tag-button.tsx", "line": 20 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/tags/route.ts",
+        "line": 31,
+        "route": "DELETE /api/tags"
+      },
+      "notes": "wrapper sendJson(\"/api/tags\", \"DELETE\", { tagId }); tags/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/team/invite-member-form.tsx", "line": 36 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/team/route.ts",
+        "line": 12,
+        "route": "POST /api/team"
+      },
+      "notes": "fetch(\"/api/team\", { method: \"POST\" }); team/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/team/member-controls.tsx", "line": 35 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/team/[id]/route.ts",
+        "line": 16,
+        "route": "PATCH /api/team/:id"
+      },
+      "notes": "wrapper sendJson(`/api/team/${membershipId}`, \"PATCH\", { role }); team/[id]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/app/(app)/team/member-controls.tsx", "line": 49 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/team/[id]/route.ts",
+        "line": 69,
+        "route": "DELETE /api/team/:id"
+      },
+      "notes": "wrapper sendJson(`/api/team/${membershipId}`, \"DELETE\", undefined); team/[id]/route.ts exports DELETE"
+    },
+    {
+      "callSite": {
+        "file": "src/app/(platform)/admin/companies/[id]/company-actions.tsx",
+        "line": 36
+      },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/platform/workspaces/[id]/enter/route.ts",
+        "line": 16,
+        "route": "POST /api/platform/workspaces/:id/enter"
+      },
+      "notes": "fetch(`/api/platform/workspaces/${workspaceId}/enter`, { method: \"POST\" }); route group (platform) is a page folder only; platform/workspaces/[id]/enter/route.ts exports POST"
+    },
+    {
+      "callSite": {
+        "file": "src/app/(platform)/admin/companies/[id]/company-actions.tsx",
+        "line": 49
+      },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/platform/workspaces/[id]/route.ts",
+        "line": 14,
+        "route": "PATCH /api/platform/workspaces/:id"
+      },
+      "notes": "fetch(`/api/platform/workspaces/${workspaceId}`, { method: \"PATCH\" }); platform/workspaces/[id]/route.ts exports PATCH"
+    },
+    {
+      "callSite": {
+        "file": "src/app/(platform)/admin/companies/[id]/members-panel.tsx",
+        "line": 39
+      },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/platform/workspaces/[id]/members/[membershipId]/route.ts",
+        "line": 16,
+        "route": "DELETE /api/platform/workspaces/:id/members/:membershipId"
+      },
+      "notes": "fetch(`/api/platform/workspaces/${workspaceId}/members/${m.membershipId}`, { method: \"DELETE\" }); members/[membershipId]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/app/api/auth/sso/[slug]/callback/route.ts", "line": 63 },
+      "method": "GET",
+      "target": null,
+      "notes": "discoverOidc(cfg.issuerUrl) (src/lib/sso.ts:30 fetches issuerUrl + \"/.well-known/openid-configuration\"); the issuer is the workspace's external OIDC IdP, read from the database at runtime; external"
+    },
+    {
+      "callSite": { "file": "src/app/api/auth/sso/[slug]/callback/route.ts", "line": 67 },
+      "method": "POST",
+      "target": null,
+      "notes": "exchangeCodeForTokens({ tokenEndpoint: discovery.token_endpoint, … }) (src/lib/sso.ts:51 POSTs to it); the IdP's token endpoint from its discovery document; external"
+    },
+    {
+      "callSite": { "file": "src/app/api/auth/sso/[slug]/start/route.ts", "line": 36 },
+      "method": "GET",
+      "target": null,
+      "notes": "discoverOidc(cfg.issuerUrl) (src/lib/sso.ts:30); external OIDC IdP from the database"
+    },
+    {
+      "callSite": { "file": "src/app/api/notifications/send/route.ts", "line": 77 },
+      "method": "POST",
+      "target": null,
+      "notes": "sendWebhookMessage(type, webhookUrl, text) → send*Webhook → postJson (src/lib/notify.ts:28 fetches the url, POST); webhookUrl is a Slack/Teams/Discord/generic incoming webhook from the workspace's integration config in the database; external"
+    },
+    {
+      "callSite": { "file": "src/components/decisions/ask-panel.tsx", "line": 54 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/decisions/ask/route.ts",
+        "line": 24,
+        "route": "POST /api/decisions/ask"
+      },
+      "notes": "fetch(\"/api/decisions/ask\", { method: \"POST\" }); decisions/ask/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/notifications/notification-bell.tsx", "line": 46 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/notifications/route.ts",
+        "line": 5,
+        "route": "GET /api/notifications"
+      },
+      "notes": "polling fetch(\"/api/notifications\"); notifications/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/notifications/notification-bell.tsx", "line": 95 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/notifications/route.ts",
+        "line": 26,
+        "route": "PATCH /api/notifications"
+      },
+      "notes": "markAllRead: fetch(\"/api/notifications\", { method: \"PATCH\" }); notifications/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/notifications/notification-bell.tsx", "line": 106 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/notifications/route.ts",
+        "line": 26,
+        "route": "PATCH /api/notifications"
+      },
+      "notes": "markRead: fetch(\"/api/notifications\", { method: \"PATCH\" }); notifications/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/platform/impersonation-banner.tsx", "line": 20 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/platform/exit/route.ts",
+        "line": 14,
+        "route": "POST /api/platform/exit"
+      },
+      "notes": "fetch(\"/api/platform/exit\", { method: \"POST\" }); platform/exit/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/platform/workspace-table.tsx", "line": 44 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/platform/workspaces/[id]/enter/route.ts",
+        "line": 16,
+        "route": "POST /api/platform/workspaces/:id/enter"
+      },
+      "notes": "local wrapper call(url, body?) (line 28: fetch(url, { method: body ? \"PATCH\" : \"POST\" })) called with no body, so POST; enter/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/platform/workspace-table.tsx", "line": 57 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/platform/workspaces/[id]/route.ts",
+        "line": 14,
+        "route": "PATCH /api/platform/workspaces/:id"
+      },
+      "notes": "local wrapper call(url, body) with a body, so PATCH; platform/workspaces/[id]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/reviews/inline-review-buttons.tsx", "line": 20 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/decisions/reviews/route.ts",
+        "line": 8,
+        "route": "POST /api/decisions/reviews"
+      },
+      "notes": "fetch(\"/api/decisions/reviews\", { method: \"POST\" }); reviews/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/search/command-palette.tsx", "line": 74 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/decisions/route.ts",
+        "line": 8,
+        "route": "POST /api/decisions"
+      },
+      "notes": "quick-create fetch(\"/api/decisions\", { method: \"POST\" }); decisions/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/search/command-palette.tsx", "line": 93 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/decisions/search/route.ts",
+        "line": 21,
+        "route": "GET /api/decisions/search"
+      },
+      "notes": "fetch(`/api/decisions/search?q=…`); query dropped, static search segment beats decisions/[id]; search/route.ts exports async function GET"
+    },
+    {
+      "callSite": { "file": "src/lib/slack/client.ts", "line": 31 },
+      "method": "POST",
+      "target": null,
+      "notes": "call(\"views.open\", …) → fetch(`${SLACK_API}/${method}`) with SLACK_API = \"https://slack.com/api\" (line 5); Slack Web API, external"
+    },
+    {
+      "callSite": { "file": "src/lib/slack/client.ts", "line": 38 },
+      "method": "POST",
+      "target": null,
+      "notes": "call(\"chat.postEphemeral\", …) to https://slack.com/api; external"
+    },
+    {
+      "callSite": { "file": "src/lib/slack/client.ts", "line": 45 },
+      "method": "POST",
+      "target": null,
+      "notes": "call(\"chat.postMessage\", …) to https://slack.com/api; external"
+    },
+    {
+      "callSite": { "file": "src/lib/slack/client.ts", "line": 55 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(new URL(`${SLACK_API}/chat.getPermalink`)); https://slack.com/api, external"
+    },
+    {
+      "callSite": { "file": "src/lib/slack/client.ts", "line": 62 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(new URL(`${SLACK_API}/users.info`)); https://slack.com/api, external"
+    },
+    {
+      "callSite": { "file": "src/lib/slack/client.ts", "line": 73 },
+      "method": "POST",
+      "target": null,
+      "notes": "call(\"conversations.open\", …) to https://slack.com/api; external"
+    },
+    {
+      "callSite": { "file": "src/lib/slack/client.ts", "line": 101 },
+      "method": "POST",
+      "target": null,
+      "notes": "fetch(`${SLACK_API}/oauth.v2.access`, { method: \"POST\" }); Slack OAuth, external"
+    }
+  ]
+}

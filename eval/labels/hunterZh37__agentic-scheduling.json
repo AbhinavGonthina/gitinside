@@ -1,0 +1,1169 @@
+{
+  "repo": "hunterZh37/agentic-scheduling",
+  "sha": "3c15438de9735980384c50104cd6c03ad325fd91",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "calendly-extension/background.js", "line": 11 },
+      "method": "POST",
+      "target": null,
+      "notes": "Chrome extension: fetch(ENDPOINT), ENDPOINT the literal placeholder https://your-deployment.example.com/api/availability/check (line 7); no in-repo evidence that host runs this app (ADR-0209), external"
+    },
+    {
+      "callSite": { "file": "scripts/messaging-live-test.mjs", "line": 46 },
+      "method": "POST",
+      "target": null,
+      "notes": "Manual script: POST https://api.resend.com/emails; Resend API, external"
+    },
+    {
+      "callSite": { "file": "scripts/messaging-live-test.mjs", "line": 80 },
+      "method": "POST",
+      "target": null,
+      "notes": "Manual script: POST api.twilio.com/2010-04-01/Accounts/<sid>/Messages.json; Twilio API, external"
+    },
+    {
+      "callSite": { "file": "scripts/smoke.mjs", "line": 68 },
+      "method": "GET",
+      "target": null,
+      "notes": "Smoke script: fetch(`${BASE}/api/availability?…`), BASE = process.env.BASE || \"https://book.hunterzhangconsulting.com\" (line 16), a literal public host. No deploy config in the repo names that host (vercel.json only lists crons), and the script also sends that host pages, /_next chunks and static files (/robots.txt), so ADR-0209 doesn't follow it: external. The path would be availability/route.ts GET"
+    },
+    {
+      "callSite": { "file": "scripts/smoke.mjs", "line": 82 },
+      "method": "GET",
+      "target": null,
+      "notes": "Smoke script: fetch(`${BASE}/api/availability?…&duration=0`) on the public BASE host; external per ADR-0209, as at line 68"
+    },
+    {
+      "callSite": { "file": "scripts/smoke.mjs", "line": 90 },
+      "method": "GET",
+      "target": null,
+      "notes": "Smoke script: fetch(`${BASE}/api/health`) on the public BASE host; external per ADR-0209, as at line 68"
+    },
+    {
+      "callSite": { "file": "scripts/smoke.mjs", "line": 109 },
+      "method": "POST",
+      "target": null,
+      "notes": "Smoke script: POST `${BASE}/api/agent/public` on the public BASE host; external per ADR-0209, as at line 68"
+    },
+    {
+      "callSite": { "file": "scripts/smoke.mjs", "line": 121 },
+      "method": "GET",
+      "target": null,
+      "notes": "Smoke script: get(\"/api/todos/abc123\"), get(path) = fetch(BASE + path) (line 38) on the public BASE host; external per ADR-0209 (and todos/[id]/route.ts exports no GET)"
+    },
+    {
+      "callSite": { "file": "scripts/smoke.mjs", "line": 128 },
+      "method": "GET",
+      "target": null,
+      "notes": "Smoke script: get(`/api/todos/abc123${suffix}`) on the public BASE host; external per ADR-0209"
+    },
+    {
+      "callSite": { "file": "scripts/smoke.mjs", "line": 139 },
+      "method": "GET",
+      "target": null,
+      "notes": "Smoke script: get(\"/\") on the public BASE host (a page, not a route); external per ADR-0209"
+    },
+    {
+      "callSite": { "file": "scripts/smoke.mjs", "line": 151 },
+      "method": "GET",
+      "target": null,
+      "notes": "Smoke script: get(\"/\") on the public BASE host; external per ADR-0209"
+    },
+    {
+      "callSite": { "file": "scripts/smoke.mjs", "line": 165 },
+      "method": "GET",
+      "target": null,
+      "notes": "Smoke script: get(p) for each of /book, /login, /privacy, /terms, /assistant, /sitemap.xml on the public BASE host (pages, not routes); external per ADR-0209"
+    },
+    {
+      "callSite": { "file": "scripts/smoke.mjs", "line": 176 },
+      "method": "GET",
+      "target": null,
+      "notes": "Smoke script: get(`/book?date=…`) on the public BASE host, a page; external per ADR-0209"
+    },
+    {
+      "callSite": { "file": "scripts/smoke.mjs", "line": 193 },
+      "method": "GET",
+      "target": null,
+      "notes": "Smoke script: fetch(`${ORIGINAL_HOST}/book`), ORIGINAL_HOST the literal https://bookwithhunter.com (line 191), a page on a public host; external per ADR-0209"
+    },
+    {
+      "callSite": { "file": "scripts/smoke.mjs", "line": 207 },
+      "method": "GET",
+      "target": null,
+      "notes": "Smoke script: getAuth(\"/login\"), getAuth(path) = fetch(AUTH_BASE + path) (line 40), AUTH_BASE = process.env.AUTH_BASE || \"https://bookwithhunter.com\" (line 20), a literal public host with no in-repo deploy evidence; a page; external per ADR-0209"
+    },
+    {
+      "callSite": { "file": "scripts/smoke.mjs", "line": 213 },
+      "method": "GET",
+      "target": null,
+      "notes": "Smoke script: getAuth(c), c a /_next/static/chunks/*.js file scraped from the HTML: static files on the public AUTH_BASE host, external"
+    },
+    {
+      "callSite": { "file": "scripts/smoke.mjs", "line": 221 },
+      "method": "GET",
+      "target": null,
+      "notes": "Smoke script: getAuth(\"/api/auth/google/start\") on the public AUTH_BASE host; external per ADR-0209 (the path would be auth/google/start/route.ts GET)"
+    },
+    {
+      "callSite": { "file": "scripts/smoke.mjs", "line": 236 },
+      "method": "GET",
+      "target": null,
+      "notes": "Smoke script: getAuth(\"/api/auth/google/start\") on the public AUTH_BASE host; external per ADR-0209"
+    },
+    {
+      "callSite": { "file": "scripts/smoke.mjs", "line": 247 },
+      "method": "GET",
+      "target": null,
+      "notes": "Smoke script: getAuth(\"/api/auth/google/start\") on the public AUTH_BASE host; external per ADR-0209"
+    },
+    {
+      "callSite": { "file": "scripts/smoke.mjs", "line": 250 },
+      "method": "GET",
+      "target": null,
+      "notes": "Smoke script: fetch(loc), loc the Location header of the sign-in redirect (Google's consent URL); runtime value on an external host"
+    },
+    {
+      "callSite": { "file": "scripts/smoke.mjs", "line": 275 },
+      "method": "GET",
+      "target": null,
+      "notes": "Smoke script: getAuth(path) for each of /api/oauth/{google,microsoft}/{start,callback} on the public AUTH_BASE host; external per ADR-0209"
+    },
+    {
+      "callSite": { "file": "scripts/smoke.mjs", "line": 287 },
+      "method": "GET",
+      "target": null,
+      "notes": "Smoke script: get(\"/api/oauth/google/start\") on the public BASE host; external per ADR-0209"
+    },
+    {
+      "callSite": { "file": "scripts/smoke.mjs", "line": 298 },
+      "method": "GET",
+      "target": null,
+      "notes": "Smoke script: fetch(`${BASE}/book`), a page on the public BASE host; external per ADR-0209"
+    },
+    {
+      "callSite": { "file": "scripts/smoke.mjs", "line": 301 },
+      "method": "GET",
+      "target": null,
+      "notes": "Smoke script: fetch(BASE + c), c a /_next/static/chunks/*.js file: a static file on the public BASE host, external"
+    },
+    {
+      "callSite": { "file": "scripts/smoke.mjs", "line": 322 },
+      "method": "GET",
+      "target": null,
+      "notes": "Smoke script: fetch(`${BASE}/book`), a page on the public BASE host; external per ADR-0209"
+    },
+    {
+      "callSite": { "file": "scripts/smoke.mjs", "line": 340 },
+      "method": "GET",
+      "target": null,
+      "notes": "Smoke script: getAuth(\"/login\"), a page on the public AUTH_BASE host; external per ADR-0209"
+    },
+    {
+      "callSite": { "file": "scripts/smoke.mjs", "line": 358 },
+      "method": "GET",
+      "target": null,
+      "notes": "Smoke script: fetch(BASE + p) for /.well-known/security.txt and /robots.txt: static files in public/ on the public BASE host, not routes"
+    },
+    {
+      "callSite": { "file": "scripts/smoke.mjs", "line": 391 },
+      "method": "GET",
+      "target": null,
+      "notes": "Smoke script: GET api.twilio.com/2010-04-01/Accounts/<sid>/Messages.json; Twilio API, external"
+    },
+    {
+      "callSite": { "file": "src/app/api/cron/monitor/route.ts", "line": 78 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/availability/route.ts",
+        "line": 10,
+        "route": "GET /api/availability"
+      },
+      "notes": "checkAvailability(base): the path is fixed at line 76 (`${base}/api/availability?…`) and sent through timedFetch(url) (line 31, fetch(url)). base is PUBLIC_BASE_URL (line 210) = optionalEnv(\"PUBLIC_BASE_URL\") ?? \"http://localhost:3000\" (src/lib/env.ts:29; .env.example gives the same), this app's own `next dev` (default port 3000). availability/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/app/api/cron/monitor/route.ts", "line": 247 },
+      "method": "GET",
+      "target": null,
+      "notes": "checkPage(url) → timedFetch(url): `${base}/book` (base http://localhost:3000, as at line 78) is the page src/app/book/page.tsx, not a route"
+    },
+    {
+      "callSite": { "file": "src/app/api/cron/monitor/route.ts", "line": 248 },
+      "method": "GET",
+      "target": null,
+      "notes": "checkPage: `${base}/privacy`, the page src/app/privacy/page.tsx, not a route"
+    },
+    {
+      "callSite": { "file": "src/app/api/cron/monitor/route.ts", "line": 249 },
+      "method": "GET",
+      "target": null,
+      "notes": "checkPage: `${base}/terms`, the page src/app/terms/page.tsx, not a route"
+    },
+    {
+      "callSite": { "file": "src/app/api/cron/monitor/route.ts", "line": 250 },
+      "method": "GET",
+      "target": null,
+      "notes": "checkPage: `${base}/assistant`, the page src/app/assistant/page.tsx, not a route"
+    },
+    {
+      "callSite": { "file": "src/app/api/sms/inbound/route.ts", "line": 116 },
+      "method": "GET",
+      "target": null,
+      "notes": "transcribeAudio(audio.url, …) → downloadTwilioMedia(mediaUrl) (src/lib/sms/transcribe.ts:41, fetch(mediaUrl)): the Twilio media URL from the inbound webhook's MediaUrlN field, a runtime value on Twilio's host, external"
+    },
+    {
+      "callSite": { "file": "src/app/assistant/page.tsx", "line": 22 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/agent/requester/route.ts",
+        "line": 12,
+        "route": "POST /api/agent/requester"
+      },
+      "notes": "<PublicAgentChat endpoint=\"/api/agent/requester\">: the component POSTs fetch(endpoint) (PublicAgentChat.tsx:63), root-relative, same app; agent/requester/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/app/cohost/CoHostCalendars.tsx", "line": 83 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/cohost/accounts/route.ts",
+        "line": 11,
+        "route": "GET /api/cohost/accounts"
+      },
+      "notes": "fetch(\"/api/cohost/accounts\"), root-relative; cohost/accounts/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/app/cohost/CoHostCalendars.tsx", "line": 93 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/cohost/accounts/[id]/route.ts",
+        "line": 10,
+        "route": "DELETE /api/cohost/accounts/:id"
+      },
+      "notes": "fetch(`/api/cohost/accounts/${id}`, { method: \"DELETE\" }); cohost/accounts/[id]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/app/demo/page.tsx", "line": 42 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/demo-cleanup/route.ts",
+        "line": 9,
+        "route": "POST /api/demo-cleanup"
+      },
+      "notes": "fetch(\"/api/demo-cleanup\", { method: \"POST\" }); demo-cleanup/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/app/login/PasswordFallback.tsx", "line": 32 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/login/route.ts",
+        "line": 14,
+        "route": "POST /api/login"
+      },
+      "notes": "fetch(\"/api/login\", { method: \"POST\" }); login/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/agent/AgentPane.tsx", "line": 209 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/agent/private/route.ts",
+        "line": 13,
+        "route": "POST /api/agent/private"
+      },
+      "notes": "fetch(\"/api/agent/private\", { method: \"POST\" }); agent/private/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/birthdays/BirthdaysManager.tsx", "line": 48 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/birthdays/route.ts",
+        "line": 12,
+        "route": "GET /api/birthdays"
+      },
+      "notes": "fetch(\"/api/birthdays\"); birthdays/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/birthdays/BirthdaysManager.tsx", "line": 63 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/birthdays/route.ts",
+        "line": 18,
+        "route": "POST /api/birthdays"
+      },
+      "notes": "fetch(\"/api/birthdays\", { method: \"POST\" }); birthdays/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/birthdays/BirthdaysManager.tsx", "line": 93 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/birthdays/[id]/route.ts",
+        "line": 8,
+        "route": "DELETE /api/birthdays/:id"
+      },
+      "notes": "fetch(`/api/birthdays/${id}`, { method: \"DELETE\" }); birthdays/[id]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/components/blocks/BlocksPane.tsx", "line": 385 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/blocks/route.ts",
+        "line": 10,
+        "route": "GET /api/blocks"
+      },
+      "notes": "reload(): fetch(\"/api/blocks\"); blocks/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/blocks/BlocksPane.tsx", "line": 386 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/bookings/route.ts",
+        "line": 10,
+        "route": "GET /api/bookings"
+      },
+      "notes": "reload(): fetch(\"/api/bookings\"); bookings/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/blocks/BlocksPane.tsx", "line": 388 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/todos/route.ts",
+        "line": 15,
+        "route": "GET /api/todos"
+      },
+      "notes": "reload(): fetch(`/api/todos?date=${start}`); todos/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/blocks/BlocksPane.tsx", "line": 389 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/checkoffs/route.ts",
+        "line": 12,
+        "route": "GET /api/checkoffs"
+      },
+      "notes": "reload(): fetch(\"/api/checkoffs\"); checkoffs/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/blocks/BlocksPane.tsx", "line": 390 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/recurring/route.ts",
+        "line": 20,
+        "route": "GET /api/recurring"
+      },
+      "notes": "reload(): fetch(\"/api/recurring\"); recurring/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/blocks/BlocksPane.tsx", "line": 423 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/todos/route.ts",
+        "line": 15,
+        "route": "GET /api/todos"
+      },
+      "notes": "reloadTodos(): fetch(`/api/todos?date=${start}`); todos/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/blocks/BlocksPane.tsx", "line": 452 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/checkoffs/route.ts",
+        "line": 23,
+        "route": "POST /api/checkoffs"
+      },
+      "notes": "toggleChecked: fetch(\"/api/checkoffs\", { method: \"POST\" }); checkoffs/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/blocks/BlocksPane.tsx", "line": 464 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/blocks/[id]/route.ts",
+        "line": 102,
+        "route": "DELETE /api/blocks/:id"
+      },
+      "notes": "deleteBlock: fetch(`/api/blocks/${id}`, { method: \"DELETE\" }); blocks/[id]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/components/blocks/BlocksPane.tsx", "line": 475 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/bookings/[id]/route.ts",
+        "line": 59,
+        "route": "DELETE /api/bookings/:id"
+      },
+      "notes": "cancelBookingRow: fetch(`/api/bookings/${id}`, { method: \"DELETE\" }); bookings/[id]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/components/blocks/BlocksPane.tsx", "line": 487 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/recurring/[id]/route.ts",
+        "line": 82,
+        "route": "DELETE /api/recurring/:id"
+      },
+      "notes": "cancelRecurring: fetch(`/api/recurring/${id}`, { method: \"DELETE\" }); recurring/[id]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/components/blocks/BlocksPane.tsx", "line": 499 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/blocks/[id]/route.ts",
+        "line": 21,
+        "route": "PATCH /api/blocks/:id"
+      },
+      "notes": "toggleBlockDone: fetch(`/api/blocks/${id}`, { method: \"PATCH\" }); blocks/[id]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/blocks/BlocksPane.tsx", "line": 515 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/blocks/[id]/route.ts",
+        "line": 21,
+        "route": "PATCH /api/blocks/:id"
+      },
+      "notes": "toggleBlockVisible: fetch(`/api/blocks/${block.id}`, { method: \"PATCH\" }); blocks/[id]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/blocks/BlocksPane.tsx", "line": 584 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/recurring/route.ts",
+        "line": 79,
+        "route": "POST /api/recurring"
+      },
+      "notes": "addItem (repeating to-do): fetch(\"/api/recurring\", { method: \"POST\" }); recurring/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/blocks/BlocksPane.tsx", "line": 595 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/todos/route.ts",
+        "line": 48,
+        "route": "POST /api/todos"
+      },
+      "notes": "addItem (one-off to-do): fetch(\"/api/todos\", { method: \"POST\" }); todos/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/blocks/BlocksPane.tsx", "line": 661 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/blocks/route.ts",
+        "line": 25,
+        "route": "POST /api/blocks"
+      },
+      "notes": "addItem: fetch(endpoint, { method: \"POST\" }), endpoint = itemType === \"event\" ? \"/api/events\" : \"/api/blocks\" (line 644); this is the block alternative, blocks/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/blocks/BlocksPane.tsx", "line": 661 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/events/route.ts",
+        "line": 28,
+        "route": "POST /api/events"
+      },
+      "notes": "addItem: the \"/api/events\" alternative of endpoint (line 644); events/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/blocks/BlocksPane.tsx", "line": 682 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/todos/[id]/route.ts",
+        "line": 34,
+        "route": "PATCH /api/todos/:id"
+      },
+      "notes": "toggleTodoDone: fetch(`/api/todos/${id}`, { method: \"PATCH\" }); todos/[id]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/blocks/BlocksPane.tsx", "line": 719 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/checkoffs/route.ts",
+        "line": 23,
+        "route": "POST /api/checkoffs"
+      },
+      "notes": "dismissBooking: fetch(\"/api/checkoffs\", { method: \"POST\" }); checkoffs/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/blocks/NewBlockSheet.tsx", "line": 135 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/blocks/[id]/route.ts",
+        "line": 21,
+        "route": "PATCH /api/blocks/:id"
+      },
+      "notes": "fetch(editing ? `/api/blocks/${block!.id}` : \"/api/blocks\", { method: editing ? \"PATCH\" : \"POST\" }): the editing alternative, PATCH; blocks/[id]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/blocks/NewBlockSheet.tsx", "line": 135 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/blocks/route.ts",
+        "line": 25,
+        "route": "POST /api/blocks"
+      },
+      "notes": "the creating alternative of the same condition: POST \"/api/blocks\"; blocks/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/blocks/RecurringModal.tsx", "line": 122 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/recurring/[id]/route.ts",
+        "line": 31,
+        "route": "PATCH /api/recurring/:id"
+      },
+      "notes": "fetch(`/api/recurring/${row.id}`, { method: \"PATCH\" }); recurring/[id]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/booking/BookingPage.tsx", "line": 210 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/availability/route.ts",
+        "line": 10,
+        "route": "GET /api/availability"
+      },
+      "notes": "fetch(`${availabilityPath}?start=…`), availabilityPath = team ? `/api/availability/team/${team.slug}` : \"/api/availability\" (line 60); the owner's-page alternative, availability/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/booking/BookingPage.tsx", "line": 210 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/availability/team/[slug]/route.ts",
+        "line": 11,
+        "route": "GET /api/availability/team/:slug"
+      },
+      "notes": "the team alternative of availabilityPath (line 61, book/[slug]/page.tsx passes team); availability/team/[slug]/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/booking/BookingPage.tsx", "line": 251 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/public/bookings/route.ts",
+        "line": 24,
+        "route": "POST /api/public/bookings"
+      },
+      "notes": "fetch(submitPath, { method: \"POST\" }), submitPath = team ? `/api/public/teams/${team.slug}/bookings` : \"/api/public/bookings\" (line 63); the owner's alternative, public/bookings/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/booking/BookingPage.tsx", "line": 251 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/public/teams/[slug]/bookings/route.ts",
+        "line": 26,
+        "route": "POST /api/public/teams/:slug/bookings"
+      },
+      "notes": "the team alternative of submitPath; public/teams/[slug]/bookings/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/booking/BookingPage.tsx", "line": 289 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/public/bookings/[id]/reschedule/route.ts",
+        "line": 18,
+        "route": "POST /api/public/bookings/:id/reschedule"
+      },
+      "notes": "submitReschedule: fetch(`/api/public/bookings/${reschedule.id}/reschedule`, { method: \"POST\" }); public/bookings/[id]/reschedule/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/booking/BookingPage.tsx", "line": 547 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/agent/public/route.ts",
+        "line": 12,
+        "route": "POST /api/agent/public"
+      },
+      "notes": "<PublicAgentChat endpoint={team ? `/api/agent/public/team/${team.slug}` : undefined}>: undefined takes the component's default \"/api/agent/public\" (PublicAgentChat.tsx:18), POSTed by fetch(endpoint) at PublicAgentChat.tsx:63; agent/public/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/booking/BookingPage.tsx", "line": 547 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/agent/public/team/[slug]/route.ts",
+        "line": 15,
+        "route": "POST /api/agent/public/team/:slug"
+      },
+      "notes": "the team alternative of the endpoint prop; agent/public/team/[slug]/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/booking/ManageBooking.tsx", "line": 56 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/public/bookings/[id]/cancel/route.ts",
+        "line": 11,
+        "route": "POST /api/public/bookings/:id/cancel"
+      },
+      "notes": "fetch(`/api/public/bookings/${booking.id}/cancel?t=…`, { method: \"POST\" }); public/bookings/[id]/cancel/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/calendar/EventModal.tsx", "line": 206 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/todos/[id]/route.ts",
+        "line": 34,
+        "route": "PATCH /api/todos/:id"
+      },
+      "notes": "fetch(`/api/todos/${encodeURIComponent(providerId)}`, { method: \"PATCH\" }); todos/[id]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/calendar/EventModal.tsx", "line": 241 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/bookings/[id]/route.ts",
+        "line": 12,
+        "route": "PATCH /api/bookings/:id"
+      },
+      "notes": "booking reschedule: fetch(`/api/bookings/${…}`, { method: \"PATCH\" }); bookings/[id]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/calendar/EventModal.tsx", "line": 274 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/events/[id]/route.ts",
+        "line": 43,
+        "route": "PATCH /api/events/:id"
+      },
+      "notes": "fetch(`/api/events/${…}`, { method: \"PATCH\" }); events/[id]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/calendar/EventModal.tsx", "line": 296 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/todos/[id]/route.ts",
+        "line": 116,
+        "route": "DELETE /api/todos/:id"
+      },
+      "notes": "doDelete, actionable branch: fetch(`/api/todos/${…}`, { method: \"DELETE\" }); todos/[id]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/components/calendar/EventModal.tsx", "line": 297 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/events/[id]/route.ts",
+        "line": 93,
+        "route": "DELETE /api/events/:id"
+      },
+      "notes": "doDelete, event branch: fetch(`/api/events/${…}`, { method: \"DELETE\" }); events/[id]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/components/calendar/EventModal.tsx", "line": 323 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/bookings/[id]/route.ts",
+        "line": 59,
+        "route": "DELETE /api/bookings/:id"
+      },
+      "notes": "doCancelBooking: fetch(`/api/bookings/${…}`, { method: \"DELETE\" }); bookings/[id]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/components/calendar/TodoItems.tsx", "line": 53 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/todos/[id]/items/route.ts",
+        "line": 10,
+        "route": "POST /api/todos/:id/items"
+      },
+      "notes": "fetch(`/api/todos/${…}/items`, { method: \"POST\" }); todos/[id]/items/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/calendar/TodoItems.tsx", "line": 72 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/todos/[id]/items/[itemId]/route.ts",
+        "line": 13,
+        "route": "PATCH /api/todos/:id/items/:itemId"
+      },
+      "notes": "fetch(`/api/todos/${…}/items/${…}`, { method: \"PATCH\" }); todos/[id]/items/[itemId]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/calendar/TodoItems.tsx", "line": 81 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/todos/[id]/items/[itemId]/route.ts",
+        "line": 41,
+        "route": "DELETE /api/todos/:id/items/:itemId"
+      },
+      "notes": "fetch(`/api/todos/${…}/items/${…}`, { method: \"DELETE\" }); todos/[id]/items/[itemId]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/components/calendar/progressiveSchedule.ts", "line": 46 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/schedule/route.ts",
+        "line": 9,
+        "route": "GET /api/schedule"
+      },
+      "notes": "loadScheduleProgressively: fetcher(`/api/schedule?${range}&events=none`), fetcher = opts.fetcher ?? ((url, sig) => fetch(url, …)) (line 34); both production callers (BlocksPane.tsx:363, useSchedule.ts:60) pass no fetcher. schedule/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/calendar/progressiveSchedule.ts", "line": 69 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/schedule/events/route.ts",
+        "line": 11,
+        "route": "GET /api/schedule/events"
+      },
+      "notes": "fetcher(`/api/schedule/events?${range}&account=…`) through the default fetch (line 34); schedule/events/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/calendars/CalendarsManager.tsx", "line": 50 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/accounts/route.ts",
+        "line": 51,
+        "route": "GET /api/accounts"
+      },
+      "notes": "fetch(\"/api/accounts\"); accounts/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/calendars/CalendarsManager.tsx", "line": 65 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/accounts/[id]/route.ts",
+        "line": 9,
+        "route": "PATCH /api/accounts/:id"
+      },
+      "notes": "fetch(`/api/accounts/${id}`, { method: \"PATCH\" }); accounts/[id]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/calendars/CalendarsManager.tsx", "line": 86 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/accounts/[id]/route.ts",
+        "line": 109,
+        "route": "DELETE /api/accounts/:id"
+      },
+      "notes": "fetch(`/api/accounts/${id}`, { method: \"DELETE\" }); accounts/[id]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/components/calendars/CalendarsManager.tsx", "line": 113 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/accounts/[id]/route.ts",
+        "line": 9,
+        "route": "PATCH /api/accounts/:id"
+      },
+      "notes": "fetch(`/api/accounts/${id}`, { method: \"PATCH\" }); accounts/[id]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/calendars/useAccountLabels.ts", "line": 34 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/accounts/route.ts",
+        "line": 51,
+        "route": "GET /api/accounts"
+      },
+      "notes": "useAccountLabels: fetch(\"/api/accounts\"); accounts/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/cohosts/CoHostsManager.tsx", "line": 49 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/cohosts/route.ts",
+        "line": 35,
+        "route": "GET /api/cohosts"
+      },
+      "notes": "fetch(\"/api/cohosts\"); cohosts/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/cohosts/CoHostsManager.tsx", "line": 67 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/cohosts/route.ts",
+        "line": 69,
+        "route": "POST /api/cohosts"
+      },
+      "notes": "fetch(\"/api/cohosts\", { method: \"POST\" }); cohosts/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/cohosts/CoHostsManager.tsx", "line": 99 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/cohosts/[id]/route.ts",
+        "line": 22,
+        "route": "PATCH /api/cohosts/:id"
+      },
+      "notes": "fetch(`/api/cohosts/${c.id}`, { method: \"PATCH\" }); cohosts/[id]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/cohosts/CoHostsManager.tsx", "line": 121 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/cohosts/[id]/route.ts",
+        "line": 22,
+        "route": "PATCH /api/cohosts/:id"
+      },
+      "notes": "fetch(`/api/cohosts/${c.id}`, { method: \"PATCH\" }); cohosts/[id]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/cohosts/CoHostsManager.tsx", "line": 143 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/cohosts/[id]/route.ts",
+        "line": 22,
+        "route": "PATCH /api/cohosts/:id"
+      },
+      "notes": "fetch(`/api/cohosts/${c.id}`, { method: \"PATCH\" }); cohosts/[id]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/cohosts/CoHostsManager.tsx", "line": 166 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/cohosts/[id]/route.ts",
+        "line": 22,
+        "route": "PATCH /api/cohosts/:id"
+      },
+      "notes": "fetch(`/api/cohosts/${c.id}`, { method: \"PATCH\" }); cohosts/[id]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/cohosts/CoHostsManager.tsx", "line": 207 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/cohosts/[id]/route.ts",
+        "line": 81,
+        "route": "DELETE /api/cohosts/:id"
+      },
+      "notes": "fetch(`/api/cohosts/${id}`, { method: \"DELETE\" }); cohosts/[id]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/components/cohosts/TeamLinks.tsx", "line": 59 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/teams/route.ts",
+        "line": 43,
+        "route": "GET /api/teams"
+      },
+      "notes": "fetch(\"/api/teams\"); teams/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/cohosts/TeamLinks.tsx", "line": 87 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/teams/route.ts",
+        "line": 51,
+        "route": "POST /api/teams"
+      },
+      "notes": "fetch(\"/api/teams\", { method: \"POST\" }); teams/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/cohosts/TeamLinks.tsx", "line": 111 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/teams/[id]/route.ts",
+        "line": 37,
+        "route": "DELETE /api/teams/:id"
+      },
+      "notes": "fetch(`/api/teams/${id}`, { method: \"DELETE\" }); teams/[id]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/components/cohosts/TeamLinks.tsx", "line": 123 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/teams/[id]/route.ts",
+        "line": 9,
+        "route": "PATCH /api/teams/:id"
+      },
+      "notes": "fetch(`/api/teams/${t.id}`, { method: \"PATCH\" }); teams/[id]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/private/AccountSection.tsx", "line": 20 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/settings/password/route.ts",
+        "line": 22,
+        "route": "GET /api/settings/password"
+      },
+      "notes": "fetch(\"/api/settings/password\"); settings/password/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/private/AccountSection.tsx", "line": 45 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/settings/password/route.ts",
+        "line": 30,
+        "route": "POST /api/settings/password"
+      },
+      "notes": "fetch(\"/api/settings/password\", { method: \"POST\" }); settings/password/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/private/AccountSection.tsx", "line": 69 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/logout/route.ts",
+        "line": 9,
+        "route": "POST /api/logout"
+      },
+      "notes": "fetch(\"/api/logout\", { method: \"POST\" }); logout/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/reminders/ReminderControl.tsx", "line": 109 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/reminders/route.ts",
+        "line": 9,
+        "route": "GET /api/reminders"
+      },
+      "notes": "fetch(\"/api/reminders\"); reminders/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/reminders/ReminderControl.tsx", "line": 143 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/reminders/route.ts",
+        "line": 13,
+        "route": "POST /api/reminders"
+      },
+      "notes": "fetch(\"/api/reminders\", { method: \"POST\" }); reminders/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/reminders/ReminderControl.tsx", "line": 166 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/reminders/[id]/route.ts",
+        "line": 6,
+        "route": "DELETE /api/reminders/:id"
+      },
+      "notes": "fetch(`/api/reminders/${id}`, { method: \"DELETE\" }); reminders/[id]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/components/reminders/RemindersManager.tsx", "line": 25 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/reminders/route.ts",
+        "line": 9,
+        "route": "GET /api/reminders"
+      },
+      "notes": "fetch(\"/api/reminders\"); reminders/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/reminders/RemindersManager.tsx", "line": 38 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/reminders/[id]/route.ts",
+        "line": 6,
+        "route": "DELETE /api/reminders/:id"
+      },
+      "notes": "fetch(`/api/reminders/${id}`, { method: \"DELETE\" }); reminders/[id]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/components/settings/SettingsManager.tsx", "line": 29 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/settings/route.ts",
+        "line": 17,
+        "route": "GET /api/settings"
+      },
+      "notes": "fetch(\"/api/settings\"); settings/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/settings/SettingsManager.tsx", "line": 45 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/settings/route.ts",
+        "line": 39,
+        "route": "PATCH /api/settings"
+      },
+      "notes": "fetch(\"/api/settings\", { method: \"PATCH\" }); settings/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/usage/TokenUsagePanel.tsx", "line": 77 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/usage/route.ts",
+        "line": 20,
+        "route": "GET /api/usage"
+      },
+      "notes": "fetch(\"/api/usage\"); usage/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "src/lib/calendar/google.ts", "line": 18 },
+      "method": "POST",
+      "target": null,
+      "notes": "fetch(FREEBUSY_ENDPOINT), https://www.googleapis.com/calendar/v3/freeBusy (line 3); Google Calendar API, external"
+    },
+    {
+      "callSite": { "file": "src/lib/calendar/microsoft.ts", "line": 45 },
+      "method": "POST",
+      "target": null,
+      "notes": "fetch(GET_SCHEDULE_ENDPOINT), https://graph.microsoft.com/v1.0/me/calendar/getSchedule (line 3); Microsoft Graph, external"
+    },
+    {
+      "callSite": { "file": "src/lib/calendar/read.ts", "line": 134 },
+      "method": "GET",
+      "target": null,
+      "notes": "GET www.googleapis.com/calendar/v3/calendars/primary/events; Google Calendar API, external"
+    },
+    {
+      "callSite": { "file": "src/lib/calendar/read.ts", "line": 239 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(url), url = https://graph.microsoft.com/v1.0/me/calendarView?… (line 229), then Graph's @odata.nextLink; Microsoft Graph, external"
+    },
+    {
+      "callSite": { "file": "src/lib/calendar/write.ts", "line": 158 },
+      "method": "PATCH",
+      "target": null,
+      "notes": "fetchWithRetry(url, init) (line 29, fetch(url, init) at line 34) with PATCH www.googleapis.com/calendar/v3/calendars/primary/events/<id>; Google Calendar API, external"
+    },
+    {
+      "callSite": { "file": "src/lib/calendar/write.ts", "line": 175 },
+      "method": "PATCH",
+      "target": null,
+      "notes": "fetchWithRetry: PATCH graph.microsoft.com/v1.0/me/events/<id>; Microsoft Graph, external"
+    },
+    {
+      "callSite": { "file": "src/lib/calendar/write.ts", "line": 208 },
+      "method": "DELETE",
+      "target": null,
+      "notes": "fetchWithRetry(url), url the Google events/<id> or the Graph me/events/<id> URL by provider (line 204); both external"
+    },
+    {
+      "callSite": { "file": "src/lib/calendar/write.ts", "line": 251 },
+      "method": "POST",
+      "target": null,
+      "notes": "POST www.googleapis.com/calendar/v3/calendars/primary/events (line 248); Google Calendar API, external"
+    },
+    {
+      "callSite": { "file": "src/lib/calendar/write.ts", "line": 320 },
+      "method": "POST",
+      "target": null,
+      "notes": "POST https://graph.microsoft.com/v1.0/me/events; Microsoft Graph, external"
+    },
+    {
+      "callSite": { "file": "src/lib/calendar/write.ts", "line": 372 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetchWithRetry(url, { headers }): GET www.googleapis.com/…/events/<seriesId>; external"
+    },
+    {
+      "callSite": { "file": "src/lib/calendar/write.ts", "line": 376 },
+      "method": "PATCH",
+      "target": null,
+      "notes": "fetchWithRetry: PATCH www.googleapis.com/…/events/<seriesId>?sendUpdates=none; external"
+    },
+    {
+      "callSite": { "file": "src/lib/calendar/write.ts", "line": 385 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetchWithRetry: GET graph.microsoft.com/v1.0/me/events/<seriesId>; external"
+    },
+    {
+      "callSite": { "file": "src/lib/calendar/write.ts", "line": 390 },
+      "method": "PATCH",
+      "target": null,
+      "notes": "fetchWithRetry: PATCH graph.microsoft.com/v1.0/me/events/<seriesId>; external"
+    },
+    {
+      "callSite": { "file": "src/lib/notify/email.ts", "line": 36 },
+      "method": "POST",
+      "target": null,
+      "notes": "POST https://api.resend.com/emails; Resend API, external"
+    },
+    {
+      "callSite": { "file": "src/lib/notify/health.ts", "line": 56 },
+      "method": "GET",
+      "target": null,
+      "notes": "timedFetch(url, init) (line 35, fetch at line 39): GET https://api.resend.com/domains; external"
+    },
+    {
+      "callSite": { "file": "src/lib/notify/health.ts", "line": 99 },
+      "method": "GET",
+      "target": null,
+      "notes": "timedFetch: GET api.twilio.com/2010-04-01/Accounts/<sid>.json; Twilio API, external"
+    },
+    {
+      "callSite": { "file": "src/lib/notify/health.ts", "line": 143 },
+      "method": "GET",
+      "target": null,
+      "notes": "timedFetch: GET content.twilio.com/v1/Content/<sid>/ApprovalRequests; Twilio API, external"
+    },
+    {
+      "callSite": { "file": "src/lib/notify/sms.ts", "line": 9 },
+      "method": "POST",
+      "target": null,
+      "notes": "POST api.twilio.com/2010-04-01/Accounts/<sid>/Messages.json; Twilio API, external"
+    },
+    {
+      "callSite": { "file": "src/lib/oauth/google.ts", "line": 63 },
+      "method": "POST",
+      "target": null,
+      "notes": "POST TOKEN_ENDPOINT https://oauth2.googleapis.com/token (line 8); Google OAuth, external"
+    },
+    {
+      "callSite": { "file": "src/lib/oauth/google.ts", "line": 108 },
+      "method": "POST",
+      "target": null,
+      "notes": "exchangeCode: POST https://oauth2.googleapis.com/token; external"
+    },
+    {
+      "callSite": { "file": "src/lib/oauth/google.ts", "line": 142 },
+      "method": "POST",
+      "target": null,
+      "notes": "refresh: POST https://oauth2.googleapis.com/token; external"
+    },
+    {
+      "callSite": { "file": "src/lib/oauth/microsoft.ts", "line": 70 },
+      "method": "POST",
+      "target": null,
+      "notes": "exchangeCode: POST tokenEndpoint() = login.microsoftonline.com/<tenant>/oauth2/v2.0/token (line 14); external"
+    },
+    {
+      "callSite": { "file": "src/lib/oauth/microsoft.ts", "line": 106 },
+      "method": "POST",
+      "target": null,
+      "notes": "refresh: POST login.microsoftonline.com/<tenant>/oauth2/v2.0/token; external"
+    },
+    {
+      "callSite": { "file": "src/lib/reputation/check.ts", "line": 31 },
+      "method": "GET",
+      "target": null,
+      "notes": "GET https://www.virustotal.com/api/v3/domains/<domain>; VirusTotal API, external"
+    },
+    {
+      "callSite": { "file": "src/lib/slack/send.ts", "line": 19 },
+      "method": "POST",
+      "target": null,
+      "notes": "POST https://slack.com/api/chat.postMessage; Slack API, external"
+    },
+    {
+      "callSite": { "file": "src/lib/slack/send.ts", "line": 59 },
+      "method": "POST",
+      "target": null,
+      "notes": "POST https://slack.com/api/auth.test; Slack API, external"
+    },
+    {
+      "callSite": { "file": "src/lib/slack/send.ts", "line": 90 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(url), url = new URL(\"https://slack.com/api/conversations.replies\") (line 86); Slack API, external"
+    },
+    {
+      "callSite": { "file": "src/lib/sms/send.ts", "line": 54 },
+      "method": "POST",
+      "target": null,
+      "notes": "fetch(url), url api.twilio.com/2010-04-01/Accounts/<sid>/Messages.json (line 48); Twilio API, external"
+    },
+    {
+      "callSite": { "file": "src/lib/sms/send.ts", "line": 103 },
+      "method": "POST",
+      "target": null,
+      "notes": "fetch(url), url api.twilio.com/…/Messages.json (line 92); Twilio API, external"
+    },
+    {
+      "callSite": { "file": "src/lib/sms/send.ts", "line": 128 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(url), url api.twilio.com/…/Messages/<sid>.json (line 126); Twilio API, external"
+    },
+    {
+      "callSite": { "file": "src/lib/sms/transcribe.ts", "line": 50 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(location), the Location header of Twilio's media redirect (a CDN URL); runtime value, external"
+    },
+    {
+      "callSite": { "file": "src/lib/sms/transcribe.ts", "line": 75 },
+      "method": "POST",
+      "target": null,
+      "notes": "POST OPENAI_TRANSCRIBE_URL https://api.openai.com/v1/audio/transcriptions (line 9); OpenAI API, external"
+    }
+  ]
+}

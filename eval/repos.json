@@ -141,6 +141,16 @@
       "heldOut": 5
     },
     {
+      "owner": "erich2s",
+      "name": "maintenance-management-system",
+      "url": "https://github.com/erich2s/maintenance-management-system",
+      "sha": "8c0f55a77652cf1e080452a45ca37660a4f4a132",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 7 (M12.2b4, drawn in stratum nextjs-prisma). A single Next.js 13 App Router app at the repo root, code under src/ (Prisma, NextAuth credentials, SWR, zustand, web-push, AMap, shadcn/ui), an admin side (src/app/admin: locations, types, users, workers, reports) and a mobile client side (src/app/client), with 15 route.ts handlers under src/app/api (locations, locations/[id], types, types/[id], users, users/[id], workers, workers/[id], reports, reports/[id], reports/getAll, reports/getUnCompleted, subscribe, unsubscribe, push, plus NextAuth's [...nextauth]). Every request is a plain fetch on a root-relative /api/... path (same origin, no base, no env value involved): 19 direct fetch calls (GET lists, POST creates, DELETE /api/<x>/:id from the table rows' delete buttons, PUT /api/users for a password change, three PUT /api/reports/:id calls for accept/complete/reject in src/context/ReportDetailsProvider.tsx, POST /api/subscribe and /api/unsubscribe in the zustand push store), three useSWR calls whose inline fetcher `(...args) => fetch(...args, …)` sends the key (ReportsTable's /api/reports/getAll?page&size, MyReports' /api/reports, the useUncompletedReports hook's /api/reports/getUnCompleted), and src/components/admin/DataTable.tsx, a component that hands its `url` prop (with ?page&size appended) to useSWR and its own fetcher, so its four GETs are labeled at each `<DataTable url=\"/api/...\">` element in the admin pages. Traps: getAll and getUnCompleted are static segments beside reports/[id], so they win; the DataTable fetch itself has no path of its own; middleware.ts only gates /api/:path* behind a NextAuth token (redirecting otherwise), which changes no route. Not labeled: NextAuth's signIn/signOut/useSession and its [...nextauth] route, web-push's sendNotification (SDK client) behind /api/push, which nothing in the repo calls, navigator.serviceWorker.register(\"/serviceWorker.js\") and the push manager, SWR mutate() revalidations, AMapLoader's script and tile loads, Prisma queries, and server-rendered pages reading Prisma directly. 86 TS/JS source files.",
+      "heldOut": 7
+    },
+    {
       "owner": "Farbyte",
       "name": "lawson",
       "url": "https://github.com/Farbyte/lawson",
@@ -218,6 +228,16 @@
       "license": "MIT",
       "shape": "next-plus-server-monorepo",
       "why": "npm-workspaces Turborepo: a Next.js 14 app router web app calling a separate Express API (apps/api, routers mounted under /api/v1) through a fetch wrapper in lib/api-client.ts that takes the path as a parameter, so call sites are the wrapper's callers in TanStack Query hooks. Also has Express-based mcp/agentic-ai packages. ~308 source files."
+    },
+    {
+      "owner": "hunterZh37",
+      "name": "agentic-scheduling",
+      "url": "https://github.com/hunterZh37/agentic-scheduling",
+      "sha": "3c15438de9735980384c50104cd6c03ad325fd91",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 7 (M12.2b4, drawn in stratum nextjs-prisma). One Next.js 16 App Router app under src/ (Prisma on Postgres), plus a Chrome extension (calendly-extension/), Playwright e2e tests, node scripts and a model-compare eval. The browser calls the app's own API with root-relative fetch(\"/api/...\") in client components (BlocksPane, EventModal, TodoItems, the cohost, calendars, reminders, settings and birthdays managers), with a few statically chosen alternatives: BookingPage picks `/api/availability` or `/api/availability/team/${slug}` and `/api/public/bookings` or `/api/public/teams/${slug}/bookings` by `team`, BlocksPane posts to `/api/events` or `/api/blocks` by item type, NewBlockSheet sends PATCH `/api/blocks/:id` or POST `/api/blocks` on one condition, and the PublicAgentChat component POSTs its `endpoint` prop (default `/api/agent/public`), labeled at each element. loadScheduleProgressively sends `/api/schedule` and `/api/schedule/events` through an injectable fetcher whose default is fetch. The monitor cron fetches `${PUBLIC_BASE_URL}/api/availability`, PUBLIC_BASE_URL falling back to http://localhost:3000 in src/lib/env.ts (.env.example the same, `next dev` on 3000); its other checks fetch pages (/book, /privacy, /terms, /assistant), not routes, so null. 64 route.ts files export GET/POST/PATCH/DELETE (one OPTIONS). Traps: scripts/smoke.mjs sends everything through get()/getAuth() helpers to BASE || \"https://book.hunterzhangconsulting.com\" and AUTH_BASE || \"https://bookwithhunter.com\", public hosts no deploy config in the repo names (vercel.json only lists crons) and to which the script also sends pages, /_next chunks and public/ files, so all null per ADR-0209; the extension's ENDPOINT is a your-deployment.example.com placeholder; a fetchWithRetry/timedFetch helper in src/lib wraps external Google, Graph, Resend and Twilio calls, labeled at each call. Not labeled: the EventSource on /api/agent/demo (demo page) and the diagram tool's /__live, Playwright's request.get in e2e/manage.spec.ts, the Anthropic SDK in the agent and evals/model-compare, <a href> links to /api/oauth and /api/auth starts, tests that stub fetch (progressiveSchedule, monitor, health, transcribe), and inline scripts in website/index.html. 360 TS/JS source files.",
+      "heldOut": 7
     },
     {
       "owner": "issam-seghir",
@@ -398,6 +418,16 @@
       "heldOut": 3
     },
     {
+      "owner": "NishantJLU",
+      "name": "AI-LMS",
+      "url": "https://github.com/NishantJLU/AI-LMS",
+      "sha": "2b47762e05931b05a8f65e314160449cf35dc2a2",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 7 (M12.2b4, drawn in stratum nextjs-prisma). A single Next.js 15 App Router app under src/ (Prisma, NextAuth v5, the OpenAI SDK pointed at OpenAI or Groq, shadcn/ui): pages under src/app (admin, student, teacher, auth pages), client components under src/components, server actions under src/server/actions, and 7 route.ts handlers under src/app/api (ai/summarize, ai/quiz, ai/flashcards, ai/feedback, search, health, auth/[...nextauth]). Every client request is a plain `fetch` on a root-relative /api/... path (same origin, no base, no basePath or rewrites in next.config.ts): 5 POSTs, 4 through the AI studio's path-taking wrapper `run(path, body)` in src/components/ai/ai-studio-client.tsx (labeled at each button's call: /api/ai/summarize, /api/ai/quiz, /api/ai/flashcards, /api/ai/feedback) and 1 direct `fetch(\"/api/search\")` in src/components/search/semantic-search-client.tsx, each reaching its route.ts's POST export. Traps: the wrapper's own `fetch(path, …)` isn't a call site (its callers supply the path); src/middleware.ts only calls NextResponse.next() and rewrites nothing; /api/health's GET is called by nothing in the repo. Not labeled: NextAuth's signIn (credentials, google, github) and its [...nextauth] route, the server actions (register, password reset, course creation; their reset link is an e-mailed URL, not a request), OpenAI/Groq calls through the openai SDK client, Prisma queries, and <Link>/router navigations. 76 TS/JS source files.",
+      "heldOut": 7
+    },
+    {
       "owner": "nz-m",
       "name": "SocialEcho",
       "url": "https://github.com/nz-m/SocialEcho",
@@ -534,6 +564,16 @@
       "license": "MIT",
       "shape": "next-api-routes",
       "why": "Single-package Next.js 13 app router app: client components fetch its own route handlers (app/api/posts, app/api/posts/[postId], app/api/users/[userId], app/api/users/stripe) by root-relative path, plus one call to an external host (api.github.com) and two fetches of bundled font files via new URL(…, import.meta.url). Widely used reference app. ~131 source files."
+    },
+    {
+      "owner": "shafaypro",
+      "name": "DecisionOS",
+      "url": "https://github.com/shafaypro/DecisionOS",
+      "sha": "af288e9f1e6c6c097e3eccd30f3b97a85ac22a69",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 7 (M12.2b4, drawn in stratum nextjs-prisma). One Next.js App Router app with Prisma (no basePath, rewrites, or custom server; src/proxy.ts is a matcher-excluded auth redirect that never touches /api), its pages under the route groups (app) and (platform), and 59 route.ts handlers under src/app/api/, most exported as `export const GET = withApi(...)` (or withPlatformApi) and a few as `export async function`; the cron routes alias `export const POST = GET`. Client components send every request with root-relative fetch(\"/api/...\") to the same app, either directly (literal or template paths, some with a ?q= query) or through sendJson(url, method, body) in src/lib/client-fetch.ts, labeled at each caller's line, plus a local call(url, body?) wrapper in src/components/platform/workspace-table.tsx whose method is PATCH with a body and POST without. Six call sites pick between two routes statically: decision-form's isEdit url (PUT /api/decisions/:id vs POST /api/decisions; the isEdit-without-id PUT /api/decisions combination reaches no route and is unlabeled), template-manager's editingId url and method, account-data's workspace-or-account DELETE, watch-button's DELETE/POST toggle, and share-panel's request(method) and tag-picker's mutate(method), each typed \"POST\" | \"DELETE\" with both passed. Traps: static segments (similar, search, archive, ai-draft, bulk, notes/replies) beside decisions/[id], which exports only PUT; /api/platform/workspaces/:id/members/:membershipId. Server-side requests are all external and null: the Slack Web API (https://slack.com/api, through a call(method, …) helper labeled at its four callers in src/lib/slack/client.ts, plus three direct fetches), the workspace's OIDC IdP (discoverOidc and exchangeCodeForTokens in src/lib/sso.ts, labeled at their callers in the SSO start and callback routes), and incoming webhooks from the integration config (sendWebhookMessage in the notifications send route). Not labeled: window.location navigations (/api/account/export, the SSO start), <a href> downloads (markdown, export), form actions (/api/settings/sso, /api/slack/connect-user), server actions in src/actions/auth.ts, the Anthropic SDK, Playwright's page.goto in scripts/capture-screenshots.mts, integration tests that call route handlers directly with NextRequest, and the smoke and Storybook fetch stubs. Many routes have no caller (cron jobs, Slack endpoints, openapi, health, seed, analytics, audit, versions, GET reactions/relations/action-items). ~306 TS/JS source files.",
+      "heldOut": 7
     },
     {
       "owner": "shamahoque",
