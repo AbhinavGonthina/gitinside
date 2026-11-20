@@ -1,0 +1,1129 @@
+{
+  "repo": "ConvoBrains/zero-cost-crm",
+  "sha": "99e9ca02fdc9cfef5632db4a78b376124c2eaf8b",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "src/components/SdrActivity.tsx", "line": 265 },
+      "method": "GET",
+      "target": {
+        "file": "server/activityRoutes.ts",
+        "line": 256,
+        "route": "GET /api/activity/export"
+      },
+      "notes": "CSV export button: fetch(url) with url = `/api/activity/export?format=csv&from=…` (line 264), root-relative; vite.config.ts proxies /api to http://127.0.0.1:4000 (server/config.ts PORT ?? 4000), and in production server/app.ts (or Vercel's api/index.ts) serves the SPA beside the API; registerActivityRoutes' app.get('/api/activity/export')"
+    },
+    {
+      "callSite": { "file": "src/components/SdrActivity.tsx", "line": 297 },
+      "method": "GET",
+      "target": {
+        "file": "server/activityRoutes.ts",
+        "line": 256,
+        "route": "GET /api/activity/export"
+      },
+      "notes": "JSON export button: fetch(url) with url = `/api/activity/export?format=json&from=…` (line 296), same origin / Vite proxy as line 265; app.get('/api/activity/export')"
+    },
+    {
+      "callSite": { "file": "src/components/SettingsPage.tsx", "line": 69 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 260, "route": "PATCH /api/settings" },
+      "notes": "api('/api/settings', { method: 'PATCH' }). api() (src/lib/api.ts:28) is fetch(path, init), root-relative through the Vite /api proxy to :4000; app.patch('/api/settings')"
+    },
+    {
+      "callSite": { "file": "src/components/Users.tsx", "line": 31 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 490, "route": "GET /api/users" },
+      "notes": "api('/api/users') wrapper, no method so GET; Vite /api proxy to :4000; app.get('/api/users')"
+    },
+    {
+      "callSite": { "file": "src/components/Users.tsx", "line": 32 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 486, "route": "GET /api/users/roles" },
+      "notes": "api('/api/users/roles') wrapper, GET; app.get('/api/users/roles')"
+    },
+    {
+      "callSite": { "file": "src/components/Users.tsx", "line": 55 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 507, "route": "POST /api/users" },
+      "notes": "api('/api/users', { method: 'POST' }) wrapper; app.post('/api/users')"
+    },
+    {
+      "callSite": { "file": "src/hooks/useAppConfig.ts", "line": 36 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 235, "route": "GET /api/config" },
+      "notes": "api('/api/config') wrapper, GET; Vite /api proxy to :4000; app.get('/api/config')"
+    },
+    {
+      "callSite": { "file": "src/hooks/useAuth.ts", "line": 17 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 473, "route": "GET /api/auth/me" },
+      "notes": "api('/api/auth/me') wrapper, GET; app.get('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "src/hooks/useAuth.ts", "line": 37 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 329, "route": "POST /api/auth/login" },
+      "notes": "api('/api/auth/login', { method: 'POST' }) wrapper; app.post('/api/auth/login')"
+    },
+    {
+      "callSite": { "file": "src/hooks/useAuth.ts", "line": 53 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 407, "route": "POST /api/auth/logout" },
+      "notes": "api('/api/auth/logout', { method: 'POST' }) wrapper; app.post('/api/auth/logout')"
+    },
+    {
+      "callSite": { "file": "src/hooks/useCrmStore.ts", "line": 100 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 610, "route": "GET /api/metrics" },
+      "notes": "refreshMetrics: api('/api/metrics') wrapper, GET; app.get('/api/metrics')"
+    },
+    {
+      "callSite": { "file": "src/hooks/useCrmStore.ts", "line": 105 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 567, "route": "GET /api/bootstrap" },
+      "notes": "refresh: api('/api/bootstrap') wrapper, GET; app.get('/api/bootstrap')"
+    },
+    {
+      "callSite": { "file": "src/hooks/useCrmStore.ts", "line": 106 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 610, "route": "GET /api/metrics" },
+      "notes": "refresh: api('/api/metrics') wrapper, GET; app.get('/api/metrics')"
+    },
+    {
+      "callSite": { "file": "src/hooks/useCrmStore.ts", "line": 128 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 653, "route": "POST /api/companies" },
+      "notes": "addCompany: api('/api/companies', { method: 'POST' }); app.post('/api/companies')"
+    },
+    {
+      "callSite": { "file": "src/hooks/useCrmStore.ts", "line": 141 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 750, "route": "PATCH /api/companies/:id" },
+      "notes": "updateCompany: api(`/api/companies/${id}`, { method: 'PATCH' }); app.patch('/api/companies/:id')"
+    },
+    {
+      "callSite": { "file": "src/hooks/useCrmStore.ts", "line": 156 },
+      "method": "DELETE",
+      "target": { "file": "server/app.ts", "line": 995, "route": "DELETE /api/companies/:id" },
+      "notes": "deleteCompany: api(`/api/companies/${id}`, { method: 'DELETE' }); app.delete('/api/companies/:id')"
+    },
+    {
+      "callSite": { "file": "src/hooks/useCrmStore.ts", "line": 168 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 750, "route": "PATCH /api/companies/:id" },
+      "notes": "moveCompanyStage: api(`/api/companies/${id}`, { method: 'PATCH' }); app.patch('/api/companies/:id')"
+    },
+    {
+      "callSite": { "file": "src/hooks/useCrmStore.ts", "line": 186 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 1023, "route": "POST /api/contacts" },
+      "notes": "addContact: api('/api/contacts', { method: 'POST' }); app.post('/api/contacts')"
+    },
+    {
+      "callSite": { "file": "src/hooks/useCrmStore.ts", "line": 207 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 1203, "route": "PATCH /api/contacts/:id" },
+      "notes": "updateContact: api<…>(`/api/contacts/${id}` (line 208), { method: 'PATCH' }); app.patch('/api/contacts/:id')"
+    },
+    {
+      "callSite": { "file": "src/hooks/useCrmStore.ts", "line": 239 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 1080,
+        "route": "POST /api/contacts/bulk-status"
+      },
+      "notes": "bulkUpdateContactStatus: api<…>('/api/contacts/bulk-status' (line 240), { method: 'POST' }); app.post('/api/contacts/bulk-status')"
+    },
+    {
+      "callSite": { "file": "src/hooks/useCrmStore.ts", "line": 259 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 1150,
+        "route": "POST /api/contacts/bulk-whatsapp"
+      },
+      "notes": "bulkSetWhatsApp: api('/api/contacts/bulk-whatsapp', { method: 'POST' }); app.post('/api/contacts/bulk-whatsapp')"
+    },
+    {
+      "callSite": { "file": "src/hooks/useCrmStore.ts", "line": 276 },
+      "method": "DELETE",
+      "target": { "file": "server/app.ts", "line": 1451, "route": "DELETE /api/contacts/:id" },
+      "notes": "deleteContact: api(`/api/contacts/${id}`, { method: 'DELETE' }); app.delete('/api/contacts/:id')"
+    },
+    {
+      "callSite": { "file": "src/hooks/useCrmStore.ts", "line": 290 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 1480, "route": "POST /api/import/prospects" },
+      "notes": "importProspects: api('/api/import/prospects', { method: 'POST' }); app.post('/api/import/prospects')"
+    },
+    {
+      "callSite": { "file": "src/hooks/useIdleSession.ts", "line": 44 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 407, "route": "POST /api/auth/logout" },
+      "notes": "idle logout: api('/api/auth/logout', { method: 'POST' }); app.post('/api/auth/logout')"
+    },
+    {
+      "callSite": { "file": "src/hooks/useIdleSession.ts", "line": 60 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 443, "route": "POST /api/auth/heartbeat" },
+      "notes": "api('/api/auth/heartbeat', { method: 'POST' }); app.post('/api/auth/heartbeat')"
+    },
+    {
+      "callSite": { "file": "src/hooks/useIdleSession.ts", "line": 73 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 443, "route": "POST /api/auth/heartbeat" },
+      "notes": "api('/api/auth/heartbeat', { method: 'POST' }); app.post('/api/auth/heartbeat')"
+    },
+    {
+      "callSite": { "file": "src/lib/activity.ts", "line": 96 },
+      "method": "GET",
+      "target": {
+        "file": "server/activityRoutes.ts",
+        "line": 219,
+        "route": "GET /api/activity/sdrs"
+      },
+      "notes": "fetchSdrs: api('/api/activity/sdrs'), GET; registerActivityRoutes' app.get('/api/activity/sdrs')"
+    },
+    {
+      "callSite": { "file": "src/lib/activity.ts", "line": 107 },
+      "method": "GET",
+      "target": {
+        "file": "server/activityRoutes.ts",
+        "line": 331,
+        "route": "GET /api/activity/overview"
+      },
+      "notes": "fetchOverview: api(`/api/activity/overview?${q}`), query dropped; app.get('/api/activity/overview')"
+    },
+    {
+      "callSite": { "file": "src/lib/activity.ts", "line": 118 },
+      "method": "GET",
+      "target": {
+        "file": "server/activityRoutes.ts",
+        "line": 475,
+        "route": "GET /api/activity/timeline"
+      },
+      "notes": "fetchTimeline: api(`/api/activity/timeline?${q}`); app.get('/api/activity/timeline')"
+    },
+    {
+      "callSite": { "file": "src/lib/activity.ts", "line": 135 },
+      "method": "GET",
+      "target": {
+        "file": "server/activityRoutes.ts",
+        "line": 510,
+        "route": "GET /api/activity/company/:id/history"
+      },
+      "notes": "fetchCompanyHistory: api<…>(`/api/activity/company/${companyId}/history`) (path on line 139); app.get('/api/activity/company/:id/history')"
+    },
+    {
+      "callSite": { "file": "src/lib/activity.ts", "line": 147 },
+      "method": "POST",
+      "target": {
+        "file": "server/activityRoutes.ts",
+        "line": 305,
+        "route": "POST /api/activity/events"
+      },
+      "notes": "logViewEvent: api('/api/activity/events', { method: 'POST' }); app.post('/api/activity/events')"
+    },
+    {
+      "callSite": { "file": "src/lib/callLog.ts", "line": 44 },
+      "method": "GET",
+      "target": {
+        "file": "server/activityRoutes.ts",
+        "line": 575,
+        "route": "GET /api/contacts/:id/call-log"
+      },
+      "notes": "api<…>(`/api/contacts/${contactId}/call-log`) (path on line 45), GET; app.get('/api/contacts/:id/call-log') in activityRoutes.ts"
+    },
+    {
+      "callSite": { "file": "src/lib/conversations.ts", "line": 11 },
+      "method": "GET",
+      "target": {
+        "file": "server/conversations.ts",
+        "line": 166,
+        "route": "GET /api/conversations"
+      },
+      "notes": "listConversations: api(`/api/conversations?${q}`); registerConversationRoutes' app.get('/api/conversations')"
+    },
+    {
+      "callSite": { "file": "src/lib/conversations.ts", "line": 20 },
+      "method": "POST",
+      "target": {
+        "file": "server/conversations.ts",
+        "line": 35,
+        "route": "POST /api/conversations/presign"
+      },
+      "notes": "presignConversation: api('/api/conversations/presign', { method: 'POST' }); app.post('/api/conversations/presign')"
+    },
+    {
+      "callSite": { "file": "src/lib/conversations.ts", "line": 27 },
+      "method": "POST",
+      "target": {
+        "file": "server/conversations.ts",
+        "line": 83,
+        "route": "POST /api/conversations/:id/complete"
+      },
+      "notes": "completeConversation: api(`/api/conversations/${id}/complete`, { method: 'POST' }); app.post('/api/conversations/:id/complete')"
+    },
+    {
+      "callSite": { "file": "src/lib/conversations.ts", "line": 31 },
+      "method": "GET",
+      "target": {
+        "file": "server/conversations.ts",
+        "line": 186,
+        "route": "GET /api/conversations/:id/play"
+      },
+      "notes": "getPlayUrl: api(`/api/conversations/${id}/play`), GET; app.get('/api/conversations/:id/play')"
+    },
+    {
+      "callSite": { "file": "src/lib/conversations.ts", "line": 36 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/conversations.ts",
+        "line": 201,
+        "route": "DELETE /api/conversations/:id"
+      },
+      "notes": "deleteConversation: api(`/api/conversations/${id}`, { method: 'DELETE' }); app.delete('/api/conversations/:id')"
+    },
+    {
+      "callSite": { "file": "src/lib/conversations.ts", "line": 52 },
+      "method": "PUT",
+      "target": null,
+      "notes": "fetch(uploadUrl, { method: 'PUT' }): uploadUrl is the presigned S3 URL the server returns from /api/conversations/presign (server/s3.ts), an external host"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/auth.test.ts", "line": 6 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 1637, "route": "GET /api/health" },
+      "notes": "test api('/api/health'). The functional tests' api() (helpers.ts:45) is fetch(`${getBaseUrl()}${path}`), base = http://127.0.0.1:<port> of server/app.js's app.listen(0) started by startApi (helpers.ts:16-21), this repo's server; method = opts.method ?? (body ? POST : GET); app.get('/api/health')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/auth.test.ts", "line": 12 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 235, "route": "GET /api/config" },
+      "notes": "test api<…>('/api/config') (path on line 15), no body so GET; app.get('/api/config')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/auth.test.ts", "line": 31 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 329, "route": "POST /api/auth/login" },
+      "notes": "test api('/api/auth/login', { body }), body with no method so POST; app.post('/api/auth/login')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/auth.test.ts", "line": 39 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 329, "route": "POST /api/auth/login" },
+      "notes": "test api('/api/auth/login', { body }), POST; app.post('/api/auth/login')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/auth.test.ts", "line": 49 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 473, "route": "GET /api/auth/me" },
+      "notes": "test api<…>('/api/auth/me', { headers }) (path on line 54), no body so GET; app.get('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/auth.test.ts", "line": 67 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 407, "route": "POST /api/auth/logout" },
+      "notes": "test api('/api/auth/logout', { method: 'POST' }); app.post('/api/auth/logout')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/auth.test.ts", "line": 73 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 443, "route": "POST /api/auth/heartbeat" },
+      "notes": "test api('/api/auth/heartbeat', { method: 'POST' }); app.post('/api/auth/heartbeat')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/auth.test.ts", "line": 79 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 443, "route": "POST /api/auth/heartbeat" },
+      "notes": "test api('/api/auth/heartbeat', { method: 'POST' }); app.post('/api/auth/heartbeat')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/auth.test.ts", "line": 84 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 329, "route": "POST /api/auth/login" },
+      "notes": "plain fetch(`${getBaseUrl()}/api/auth/login`, { method: 'POST' }); base = the test's own server/app.js listen(0) server (helpers.ts:16-21); app.post('/api/auth/login')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/auth.test.ts", "line": 101 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 473, "route": "GET /api/auth/me" },
+      "notes": "test api('/api/auth/me', { headers }), GET; app.get('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/auth.test.ts", "line": 110 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 443, "route": "POST /api/auth/heartbeat" },
+      "notes": "test api('/api/auth/heartbeat', { method: 'POST' }) (403 by requireCsrf, but the path is the route's); app.post('/api/auth/heartbeat')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/auth.test.ts", "line": 122 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 443, "route": "POST /api/auth/heartbeat" },
+      "notes": "test api('/api/auth/heartbeat', { method: 'POST' }); app.post('/api/auth/heartbeat')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/auth.test.ts", "line": 132 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 443, "route": "POST /api/auth/heartbeat" },
+      "notes": "test api('/api/auth/heartbeat', { method: 'POST' }); app.post('/api/auth/heartbeat')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/auth.test.ts", "line": 144 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 490, "route": "GET /api/users" },
+      "notes": "test api('/api/users', { session }), GET (403 for an SDR, but the route's path); app.get('/api/users')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/auth.test.ts", "line": 147 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 490, "route": "GET /api/users" },
+      "notes": "test api('/api/users', { session }), GET; app.get('/api/users')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/auth.test.ts", "line": 156 },
+      "method": "GET",
+      "target": {
+        "file": "server/activityRoutes.ts",
+        "line": 331,
+        "route": "GET /api/activity/overview"
+      },
+      "notes": "test api('/api/activity/overview?userId=all'), GET, query dropped; app.get('/api/activity/overview')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/auth.test.ts", "line": 161 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 567, "route": "GET /api/bootstrap" },
+      "notes": "test api('/api/bootstrap', { session }), GET; app.get('/api/bootstrap')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/auth.test.ts", "line": 169 },
+      "method": "DELETE",
+      "target": { "file": "server/app.ts", "line": 995, "route": "DELETE /api/companies/:id" },
+      "notes": "test api(`/api/companies/${companyId}`, { method: 'DELETE' }); app.delete('/api/companies/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/callLog.test.ts", "line": 13 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 1023, "route": "POST /api/contacts" },
+      "notes": "test api('/api/contacts', { body }), POST (helpers.ts:45 against the listen(0) app); app.post('/api/contacts')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/callLog.test.ts", "line": 25 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 1203, "route": "PATCH /api/contacts/:id" },
+      "notes": "test api(`/api/contacts/${id}`, { method: 'PATCH' }); app.patch('/api/contacts/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/callLog.test.ts", "line": 35 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 1203, "route": "PATCH /api/contacts/:id" },
+      "notes": "test api(`/api/contacts/${id}`, { method: 'PATCH' }); app.patch('/api/contacts/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/callLog.test.ts", "line": 42 },
+      "method": "GET",
+      "target": {
+        "file": "server/activityRoutes.ts",
+        "line": 575,
+        "route": "GET /api/contacts/:id/call-log"
+      },
+      "notes": "test api<…>(`/api/contacts/${id}/call-log`, { method: 'GET' }) (path on line 44); app.get('/api/contacts/:id/call-log')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/callLog.test.ts", "line": 53 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 567, "route": "GET /api/bootstrap" },
+      "notes": "test api<…>('/api/bootstrap', { method: 'GET' }) (path on line 55); app.get('/api/bootstrap')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/callLog.test.ts", "line": 62 },
+      "method": "DELETE",
+      "target": { "file": "server/app.ts", "line": 1451, "route": "DELETE /api/contacts/:id" },
+      "notes": "test api(`/api/contacts/${id}`, { method: 'DELETE' }); app.delete('/api/contacts/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/callLog.test.ts", "line": 67 },
+      "method": "GET",
+      "target": {
+        "file": "server/activityRoutes.ts",
+        "line": 575,
+        "route": "GET /api/contacts/:id/call-log"
+      },
+      "notes": "test api('/api/contacts/00000000-…/call-log', { method: 'GET' }) (404 for the unknown id, but the route's path); app.get('/api/contacts/:id/call-log')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championStatusMap.test.ts", "line": 12 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 235, "route": "GET /api/config" },
+      "notes": "readMap: test api('/api/config'), GET (helpers.ts:45 against the listen(0) app); app.get('/api/config')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championStatusMap.test.ts", "line": 28 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 260, "route": "PATCH /api/settings" },
+      "notes": "test api('/api/settings', { method: 'PATCH' }); app.patch('/api/settings')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championStatusMap.test.ts", "line": 48 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 260, "route": "PATCH /api/settings" },
+      "notes": "test api('/api/settings', { method: 'PATCH' }); app.patch('/api/settings')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championStatusMap.test.ts", "line": 57 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 235, "route": "GET /api/config" },
+      "notes": "test api('/api/config'), GET; app.get('/api/config')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championStatusMap.test.ts", "line": 68 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 260, "route": "PATCH /api/settings" },
+      "notes": "test api('/api/settings', { method: 'PATCH' }); app.patch('/api/settings')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championStatusMap.test.ts", "line": 76 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 235, "route": "GET /api/config" },
+      "notes": "test api('/api/config'), GET; app.get('/api/config')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championStatusMap.test.ts", "line": 86 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 260, "route": "PATCH /api/settings" },
+      "notes": "test api('/api/settings', { method: 'PATCH' }); app.patch('/api/settings')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championStatusMap.test.ts", "line": 94 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 235, "route": "GET /api/config" },
+      "notes": "test api('/api/config'), GET; app.get('/api/config')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championStatusMap.test.ts", "line": 101 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 260, "route": "PATCH /api/settings" },
+      "notes": "test api('/api/settings', { method: 'PATCH' }); app.patch('/api/settings')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championSync.test.ts", "line": 22 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 653, "route": "POST /api/companies" },
+      "notes": "createCompany: test api('/api/companies', { body }), POST (helpers.ts:45 against the listen(0) app); app.post('/api/companies')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championSync.test.ts", "line": 43 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 1023, "route": "POST /api/contacts" },
+      "notes": "createContact: test api('/api/contacts', { body }), POST; app.post('/api/contacts')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championSync.test.ts", "line": 62 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 567, "route": "GET /api/bootstrap" },
+      "notes": "getCompany: test api('/api/bootstrap', { session }), GET; app.get('/api/bootstrap')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championSync.test.ts", "line": 74 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 1203, "route": "PATCH /api/contacts/:id" },
+      "notes": "test api(`/api/contacts/${contact.id}`, { method: 'PATCH' }); app.patch('/api/contacts/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championSync.test.ts", "line": 86 },
+      "method": "DELETE",
+      "target": { "file": "server/app.ts", "line": 995, "route": "DELETE /api/companies/:id" },
+      "notes": "test api(`/api/companies/${co.id}`, { method: 'DELETE' }); app.delete('/api/companies/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championSync.test.ts", "line": 94 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 1203, "route": "PATCH /api/contacts/:id" },
+      "notes": "test api(`/api/contacts/${contact.id}`, { method: 'PATCH' }); app.patch('/api/contacts/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championSync.test.ts", "line": 104 },
+      "method": "DELETE",
+      "target": { "file": "server/app.ts", "line": 995, "route": "DELETE /api/companies/:id" },
+      "notes": "test api(`/api/companies/${co.id}`, { method: 'DELETE' }); app.delete('/api/companies/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championSync.test.ts", "line": 114 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 1203, "route": "PATCH /api/contacts/:id" },
+      "notes": "test api(`/api/contacts/${contact.id}`, { method: 'PATCH' }); app.patch('/api/contacts/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championSync.test.ts", "line": 126 },
+      "method": "DELETE",
+      "target": { "file": "server/app.ts", "line": 995, "route": "DELETE /api/companies/:id" },
+      "notes": "test api(`/api/companies/${co.id}`, { method: 'DELETE' }); app.delete('/api/companies/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championSync.test.ts", "line": 134 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 1203, "route": "PATCH /api/contacts/:id" },
+      "notes": "test api(`/api/contacts/${contact.id}`, { method: 'PATCH' }); app.patch('/api/contacts/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championSync.test.ts", "line": 140 },
+      "method": "GET",
+      "target": {
+        "file": "server/activityRoutes.ts",
+        "line": 621,
+        "route": "GET /api/activity/lead/:entityType/:id"
+      },
+      "notes": "test api<…>(`/api/activity/lead/company/${co.id}`, { session }) (path on line 142), GET; app.get('/api/activity/lead/:entityType/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championSync.test.ts", "line": 153 },
+      "method": "DELETE",
+      "target": { "file": "server/app.ts", "line": 995, "route": "DELETE /api/companies/:id" },
+      "notes": "test api(`/api/companies/${co.id}`, { method: 'DELETE' }); app.delete('/api/companies/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championSync.test.ts", "line": 162 },
+      "method": "GET",
+      "target": {
+        "file": "server/activityRoutes.ts",
+        "line": 621,
+        "route": "GET /api/activity/lead/:entityType/:id"
+      },
+      "notes": "championStageMoves: test api<…>(`/api/activity/lead/company/${companyId}`, { session }) (path on line 164), GET; app.get('/api/activity/lead/:entityType/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championSync.test.ts", "line": 187 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 1203, "route": "PATCH /api/contacts/:id" },
+      "notes": "test api(`/api/contacts/${contact.id}`, { method: 'PATCH' }); app.patch('/api/contacts/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championSync.test.ts", "line": 203 },
+      "method": "DELETE",
+      "target": { "file": "server/app.ts", "line": 995, "route": "DELETE /api/companies/:id" },
+      "notes": "test api(`/api/companies/${co.id}`, { method: 'DELETE' }); app.delete('/api/companies/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championSync.test.ts", "line": 215 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 1203, "route": "PATCH /api/contacts/:id" },
+      "notes": "test api(`/api/contacts/${contact.id}`, { method: 'PATCH' }) inside the closed-stage loop; app.patch('/api/contacts/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championSync.test.ts", "line": 226 },
+      "method": "DELETE",
+      "target": { "file": "server/app.ts", "line": 995, "route": "DELETE /api/companies/:id" },
+      "notes": "test api(`/api/companies/${co.id}`, { method: 'DELETE' }); app.delete('/api/companies/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championSync.test.ts", "line": 236 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 1203, "route": "PATCH /api/contacts/:id" },
+      "notes": "test api(`/api/contacts/${contact.id}`, { method: 'PATCH' }); app.patch('/api/contacts/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championSync.test.ts", "line": 247 },
+      "method": "DELETE",
+      "target": { "file": "server/app.ts", "line": 995, "route": "DELETE /api/companies/:id" },
+      "notes": "test api(`/api/companies/${co.id}`, { method: 'DELETE' }); app.delete('/api/companies/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championSync.test.ts", "line": 256 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 1203, "route": "PATCH /api/contacts/:id" },
+      "notes": "test api(`/api/contacts/${contact.id}`, { method: 'PATCH' }); app.patch('/api/contacts/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championSync.test.ts", "line": 267 },
+      "method": "DELETE",
+      "target": { "file": "server/app.ts", "line": 995, "route": "DELETE /api/companies/:id" },
+      "notes": "test api(`/api/companies/${co.id}`, { method: 'DELETE' }); app.delete('/api/companies/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championSync.test.ts", "line": 276 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 1203, "route": "PATCH /api/contacts/:id" },
+      "notes": "test api(`/api/contacts/${contact.id}`, { method: 'PATCH' }); app.patch('/api/contacts/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championSync.test.ts", "line": 288 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 1203, "route": "PATCH /api/contacts/:id" },
+      "notes": "test api(`/api/contacts/${contact.id}`, { method: 'PATCH' }); app.patch('/api/contacts/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/championSync.test.ts", "line": 298 },
+      "method": "DELETE",
+      "target": { "file": "server/app.ts", "line": 995, "route": "DELETE /api/companies/:id" },
+      "notes": "test api(`/api/companies/${co.id}`, { method: 'DELETE' }); app.delete('/api/companies/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/companyHistory.test.ts", "line": 17 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 653, "route": "POST /api/companies" },
+      "notes": "createCompany: test api('/api/companies', { body }), POST (helpers.ts:45 against the listen(0) app); app.post('/api/companies')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/companyHistory.test.ts", "line": 38 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 1023, "route": "POST /api/contacts" },
+      "notes": "createContact: test api('/api/contacts', { body }), POST; app.post('/api/contacts')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/companyHistory.test.ts", "line": 59 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 750, "route": "PATCH /api/companies/:id" },
+      "notes": "test api(`/api/companies/${co.id}`, { method: 'PATCH' }); app.patch('/api/companies/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/companyHistory.test.ts", "line": 67 },
+      "method": "GET",
+      "target": {
+        "file": "server/activityRoutes.ts",
+        "line": 510,
+        "route": "GET /api/activity/company/:id/history"
+      },
+      "notes": "test api<…>(`/api/activity/company/${co.id}/history`, { session }) (path on line 69), GET; app.get('/api/activity/company/:id/history')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/companyHistory.test.ts", "line": 80 },
+      "method": "DELETE",
+      "target": { "file": "server/app.ts", "line": 995, "route": "DELETE /api/companies/:id" },
+      "notes": "test api(`/api/companies/${co.id}`, { method: 'DELETE' }); app.delete('/api/companies/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/companyHistory.test.ts", "line": 88 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 1203, "route": "PATCH /api/contacts/:id" },
+      "notes": "test api(`/api/contacts/${contact.id}`, { method: 'PATCH' }); app.patch('/api/contacts/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/companyHistory.test.ts", "line": 97 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 750, "route": "PATCH /api/companies/:id" },
+      "notes": "test api(`/api/companies/${co.id}`, { method: 'PATCH' }); app.patch('/api/companies/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/companyHistory.test.ts", "line": 103 },
+      "method": "GET",
+      "target": {
+        "file": "server/activityRoutes.ts",
+        "line": 510,
+        "route": "GET /api/activity/company/:id/history"
+      },
+      "notes": "test api<…>(`/api/activity/company/${co.id}/history`, { session }) (path on line 113), GET; app.get('/api/activity/company/:id/history')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/companyHistory.test.ts", "line": 143 },
+      "method": "DELETE",
+      "target": { "file": "server/app.ts", "line": 995, "route": "DELETE /api/companies/:id" },
+      "notes": "test api(`/api/companies/${co.id}`, { method: 'DELETE' }); app.delete('/api/companies/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/companyHistory.test.ts", "line": 148 },
+      "method": "GET",
+      "target": {
+        "file": "server/activityRoutes.ts",
+        "line": 510,
+        "route": "GET /api/activity/company/:id/history"
+      },
+      "notes": "test api('/api/activity/company/00000000-…/history', { session }), GET (404 for the unknown id, but the route's path); app.get('/api/activity/company/:id/history')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/discovery.test.ts", "line": 11 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 260, "route": "PATCH /api/settings" },
+      "notes": "test api('/api/settings', { method: 'PATCH' }) (helpers.ts:45 against the listen(0) app); app.patch('/api/settings')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/discovery.test.ts", "line": 33 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 235, "route": "GET /api/config" },
+      "notes": "test api<…>('/api/config') (path on line 35), GET; app.get('/api/config')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/discovery.test.ts", "line": 41 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 653, "route": "POST /api/companies" },
+      "notes": "test api<…>('/api/companies', { session, body }) (path on line 44), body so POST; app.post('/api/companies')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/discovery.test.ts", "line": 58 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 750, "route": "PATCH /api/companies/:id" },
+      "notes": "test api<…>(`/api/companies/${created.data.id}`, { method: 'PATCH' }) (path on line 60); app.patch('/api/companies/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/discovery.test.ts", "line": 73 },
+      "method": "GET",
+      "target": {
+        "file": "server/activityRoutes.ts",
+        "line": 510,
+        "route": "GET /api/activity/company/:id/history"
+      },
+      "notes": "test api<…>(`/api/activity/company/${created.data.id}/history`, { session }) (path on line 75), GET; app.get('/api/activity/company/:id/history')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/discovery.test.ts", "line": 81 },
+      "method": "DELETE",
+      "target": { "file": "server/app.ts", "line": 995, "route": "DELETE /api/companies/:id" },
+      "notes": "test api(`/api/companies/${created.data.id}`, { method: 'DELETE' }); app.delete('/api/companies/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/docs.test.ts", "line": 8 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 90, "route": "ALL /api/docs" },
+      "notes": "test api('/api/docs'), GET, against the listen(0) app (helpers.ts:16-21) with docs on (config.enableApiDocs = !isProd, NODE_ENV test); app.use('/api/docs', …, swaggerUi.serve, swaggerUi.setup(doc)) answers the Swagger UI page for any method, so ALL"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/docs.test.ts", "line": 27 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(`http://127.0.0.1:${port}/api/docs`) against a fresh app.js import built after the test sets config.enableApiDocs = false (line 14), so the /api/docs mount (server/app.ts:85-90) is never registered and nothing else serves the path; the test expects 404"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/exportActivity.test.ts", "line": 14 },
+      "method": "GET",
+      "target": {
+        "file": "server/activityRoutes.ts",
+        "line": 256,
+        "route": "GET /api/activity/export"
+      },
+      "notes": "test api('/api/activity/export?format=json', { session }), GET (403 for an SDR, but the route's path), helpers.ts:45 against the listen(0) app; app.get('/api/activity/export')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/exportActivity.test.ts", "line": 19 },
+      "method": "GET",
+      "target": {
+        "file": "server/activityRoutes.ts",
+        "line": 256,
+        "route": "GET /api/activity/export"
+      },
+      "notes": "plain fetch(`${getBaseUrl()}/api/activity/export?format=json`), no method so GET; base = the test's own server/app.js listen(0) server (helpers.ts:16-21); app.get('/api/activity/export')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/exportActivity.test.ts", "line": 29 },
+      "method": "GET",
+      "target": {
+        "file": "server/activityRoutes.ts",
+        "line": 256,
+        "route": "GET /api/activity/export"
+      },
+      "notes": "plain fetch(`${getBaseUrl()}/api/activity/export?format=csv`), GET, same base; app.get('/api/activity/export')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/flows.test.ts", "line": 7 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 567, "route": "GET /api/bootstrap" },
+      "notes": "test api('/api/bootstrap', { session }), GET (helpers.ts:45 against the listen(0) app); app.get('/api/bootstrap')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/flows.test.ts", "line": 14 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 610, "route": "GET /api/metrics" },
+      "notes": "test api('/api/metrics', { session }), GET; app.get('/api/metrics')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/flows.test.ts", "line": 25 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 653, "route": "POST /api/companies" },
+      "notes": "test api('/api/companies', { body }), POST; app.post('/api/companies')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/flows.test.ts", "line": 38 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 750, "route": "PATCH /api/companies/:id" },
+      "notes": "test api(`/api/companies/${created.data.id}`, { method: 'PATCH' }); app.patch('/api/companies/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/flows.test.ts", "line": 47 },
+      "method": "DELETE",
+      "target": { "file": "server/app.ts", "line": 995, "route": "DELETE /api/companies/:id" },
+      "notes": "test api(`/api/companies/${created.data.id}`, { method: 'DELETE' }); app.delete('/api/companies/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/flows.test.ts", "line": 55 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 567, "route": "GET /api/bootstrap" },
+      "notes": "test api('/api/bootstrap', { session }), GET; app.get('/api/bootstrap')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/flows.test.ts", "line": 60 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 1023, "route": "POST /api/contacts" },
+      "notes": "test api('/api/contacts', { body }), POST; app.post('/api/contacts')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/flows.test.ts", "line": 71 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 1203, "route": "PATCH /api/contacts/:id" },
+      "notes": "test api(`/api/contacts/${created.data.id}`, { method: 'PATCH' }); app.patch('/api/contacts/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/flows.test.ts", "line": 82 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 567, "route": "GET /api/bootstrap" },
+      "notes": "test api('/api/bootstrap', { session }), GET; app.get('/api/bootstrap')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/flows.test.ts", "line": 86 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 1023, "route": "POST /api/contacts" },
+      "notes": "test api('/api/contacts', { body }), POST; app.post('/api/contacts')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/flows.test.ts", "line": 90 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 1023, "route": "POST /api/contacts" },
+      "notes": "test api('/api/contacts', { body }), POST; app.post('/api/contacts')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/flows.test.ts", "line": 95 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 1080,
+        "route": "POST /api/contacts/bulk-status"
+      },
+      "notes": "test api('/api/contacts/bulk-status', { method: 'POST' }); app.post('/api/contacts/bulk-status')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/flows.test.ts", "line": 103 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 567, "route": "GET /api/bootstrap" },
+      "notes": "test api('/api/bootstrap', { session }), GET; app.get('/api/bootstrap')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/flows.test.ts", "line": 127 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 1480, "route": "POST /api/import/prospects" },
+      "notes": "test api<…>('/api/import/prospects', { body }) (path on line 131), POST; app.post('/api/import/prospects')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/flows.test.ts", "line": 137 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 1480, "route": "POST /api/import/prospects" },
+      "notes": "test api<…>('/api/import/prospects' (line 138), { body }), POST; app.post('/api/import/prospects')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/flows.test.ts", "line": 150 },
+      "method": "GET",
+      "target": {
+        "file": "server/activityRoutes.ts",
+        "line": 219,
+        "route": "GET /api/activity/sdrs"
+      },
+      "notes": "test api('/api/activity/sdrs', { session }), GET; app.get('/api/activity/sdrs')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/flows.test.ts", "line": 154 },
+      "method": "GET",
+      "target": {
+        "file": "server/activityRoutes.ts",
+        "line": 331,
+        "route": "GET /api/activity/overview"
+      },
+      "notes": "test api('/api/activity/overview?userId=all', { session }), GET; app.get('/api/activity/overview')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/flows.test.ts", "line": 155 },
+      "method": "GET",
+      "target": {
+        "file": "server/activityRoutes.ts",
+        "line": 475,
+        "route": "GET /api/activity/timeline"
+      },
+      "notes": "test api('/api/activity/timeline?userId=all', { session }), GET; app.get('/api/activity/timeline')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/flows.test.ts", "line": 160 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 567, "route": "GET /api/bootstrap" },
+      "notes": "test api('/api/bootstrap', { session }), GET; app.get('/api/bootstrap')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/flows.test.ts", "line": 164 },
+      "method": "POST",
+      "target": {
+        "file": "server/activityRoutes.ts",
+        "line": 305,
+        "route": "POST /api/activity/events"
+      },
+      "notes": "test api('/api/activity/events', { body }), POST; app.post('/api/activity/events')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/helpers.ts", "line": 68 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 329, "route": "POST /api/auth/login" },
+      "notes": "loginAsCookie(): fetch(`${getBaseUrl()}/api/auth/login`, { method: 'POST' }), path fixed in the helper so labeled here, not at its many calls; base = server/app.js listen(0) from startApi (lines 16-21); app.post('/api/auth/login')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/stageAutoMove.test.ts", "line": 27 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 260, "route": "PATCH /api/settings" },
+      "notes": "setScope: test api('/api/settings', { method: 'PATCH' }) (helpers.ts:45 against the listen(0) app); app.patch('/api/settings')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/stageAutoMove.test.ts", "line": 36 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 653, "route": "POST /api/companies" },
+      "notes": "createCompany: test api('/api/companies', { body }), POST; app.post('/api/companies')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/stageAutoMove.test.ts", "line": 46 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 1023, "route": "POST /api/contacts" },
+      "notes": "createContact: test api('/api/contacts', { body }), POST; app.post('/api/contacts')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/stageAutoMove.test.ts", "line": 60 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 1203, "route": "PATCH /api/contacts/:id" },
+      "notes": "setStatus: test api(`/api/contacts/${contactId}`, { method: 'PATCH' }); app.patch('/api/contacts/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/stageAutoMove.test.ts", "line": 70 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 567, "route": "GET /api/bootstrap" },
+      "notes": "stageOf: test api('/api/bootstrap', { session }), GET; app.get('/api/bootstrap')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/stageAutoMove.test.ts", "line": 78 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 235, "route": "GET /api/config" },
+      "notes": "test api('/api/config'), GET; app.get('/api/config')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/stageAutoMove.test.ts", "line": 86 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 260, "route": "PATCH /api/settings" },
+      "notes": "test api('/api/settings', { method: 'PATCH' }); app.patch('/api/settings')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/stageAutoMove.test.ts", "line": 104 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 260, "route": "PATCH /api/settings" },
+      "notes": "test api('/api/settings', { method: 'PATCH' }); app.patch('/api/settings')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/stageAutoMove.test.ts", "line": 119 },
+      "method": "GET",
+      "target": {
+        "file": "server/activityRoutes.ts",
+        "line": 510,
+        "route": "GET /api/activity/company/:id/history"
+      },
+      "notes": "test api<…>(`/api/activity/company/${co.id}/history`, { session }) (path on line 121), GET; app.get('/api/activity/company/:id/history')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/stageAutoMove.test.ts", "line": 154 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 1080,
+        "route": "POST /api/contacts/bulk-status"
+      },
+      "notes": "test api<…>('/api/contacts/bulk-status' (line 155), { body }), POST; app.post('/api/contacts/bulk-status')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/whatsapp.test.ts", "line": 12 },
+      "method": "POST",
+      "target": { "file": "server/app.ts", "line": 1023, "route": "POST /api/contacts" },
+      "notes": "createContact: test api('/api/contacts', { body }), POST (helpers.ts:45 against the listen(0) app); app.post('/api/contacts')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/whatsapp.test.ts", "line": 31 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 1203, "route": "PATCH /api/contacts/:id" },
+      "notes": "test api(`/api/contacts/${id}`, { method: 'PATCH' }); app.patch('/api/contacts/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/whatsapp.test.ts", "line": 41 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 1203, "route": "PATCH /api/contacts/:id" },
+      "notes": "test api(`/api/contacts/${id}`, { method: 'PATCH' }); app.patch('/api/contacts/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/whatsapp.test.ts", "line": 49 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 1203, "route": "PATCH /api/contacts/:id" },
+      "notes": "test api(`/api/contacts/${id}`, { method: 'PATCH' }); app.patch('/api/contacts/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/whatsapp.test.ts", "line": 56 },
+      "method": "GET",
+      "target": {
+        "file": "server/activityRoutes.ts",
+        "line": 575,
+        "route": "GET /api/contacts/:id/call-log"
+      },
+      "notes": "test api<…>(`/api/contacts/${id}/call-log` (line 57), { method: 'GET' }); app.get('/api/contacts/:id/call-log')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/whatsapp.test.ts", "line": 66 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 567, "route": "GET /api/bootstrap" },
+      "notes": "test api('/api/bootstrap', { method: 'GET' }); app.get('/api/bootstrap')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/whatsapp.test.ts", "line": 72 },
+      "method": "DELETE",
+      "target": { "file": "server/app.ts", "line": 1451, "route": "DELETE /api/contacts/:id" },
+      "notes": "test api(`/api/contacts/${id}`, { method: 'DELETE' }); app.delete('/api/contacts/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/whatsapp.test.ts", "line": 78 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 1203, "route": "PATCH /api/contacts/:id" },
+      "notes": "test api(`/api/contacts/${id}`, { method: 'PATCH' }) (400 for the non-boolean, but the route's path); app.patch('/api/contacts/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/whatsapp.test.ts", "line": 84 },
+      "method": "DELETE",
+      "target": { "file": "server/app.ts", "line": 1451, "route": "DELETE /api/contacts/:id" },
+      "notes": "test api(`/api/contacts/${id}`, { method: 'DELETE' }); app.delete('/api/contacts/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/whatsapp.test.ts", "line": 91 },
+      "method": "PATCH",
+      "target": { "file": "server/app.ts", "line": 1203, "route": "PATCH /api/contacts/:id" },
+      "notes": "test api(`/api/contacts/${a}`, { method: 'PATCH' }); app.patch('/api/contacts/:id')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/whatsapp.test.ts", "line": 97 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 1150,
+        "route": "POST /api/contacts/bulk-whatsapp"
+      },
+      "notes": "test api('/api/contacts/bulk-whatsapp', { body }), POST; app.post('/api/contacts/bulk-whatsapp')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/whatsapp.test.ts", "line": 104 },
+      "method": "GET",
+      "target": { "file": "server/app.ts", "line": 567, "route": "GET /api/bootstrap" },
+      "notes": "test api('/api/bootstrap', { method: 'GET' }); app.get('/api/bootstrap')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/whatsapp.test.ts", "line": 112 },
+      "method": "POST",
+      "target": {
+        "file": "server/app.ts",
+        "line": 1150,
+        "route": "POST /api/contacts/bulk-whatsapp"
+      },
+      "notes": "test api('/api/contacts/bulk-whatsapp', { body }), POST (400 for the empty list, but the route's path); app.post('/api/contacts/bulk-whatsapp')"
+    },
+    {
+      "callSite": { "file": "testing/functional/api/whatsapp.test.ts", "line": 119 },
+      "method": "DELETE",
+      "target": { "file": "server/app.ts", "line": 1451, "route": "DELETE /api/contacts/:id" },
+      "notes": "test api(`/api/contacts/${id}`, { method: 'DELETE' }) in a loop over [a, b]; app.delete('/api/contacts/:id')"
+    }
+  ]
+}
