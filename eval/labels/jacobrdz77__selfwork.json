@@ -1,0 +1,471 @@
+{
+  "repo": "jacobrdz77/selfwork",
+  "sha": "9870aa0937580edefd3f5e5a3c327842adbe272a",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["prisma", "src"],
+  "edges": [
+    {
+      "callSite": { "file": "src/utils/clientFunctions.ts", "line": 13 },
+      "method": "POST",
+      "target": {
+        "file": "src/pages/api/clients/index.ts",
+        "line": 5,
+        "route": "POST /api/clients"
+      },
+      "notes": "createClient: axios.post(\"/clients\") on the axios.create() instance (src/libs/axios.ts, baseURL \"/api\", same Next app). Pages-router handler, route line is the default export; it branches on req.method (GET, POST) and answers nothing else, so the request's method"
+    },
+    {
+      "callSite": { "file": "src/utils/clientFunctions.ts", "line": 22 },
+      "method": "GET",
+      "target": {
+        "file": "src/pages/api/clients/index.ts",
+        "line": 5,
+        "route": "GET /api/clients"
+      },
+      "notes": "getClients: axios.get(\"/clients\", { data }) on the /api instance; GET branch of clients/index.ts"
+    },
+    {
+      "callSite": { "file": "src/utils/clientFunctions.ts", "line": 33 },
+      "method": "GET",
+      "target": {
+        "file": "src/pages/api/clients/[clientId].ts",
+        "line": 4,
+        "route": "GET /api/clients/:clientId"
+      },
+      "notes": "getOneClient: axios.get(`/clients/${clientId}`) on the /api instance; [clientId].ts handles GET, DELETE, PUT"
+    },
+    {
+      "callSite": { "file": "src/utils/clientFunctions.ts", "line": 43 },
+      "method": "PUT",
+      "target": {
+        "file": "src/pages/api/clients/[clientId].ts",
+        "line": 4,
+        "route": "PUT /api/clients/:clientId"
+      },
+      "notes": "updateClient: axios.put(`/clients/${clientId}`) on the /api instance; PUT branch"
+    },
+    {
+      "callSite": { "file": "src/utils/clientFunctions.ts", "line": 53 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/pages/api/clients/[clientId].ts",
+        "line": 4,
+        "route": "DELETE /api/clients/:clientId"
+      },
+      "notes": "deleteClient: axios.delete(`/clients/${clientId}`) on the /api instance; DELETE branch"
+    },
+    {
+      "callSite": { "file": "src/utils/linkFunctions.ts", "line": 7 },
+      "method": "GET",
+      "target": { "file": "src/pages/api/links/index.ts", "line": 4, "route": "GET /api/links" },
+      "notes": "getLinks: axios.get(`/links?projectId=…`) on the /api instance (query dropped); links/index.ts handles GET, POST"
+    },
+    {
+      "callSite": { "file": "src/utils/linkFunctions.ts", "line": 16 },
+      "method": "POST",
+      "target": { "file": "src/pages/api/links/index.ts", "line": 4, "route": "POST /api/links" },
+      "notes": "createLink: axios.post(`/links`) on the /api instance; POST branch"
+    },
+    {
+      "callSite": { "file": "src/utils/linkFunctions.ts", "line": 28 },
+      "method": "PUT",
+      "target": {
+        "file": "src/pages/api/links/[linkId].ts",
+        "line": 4,
+        "route": "PUT /api/links/:linkId"
+      },
+      "notes": "updateLink: axios.put(`/links/${linkId}`) on the /api instance; [linkId].ts handles GET, DELETE, PUT"
+    },
+    {
+      "callSite": { "file": "src/utils/linkFunctions.ts", "line": 37 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/pages/api/links/[linkId].ts",
+        "line": 4,
+        "route": "DELETE /api/links/:linkId"
+      },
+      "notes": "deleteLink: axios.delete(`/links/${linkId}`) on the /api instance; DELETE branch"
+    },
+    {
+      "callSite": { "file": "src/utils/projectFunctions.ts", "line": 16 },
+      "method": "GET",
+      "target": {
+        "file": "src/pages/api/workspaces/[workspaceId]/projects.ts",
+        "line": 5,
+        "route": "GET /api/workspaces/:workspaceId/projects"
+      },
+      "notes": "getProjects: axios.get(`/workspaces/${workspaceId}/projects`) on the /api instance; projects.ts handles GET only (the commented-out /projects?workspaceId call above isn't code)"
+    },
+    {
+      "callSite": { "file": "src/utils/projectFunctions.ts", "line": 28 },
+      "method": "GET",
+      "target": {
+        "file": "src/pages/api/workspaces/[workspaceId]/projects.ts",
+        "line": 5,
+        "route": "GET /api/workspaces/:workspaceId/projects"
+      },
+      "notes": "getProjectsWithSections: axios.get(`/workspaces/${workspaceId}/projects?sections=true`) on the /api instance (query dropped); GET branch"
+    },
+    {
+      "callSite": { "file": "src/utils/projectFunctions.ts", "line": 40 },
+      "method": "GET",
+      "target": {
+        "file": "src/pages/api/projects/[projectId]/index.ts",
+        "line": 6,
+        "route": "GET /api/projects/:projectId"
+      },
+      "notes": "getOneProject: axios.get(`/projects/${projectId}`) on the /api instance; [projectId]/index.ts handles GET, DELETE, PUT"
+    },
+    {
+      "callSite": { "file": "src/utils/projectFunctions.ts", "line": 50 },
+      "method": "POST",
+      "target": {
+        "file": "src/pages/api/projects/index.ts",
+        "line": 7,
+        "route": "POST /api/projects"
+      },
+      "notes": "createProject: axios.post(\"/projects\") on the /api instance; projects/index.ts handles GET, POST"
+    },
+    {
+      "callSite": { "file": "src/utils/projectFunctions.ts", "line": 63 },
+      "method": "PUT",
+      "target": {
+        "file": "src/pages/api/projects/[projectId]/index.ts",
+        "line": 6,
+        "route": "PUT /api/projects/:projectId"
+      },
+      "notes": "updateProject: axios.put(`/projects/${projectId}`) on the /api instance; PUT branch"
+    },
+    {
+      "callSite": { "file": "src/utils/projectFunctions.ts", "line": 73 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/pages/api/projects/[projectId]/index.ts",
+        "line": 6,
+        "route": "DELETE /api/projects/:projectId"
+      },
+      "notes": "deleteProject: axios.delete(`/projects/${projectId}`) on the /api instance; DELETE branch"
+    },
+    {
+      "callSite": { "file": "src/utils/projectFunctions.ts", "line": 105 },
+      "method": "GET",
+      "target": {
+        "file": "src/pages/api/projects/[projectId]/invite_link.ts",
+        "line": 5,
+        "route": "GET /api/projects/:projectId/invite_link"
+      },
+      "notes": "getProjectInvitees: axios.get(`/projects/${projectId}/invite_link`) on the /api instance; invite_link.ts handles GET only"
+    },
+    {
+      "callSite": { "file": "src/utils/projectFunctions.ts", "line": 115 },
+      "method": "GET",
+      "target": {
+        "file": "src/pages/api/projects/[projectId]/members.ts",
+        "line": 5,
+        "route": "GET /api/projects/:projectId/members"
+      },
+      "notes": "getProjectMembers: axios.get(`/projects/${projectId}/members`) on the /api instance; members.ts handles GET only"
+    },
+    {
+      "callSite": { "file": "src/utils/sectionFunctions.ts", "line": 7 },
+      "method": "GET",
+      "target": {
+        "file": "src/pages/api/sections/index.ts",
+        "line": 5,
+        "route": "GET /api/sections"
+      },
+      "notes": "getSectionsofProject: axios.get(`/sections?projectId=…`) on the /api instance (query dropped); sections/index.ts handles GET, POST"
+    },
+    {
+      "callSite": { "file": "src/utils/sectionFunctions.ts", "line": 15 },
+      "method": "GET",
+      "target": {
+        "file": "src/pages/api/sections/index.ts",
+        "line": 5,
+        "route": "GET /api/sections"
+      },
+      "notes": "getSectionsofUser: axios.get(`/sections?userId=…`) on the /api instance (query dropped); GET branch"
+    },
+    {
+      "callSite": { "file": "src/utils/sectionFunctions.ts", "line": 35 },
+      "method": "POST",
+      "target": {
+        "file": "src/pages/api/sections/index.ts",
+        "line": 5,
+        "route": "POST /api/sections"
+      },
+      "notes": "createProjectSection: axios.post(`/sections?projectId=…`) on the /api instance (query dropped); POST branch, not projects/[projectId]/sections.ts"
+    },
+    {
+      "callSite": { "file": "src/utils/sectionFunctions.ts", "line": 55 },
+      "method": "POST",
+      "target": {
+        "file": "src/pages/api/sections/index.ts",
+        "line": 5,
+        "route": "POST /api/sections"
+      },
+      "notes": "createUserSection: axios.post(`/sections?userId=…`) on the /api instance (query dropped); POST branch"
+    },
+    {
+      "callSite": { "file": "src/utils/sectionFunctions.ts", "line": 70 },
+      "method": "PUT",
+      "target": {
+        "file": "src/pages/api/sections/[sectionId].ts",
+        "line": 6,
+        "route": "PUT /api/sections/:sectionId"
+      },
+      "notes": "updateSection: axios.put(`/sections/${sectionId}`) on the /api instance; [sectionId].ts handles GET, DELETE, PUT"
+    },
+    {
+      "callSite": { "file": "src/utils/sectionFunctions.ts", "line": 83 },
+      "method": "PUT",
+      "target": {
+        "file": "src/pages/api/sections/[sectionId].ts",
+        "line": 6,
+        "route": "PUT /api/sections/:sectionId"
+      },
+      "notes": "updateSectionOrder: axios.put(`/sections/${sectionData.id}?order_change=true`) on the /api instance (query dropped); PUT branch"
+    },
+    {
+      "callSite": { "file": "src/utils/sectionFunctions.ts", "line": 98 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/pages/api/sections/[sectionId].ts",
+        "line": 6,
+        "route": "DELETE /api/sections/:sectionId"
+      },
+      "notes": "deleteSection: axios.delete(`/sections/${sectionId}`) on the /api instance; DELETE branch"
+    },
+    {
+      "callSite": { "file": "src/utils/sketchFunctions.ts", "line": 12 },
+      "method": "POST",
+      "target": {
+        "file": "src/pages/api/sketches/index.ts",
+        "line": 7,
+        "route": "POST /api/sketches"
+      },
+      "notes": "createSketch: axios.post(`/sketches`) on the /api instance; sketches/index.ts handles GET, POST"
+    },
+    {
+      "callSite": { "file": "src/utils/sketchFunctions.ts", "line": 22 },
+      "method": "GET",
+      "target": {
+        "file": "src/pages/api/projects/[projectId]/sketches/index.ts",
+        "line": 4,
+        "route": "GET /api/projects/:projectId/sketches"
+      },
+      "notes": "getProjectSketches: axios.get(`/projects/${projectId}/sketches`) on the /api instance; sketches/index.ts under [projectId] handles GET only"
+    },
+    {
+      "callSite": { "file": "src/utils/sketchFunctions.ts", "line": 32 },
+      "method": "GET",
+      "target": {
+        "file": "src/pages/api/sketches/[sketchId].ts",
+        "line": 5,
+        "route": "GET /api/sketches/:sketchId"
+      },
+      "notes": "getOneSketch: axios.get(`/sketches/${sketchId}`) on the /api instance; [sketchId].ts handles GET, DELETE, PUT"
+    },
+    {
+      "callSite": { "file": "src/utils/sketchFunctions.ts", "line": 45 },
+      "method": "PUT",
+      "target": {
+        "file": "src/pages/api/sketches/[sketchId].ts",
+        "line": 5,
+        "route": "PUT /api/sketches/:sketchId"
+      },
+      "notes": "updateSketch: axios.put(`/sketches/${sketchId}`) on the /api instance; PUT branch"
+    },
+    {
+      "callSite": { "file": "src/utils/sketchFunctions.ts", "line": 54 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/pages/api/sketches/[sketchId].ts",
+        "line": 5,
+        "route": "DELETE /api/sketches/:sketchId"
+      },
+      "notes": "deleteSketch: axios.delete(`/sketches/${sketchId}`) on the /api instance; DELETE branch"
+    },
+    {
+      "callSite": { "file": "src/utils/tagFunctions.ts", "line": 7 },
+      "method": "GET",
+      "target": null,
+      "notes": "getTags: axios.get(``) with an empty path on the /api instance sends GET /api; no pages/api/index file, so no route serves it"
+    },
+    {
+      "callSite": { "file": "src/utils/tagFunctions.ts", "line": 17 },
+      "method": "POST",
+      "target": { "file": "src/pages/api/tags/index.ts", "line": 5, "route": "POST /api/tags" },
+      "notes": "createTag: axios.post(\"/tags\") on the /api instance; tags/index.ts handles GET, POST"
+    },
+    {
+      "callSite": { "file": "src/utils/tagFunctions.ts", "line": 27 },
+      "method": "PUT",
+      "target": {
+        "file": "src/pages/api/tags/[tagId].ts",
+        "line": 4,
+        "route": "PUT /api/tags/:tagId"
+      },
+      "notes": "updateTag: axios.put(`/tags/${tagId}`) on the /api instance; [tagId].ts handles DELETE, PUT"
+    },
+    {
+      "callSite": { "file": "src/utils/tagFunctions.ts", "line": 35 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/pages/api/tags/[tagId].ts",
+        "line": 4,
+        "route": "DELETE /api/tags/:tagId"
+      },
+      "notes": "deleteTag: axios.delete(`/tags/${tagId}`) on the /api instance; DELETE branch"
+    },
+    {
+      "callSite": { "file": "src/utils/taskFunctions.ts", "line": 7 },
+      "method": "GET",
+      "target": { "file": "src/pages/api/tasks/index.ts", "line": 5, "route": "GET /api/tasks" },
+      "notes": "getUserTasks: axios.get(`/tasks?userId=…`) on the /api instance (query dropped); tasks/index.ts handles GET, POST"
+    },
+    {
+      "callSite": { "file": "src/utils/taskFunctions.ts", "line": 16 },
+      "method": "GET",
+      "target": { "file": "src/pages/api/tasks/index.ts", "line": 5, "route": "GET /api/tasks" },
+      "notes": "getSectionTasks: axios.get(`/tasks?sectionId=…`) on the /api instance (query dropped); GET branch"
+    },
+    {
+      "callSite": { "file": "src/utils/taskFunctions.ts", "line": 30 },
+      "method": "POST",
+      "target": { "file": "src/pages/api/tasks/index.ts", "line": 5, "route": "POST /api/tasks" },
+      "notes": "createTask: axios.post(\"/tasks\") on the /api instance; POST branch (the commented-out axios(…) above isn't code)"
+    },
+    {
+      "callSite": { "file": "src/utils/taskFunctions.ts", "line": 39 },
+      "method": "GET",
+      "target": {
+        "file": "src/pages/api/tasks/[taskId].ts",
+        "line": 6,
+        "route": "GET /api/tasks/:taskId"
+      },
+      "notes": "getOneTask: axios.get(`/tasks/${taskId}`) on the /api instance; [taskId].ts handles GET, DELETE, PUT"
+    },
+    {
+      "callSite": { "file": "src/utils/taskFunctions.ts", "line": 48 },
+      "method": "PUT",
+      "target": {
+        "file": "src/pages/api/tasks/[taskId].ts",
+        "line": 6,
+        "route": "PUT /api/tasks/:taskId"
+      },
+      "notes": "updateTask: axios.put(`/tasks/${taskId}`) on the /api instance; PUT branch"
+    },
+    {
+      "callSite": { "file": "src/utils/taskFunctions.ts", "line": 61 },
+      "method": "PUT",
+      "target": {
+        "file": "src/pages/api/tasks/[taskId].ts",
+        "line": 6,
+        "route": "PUT /api/tasks/:taskId"
+      },
+      "notes": "updateTaskOrder: axios.put(`/tasks/${taskData.id}?order_change=true`) on the /api instance (query dropped); PUT branch"
+    },
+    {
+      "callSite": { "file": "src/utils/taskFunctions.ts", "line": 76 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/pages/api/tasks/[taskId].ts",
+        "line": 6,
+        "route": "DELETE /api/tasks/:taskId"
+      },
+      "notes": "deleteTask: axios.delete(`/tasks/${taskId}`) on the /api instance; DELETE branch"
+    },
+    {
+      "callSite": { "file": "src/utils/userFunctions.ts", "line": 6 },
+      "method": "GET",
+      "target": {
+        "file": "src/pages/api/users/[userId].ts",
+        "line": 4,
+        "route": "GET /api/users/:userId"
+      },
+      "notes": "getUsers: axios.get(`/users/${userId}`) on the /api instance; [userId].ts handles GET, PUT"
+    },
+    {
+      "callSite": { "file": "src/utils/userFunctions.ts", "line": 12 },
+      "method": "GET",
+      "target": {
+        "file": "src/pages/api/users/[userId].ts",
+        "line": 4,
+        "route": "GET /api/users/:userId"
+      },
+      "notes": "getOneUser: axios.get(`/users/${userId}`) on the /api instance; GET branch"
+    },
+    {
+      "callSite": { "file": "src/utils/userFunctions.ts", "line": 18 },
+      "method": "PUT",
+      "target": {
+        "file": "src/pages/api/users/[userId].ts",
+        "line": 4,
+        "route": "PUT /api/users/:userId"
+      },
+      "notes": "updateUser: axios.put(`/users/${userId}`) on the /api instance; PUT branch"
+    },
+    {
+      "callSite": { "file": "src/utils/userFunctions.ts", "line": 33 },
+      "method": "POST",
+      "target": {
+        "file": "src/pages/api/projects/[projectId]/invite.ts",
+        "line": 5,
+        "route": "POST /api/projects/:projectId/invite"
+      },
+      "notes": "inviteMember: axios.post(`/projects/${inviteData.projectId}/invite`) on the /api instance; invite.ts handles POST only"
+    },
+    {
+      "callSite": { "file": "src/utils/workspaceFunctions.ts", "line": 7 },
+      "method": "GET",
+      "target": {
+        "file": "src/pages/api/workspaces/[workspaceId]/index.ts",
+        "line": 5,
+        "route": "GET /api/workspaces/:workspaceId"
+      },
+      "notes": "getOneWorkspace: axios.get(`/workspaces/${workspaceId}`) on the /api instance; [workspaceId]/index.ts handles GET, DELETE, PUT"
+    },
+    {
+      "callSite": { "file": "src/utils/workspaceFunctions.ts", "line": 16 },
+      "method": "GET",
+      "target": {
+        "file": "src/pages/api/workspaces/index.ts",
+        "line": 6,
+        "route": "GET /api/workspaces"
+      },
+      "notes": "getWorkspaces: axios.get(`/workspaces?ownerId=…`) on the /api instance (query dropped); workspaces/index.ts handles GET, POST"
+    },
+    {
+      "callSite": { "file": "src/utils/workspaceFunctions.ts", "line": 32 },
+      "method": "PUT",
+      "target": {
+        "file": "src/pages/api/workspaces/[workspaceId]/index.ts",
+        "line": 5,
+        "route": "PUT /api/workspaces/:workspaceId"
+      },
+      "notes": "updateworkspace: axios.put(`/workspaces/${workspaceId}`) on the /api instance; PUT branch"
+    },
+    {
+      "callSite": { "file": "src/utils/workspaceFunctions.ts", "line": 54 },
+      "method": "GET",
+      "target": {
+        "file": "src/pages/api/workspaces/[workspaceId]/members.ts",
+        "line": 5,
+        "route": "GET /api/workspaces/:workspaceId/members"
+      },
+      "notes": "getWorkspaceMembers: axios.get(`/workspaces/${workspaceId}/members`) on the /api instance; members.ts handles GET only"
+    },
+    {
+      "callSite": { "file": "src/utils/workspaceFunctions.ts", "line": 67 },
+      "method": "GET",
+      "target": {
+        "file": "src/pages/api/workspaces/[workspaceId]/invite_link.ts",
+        "line": 5,
+        "route": "GET /api/workspaces/:workspaceId/invite_link"
+      },
+      "notes": "getWorkspaceInvitees: axios.get(`/workspaces/${workspaceId}/invite_link`) on the /api instance; invite_link.ts handles GET only"
+    }
+  ]
+}

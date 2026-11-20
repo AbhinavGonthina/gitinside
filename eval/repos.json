@@ -240,6 +240,16 @@
       "heldOut": 6
     },
     {
+      "owner": "jacobrdz77",
+      "name": "selfwork",
+      "url": "https://github.com/jacobrdz77/selfwork",
+      "sha": "9870aa0937580edefd3f5e5a3c327842adbe272a",
+      "license": "MIT",
+      "shape": "axios-baseurl",
+      "why": "Held out, batch 7 (M12.2b3, drawn in stratum nextjs-prisma). A single Next.js pages-router app under src/ (Prisma, NextAuth with Google, TanStack Query, Zustand, Excalidraw, nodemailer): pages in src/pages, components in src/components, TanStack Query hooks in src/hooks that call plain service functions, and 26 API handlers under src/pages/api besides NextAuth's [...nextauth]. Every client request goes through one axios instance, `axios.create({ baseURL: \"/api\" })` in src/libs/axios.ts (re-exported as `axios` and imported as \"libs/axios\"), with a fixed path in one of 9 src/utils/*Functions.ts service modules (clients, links, projects, sections, sketches, tags, tasks, users, workspaces): 49 calls, GET/POST/PUT/DELETE, many with a query string (`/sections?projectId=…`, `/tasks/${id}?order_change=true`) that is dropped from the route. Each pages/api handler is a default export that branches on `req.method` with `if`/`else if` and answers nothing else, so each label carries the request's method and the route line is the `export default async function handler(` line. Traps: getProjects and getProjectsWithSections call `/workspaces/${workspaceId}/projects` (pages/api/workspaces/[workspaceId]/projects.ts), not /projects; createProjectSection posts to `/sections?projectId=…` (sections/index.ts), not the unused projects/[projectId]/sections.ts; inviteMember in userFunctions.ts posts to projects/[projectId]/invite.ts; getProjectSketches reaches the nested projects/[projectId]/sketches/index.ts; getUsers and getOneUser both GET /api/users/:userId; getTags calls `axios.get(``)` with an empty path, so it sends GET /api, which no route serves (null). Several commented-out axios calls (old /projects?workspaceId, /users/:id/sections, /workspaces POST and DELETE) are not code. next.config.js only redirects / to /login (no basePath or rewrites), and middleware.ts does nothing. Not labeled: NextAuth's signIn(\"google\") and SessionProvider and its [...nextauth] route, nodemailer (SDK), Prisma queries, the Google Tag Manager <Script src>, <a href>/Link navigations, and the commented-out Supabase calls in src/utils/auth.ts. 167 TS/JS source files (108 bundled Excalidraw chunks under public/assets not counted).",
+      "heldOut": 7
+    },
+    {
       "owner": "jgudo",
       "name": "foodie",
       "url": "https://github.com/jgudo/foodie",
@@ -316,6 +326,26 @@
       "shape": "env-api-urls",
       "why": "Held out (M5A.2b). Vite React frontend (frontend/) and an ESM Express + Prisma backend (backend/) side by side, no root package.json. Every request is an inline axios call (or one streaming fetch) on `${process.env.SERVER_URL}/...`, where process.env.SERVER_URL is substituted by vite.config.js `define` from REACT_APP_SERVER_URL, with no in-code fallback; template ternaries pick between two routes, and a router is mounted at a parameterized path (/editorial/:problemStatementId, mergeParams). The backend calls GitHub's OAuth and user APIs. ~80 JS source files.",
       "heldOut": 1
+    },
+    {
+      "owner": "MatheusBomtempo",
+      "name": "JornAI",
+      "url": "https://github.com/MatheusBomtempo/JornAI",
+      "sha": "f6c4b308f3b5ba4ce57ab41d995869b63d296d74",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 7 (M12.2b3, drawn in stratum nextjs-prisma). Next.js App Router app under src/ (Prisma, no basePath, rewrites, or custom server; middleware only redirects pages and skips /api). The client components send 41 requests through the fetch wrapper in src/lib/api-client.ts (`apiGet`/`apiPost`/`apiPatch`/`apiDelete` over `api(path)`, root-relative /api/... paths, same origin), labeled at each wrapper call, plus one direct `fetch` of /api/fonts/poppins/:weight in src/components/ArtEditor.tsx; the 42 reach 37 distinct handlers in the 34 route.ts files (each `export const GET = route(…)` line), with :id/:vid and :weight params and two query-only alternatives (art-templates?all=1, ai-balance?fresh=1). Traps: the wrapper's own `fetch(path)` isn't labeled; `uploadWithProgress` (same file) sends XMLHttpRequest uploads to /api/upload and to a presigned bucket URL, which aren't labeled; the 23 `null` labels are server-side requests to external hosts (Instagram Graph API in src/lib/instagram.ts and scripts/test-instagram.mjs, OpenAI-compatible AI providers and OpenRouter's balance through env fallbacks in src/lib/env.ts, Pexels search and download) and runtime URLs (reporter-pasted links through `scrapeUrl` → `safeFetch`, and stored photo, overlay, video, and logo URLs fetched by the render helpers, labeled at the src/lib/services/posts.ts calls that read them from the database or request; local storage serves them as static files under public/uploads). Not labeled: the Anthropic SDK, S3 client, and email sender (library requests), Next server actions, and code in comments; 174 TS/JS source files.",
+      "heldOut": 7
+    },
+    {
+      "owner": "mbeps",
+      "name": "magician-ai",
+      "url": "https://github.com/mbeps/magician-ai",
+      "sha": "57283c12cf3fc2cfa08f3d9d729be30b7fb8d30b",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 7 (M12.2b3, drawn in stratum nextjs-prisma). A single Next.js 13 App Router app (Clerk auth, Prisma on MySQL, OpenAI, Replicate, Stripe) with no workspaces: dashboard pages under app/(dashboard)/(routes)/{code,conversation,image,music,video}/page.tsx, shared components under components/, and seven route handlers in app/api/{code,conversation,image,music,stripe,video,webhook}/route.ts (each exports one handler: GET for stripe, POST for the rest). The client sends all 7 requests with plain axios on root-relative literals, so they're same-origin: five axios.post calls from the dashboard pages and two axios.get(\"/api/stripe\") calls from components/buttons/SubscriptionButton.tsx and components/modals/ProModal.tsx. next.config.js sets no basePath or rewrites, and middleware.ts is Clerk's authMiddleware (publicRoutes / and /api/webhook), which only guards. The trap is the code page: it posts to /api/conversation, not /api/code, so POST /api/code has no caller (nor does POST /api/webhook, which Stripe calls from outside). Not labeled: the OpenAI, Replicate, and Stripe SDK calls inside the route handlers (library requests), window.location.href navigations to the Stripe URL each /api/stripe reply returns, and next/link hrefs. 65 TS/JS source files.",
+      "heldOut": 7
     },
     {
       "owner": "Misyuk-T",
@@ -445,6 +475,16 @@
       "shape": "next-api-routes",
       "why": "Held out, batch 5 (M5C.8b4, drawn in stratum nextjs-prisma). A single Next.js 16 App Router app (NextAuth, Prisma, node-cron, Telegram alerts) with route groups (authLayout, commonLayout, dashboardLayout) and route.ts handlers under src/app/api. The client sends 22 root-relative fetch requests on literals and templates, all inline in the auth forms and dashboard components: four literal /api/auth/* routes (register, forgot-password, reset-password, verify-email) that Next serves ahead of the [...nextauth] catch-all beside them, GET/POST /api/monitors, PATCH/DELETE /api/monitors/${id}, POST /api/monitors/${id}/check, GET /api/monitors/${id}/details, GET/PATCH/DELETE /api/user/profile, /api/telegram/connect and /test, /api/feedback, /api/incidents, /api/status, and the public page's /api/status/${id} (a status/[userId] folder beside status/route.ts). Every method sent has an exported handler. No basePath or rewrites; src/proxy.ts (Next 16's middleware) only redirects /dashboard paths. Server-side, the cron's uptime check fetches each monitor's user-supplied URL, the Telegram helper posts to api.telegram.org, and the instrumentation hook pings HC_PING_URL (no value anywhere in the repo), all null. Not labeled: NextAuth's signIn/signOut, nodemailer, a script's node https/http calls to Telegram, and an RTK Query baseApi with no endpoints. 139 TS/JS source files.",
       "heldOut": 5
+    },
+    {
+      "owner": "redpangilinan",
+      "name": "iotawise",
+      "url": "https://github.com/redpangilinan/iotawise",
+      "sha": "563115d47923ec768210026b7000cb0c94c626cb",
+      "license": "MIT",
+      "shape": "next-api-routes",
+      "why": "Held out, batch 7 (M12.2b3, drawn in stratum nextjs-prisma). One Next.js 13 App Router app at the root (Prisma, NextAuth), no basePath, rewrites, or custom server; middleware.ts only redirects signed-in users away from /signin and /signup. Every request is a plain fetch on a root-relative /api/... path (no env base) from client components: an onClick/onSubmit handler or a module-level helper fixing its own path (two files' log-deleting helpers are both named deleteActivity), so each label sits at the fetch itself. Routes are App Router route.ts handlers: activities (GET, POST), activities/[activityId] (PATCH, DELETE), activities/[activityId]/logs (GET, POST), activities/[activityId]/logs/[logId] (DELETE), users/[userId] (PATCH), plus NextAuth's [...nextauth] catch-all, which no repo code fetches. Requests use only POST, PATCH, and DELETE; the GET handlers are never fetched (pages read Prisma directly through lib/api). The one null is a server component's fetch of api.github.com for the star count (external host). Not labeled: NextAuth's signIn/signOut (library requests) and Prisma calls named .delete(). 109 TS/JS source files (6 Jest tests under __tests__, none fetching).",
+      "heldOut": 7
     },
     {
       "owner": "RicardoGEsteves",
