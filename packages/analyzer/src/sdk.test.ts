@@ -51,6 +51,28 @@ function summary(result: SdkEdges): string[] {
   );
 }
 
+/**
+ * Each truth-table row's request targets as a sorted set, joined with `, ` (an unresolved
+ * node is `unresolved`), rows sorted: `row` names the row an edge's source belongs to. A row
+ * drawing an `exact` edge beside an unresolved one fails whichever edge comes first (M13.1a,
+ * Q8).
+ */
+function rowTargets(
+  graph: Awaited<ReturnType<typeof analyze>>,
+  row: (from: string) => string | undefined,
+): Map<string, string> {
+  const sets = new Map<string, Set<string>>();
+  for (const edge of graph.edges) {
+    if (edge.kind !== "external_call" && edge.kind !== "http") continue;
+    const key = row(edge.from);
+    if (key === undefined) continue;
+    const to = edge.to.startsWith("unresolved:") ? "unresolved" : edge.to;
+    sets.set(key, (sets.get(key) ?? new Set()).add(to));
+  }
+  const joined = [...sets].map(([key, set]): [string, string] => [key, [...set].sort().join(", ")]);
+  return new Map(joined.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+}
+
 describe("sdkPackage", () => {
   it.each([
     ["stripe", "api.stripe.com", "exact"],
@@ -1131,13 +1153,7 @@ describe("analyze: SDK clients with a base URL (M9.1a3e2a)", () => {
       await put(file, [...jsHead, ...lines, `module.exports = { ${names(lines)} };`]);
     }
     const graph = await analyze(dir);
-    const targets = new Map<string, string>();
-    for (const edge of graph.edges) {
-      if (edge.kind !== "external_call" && edge.kind !== "http") continue;
-      const p = /#use_(\w+)$/.exec(edge.from)?.[1];
-      if (p !== undefined)
-        targets.set(p, edge.to.startsWith("unresolved:") ? "unresolved" : edge.to);
-    }
+    const targets = rowTargets(graph, (from) => /#use_(\w+)$/.exec(from)?.[1]);
     const want = new Map(
       cases.map((p) => [p, expected(p.split("_")[1] ?? "", p.split("_")[2] ?? "")]),
     );
@@ -1286,14 +1302,10 @@ describe("analyze: SDK clients with a base URL (M9.1a3e2a)", () => {
     }
     await put("package.json", JSON.stringify({ name: "api" }));
     const graph = await analyze(dir);
-    const targets = new Map<string, string>();
-    for (const edge of graph.edges) {
-      if (edge.kind !== "external_call" && edge.kind !== "http") continue;
-      const match = /src\/(\w+)\/(\w+)\.\w+#(warm|list)$/.exec(edge.from);
-      if (!match) continue;
-      const to = edge.to.startsWith("unresolved:") ? "unresolved" : edge.to;
-      targets.set(`${match[1]}/${match[2]} ${match[3]}`, to);
-    }
+    const targets = rowTargets(graph, (from) => {
+      const match = /src\/(\w+)\/(\w+)\.\w+#(warm|list)$/.exec(from);
+      return match ? `${match[1]}/${match[2]} ${match[3]}` : undefined;
+    });
     // An injected client makes both calls unresolved in either order; with no setter, every
     // write is the getter's own result, so both keep the default host.
     const want = new Map<string, string>();
@@ -1486,14 +1498,10 @@ describe("analyze: SDK clients with a base URL (M9.1a3e2a)", () => {
         await put(`svc/${name}/src/${file}`, lines);
     }
     const graph = await analyze(dir);
-    const targets = new Map<string, string>();
-    for (const edge of graph.edges) {
-      if (edge.kind !== "external_call" && edge.kind !== "http") continue;
-      const match = /^symbol:(\w+)\/src\/ai\.\w+#list$/.exec(edge.from);
-      if (match?.[1] !== undefined) {
-        targets.set(match[1], edge.to.startsWith("unresolved:") ? "unresolved" : edge.to);
-      }
-    }
+    const targets = rowTargets(
+      graph,
+      (from) => /^symbol:(\w+)\/src\/ai\.\w+#list$/.exec(from)?.[1],
+    );
     const want = new Map(Object.entries(services).map(([name, s]) => [name, s.want]));
     expect(new Map([...targets].sort())).toEqual(new Map([...want].sort()));
   });
@@ -1964,14 +1972,10 @@ describe("analyze: SDK clients with a base URL (M9.1a3e2a)", () => {
           await put(`svc/${name}/src/${file}`, lines);
       }
       const graph = await analyze(dir);
-      const targets = new Map<string, string>();
-      for (const edge of graph.edges) {
-        if (edge.kind !== "external_call" && edge.kind !== "http") continue;
-        const match = /^symbol:(\w+)\/src\/ai\.\w+#(?:AI\.)?list$/.exec(edge.from);
-        if (match?.[1] !== undefined) {
-          targets.set(match[1], edge.to.startsWith("unresolved:") ? "unresolved" : edge.to);
-        }
-      }
+      const targets = rowTargets(
+        graph,
+        (from) => /^symbol:(\w+)\/src\/ai\.\w+#(?:AI\.)?list$/.exec(from)?.[1],
+      );
       // A `none` row must draw no edge at all.
       const want = new Map(
         Object.entries(services)
@@ -2086,13 +2090,14 @@ describe("analyze: SDK clients with a base URL (M9.1a3e2a)", () => {
           files: { "ai.js": jsSvc("constructor() { this.ai = new OpenAI(); }") },
           want: OPENAI,
         },
-        // Stores to another class's or another object's member of the same name are apart.
+        // Stores to another object's member of the same name, or through a type that a `Svc`
+        // can't be (`Other` needs a `tag`), are apart (M13.1a).
         p2unrelated: {
           files: {
             "ai.ts": svc("ai = new OpenAI();"),
             "other.ts": [
               H,
-              "export class Other { ai?: OpenAI; }",
+              "export class Other { ai?: OpenAI; tag = ''; }",
               "export function inject(o: Other, c: OpenAI) { o.ai = c; }",
               "const box = { ai: null as OpenAI | null };",
               "export function put(c: OpenAI) { box.ai = c; }",
@@ -2106,6 +2111,121 @@ describe("analyze: SDK clients with a base URL (M9.1a3e2a)", () => {
             "other.js": [
               "class Other { constructor(c) { this.ai = c; } }",
               "module.exports = { Other };",
+            ],
+          },
+          want: OPENAI,
+        },
+        // Q1 (M13.1a): structural typing lets a `Svc`, a literal, or the class itself be passed
+        // as another class's type, so a store through it may reach the property.
+        q1class: {
+          files: {
+            "ai.ts": [
+              ...svc("ai = new OpenAI();"),
+              "export class Holder { ai?: OpenAI; }",
+              "function inject(h: Holder, c: OpenAI) { h.ai = c; }",
+              "export function wire(c: OpenAI) { const s = new Svc(); inject(s, c); return s; }",
+            ],
+          },
+          want: "unresolved",
+        },
+        q1literal: {
+          files: {
+            "ai.ts": [
+              H,
+              'const settings = { ai: new OpenAI(), name: "s" };',
+              "export function list() { return settings.ai.models.list(); }",
+              "export class Holder { ai?: OpenAI; }",
+              "function inject(h: Holder, c: OpenAI) { h.ai = c; }",
+              "export function wire(c: OpenAI) { inject(settings, c); }",
+            ],
+          },
+          want: "unresolved",
+        },
+        q1assign: {
+          files: {
+            "ai.ts": [
+              ...svc("ai = new OpenAI();"),
+              "export class Holder { ai?: OpenAI; }",
+              "function fill(h: Holder, o: Partial<Holder>) { Object.assign(h, o); }",
+              "export function wire(c: OpenAI) { const s = new Svc(); fill(s, { ai: c }); return s; }",
+            ],
+          },
+          want: "unresolved",
+        },
+        q1static: {
+          files: {
+            "ai.ts": [
+              H,
+              "export class Svc {",
+              "  static ai = new OpenAI();",
+              "  static list() { return Svc.ai.models.list(); }",
+              "}",
+              "export class Holder { ai?: OpenAI; }",
+              "function inject(h: Holder, c: OpenAI) { h.ai = c; }",
+              "export function wire(c: OpenAI) { inject(Svc, c); }",
+            ],
+          },
+          want: "unresolved",
+        },
+        q1iface: {
+          files: {
+            "ai.ts": [
+              ...svc("ai = new OpenAI();"),
+              "interface HasAI { ai?: OpenAI }",
+              "function inject(h: HasAI, c: OpenAI) { h.ai = c; }",
+            ],
+          },
+          want: "unresolved",
+        },
+        // Controls: neither the class nor its instances can be a `Holder` (it needs a `tag`), and
+        // a store through another class's own `this` is apart.
+        q1staticctl: {
+          files: {
+            "ai.ts": [
+              H,
+              "export class Svc {",
+              "  static ai = new OpenAI();",
+              "  static list() { return Svc.ai.models.list(); }",
+              "}",
+              "export class Holder { ai?: OpenAI; tag = ''; }",
+              "export function inject(h: Holder, c: OpenAI) { h.ai = c; }",
+            ],
+          },
+          want: OPENAI,
+        },
+        q1anon: {
+          files: {
+            "ai.ts": [
+              H,
+              "export const Svc = class {",
+              "  ai = new OpenAI();",
+              "  list() { return this.ai.models.list(); }",
+              "};",
+              "export class Holder { ai?: OpenAI; }",
+              "export function inject(h: Holder, c: OpenAI) { h.ai = c; }",
+            ],
+          },
+          want: "unresolved",
+        },
+        q1anonctl: {
+          files: {
+            "ai.ts": [
+              H,
+              "export const Svc = class {",
+              "  ai = new OpenAI();",
+              "  list() { return this.ai.models.list(); }",
+              "};",
+              "export class Holder { ai?: OpenAI; tag = ''; }",
+              "export function inject(h: Holder, c: OpenAI) { h.ai = c; }",
+            ],
+          },
+          want: OPENAI,
+        },
+        q1thisctl: {
+          files: {
+            "ai.ts": [
+              ...svc("ai = new OpenAI();"),
+              "export class Holder { ai?: OpenAI; constructor(c: OpenAI) { this.ai = c; } }",
             ],
           },
           want: OPENAI,
@@ -2530,14 +2650,10 @@ describe("analyze: SDK clients with a base URL (M9.1a3e2a)", () => {
           await put(`svc/${name}/src/${file}`, lines);
       }
       const graph = await analyze(dir);
-      const targets = new Map<string, string>();
-      for (const edge of graph.edges) {
-        if (edge.kind !== "external_call" && edge.kind !== "http") continue;
-        const match = /^symbol:(\w+)\/src\/ai\.\w+#(?:\w+\.)?list$/.exec(edge.from);
-        if (match?.[1] !== undefined) {
-          targets.set(match[1], edge.to.startsWith("unresolved:") ? "unresolved" : edge.to);
-        }
-      }
+      const targets = rowTargets(
+        graph,
+        (from) => /^symbol:(\w+)\/src\/ai\.\w+#(?:\w+\.)?list$/.exec(from)?.[1],
+      );
       const want = new Map(Object.entries(services).map(([name, s]) => [name, s.want]));
       expect(new Map([...targets].sort())).toEqual(new Map([...want].sort()));
     },

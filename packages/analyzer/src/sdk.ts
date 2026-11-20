@@ -66,8 +66,11 @@
  * - Properties under the same rule (M9.7p, ADR-0272): a property whose declarations hold a
  *   client (a class field, public or `#private`, instance or static; an object literal's
  *   member; a parameter property; a CommonJS export) also holds every value the service's
- *   files store at a member of its name, unless the store's symbol is provably another one (a
- *   different object literal's member, or another class's that neither derives from): another
+ *   files store at a member of its name, unless the store is provably into another object: a
+ *   different object literal's member, or another class's that neither derives from, stored
+ *   through a `const` bound to that literal or a receiver whose type the property's owner
+ *   isn't assignable to (M13.1a, ADR-0314: types are structural, so `h.ai = c` with `h:
+ *   Holder` may write a `Svc`, a literal, or the class itself passed as a `Holder`). Another
  *   file's `s.ai = c`, a subclass's `this.ai = c`, `this["ai"] = c`, `config.ai = c`,
  *   `require("./a").ai = c`, a store through a type's member (`t.ai = c` with `t: { ai?:
  *   OpenAI }`) or on an untyped value. A store the matcher can't read (a destructuring target,
@@ -1897,15 +1900,63 @@ export function collectSdkFacts(
   };
 
   /**
-   * True when a store to symbol `stored` may write property `property` (M9.7p): the same
-   * symbol, or one the matcher can't tell apart from it. A member of a class (`this.ai`, a
-   * static, a JS field) and one of an object literal are apart from each other, from another
-   * literal's, from the other side of static and instance, and from another class's unless one
-   * class derives from the other. A store whose symbol isn't known (`s.ai = c` on `any` or an
-   * untyped JS value) or is a type's member (`t.ai` with `t: { ai?: OpenAI }`, which any
-   * object may be passed as) may write it.
+   * True when `receiver` is provably one object literal (M13.1a): a `const` bound to one, so a
+   * store through it writes that literal's member whatever its type admits. Anything else (a
+   * parameter, a call, a `let`) may be any value its type admits. (`this` in a class needs no
+   * case: its type is the class's `this` type, which no other object is assignable to.)
    */
-  const mayWrite = (sp: ServiceProgram, stored: ts.Symbol, property: ts.Symbol): boolean => {
+  const provableObject = (sp: ServiceProgram, receiver: ts.Expression): boolean => {
+    const r = unwrap(receiver);
+    if (!ts.isIdentifier(r)) return false;
+    const d = symbolAt(sp, r)?.declarations?.[0];
+    return (
+      d !== undefined &&
+      ts.isVariableDeclaration(d) &&
+      isConst(d) &&
+      d.initializer !== undefined &&
+      ts.isObjectLiteralExpression(unwrap(d.initializer))
+    );
+  };
+
+  /**
+   * The type of the object a member declaration belongs to (M13.1a): a class's instances, the
+   * class itself for a static, or an object literal's type, widened as a variable holding it
+   * would be (a fresh literal's type fails assignability on any member the target lacks). A
+   * class expression's (`const Svc = class { … }`) through its constructor type's symbol;
+   * `undefined` when there's none.
+   */
+  const ownerType = (sp: ServiceProgram, owner: MemberOwner): ts.Type | undefined => {
+    const checker = resolver.checkerOf(sp);
+    if (owner.kind === "object")
+      return checker.getWidenedType(checker.getTypeAtLocation(owner.node));
+    const symbol = owner.node.name
+      ? checker.getSymbolAtLocation(owner.node.name)
+      : checker.getTypeAtLocation(owner.node).getSymbol();
+    if (!symbol) return undefined;
+    return owner.static
+      ? checker.getTypeOfSymbolAtLocation(symbol, owner.node)
+      : checker.getDeclaredTypeOfSymbol(symbol);
+  };
+
+  /**
+   * True when a store to symbol `stored` through `receiver` may write property `property`
+   * (M9.7p, M13.1a): the same symbol, or one the matcher can't tell apart from it. A store
+   * whose symbol isn't known (`s.ai = c` on `any` or an untyped JS value) or is a type's
+   * member (`t.ai` with `t: { ai?: OpenAI }`, which any object may be passed as) may write it,
+   * and so may one to the member of a class that derives from the property's, or the reverse,
+   * on the same side of static and instance. Another class's or literal's member is apart
+   * only when the receiver is {@link provableObject} (`box.ai = c` with `const box = { … }`),
+   * or when no object the property belongs to can be the receiver (`this` in another class):
+   * TypeScript's types are structural, so a `Svc`,
+   * a literal, or the class itself may be passed as a `Holder` (`h.ai = c` with `h: Holder`),
+   * and is apart only when its type isn't assignable to the receiver's (Q1).
+   */
+  const mayWrite = (
+    sp: ServiceProgram,
+    stored: ts.Symbol,
+    property: ts.Symbol,
+    receiver: ts.Expression,
+  ): boolean => {
     if (stored === property) return true;
     const own = property.declarations ?? [];
     const other = stored.declarations ?? [];
@@ -1924,7 +1975,14 @@ export function collectSdkFacts(
         }
       }
     }
-    return false;
+    if (provableObject(sp, receiver)) return false;
+    const checker = resolver.checkerOf(sp);
+    const target = checker.getNonNullableType(checker.getTypeAtLocation(receiver));
+    return own.some((a) => {
+      const owner = memberOwner(a);
+      const source = owner && ownerType(sp, owner);
+      return !source || checker.isTypeAssignableTo(source, target);
+    });
   };
 
   /**
@@ -1945,12 +2003,12 @@ export function collectSdkFacts(
     const { named, unnamed } = memberStores(sp);
     for (const object of unnamed) {
       const stored = propertyOfType(sp, object, name);
-      if (stored && mayWrite(sp, stored, property)) return UNREAD;
+      if (stored && mayWrite(sp, stored, property, object)) return UNREAD;
     }
     let found: Branch;
     for (const store of named.get(name) ?? []) {
       const stored = storedSymbol(sp, store);
-      if (stored && !mayWrite(sp, stored, property)) continue;
+      if (stored && !mayWrite(sp, stored, property, store.object)) continue;
       found = joined(found, store.value ? branchOf(sp, store.value, hops + 1) : UNREAD);
     }
     return found;

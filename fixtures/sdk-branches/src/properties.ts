@@ -22,6 +22,37 @@ export class Recorder {
   }
 }
 
+/**
+ * A store through another class's type: types are structural, so a `Planner` may be passed as
+ * a `Badge`, and `pin` may replace its client (M13.1a).
+ */
+export class Planner {
+  ai = new OpenAI();
+  label = "plan";
+
+  models() {
+    return this.ai.models.list();
+  }
+}
+
+export class Badge {
+  ai?: OpenAI;
+  label = "";
+}
+
+export function pin(badge: Badge, client: OpenAI) {
+  badge.ai = client;
+}
+
+/** No store's type can hold an `Archivist` (each needs a member it lacks), so its client stays. */
+export class Archivist {
+  ai = new OpenAI();
+
+  history() {
+    return this.ai.models.list();
+  }
+}
+
 /** A module object's member, replaced by `configure`. */
 const settings = { llm: new OpenAI() };
 
