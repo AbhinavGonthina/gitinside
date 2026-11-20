@@ -1,0 +1,671 @@
+{
+  "repo": "AuthSphere/AuthSphere",
+  "sha": "1187496de4e9d7b36e5ddaa35d9850d82467496e",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "backend/src/controllers/auth.controller.js", "line": 82 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(conf.cliUrl + \"/cli-update?...\"): CLI_URL || \"http://localhost:5001\" (backend/src/configs/env.js:39, backend/.env.example CLI_URL=http://localhost:5001). A local CLI's listener; no server in the repo listens on 5001 (backend 8000, scripts/subdomain-demo.js 3000), so it reaches no route"
+    },
+    {
+      "callSite": { "file": "backend/src/controllers/auth.controller.js", "line": 199 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(conf.cliUrl + \"/cli-update?...\") in googleCallback: loopback port 5001 (CLI_URL fallback and backend/.env.example) that no server in the repo listens on"
+    },
+    {
+      "callSite": { "file": "backend/src/controllers/project.controller.js", "line": 587 },
+      "method": "POST",
+      "target": null,
+      "notes": "testWebhook: axios.post(webhook.url, ...), a developer-configured webhook URL read from the database at runtime; can't be known statically"
+    },
+    {
+      "callSite": { "file": "backend/src/services/auth/auth.service.js", "line": 73 },
+      "method": "GET",
+      "target": null,
+      "notes": "axios.get(\"https://ipapi.co/<ip>/json/\") (chained on line 74): external geolocation API"
+    },
+    {
+      "callSite": { "file": "backend/src/services/auth/bitbucket.service.js", "line": 38 },
+      "method": "POST",
+      "target": null,
+      "notes": "axios.post(\"https://bitbucket.org/site/oauth2/access_token\"): external OAuth provider"
+    },
+    {
+      "callSite": { "file": "backend/src/services/auth/bitbucket.service.js", "line": 66 },
+      "method": "GET",
+      "target": null,
+      "notes": "axios.get(\"https://api.bitbucket.org/2.0/user\"): external provider API"
+    },
+    {
+      "callSite": { "file": "backend/src/services/auth/bitbucket.service.js", "line": 79 },
+      "method": "GET",
+      "target": null,
+      "notes": "axios.get(\"https://api.bitbucket.org/2.0/user/emails\"): external provider API"
+    },
+    {
+      "callSite": { "file": "backend/src/services/auth/discord.service.js", "line": 29 },
+      "method": "POST",
+      "target": null,
+      "notes": "axios.post(\"https://discord.com/api/oauth2/token\"): external OAuth provider"
+    },
+    {
+      "callSite": { "file": "backend/src/services/auth/discord.service.js", "line": 55 },
+      "method": "GET",
+      "target": null,
+      "notes": "axios.get(\"https://discord.com/api/users/@me\"): external provider API"
+    },
+    {
+      "callSite": { "file": "backend/src/services/auth/github.service.js", "line": 35 },
+      "method": "POST",
+      "target": null,
+      "notes": "axios.post(\"https://github.com/login/oauth/access_token\"): external OAuth provider"
+    },
+    {
+      "callSite": { "file": "backend/src/services/auth/github.service.js", "line": 64 },
+      "method": "GET",
+      "target": null,
+      "notes": "axios.get(\"https://api.github.com/user\"): external provider API"
+    },
+    {
+      "callSite": { "file": "backend/src/services/auth/github.service.js", "line": 79 },
+      "method": "GET",
+      "target": null,
+      "notes": "axios.get(\"https://api.github.com/user/emails\"): external provider API"
+    },
+    {
+      "callSite": { "file": "backend/src/services/auth/gitlab.service.js", "line": 34 },
+      "method": "POST",
+      "target": null,
+      "notes": "axios.post(\"https://gitlab.com/oauth/token\"): external OAuth provider"
+    },
+    {
+      "callSite": { "file": "backend/src/services/auth/gitlab.service.js", "line": 56 },
+      "method": "GET",
+      "target": null,
+      "notes": "axios.get(\"https://gitlab.com/api/v4/user\"): external provider API"
+    },
+    {
+      "callSite": { "file": "backend/src/services/auth/google.service.js", "line": 69 },
+      "method": "POST",
+      "target": null,
+      "notes": "axios.post(\"https://oauth2.googleapis.com/token\"): external OAuth provider"
+    },
+    {
+      "callSite": { "file": "backend/src/services/auth/google.service.js", "line": 95 },
+      "method": "GET",
+      "target": null,
+      "notes": "axios.get(\"https://www.googleapis.com/oauth2/v3/userinfo\"): external provider API"
+    },
+    {
+      "callSite": { "file": "backend/src/services/auth/linkedin.service.js", "line": 34 },
+      "method": "POST",
+      "target": null,
+      "notes": "axios.post(\"https://www.linkedin.com/oauth/v2/accessToken\"): external OAuth provider"
+    },
+    {
+      "callSite": { "file": "backend/src/services/auth/linkedin.service.js", "line": 60 },
+      "method": "GET",
+      "target": null,
+      "notes": "axios.get(\"https://api.linkedin.com/v2/userinfo\"): external provider API"
+    },
+    {
+      "callSite": { "file": "backend/src/services/auth/microsoft.service.js", "line": 36 },
+      "method": "POST",
+      "target": null,
+      "notes": "axios.post(\"https://login.microsoftonline.com/common/oauth2/v2.0/token\"): external OAuth provider"
+    },
+    {
+      "callSite": { "file": "backend/src/services/auth/microsoft.service.js", "line": 62 },
+      "method": "GET",
+      "target": null,
+      "notes": "axios.get(\"https://graph.microsoft.com/v1.0/me\"): external provider API"
+    },
+    {
+      "callSite": { "file": "backend/src/services/auth/twitch.service.js", "line": 34 },
+      "method": "POST",
+      "target": null,
+      "notes": "axios.post(\"https://id.twitch.tv/oauth2/token\"): external OAuth provider"
+    },
+    {
+      "callSite": { "file": "backend/src/services/auth/twitch.service.js", "line": 60 },
+      "method": "GET",
+      "target": null,
+      "notes": "axios.get(\"https://api.twitch.tv/helix/users\"): external provider API"
+    },
+    {
+      "callSite": { "file": "backend/src/services/core/developer.service.js", "line": 81 },
+      "method": "GET",
+      "target": null,
+      "notes": "axios.get(\"https://ipapi.co/<ip>/json/\") (chained on line 82): external geolocation API"
+    },
+    {
+      "callSite": { "file": "backend/src/utils/pwnedPassword.js", "line": 9 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(\"https://api.pwnedpasswords.com/range/<prefix>\"): external API"
+    },
+    {
+      "callSite": { "file": "backend/src/utils/webhookSender.js", "line": 36 },
+      "method": "POST",
+      "target": null,
+      "notes": "axios.post(webhook.url, ...): each project's configured webhook URL from the database; can't be known statically"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/AnalyticsAPI.js", "line": 6 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/analytics.routes.js",
+        "line": 18,
+        "route": "GET /api/v1/analytics/:projectId/overview"
+      },
+      "notes": "getAnalyticsOverview(): shared api instance (frontend/src/api/axios.js: baseURL VITE_API_URL || \"http://localhost:8000/api/v1\", same in frontend/.env.example; backend PORT || 8000). analyticsRoutes mounted at /api/v1/analytics (routes/index.js:24); router.get(\"/:projectId/overview\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/AnalyticsAPI.js", "line": 11 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/analytics.routes.js",
+        "line": 23,
+        "route": "GET /api/v1/analytics/:projectId/charts"
+      },
+      "notes": "getAnalyticsCharts(): shared api, base http://localhost:8000/api/v1 (fallback). analyticsRoutes at /api/v1/analytics; router.get(\"/:projectId/charts\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/AnalyticsAPI.js", "line": 16 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/analytics.routes.js",
+        "line": 28,
+        "route": "GET /api/v1/analytics/:projectId/recent-activity"
+      },
+      "notes": "getRecentActivity(): shared api, path on line 17. analyticsRoutes at /api/v1/analytics; router.get(\"/:projectId/recent-activity\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/AuditLogAPI.js", "line": 5 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/auditLog.routes.js",
+        "line": 17,
+        "route": "GET /api/v1/audit-logs/global"
+      },
+      "notes": "getGlobalLogs(): shared api, base http://localhost:8000/api/v1 (fallback). auditLogRoutes mounted at /api/v1/audit-logs; router.get(\"/global\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/AuditLogAPI.js", "line": 14 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/auditLog.routes.js",
+        "line": 18,
+        "route": "GET /api/v1/audit-logs/project/:projectId"
+      },
+      "notes": "getProjectLogs(): shared api, params as query. auditLogRoutes at /api/v1/audit-logs; router.get(\"/project/:projectId\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/DeveloperAPI.js", "line": 5 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/developer.routes.js",
+        "line": 38,
+        "route": "GET /api/v1/developers/stats"
+      },
+      "notes": "getDashboardStats(): shared api, base http://localhost:8000/api/v1 (fallback). developerRoutes mounted at /api/v1/developers; router.route(\"/stats\").get"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/DeveloperAPI.js", "line": 18 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/developer.routes.js",
+        "line": 40,
+        "route": "PUT /api/v1/developers/profile"
+      },
+      "notes": "updateProfile(): shared api. developerRoutes at /api/v1/developers; router.route(\"/profile\").put (statement starts line 40)"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/DeveloperAPI.js", "line": 23 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/src/routes/developer.routes.js",
+        "line": 43,
+        "route": "DELETE /api/v1/developers/account"
+      },
+      "notes": "deleteAccount(): shared api. developerRoutes at /api/v1/developers; router.route(\"/account\").delete"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/DeveloperAPI.js", "line": 29 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/developer.routes.js",
+        "line": 46,
+        "route": "GET /api/v1/developers/settings"
+      },
+      "notes": "getDeveloperSettings(): shared api. developerRoutes at /api/v1/developers; router.route(\"/settings\").get"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/DeveloperAPI.js", "line": 34 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/developer.routes.js",
+        "line": 47,
+        "route": "PUT /api/v1/developers/preferences"
+      },
+      "notes": "updatePreferences(): shared api. developerRoutes at /api/v1/developers; router.route(\"/preferences\").put (statement starts line 47)"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/DeveloperAPI.js", "line": 39 },
+      "method": "PUT",
+      "target": {
+        "file": "backend/src/routes/developer.routes.js",
+        "line": 54,
+        "route": "PUT /api/v1/developers/organization"
+      },
+      "notes": "updateOrganization(): shared api. developerRoutes at /api/v1/developers; router.route(\"/organization\").put (statement starts line 54)"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/ProjectAPI.js", "line": 12 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/project.routes.js",
+        "line": 41,
+        "route": "GET /api/v1/projects"
+      },
+      "notes": "getProjects(): shared api, PROJECTS_URL = \"/projects\", base http://localhost:8000/api/v1 (fallback). projectRoutes mounted at /api/v1/projects; router.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/ProjectAPI.js", "line": 22 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/project.routes.js",
+        "line": 44,
+        "route": "GET /api/v1/projects/:projectId"
+      },
+      "notes": "getProject(): shared api. projectRoutes at /api/v1/projects; router.get(\"/:projectId\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/ProjectAPI.js", "line": 32 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/project.routes.js",
+        "line": 38,
+        "route": "POST /api/v1/projects"
+      },
+      "notes": "createProject(): shared api. projectRoutes at /api/v1/projects; router.post(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/ProjectAPI.js", "line": 42 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/src/routes/project.routes.js",
+        "line": 47,
+        "route": "PATCH /api/v1/projects/:projectId"
+      },
+      "notes": "updateProject(): shared api. projectRoutes at /api/v1/projects; router.patch(\"/:projectId\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/ProjectAPI.js", "line": 52 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/project.routes.js",
+        "line": 50,
+        "route": "POST /api/v1/projects/:projectId/rotate-keys"
+      },
+      "notes": "rotateProjectKeys(): shared api. projectRoutes at /api/v1/projects; router.post(\"/:projectId/rotate-keys\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/ProjectAPI.js", "line": 62 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/project.routes.js",
+        "line": 57,
+        "route": "GET /api/v1/projects/:projectId/users"
+      },
+      "notes": "getProjectUsers(): shared api. projectRoutes at /api/v1/projects; router.get(\"/:projectId/users\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/ProjectAPI.js", "line": 72 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/project.routes.js",
+        "line": 85,
+        "route": "GET /api/v1/projects/:projectId/providers-config"
+      },
+      "notes": "getConfiguredProviders(): shared api, path on line 73. projectRoutes at /api/v1/projects; router.get(\"/:projectId/providers-config\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/ProjectAPI.js", "line": 84 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/src/routes/project.routes.js",
+        "line": 64,
+        "route": "DELETE /api/v1/projects/:projectId/users/:userId"
+      },
+      "notes": "deleteProjectUser(): shared api, path on line 85. projectRoutes at /api/v1/projects; router.delete(\"/:projectId/users/:userId\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/ProjectAPI.js", "line": 96 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/src/routes/project.routes.js",
+        "line": 71,
+        "route": "PATCH /api/v1/projects/:projectId/users/:userId/verify"
+      },
+      "notes": "toggleUserVerification(): shared api, path on line 97. projectRoutes at /api/v1/projects; router.patch(\"/:projectId/users/:userId/verify\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/ProjectAPI.js", "line": 108 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/src/routes/project.routes.js",
+        "line": 78,
+        "route": "PATCH /api/v1/projects/:projectId/users/:userId/block"
+      },
+      "notes": "toggleUserBlock(): shared api, path on line 109. projectRoutes at /api/v1/projects; router.patch(\"/:projectId/users/:userId/block\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/ProjectAPI.js", "line": 120 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/src/routes/project.routes.js",
+        "line": 112,
+        "route": "DELETE /api/v1/projects/:projectId"
+      },
+      "notes": "deleteProject(): shared api. projectRoutes at /api/v1/projects; router.delete(\"/:projectId\") (line 112, registered last; no earlier DELETE matches one segment)"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/ProjectAPI.js", "line": 130 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/project.routes.js",
+        "line": 92,
+        "route": "POST /api/v1/projects/:projectId/send-test-email"
+      },
+      "notes": "sendTestEmail(): shared api, path on line 131. projectRoutes at /api/v1/projects; router.post(\"/:projectId/send-test-email\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/ProjectAPI.js", "line": 143 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/project.routes.js",
+        "line": 99,
+        "route": "POST /api/v1/projects/:projectId/webhooks"
+      },
+      "notes": "addWebhook(): shared api, path on line 144. projectRoutes at /api/v1/projects; router.post(\"/:projectId/webhooks\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/ProjectAPI.js", "line": 156 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/src/routes/project.routes.js",
+        "line": 100,
+        "route": "DELETE /api/v1/projects/:projectId/webhooks/:webhookId"
+      },
+      "notes": "deleteWebhook(): shared api, path on line 157. projectRoutes at /api/v1/projects; router.delete(\"/:projectId/webhooks/:webhookId\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/ProjectAPI.js", "line": 167 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/project.routes.js",
+        "line": 105,
+        "route": "POST /api/v1/projects/:projectId/webhooks/:webhookId/test"
+      },
+      "notes": "testWebhook(): shared api, path on line 168. projectRoutes at /api/v1/projects; router.post(\"/:projectId/webhooks/:webhookId/test\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/SDKAPI.js", "line": 8 },
+      "method": "POST",
+      "target": null,
+      "notes": "loginLocalSDK(): shared api on base http://localhost:8000/api/v1 sends POST /api/v1/sdk/login-local. sdkRoutes are mounted at /sdk only (routes/index.js:37, unversioned), so no route serves /api/v1/sdk/*"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/SDKAPI.js", "line": 13 },
+      "method": "POST",
+      "target": null,
+      "notes": "verifyOTPSDK(): POST /api/v1/sdk/verify-otp on the shared api base; sdkRoutes mounted at /sdk only, so no route"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/SDKAPI.js", "line": 18 },
+      "method": "POST",
+      "target": null,
+      "notes": "resendVerificationSDK(): POST /api/v1/sdk/resend-verification on the shared api base; sdkRoutes mounted at /sdk only, so no route"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/SessionAPI.js", "line": 6 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/session.routes.js",
+        "line": 18,
+        "route": "GET /api/v1/sessions"
+      },
+      "notes": "getSessions(): shared api, \"/sessions/\" (trailing slash matches router.get(\"/\") in non-strict routing). sessionRoutes mounted at /api/v1/sessions"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/SessionAPI.js", "line": 11 },
+      "method": "DELETE",
+      "target": {
+        "file": "backend/src/routes/session.routes.js",
+        "line": 19,
+        "route": "DELETE /api/v1/sessions/:sessionId"
+      },
+      "notes": "revokeSession(): shared api. sessionRoutes at /api/v1/sessions; router.delete(\"/:sessionId\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/SessionAPI.js", "line": 16 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/session.routes.js",
+        "line": 20,
+        "route": "POST /api/v1/sessions/revoke-others"
+      },
+      "notes": "revokeAllOtherSessions(): shared api. sessionRoutes at /api/v1/sessions; router.post(\"/revoke-others\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/SessionAPI.js", "line": 21 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/session.routes.js",
+        "line": 21,
+        "route": "POST /api/v1/sessions/revoke-all"
+      },
+      "notes": "revokeAllSessions(): shared api. sessionRoutes at /api/v1/sessions; router.post(\"/revoke-all\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/api/axios.js", "line": 73 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/developer.routes.js",
+        "line": 34,
+        "route": "POST /api/v1/developers/refresh-token"
+      },
+      "notes": "401 interceptor: api.post(\"/developers/refresh-token\"), base http://localhost:8000/api/v1 (fallback). developerRoutes at /api/v1/developers; router.route(\"/refresh-token\").post"
+    },
+    {
+      "callSite": { "file": "frontend/src/hooks/useAuthQuery.js", "line": 15 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/developer.routes.js",
+        "line": 31,
+        "route": "POST /api/v1/developers/login"
+      },
+      "notes": "useLogin's mutationFn: shared api, base http://localhost:8000/api/v1 (fallback). developerRoutes at /api/v1/developers; router.route(\"/login\").post (statement starts line 31)"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/auth/AuthCallback.jsx", "line": 39 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/auth.routes.js",
+        "line": 61,
+        "route": "GET /auth/session/:token"
+      },
+      "notes": "shared api with a per-request baseURL override: VITE_BACKEND_URL || \"http://localhost:8000\" (line 40; frontend/.env.example same), so no /api/v1. authRoutes mounted at /auth (routes/index.js:32); router.get(\"/session/:token\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/pages/auth/Register.jsx", "line": 74 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/developer.routes.js",
+        "line": 28,
+        "route": "POST /api/v1/developers/register"
+      },
+      "notes": "shared api, base http://localhost:8000/api/v1 (fallback). developerRoutes at /api/v1/developers; router.route(\"/register\").post (statement starts line 28)"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/authStore.js", "line": 40 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/developer.routes.js",
+        "line": 37,
+        "route": "GET /api/v1/developers/me"
+      },
+      "notes": "checkAuth: shared api, base http://localhost:8000/api/v1 (fallback). developerRoutes at /api/v1/developers; router.route(\"/me\").get"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/authStore.js", "line": 75 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/developer.routes.js",
+        "line": 36,
+        "route": "POST /api/v1/developers/logout"
+      },
+      "notes": "logout: shared api. developerRoutes at /api/v1/developers; router.route(\"/logout\").post"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/authStore.js", "line": 100 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/developer.routes.js",
+        "line": 37,
+        "route": "GET /api/v1/developers/me"
+      },
+      "notes": "onTokenRefreshed callback: shared api. developerRoutes at /api/v1/developers; router.route(\"/me\").get"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/notificationStore.js", "line": 12 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/notification.routes.js",
+        "line": 15,
+        "route": "GET /api/v1/notifications"
+      },
+      "notes": "shared api, base http://localhost:8000/api/v1 (fallback). notificationRoutes mounted at /api/v1/notifications; router.get(\"/\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/notificationStore.js", "line": 28 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/src/routes/notification.routes.js",
+        "line": 17,
+        "route": "PATCH /api/v1/notifications/:id/read"
+      },
+      "notes": "shared api. notificationRoutes at /api/v1/notifications; router.patch(\"/:id/read\")"
+    },
+    {
+      "callSite": { "file": "frontend/src/store/notificationStore.js", "line": 44 },
+      "method": "PATCH",
+      "target": {
+        "file": "backend/src/routes/notification.routes.js",
+        "line": 16,
+        "route": "PATCH /api/v1/notifications/read-all"
+      },
+      "notes": "shared api. notificationRoutes at /api/v1/notifications; router.patch(\"/read-all\")"
+    },
+    {
+      "callSite": { "file": "packages/src/client/callback.ts", "line": 60 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/sdk.routes.js",
+        "line": 46,
+        "route": "POST /sdk/token"
+      },
+      "notes": "SDK handleAuthCallback: tokenUrl = (baseUrl || DEFAULT_BASE_URL \"http://localhost:8000\") + \"/sdk/token\" (line 55; initAuth also defaults baseUrl to http://localhost:8000, config/options.ts:3,20); backend PORT || 8000. sdkRoutes mounted at /sdk; router.post(\"/token\")"
+    },
+    {
+      "callSite": { "file": "packages/src/client/local.ts", "line": 21 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/sdk.routes.js",
+        "line": 53,
+        "route": "POST /sdk/register"
+      },
+      "notes": "SDK register(): options.baseUrl, defaulted by initAuth to http://localhost:8000 (config/options.ts:3,20). sdkRoutes at /sdk; router.post(\"/register\") (statement starts line 53)"
+    },
+    {
+      "callSite": { "file": "packages/src/client/local.ts", "line": 64 },
+      "method": "GET",
+      "target": {
+        "file": "backend/src/routes/sdk.routes.js",
+        "line": 40,
+        "route": "GET /sdk/authorize"
+      },
+      "notes": "SDK loginLocal(): fetch(authUrl.toString()), authUrl = new URL(baseUrl + \"/sdk/authorize\") (line 53) plus query params; baseUrl defaults to http://localhost:8000. sdkRoutes at /sdk; router.get(\"/authorize\")"
+    },
+    {
+      "callSite": { "file": "packages/src/client/local.ts", "line": 80 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/sdk.routes.js",
+        "line": 59,
+        "route": "POST /sdk/login-local"
+      },
+      "notes": "SDK loginLocal(): baseUrl (default http://localhost:8000) + \"/sdk/login-local\". sdkRoutes at /sdk; router.post(\"/login-local\") (statement starts line 59)"
+    },
+    {
+      "callSite": { "file": "packages/src/client/local.ts", "line": 119 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/sdk.routes.js",
+        "line": 65,
+        "route": "POST /sdk/verify-otp"
+      },
+      "notes": "SDK verifyOTP(): baseUrl (default http://localhost:8000) + \"/sdk/verify-otp\". sdkRoutes at /sdk; router.post(\"/verify-otp\")"
+    },
+    {
+      "callSite": { "file": "packages/src/client/local.ts", "line": 156 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/sdk.routes.js",
+        "line": 66,
+        "route": "POST /sdk/resend-verification"
+      },
+      "notes": "SDK resendVerification(): baseUrl (default http://localhost:8000) + \"/sdk/resend-verification\". sdkRoutes at /sdk; router.post(\"/resend-verification\")"
+    },
+    {
+      "callSite": { "file": "packages/src/client/management.ts", "line": 17 },
+      "method": "GET",
+      "target": null,
+      "notes": "SDK getProjectUsers(): baseUrl (default http://localhost:8000) + \"/projects/<id>/users\", path on line 18. The project routes live under /api/v1/projects only; nothing serves /projects/*, so no route"
+    },
+    {
+      "callSite": { "file": "packages/src/client/management.ts", "line": 45 },
+      "method": "DELETE",
+      "target": null,
+      "notes": "SDK deleteProjectUser(): baseUrl (default http://localhost:8000) + \"/projects/<id>/users/<userId>\" without the /api/v1 prefix the project router is mounted under, so no route"
+    },
+    {
+      "callSite": { "file": "packages/src/client/management.ts", "line": 73 },
+      "method": "PATCH",
+      "target": null,
+      "notes": "SDK toggleUserVerification(): baseUrl (default http://localhost:8000) + \"/projects/<id>/users/<userId>/verify\" without the /api/v1 prefix, so no route"
+    },
+    {
+      "callSite": { "file": "packages/src/client/refresh.ts", "line": 39 },
+      "method": "POST",
+      "target": {
+        "file": "backend/src/routes/sdk.routes.js",
+        "line": 52,
+        "route": "POST /sdk/refresh"
+      },
+      "notes": "SDK refreshTokens(): (baseUrl || DEFAULT_BASE_URL \"http://localhost:8000\") + \"/sdk/refresh\" (line 40). sdkRoutes at /sdk; router.post(\"/refresh\")"
+    },
+    {
+      "callSite": { "file": "packages/src/client/session.ts", "line": 55 },
+      "method": "POST",
+      "target": null,
+      "notes": "SDK logout(): baseUrl (default http://localhost:8000) + \"/sdk/logout\". sdk.routes.js registers no /logout (only authorize, token, refresh, register, login-local, verify-otp, resend-verification), so no route"
+    }
+  ]
+}

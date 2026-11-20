@@ -1,0 +1,3903 @@
+{
+  "repo": "SoCloseSociety/neowatch",
+  "sha": "a71b1a243c22e33c9cecf6397daa01795aa38741",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "server/src/billing.js", "line": 212 },
+      "method": "DELETE",
+      "target": null,
+      "notes": "stripe('DELETE', `/subscriptions/${id}`): fetch(`${STRIPE_API}${path}`) (line 192), STRIPE_API = STRIPE_API_BASE || https://api.stripe.com/v1 (the env var is only the test suite's own fake Stripe): external Stripe API"
+    },
+    {
+      "callSite": { "file": "server/src/billing.js", "line": 241 },
+      "method": "POST",
+      "target": null,
+      "notes": "stripe('POST', `/subscriptions/${id}`): external Stripe API"
+    },
+    {
+      "callSite": { "file": "server/src/billing.js", "line": 273 },
+      "method": "POST",
+      "target": null,
+      "notes": "stripe('POST', '/checkout/sessions'): external Stripe API"
+    },
+    {
+      "callSite": { "file": "server/src/billing.js", "line": 300 },
+      "method": "POST",
+      "target": null,
+      "notes": "stripe('POST', `/subscriptions/${id}`) (cancel_at_period_end): external Stripe API"
+    },
+    {
+      "callSite": { "file": "server/src/catalog.js", "line": 476 },
+      "method": "GET",
+      "target": null,
+      "notes": "DATASETS.map((name) => loadDataset(name)) -> fetchJson(name) -> fetch(`${config.apiBase}/${name}.json`) (line 201); apiBase = IPTV_API_BASE || https://iptv-org.github.io/api: external iptv-org API"
+    },
+    {
+      "callSite": { "file": "server/src/epg.js", "line": 247 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetchXmltv(src.url) -> fetchXmltvBody -> safeFetch (line 161, undici fetch in netguard.js): an admin-configured XMLTV guide URL, runtime and external"
+    },
+    {
+      "callSite": { "file": "server/src/epg.js", "line": 458 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetchXmltv(url) with url from the admin POST body: runtime, external"
+    },
+    {
+      "callSite": { "file": "server/src/films.js", "line": 64 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetchJson(SEARCH_URL) -> safeFetch (line 35): archive.org advanced search, external"
+    },
+    {
+      "callSite": { "file": "server/src/films.js", "line": 88 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetchJson(`${IA}/metadata/${id}`), IA = https://archive.org: external"
+    },
+    {
+      "callSite": { "file": "server/src/health.js", "line": 90 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetchText(new URL(variant, manifest URL)) -> safeFetch (line 46): a stream's variant playlist, runtime and external"
+    },
+    {
+      "callSite": { "file": "server/src/health.js", "line": 99 },
+      "method": "GET",
+      "target": null,
+      "notes": "safeFetch(new URL(seg, mediaUrl)): a stream segment, runtime and external"
+    },
+    {
+      "callSite": { "file": "server/src/health.js", "line": 242 },
+      "method": "GET",
+      "target": null,
+      "notes": "sweep: checkOne(t) -> probe -> shallowProbe/deepProbe -> safeFetch(url) (lines 65/46): catalog stream URLs, runtime and external"
+    },
+    {
+      "callSite": { "file": "server/src/health.js", "line": 296 },
+      "method": "GET",
+      "target": null,
+      "notes": "POST /api/catalog/check: checkOne({ url: it.url }) -> probe -> safeFetch: the catalog stream URLs, runtime and external"
+    },
+    {
+      "callSite": { "file": "server/src/img.js", "line": 267 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetchOnce(smaller) -> safeFetch (line 194): imgur/Wikimedia rendition of a logo URL, external"
+    },
+    {
+      "callSite": { "file": "server/src/img.js", "line": 338 },
+      "method": "GET",
+      "target": null,
+      "notes": "load(key, u) -> fetchImage -> fetchOnce -> safeFetch (line 194): the ?u= logo URL the server vends, runtime and external"
+    },
+    {
+      "callSite": { "file": "server/src/proxy.js", "line": 191 },
+      "method": "GET",
+      "target": null,
+      "notes": "safeFetch(target), target = req.query.url: the signed upstream stream URL, runtime and external"
+    },
+    {
+      "callSite": { "file": "server/src/proxy.js", "line": 195 },
+      "method": "GET",
+      "target": null,
+      "notes": "retry of safeFetch(target): upstream stream URL, runtime and external"
+    },
+    {
+      "callSite": { "file": "server/src/radio.js", "line": 53 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetchJson(url) -> safeFetch (line 23), url = https://all.api.radio-browser.info/json/stations/search?… (line 52): external"
+    },
+    {
+      "callSite": { "file": "server/src/sources.js", "line": 222 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetchSource(src) -> fetchSourceBody -> safeFetch(src.url) (line 178): a stored M3U source URL, runtime and external"
+    },
+    {
+      "callSite": { "file": "server/src/sources.js", "line": 341 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetchSource(src) for the source in the admin POST body: runtime and external"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 68 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 384, "route": "POST /api/auth/register" },
+      "notes": "register(): req('/api/auth/register') fixes the path; req = fetch(BASE + path) (line 47), BASE = process.env.BASE || http://localhost:8787 = server config.js PORT || 8787 (.env.example PORT=8787). authRouter at /api/auth"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 142 },
+      "method": "POST",
+      "target": { "file": "server/src/index.js", "line": 56, "route": "POST /api/billing/webhook" },
+      "notes": "hook(): req('/api/billing/webhook', POST raw body) fixes the path; app.post('/api/billing/webhook')"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 145 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 669, "route": "GET /api/admin/users" },
+      "notes": "userById(): req('/api/admin/users'); adminRouter at /api/admin"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 154 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "req('/api/auth/login'), BASE localhost:8787"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 162 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 384, "route": "POST /api/auth/register" },
+      "notes": "req('/api/auth/register')"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 164 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 384, "route": "POST /api/auth/register" },
+      "notes": "req('/api/auth/register')"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 166 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 384, "route": "POST /api/auth/register" },
+      "notes": "req('/api/auth/register')"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 168 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 384, "route": "POST /api/auth/register" },
+      "notes": "req('/api/auth/register')"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 170 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 384, "route": "POST /api/auth/register" },
+      "notes": "req('/api/auth/register')"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 172 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 384, "route": "POST /api/auth/register" },
+      "notes": "req('/api/auth/register')"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 174 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "req('/api/auth/login')"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 177 },
+      "method": "PUT",
+      "target": { "file": "server/src/auth.js", "line": 615, "route": "PUT /api/auth/password" },
+      "notes": "req('/api/auth/password', PUT)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 179 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 673, "route": "POST /api/admin/users" },
+      "notes": "req('/api/admin/users', POST)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 181 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 702,
+        "route": "PATCH /api/admin/users/:id"
+      },
+      "notes": "req(`/api/admin/users/${id}`, PATCH)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 183 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 702,
+        "route": "PATCH /api/admin/users/:id"
+      },
+      "notes": "req(`/api/admin/users/${id}`, PATCH)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 185 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 702,
+        "route": "PATCH /api/admin/users/:id"
+      },
+      "notes": "req(`/api/admin/users/${id}`, PATCH)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 192 },
+      "method": "PUT",
+      "target": { "file": "server/src/auth.js", "line": 596, "route": "PUT /api/auth/favorites" },
+      "notes": "req('/api/auth/favorites', PUT)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 195 },
+      "method": "PUT",
+      "target": { "file": "server/src/auth.js", "line": 606, "route": "PUT /api/auth/multi" },
+      "notes": "req('/api/auth/multi', PUT)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 205 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 187, "route": "GET /api/catalog/meta" },
+      "notes": "req('/api/catalog/meta')"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 207 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 371, "route": "GET /api/me/prefs" },
+      "notes": "req('/api/me/prefs'); prefsRouter at /api"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 209 },
+      "method": "GET",
+      "target": { "file": "server/src/films.js", "line": 111, "route": "GET /api/films" },
+      "notes": "req('/api/films'); filmsRouter at /api"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 215 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 441, "route": "GET /api/auth/me/export" },
+      "notes": "req('/api/auth/me/export')"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 221 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 441, "route": "GET /api/auth/me/export" },
+      "notes": "req('/api/auth/me/export') without a token"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 227 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 495,
+        "route": "POST /api/auth/device/start"
+      },
+      "notes": "req('/api/auth/device/start', POST) in a loop"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 229 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 514,
+        "route": "POST /api/auth/device/poll"
+      },
+      "notes": "req('/api/auth/device/poll', POST)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 230 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 514,
+        "route": "POST /api/auth/device/poll"
+      },
+      "notes": "req('/api/auth/device/poll', POST)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 231 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 514,
+        "route": "POST /api/auth/device/poll"
+      },
+      "notes": "req('/api/auth/device/poll', POST)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 234 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 535, "route": "GET /api/auth/device/info" },
+      "notes": "req(`/api/auth/device/info?code=…`); query dropped"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 237 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 535, "route": "GET /api/auth/device/info" },
+      "notes": "req('/api/auth/device/info?code=AAAAAA') in a loop"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 244 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 325,
+        "route": "POST /api/admin/sources"
+      },
+      "notes": "req('/api/admin/sources', POST); sourcesAdminRouter at /api/admin"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 248 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 325,
+        "route": "POST /api/admin/sources"
+      },
+      "notes": "req('/api/admin/sources', POST)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 250 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 325,
+        "route": "POST /api/admin/sources"
+      },
+      "notes": "req('/api/admin/sources', POST)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 252 },
+      "method": "GET",
+      "target": { "file": "server/src/sources.js", "line": 313, "route": "GET /api/sources" },
+      "notes": "req('/api/sources'); sourcesPublicRouter at /api"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 256 },
+      "method": "GET",
+      "target": { "file": "server/src/sources.js", "line": 323, "route": "GET /api/admin/sources" },
+      "notes": "req('/api/admin/sources')"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 258 },
+      "method": "GET",
+      "target": { "file": "server/src/sources.js", "line": 323, "route": "GET /api/admin/sources" },
+      "notes": "req('/api/admin/sources') as a user"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 260 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 360,
+        "route": "DELETE /api/admin/sources/:id"
+      },
+      "notes": "req(`/api/admin/sources/${id}`, DELETE)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 265 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "find(): req(`/api/catalog/channels?category=custom&limit=120`) fixes the path; query dropped"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 266 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 325,
+        "route": "POST /api/admin/sources"
+      },
+      "notes": "req('/api/admin/sources', POST)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 270 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 370,
+        "route": "POST /api/admin/sources/refresh"
+      },
+      "notes": "req('/api/admin/sources/refresh', POST)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 276 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 325,
+        "route": "POST /api/admin/sources"
+      },
+      "notes": "req('/api/admin/sources', POST)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 281 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 370,
+        "route": "POST /api/admin/sources/refresh"
+      },
+      "notes": "req('/api/admin/sources/refresh', POST), not awaited at once"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 283 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 360,
+        "route": "DELETE /api/admin/sources/:id"
+      },
+      "notes": "req(`/api/admin/sources/${idA}`, DELETE)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 289 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 360,
+        "route": "DELETE /api/admin/sources/:id"
+      },
+      "notes": "req(`/api/admin/sources/${idB}`, DELETE)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 292 },
+      "method": "POST",
+      "target": { "file": "server/src/epg.js", "line": 445, "route": "POST /api/admin/epg" },
+      "notes": "req('/api/admin/epg', POST); epgAdminRouter at /api/admin"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 294 },
+      "method": "GET",
+      "target": { "file": "server/src/epg.js", "line": 341, "route": "GET /api/epg/now" },
+      "notes": "req('/api/epg/now?ids=S3Test.fr'); epgPublicRouter at /api; query dropped"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 296 },
+      "method": "GET",
+      "target": { "file": "server/src/epg.js", "line": 423, "route": "GET /api/epg/sources" },
+      "notes": "req('/api/epg/sources')"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 298 },
+      "method": "GET",
+      "target": { "file": "server/src/epg.js", "line": 443, "route": "GET /api/admin/epg" },
+      "notes": "req('/api/admin/epg')"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 300 },
+      "method": "GET",
+      "target": { "file": "server/src/epg.js", "line": 443, "route": "GET /api/admin/epg" },
+      "notes": "req('/api/admin/epg') as a user"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 302 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/epg.js",
+        "line": 486,
+        "route": "POST /api/admin/epg/refresh"
+      },
+      "notes": "req('/api/admin/epg/refresh', POST)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 304 },
+      "method": "GET",
+      "target": { "file": "server/src/epg.js", "line": 341, "route": "GET /api/epg/now" },
+      "notes": "req('/api/epg/now?ids=S3Test.fr')"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 306 },
+      "method": "GET",
+      "target": { "file": "server/src/epg.js", "line": 443, "route": "GET /api/admin/epg" },
+      "notes": "req('/api/admin/epg')"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 309 },
+      "method": "GET",
+      "target": { "file": "server/src/epg.js", "line": 389, "route": "GET /api/epg/search" },
+      "notes": "req(`/api/epg/search?q=…`)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 311 },
+      "method": "GET",
+      "target": { "file": "server/src/epg.js", "line": 389, "route": "GET /api/epg/search" },
+      "notes": "req('/api/epg/search?q=a')"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 314 },
+      "method": "POST",
+      "target": { "file": "server/src/epg.js", "line": 445, "route": "POST /api/admin/epg" },
+      "notes": "req('/api/admin/epg', POST) with the huge feed"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 317 },
+      "method": "DELETE",
+      "target": { "file": "server/src/epg.js", "line": 476, "route": "DELETE /api/admin/epg/:id" },
+      "notes": "req(`/api/admin/epg/${gid}`, DELETE)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 323 },
+      "method": "GET",
+      "target": { "file": "server/src/epg.js", "line": 389, "route": "GET /api/epg/search" },
+      "notes": "req('/api/epg/search?q=zz') in a loop"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 345 },
+      "method": "GET",
+      "target": { "file": "server/src/films.js", "line": 119, "route": "GET /api/films/:id/play" },
+      "notes": "req('/api/films/not-a-listed-item-' + ts + '/play')"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 347 },
+      "method": "GET",
+      "target": { "file": "server/src/films.js", "line": 111, "route": "GET /api/films" },
+      "notes": "req('/api/films')"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 349 },
+      "method": "GET",
+      "target": { "file": "server/src/films.js", "line": 119, "route": "GET /api/films/:id/play" },
+      "notes": "req(`/api/films/${id}/play`)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 358 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 384, "route": "POST /api/auth/register" },
+      "notes": "req('/api/auth/register')"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 359 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 325,
+        "route": "POST /api/admin/sources"
+      },
+      "notes": "req('/api/admin/sources', POST)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 363 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 384, "route": "POST /api/auth/register" },
+      "notes": "req('/api/auth/register')"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 365 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 325,
+        "route": "POST /api/admin/sources"
+      },
+      "notes": "req('/api/admin/sources', POST)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 367 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 360,
+        "route": "DELETE /api/admin/sources/:id"
+      },
+      "notes": "req(`/api/admin/sources/${s.id}`, DELETE) in a loop"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 371 },
+      "method": "GET",
+      "target": { "file": "server/src/billing.js", "line": 169, "route": "GET /api/billing/plans" },
+      "notes": "req('/api/billing/plans'); billingPublicRouter at /api"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 374 },
+      "method": "GET",
+      "target": { "file": "server/src/billing.js", "line": 169, "route": "GET /api/billing/plans" },
+      "notes": "req('/api/billing/plans?lang=fr')"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 375 },
+      "method": "GET",
+      "target": { "file": "server/src/billing.js", "line": 169, "route": "GET /api/billing/plans" },
+      "notes": "req('/api/billing/plans') with Accept-Language"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 391 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/billing.js",
+        "line": 228,
+        "route": "POST /api/billing/checkout"
+      },
+      "notes": "req('/api/billing/checkout', POST); billingUserRouter at /api"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 393 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/billing.js",
+        "line": 228,
+        "route": "POST /api/billing/checkout"
+      },
+      "notes": "req('/api/billing/checkout', POST)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 396 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/billing.js",
+        "line": 289,
+        "route": "POST /api/billing/cancel"
+      },
+      "notes": "req('/api/billing/cancel?lang=fr', POST)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 399 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 434, "route": "GET /api/auth/me" },
+      "notes": "req('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 401 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/billing.js",
+        "line": 228,
+        "route": "POST /api/billing/checkout"
+      },
+      "notes": "req('/api/billing/checkout', POST)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 403 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/billing.js",
+        "line": 319,
+        "route": "POST /api/admin/users/:id/plan"
+      },
+      "notes": "req(`/api/admin/users/${id}/plan`, POST); billingAdminRouter at /api/admin"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 406 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/billing.js",
+        "line": 289,
+        "route": "POST /api/billing/cancel"
+      },
+      "notes": "req('/api/billing/cancel', POST)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 414 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/billing.js",
+        "line": 228,
+        "route": "POST /api/billing/checkout"
+      },
+      "notes": "req('/api/billing/checkout', POST)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 416 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 434, "route": "GET /api/auth/me" },
+      "notes": "req('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 418 },
+      "method": "PUT",
+      "target": { "file": "server/src/auth.js", "line": 373, "route": "PUT /api/me/prefs" },
+      "notes": "req('/api/me/prefs', PUT)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 426 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/billing.js",
+        "line": 228,
+        "route": "POST /api/billing/checkout"
+      },
+      "notes": "req('/api/billing/checkout', POST)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 439 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/billing.js",
+        "line": 228,
+        "route": "POST /api/billing/checkout"
+      },
+      "notes": "req('/api/billing/checkout', POST)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 453 },
+      "method": "POST",
+      "target": { "file": "server/src/index.js", "line": 56, "route": "POST /api/billing/webhook" },
+      "notes": "req('/api/billing/webhook', POST raw)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 462 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/billing.js",
+        "line": 289,
+        "route": "POST /api/billing/cancel"
+      },
+      "notes": "req('/api/billing/cancel', POST)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 494 },
+      "method": "DELETE",
+      "target": { "file": "server/src/auth.js", "line": 646, "route": "DELETE /api/auth/me" },
+      "notes": "req('/api/auth/me', DELETE)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 498 },
+      "method": "DELETE",
+      "target": { "file": "server/src/auth.js", "line": 646, "route": "DELETE /api/auth/me" },
+      "notes": "req('/api/auth/me', DELETE)"
+    },
+    {
+      "callSite": { "file": "test/account-test.mjs", "line": 507 },
+      "method": "PUT",
+      "target": { "file": "server/src/auth.js", "line": 596, "route": "PUT /api/auth/favorites" },
+      "notes": "req('/api/auth/favorites', PUT) in a loop"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 73 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "login(): anon('/api/auth/login') -> req -> fetch(BASE + path) (line 57), BASE = process.env.BASE || http://localhost:8787 = server PORT || 8787"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 125 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 131, "route": "GET /api/health" },
+      "notes": "waitCatalog(): anon('/api/health')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 137 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 106, "route": "GET /api/config" },
+      "notes": "anon('/api/config')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 138 },
+      "method": "GET",
+      "target": null,
+      "notes": "anon('/api/nope-s2'): no route; the /api 404 middleware (index.js line 447) answers"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 141 },
+      "method": "GET",
+      "target": null,
+      "notes": "req('/api/nope-s2'): no route (404 middleware)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 144 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req('/api/catalog/channel/%E0%A4%A'): the path is this route's (/:id); Express fails decoding the param and answers 400 through the error handler"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 147 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?page=1e400&limit=2')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 149 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?page=…')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 151 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?limit=0')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 155 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 131, "route": "GET /api/health" },
+      "notes": "anon('/api/health')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 162 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 131, "route": "GET /api/health" },
+      "notes": "req('/api/health')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 167 },
+      "method": "GET",
+      "target": null,
+      "notes": "anon('/'): index.html from express.static(web/dist) (index.js line 455), a static file, not a route"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 173 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 456, "route": "GET /*splat" },
+      "notes": "anon('/chaine/abc'): not a static file, so app.get('*') (registered when web/dist exists) sends index.html (Express 4's unnamed `*`, written /*splat: the label format needs a named catch-all, and scoring drops the name)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 175 },
+      "method": "GET",
+      "target": null,
+      "notes": "anon('/assets/Player-DOESNOTEXIST.js'): app.use('/assets', express.static(…, { fallthrough: false })) answers 404; static files, not a route"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 178 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 106, "route": "GET /api/config" },
+      "notes": "anon('/api/config')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 185 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 318, "route": "GET /api/catalog/home" },
+      "notes": "req('/api/catalog/home?lang=en')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 186 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 318, "route": "GET /api/catalog/home" },
+      "notes": "req('/api/catalog/home?lang=fr')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 187 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 318, "route": "GET /api/catalog/home" },
+      "notes": "req('/api/catalog/home?lang=ru')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 188 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 318, "route": "GET /api/catalog/home" },
+      "notes": "req('/api/catalog/home')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 211 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?category=general&limit=120')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 214 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req(`/api/catalog/channel/${one.id}`)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 221 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req(`/api/catalog/channel/${altId}`)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 225 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 403,
+        "route": "POST /api/admin/blocklist"
+      },
+      "notes": "req('/api/admin/blocklist', POST)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 227 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req(`/api/catalog/channel/${withAlt.id}`)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 229 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req(`/api/catalog/channel/${altId}`)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 231 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 413,
+        "route": "DELETE /api/admin/blocklist"
+      },
+      "notes": "req(`/api/admin/blocklist?url=…`, DELETE); query dropped"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 233 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req(`/api/catalog/channel/${withAlt.id}`)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 238 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req(`/api/catalog/channel/zzzzzzz?channelId=…`)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 240 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req(`/api/catalog/channel/zzzzzzz?channelId=…`)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 242 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req('/api/catalog/channel/zzzzzzz')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 244 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req('/api/catalog/channel/1f0qez1')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 253 },
+      "method": "GET",
+      "target": null,
+      "notes": "anon(online.proxyUrl): a signed /api/proxy link read from the server's JSON at runtime, not known statically"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 262 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 403,
+        "route": "POST /api/admin/blocklist"
+      },
+      "notes": "req('/api/admin/blocklist', POST)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 267 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 413,
+        "route": "DELETE /api/admin/blocklist"
+      },
+      "notes": "req(`/api/admin/blocklist?url=…`, DELETE)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 268 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 401, "route": "GET /api/admin/blocklist" },
+      "notes": "req('/api/admin/blocklist')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 275 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 106, "route": "GET /api/config" },
+      "notes": "anon('/api/config')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 278 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 187, "route": "GET /api/catalog/meta" },
+      "notes": "req('/api/catalog/meta')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 282 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req(`/api/catalog/channel/${id(COL_A)}`)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 290 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 187, "route": "GET /api/catalog/meta" },
+      "notes": "anon('/api/catalog/meta')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 292 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req(`/api/catalog/channel/${…}`)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 295 },
+      "method": "GET",
+      "target": null,
+      "notes": "anon(pu): pu = alpha.data?.proxyUrl, a signed proxy link from the server's JSON, runtime"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 297 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 131, "route": "GET /api/health" },
+      "notes": "anon('/api/health')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 303 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 401, "route": "GET /api/admin/blocklist" },
+      "notes": "req('/api/admin/blocklist')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 307 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 413,
+        "route": "DELETE /api/admin/blocklist"
+      },
+      "notes": "req(`/api/admin/blocklist?url=…`, DELETE) in a loop"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 313 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req(`/api/catalog/channel/${d2Id}`)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 315 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 403,
+        "route": "POST /api/admin/blocklist"
+      },
+      "notes": "req('/api/admin/blocklist', POST)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 316 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req(`/api/catalog/channel/${dId}`)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 318 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req(`/api/catalog/channel/${d2Id}`)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 319 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 403,
+        "route": "POST /api/admin/blocklist"
+      },
+      "notes": "req('/api/admin/blocklist', POST)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 320 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req(`/api/catalog/channel/${dId}`)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 321 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 187, "route": "GET /api/catalog/meta" },
+      "notes": "req('/api/catalog/meta')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 323 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 413,
+        "route": "DELETE /api/admin/blocklist"
+      },
+      "notes": "req(`/api/admin/blocklist?url=…`, DELETE)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 324 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 413,
+        "route": "DELETE /api/admin/blocklist"
+      },
+      "notes": "req(`/api/admin/blocklist?url=…`, DELETE)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 325 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req(`/api/catalog/channel/${dId}`)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 332 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 434,
+        "route": "POST /api/catalog/refresh"
+      },
+      "notes": "req('/api/catalog/refresh', POST)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 335 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req(`/api/catalog/channel/${…}`)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 337 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req(`/api/catalog/channel/${…}`)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 339 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req('/api/catalog/channel/zzzzzzz?channelId=bravo.fr')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 341 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req('/api/catalog/channel/zzzzzzz')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 347 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 187, "route": "GET /api/catalog/meta" },
+      "notes": "req('/api/catalog/meta')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 350 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req(`/api/catalog/channel/${…}`)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 352 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?q=bravo')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 356 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 187, "route": "GET /api/catalog/meta" },
+      "notes": "req('/api/catalog/meta')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 359, "column": 9 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 187, "route": "GET /api/catalog/meta" },
+      "notes": "first of two req('/api/catalog/meta') on this line"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 359, "column": 41 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 187, "route": "GET /api/catalog/meta" },
+      "notes": "second req('/api/catalog/meta') on this line"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 362 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 131, "route": "GET /api/health" },
+      "notes": "anon('/api/health')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 365 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 131, "route": "GET /api/health" },
+      "notes": "anon('/api/health')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 367 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 187, "route": "GET /api/catalog/meta" },
+      "notes": "req('/api/catalog/meta')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 372 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 434,
+        "route": "POST /api/catalog/refresh"
+      },
+      "notes": "req('/api/catalog/refresh', POST)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 374 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 131, "route": "GET /api/health" },
+      "notes": "anon('/api/health')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 378 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 434,
+        "route": "POST /api/catalog/refresh"
+      },
+      "notes": "req('/api/catalog/refresh', POST)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 379 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 187, "route": "GET /api/catalog/meta" },
+      "notes": "req('/api/catalog/meta') inside check()"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 391 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 187, "route": "GET /api/catalog/meta" },
+      "notes": "req('/api/catalog/meta')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 393 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?limit=1')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 394 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req(`/api/catalog/channel/${one.id}`)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 396 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 187, "route": "GET /api/catalog/meta" },
+      "notes": "req('/api/catalog/meta')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 398 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req(`/api/catalog/channel/${one.id}`)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 399 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req(`/api/catalog/channels?q=…`)"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 401 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 131, "route": "GET /api/health" },
+      "notes": "anon('/api/health')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 410 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 131, "route": "GET /api/health" },
+      "notes": "anon('/api/health')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 412 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 187, "route": "GET /api/catalog/meta" },
+      "notes": "req('/api/catalog/meta')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 415 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 187, "route": "GET /api/catalog/meta" },
+      "notes": "req('/api/catalog/meta')"
+    },
+    {
+      "callSite": { "file": "test/catalog-test.mjs", "line": 417 },
+      "method": "GET",
+      "target": null,
+      "notes": "anon('/api/nope-s2'): no route (404 middleware)"
+    },
+    {
+      "callSite": { "file": "test/contract-test.mjs", "line": 47 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 131, "route": "GET /api/health" },
+      "notes": "req('/api/health'): fetch(BASE + path) (line 34), BASE = process.env.BASE || http://localhost:8787 = server PORT || 8787"
+    },
+    {
+      "callSite": { "file": "test/contract-test.mjs", "line": 53 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 187, "route": "GET /api/catalog/meta" },
+      "notes": "req('/api/catalog/meta')"
+    },
+    {
+      "callSite": { "file": "test/contract-test.mjs", "line": 60 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?q=news&limit=10')"
+    },
+    {
+      "callSite": { "file": "test/contract-test.mjs", "line": 72 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req(`/api/catalog/channel/${id}`)"
+    },
+    {
+      "callSite": { "file": "test/contract-test.mjs", "line": 80 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req('/api/catalog/channel/zzzzzzzzzz')"
+    },
+    {
+      "callSite": { "file": "test/contract-test.mjs", "line": 82 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req(`/api/catalog/channel/zzzzzzzzzz?channelId=…`)"
+    },
+    {
+      "callSite": { "file": "test/contract-test.mjs", "line": 87 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 456, "route": "GET /*splat" },
+      "notes": "req(`/chaine/${id}`): app.get('*') sends the SPA's index.html (registered when web/dist exists)"
+    },
+    {
+      "callSite": { "file": "test/contract-test.mjs", "line": 90 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 456, "route": "GET /*splat" },
+      "notes": "req(`/chaine/${id}?play=1`): app.get('*')"
+    },
+    {
+      "callSite": { "file": "test/contract-test.mjs", "line": 94 },
+      "method": "GET",
+      "target": { "file": "server/src/epg.js", "line": 341, "route": "GET /api/epg/now" },
+      "notes": "req('/api/epg/now?ids=nothing.example')"
+    },
+    {
+      "callSite": { "file": "test/contract-test.mjs", "line": 96 },
+      "method": "GET",
+      "target": { "file": "server/src/epg.js", "line": 379, "route": "GET /api/epg/day" },
+      "notes": "req('/api/epg/day?id=nothing.example')"
+    },
+    {
+      "callSite": { "file": "test/contract-test.mjs", "line": 102 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "req('/api/auth/login', POST)"
+    },
+    {
+      "callSite": { "file": "test/contract-test.mjs", "line": 111 },
+      "method": "POST",
+      "target": { "file": "server/src/epg.js", "line": 445, "route": "POST /api/admin/epg" },
+      "notes": "req('/api/admin/epg', POST)"
+    },
+    {
+      "callSite": { "file": "test/contract-test.mjs", "line": 115 },
+      "method": "GET",
+      "target": { "file": "server/src/epg.js", "line": 341, "route": "GET /api/epg/now" },
+      "notes": "req(`/api/epg/now?ids=…`)"
+    },
+    {
+      "callSite": { "file": "test/contract-test.mjs", "line": 119 },
+      "method": "GET",
+      "target": { "file": "server/src/epg.js", "line": 379, "route": "GET /api/epg/day" },
+      "notes": "req(`/api/epg/day?id=…`)"
+    },
+    {
+      "callSite": { "file": "test/contract-test.mjs", "line": 123 },
+      "method": "DELETE",
+      "target": { "file": "server/src/epg.js", "line": 476, "route": "DELETE /api/admin/epg/:id" },
+      "notes": "req(`/api/admin/epg/${src.id}`, DELETE)"
+    },
+    {
+      "callSite": { "file": "test/contract-test.mjs", "line": 130 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 106, "route": "GET /api/config" },
+      "notes": "req('/api/config')"
+    },
+    {
+      "callSite": { "file": "test/contract-test.mjs", "line": 135 },
+      "method": "GET",
+      "target": { "file": "server/src/img.js", "line": 323, "route": "GET /api/img" },
+      "notes": "req('/api/img'); imgRouter at /api"
+    },
+    {
+      "callSite": { "file": "test/contract-test.mjs", "line": 136 },
+      "method": "GET",
+      "target": { "file": "server/src/img.js", "line": 323, "route": "GET /api/img" },
+      "notes": "req('/api/img?u=' + …)"
+    },
+    {
+      "callSite": { "file": "test/contract-test.mjs", "line": 140 },
+      "method": "GET",
+      "target": { "file": "server/src/img.js", "line": 323, "route": "GET /api/img" },
+      "notes": "direct fetch(`${BASE}/api/img?u=…`), BASE localhost:8787"
+    },
+    {
+      "callSite": { "file": "test/contract-test.mjs", "line": 149 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "req('/api/proxy?url=' + …); proxyRouter at /api"
+    },
+    {
+      "callSite": { "file": "test/contract-test.mjs", "line": 151 },
+      "method": "GET",
+      "target": null,
+      "notes": "req('/api/nothing-here'): no route (404 middleware, index.js line 447)"
+    },
+    {
+      "callSite": { "file": "test/e2e-smoke.mjs", "line": 78 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "fetch('/api/catalog/channels?category=news&limit=1') inside page.evaluate, root-relative on the page at BASE = process.env.BASE || https://neowatch.soclose.co. ADR-0209: scripts/deploy.sh ships server/src (and web/dist) to the VPS, restarts the neowatch service and verifies $URL/api/health, /api/catalog/channels etc. with URL defaulting to https://neowatch.soclose.co, so this host runs this server; this script's only fetch is this route"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 164 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "call(p) helper: fetch(own + p) (line 160), own = http://127.0.0.1:<port> of the server/src/index.js this test spawns with PORT=port"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 170 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 325,
+        "route": "POST /api/admin/sources"
+      },
+      "notes": "call('/api/admin/sources', POST) on the spawned server"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 171 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 360,
+        "route": "DELETE /api/admin/sources/:id"
+      },
+      "notes": "call('/api/admin/sources/s1', DELETE)"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 173 },
+      "method": "GET",
+      "target": { "file": "server/src/sources.js", "line": 313, "route": "GET /api/sources" },
+      "notes": "call('/api/sources')"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 175 },
+      "method": "POST",
+      "target": { "file": "server/src/epg.js", "line": 445, "route": "POST /api/admin/epg" },
+      "notes": "call('/api/admin/epg', POST)"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 176 },
+      "method": "DELETE",
+      "target": { "file": "server/src/epg.js", "line": 476, "route": "DELETE /api/admin/epg/:id" },
+      "notes": "call('/api/admin/epg/e1', DELETE)"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 188 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 131, "route": "GET /api/health" },
+      "notes": "req('/api/health'): fetch(BASE + p) (line 42), BASE = process.env.BASE || http://localhost:8787 = server PORT || 8787"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 189 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req(`/api/catalog/channels?q=…&page=…`) x20"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 194 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?q=bbc%20news&limit=5')"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 201 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "req('/api/auth/login', POST)"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 210 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 673, "route": "POST /api/admin/users" },
+      "notes": "req('/api/admin/users', POST)"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 211 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 673, "route": "POST /api/admin/users" },
+      "notes": "req('/api/admin/users', POST)"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 213 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 669, "route": "GET /api/admin/users" },
+      "notes": "req('/api/admin/users')"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 217 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 745,
+        "route": "DELETE /api/admin/users/:id"
+      },
+      "notes": "cleanup: req(`/api/admin/users/${u.id}`, DELETE)"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 221 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?q=news&limit=120')"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 239 },
+      "method": "POST",
+      "target": { "file": "server/src/epg.js", "line": 445, "route": "POST /api/admin/epg" },
+      "notes": "req('/api/admin/epg', POST)"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 242 },
+      "method": "DELETE",
+      "target": { "file": "server/src/epg.js", "line": 476, "route": "DELETE /api/admin/epg/:id" },
+      "notes": "cleanup: req(`/api/admin/epg/${src.id}`, DELETE)"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 244 },
+      "method": "GET",
+      "target": { "file": "server/src/epg.js", "line": 379, "route": "GET /api/epg/day" },
+      "notes": "req('/api/epg/day?id=HardenDense.fr')"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 245 },
+      "method": "GET",
+      "target": { "file": "server/src/epg.js", "line": 341, "route": "GET /api/epg/now" },
+      "notes": "req('/api/epg/now?ids=HardenDense.fr')"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 255 },
+      "method": "GET",
+      "target": { "file": "server/src/epg.js", "line": 389, "route": "GET /api/epg/search" },
+      "notes": "req('/api/epg/search?q=zzhardenq')"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 263 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 325,
+        "route": "POST /api/admin/sources"
+      },
+      "notes": "req('/api/admin/sources', POST)"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 268 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 360,
+        "route": "DELETE /api/admin/sources/:id"
+      },
+      "notes": "cleanup: req(`/api/admin/sources/${dripSrc.id}`, DELETE)"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 269 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "listed(): req(`/api/catalog/channels?q=…`)"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 273 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 370,
+        "route": "POST /api/admin/sources/refresh"
+      },
+      "notes": "req('/api/admin/sources/refresh', POST)"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 277 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 360,
+        "route": "DELETE /api/admin/sources/:id"
+      },
+      "notes": "req(`/api/admin/sources/${dripSrc.id}`, DELETE)"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 280 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 325,
+        "route": "POST /api/admin/sources"
+      },
+      "notes": "req('/api/admin/sources', POST)"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 282 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 360,
+        "route": "DELETE /api/admin/sources/:id"
+      },
+      "notes": "cleanup: req(`/api/admin/sources/${inl.id}`, DELETE)"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 287 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req(`/api/catalog/channels?q=…`)"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 292 },
+      "method": "GET",
+      "target": null,
+      "notes": "req('/'): index.html from express.static(web/dist), a static file"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 296 },
+      "method": "GET",
+      "target": null,
+      "notes": "req(asset): an /assets/*.js path read from the served HTML at runtime; static files (express.static)"
+    },
+    {
+      "callSite": { "file": "test/hardening-test.mjs", "line": 299 },
+      "method": "GET",
+      "target": null,
+      "notes": "req('/assets/does-not-exist-0000.js'): /assets static middleware (fallthrough false), no route"
+    },
+    {
+      "callSite": { "file": "test/img-test.mjs", "line": 52 },
+      "method": "GET",
+      "target": { "file": "server/src/img.js", "line": 323, "route": "GET /api/img" },
+      "notes": "img(u) helper: req(`/api/img?u=${enc(u)}`) fixes the path (its ~40 callers pass only the query); req = fetch(BASE + path), BASE = process.env.BASE || http://localhost:8787 = server PORT || 8787"
+    },
+    {
+      "callSite": { "file": "test/img-test.mjs", "line": 192 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 106, "route": "GET /api/config" },
+      "notes": "req('/api/config')"
+    },
+    {
+      "callSite": { "file": "test/img-test.mjs", "line": 200 },
+      "method": "GET",
+      "target": { "file": "server/src/img.js", "line": 323, "route": "GET /api/img" },
+      "notes": "req('/api/img')"
+    },
+    {
+      "callSite": { "file": "test/img-test.mjs", "line": 201 },
+      "method": "GET",
+      "target": { "file": "server/src/img.js", "line": 323, "route": "GET /api/img" },
+      "notes": "req(`/api/img?u=…&u=x`)"
+    },
+    {
+      "callSite": { "file": "test/img-test.mjs", "line": 210 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "req('/api/auth/login', POST)"
+    },
+    {
+      "callSite": { "file": "test/img-test.mjs", "line": 215 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 325,
+        "route": "POST /api/admin/sources"
+      },
+      "notes": "req('/api/admin/sources', POST)"
+    },
+    {
+      "callSite": { "file": "test/img-test.mjs", "line": 220 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?category=custom&limit=120')"
+    },
+    {
+      "callSite": { "file": "test/img-test.mjs", "line": 256 },
+      "method": "GET",
+      "target": { "file": "server/src/img.js", "line": 323, "route": "GET /api/img" },
+      "notes": "req(`/api/img?u=…&w=96`)"
+    },
+    {
+      "callSite": { "file": "test/img-test.mjs", "line": 258 },
+      "method": "GET",
+      "target": { "file": "server/src/img.js", "line": 323, "route": "GET /api/img" },
+      "notes": "req(`/api/img?u=…&w=96`)"
+    },
+    {
+      "callSite": { "file": "test/img-test.mjs", "line": 261 },
+      "method": "GET",
+      "target": { "file": "server/src/img.js", "line": 323, "route": "GET /api/img" },
+      "notes": "req(`/api/img?u=…&w=123`)"
+    },
+    {
+      "callSite": { "file": "test/img-test.mjs", "line": 262 },
+      "method": "GET",
+      "target": { "file": "server/src/img.js", "line": 323, "route": "GET /api/img" },
+      "notes": "req(`/api/img?u=…&w=96&w=320`)"
+    },
+    {
+      "callSite": { "file": "test/img-test.mjs", "line": 319 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 403,
+        "route": "POST /api/admin/blocklist"
+      },
+      "notes": "req('/api/admin/blocklist', POST)"
+    },
+    {
+      "callSite": { "file": "test/img-test.mjs", "line": 323 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 413,
+        "route": "DELETE /api/admin/blocklist"
+      },
+      "notes": "req(`/api/admin/blocklist?url=…`, DELETE)"
+    },
+    {
+      "callSite": { "file": "test/img-test.mjs", "line": 328 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?category=news&limit=40')"
+    },
+    {
+      "callSite": { "file": "test/img-test.mjs", "line": 336 },
+      "method": "GET",
+      "target": { "file": "server/src/radio.js", "line": 96, "route": "GET /api/radios" },
+      "notes": "req('/api/radios?limit=60'); radioRouter at /api"
+    },
+    {
+      "callSite": { "file": "test/img-test.mjs", "line": 352 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 325,
+        "route": "POST /api/admin/sources"
+      },
+      "notes": "req('/api/admin/sources', POST)"
+    },
+    {
+      "callSite": { "file": "test/img-test.mjs", "line": 355 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req(`/api/catalog/channels?category=custom&q=…&limit=1`)"
+    },
+    {
+      "callSite": { "file": "test/img-test.mjs", "line": 361 },
+      "method": "GET",
+      "target": { "file": "server/src/img.js", "line": 323, "route": "GET /api/img" },
+      "notes": "at(base, u) helper: fetch(`${base.origin}/api/img?u=…`) fixes the path; base = new URL(BASE) with the host set to 127.0.0.1 or [::1], same port 8787"
+    },
+    {
+      "callSite": { "file": "test/img-test.mjs", "line": 381 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 360,
+        "route": "DELETE /api/admin/sources/:id"
+      },
+      "notes": "req(`/api/admin/sources/${hangId}`, DELETE)"
+    },
+    {
+      "callSite": { "file": "test/img-test.mjs", "line": 384 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 360,
+        "route": "DELETE /api/admin/sources/:id"
+      },
+      "notes": "req(`/api/admin/sources/${hangId}`, DELETE)"
+    },
+    {
+      "callSite": { "file": "test/img-test.mjs", "line": 389 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 360,
+        "route": "DELETE /api/admin/sources/:id"
+      },
+      "notes": "req(`/api/admin/sources/${srcId}`, DELETE)"
+    },
+    {
+      "callSite": { "file": "test/img-test.mjs", "line": 399 },
+      "method": "GET",
+      "target": { "file": "server/src/img.js", "line": 323, "route": "GET /api/img" },
+      "notes": "req('/api/img?u=x') x50 per batch"
+    },
+    {
+      "callSite": { "file": "test/img-test.mjs", "line": 404 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 360,
+        "route": "DELETE /api/admin/sources/:id"
+      },
+      "notes": "finally: req(`/api/admin/sources/${srcId}`, DELETE)"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 43 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 106, "route": "GET /api/config" },
+      "notes": "req('/api/config'): fetch(BASE + path) (line 27), BASE = process.env.BASE || http://localhost:8787 = server PORT || 8787"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 47 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 131, "route": "GET /api/health" },
+      "notes": "req('/api/health')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 52 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 187, "route": "GET /api/catalog/meta" },
+      "notes": "req('/api/catalog/meta')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 56 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?category=news&limit=5')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 59 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?category=sports&limit=5')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 62 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?foot=1&limit=5')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 64 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?q=france&limit=5')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 66 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?category=news&page=2&limit=5')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 69 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 318, "route": "GET /api/catalog/home" },
+      "notes": "req('/api/catalog/home')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 75 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req(`/api/catalog/channel/${oneId}`)"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 78 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?category=general&limit=120')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 84 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "req('/api/auth/login', POST)"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 87 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 384, "route": "POST /api/auth/register" },
+      "notes": "req('/api/auth/register', POST)"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 90 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 434, "route": "GET /api/auth/me" },
+      "notes": "req('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 92 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "req('/api/auth/login', POST)"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 98 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 669, "route": "GET /api/admin/users" },
+      "notes": "req('/api/admin/users') without a token"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 99 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 669, "route": "GET /api/admin/users" },
+      "notes": "req('/api/admin/users') as a user"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 100 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 669, "route": "GET /api/admin/users" },
+      "notes": "req('/api/admin/users') as admin"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 102 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 673, "route": "POST /api/admin/users" },
+      "notes": "req('/api/admin/users', POST)"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 107 },
+      "method": "GET",
+      "target": { "file": "server/src/billing.js", "line": 169, "route": "GET /api/billing/plans" },
+      "notes": "req('/api/billing/plans')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 109 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?category=sports&limit=1')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 111 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/billing.js",
+        "line": 228,
+        "route": "POST /api/billing/checkout"
+      },
+      "notes": "req('/api/billing/checkout', POST)"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 118 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "req(`/api/proxy?url=…`)"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 120 },
+      "method": "GET",
+      "target": null,
+      "notes": "req(`${newsItem.proxyUrl}&url=…`): the signed proxy link comes from the server's JSON at runtime, not known statically"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 122 },
+      "method": "GET",
+      "target": null,
+      "notes": "req(newsItem.proxyUrl): runtime proxy link from the catalog JSON"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 125 },
+      "method": "GET",
+      "target": null,
+      "notes": "req(sportsItem.proxyUrl): runtime proxy link from the catalog JSON"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 127 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "req(`/api/proxy?url=…`)"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 132 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 384, "route": "POST /api/auth/register" },
+      "notes": "req('/api/auth/register', POST)"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 133 },
+      "method": "PUT",
+      "target": { "file": "server/src/auth.js", "line": 373, "route": "PUT /api/me/prefs" },
+      "notes": "req('/api/me/prefs', PUT)"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 135 },
+      "method": "PUT",
+      "target": { "file": "server/src/auth.js", "line": 373, "route": "PUT /api/me/prefs" },
+      "notes": "req('/api/me/prefs', PUT)"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 140 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 384, "route": "POST /api/auth/register" },
+      "notes": "req('/api/auth/register', POST)"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 142 },
+      "method": "PUT",
+      "target": { "file": "server/src/auth.js", "line": 615, "route": "PUT /api/auth/password" },
+      "notes": "req('/api/auth/password', PUT)"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 144 },
+      "method": "PUT",
+      "target": { "file": "server/src/auth.js", "line": 615, "route": "PUT /api/auth/password" },
+      "notes": "req('/api/auth/password', PUT)"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 146 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "req('/api/auth/login', POST)"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 152 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 325,
+        "route": "POST /api/admin/sources"
+      },
+      "notes": "req('/api/admin/sources', POST)"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 154 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?category=custom&limit=20')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 158 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 360,
+        "route": "DELETE /api/admin/sources/:id"
+      },
+      "notes": "req(`/api/admin/sources/${srcId}`, DELETE)"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 166 },
+      "method": "GET",
+      "target": { "file": "server/src/epg.js", "line": 341, "route": "GET /api/epg/now" },
+      "notes": "req('/api/epg/now?ids=CNN.us')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 168 },
+      "method": "GET",
+      "target": { "file": "server/src/epg.js", "line": 389, "route": "GET /api/epg/search" },
+      "notes": "req('/api/epg/search?q=foot')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 173 },
+      "method": "POST",
+      "target": { "file": "server/src/health.js", "line": 280, "route": "POST /api/catalog/check" },
+      "notes": "req('/api/catalog/check', POST); healthRouter at /api"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 179 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 318, "route": "GET /api/catalog/home" },
+      "notes": "req('/api/catalog/home')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 186 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 318, "route": "GET /api/catalog/home" },
+      "notes": "req('/api/catalog/home?lang=ru')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 187 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 318, "route": "GET /api/catalog/home" },
+      "notes": "req('/api/catalog/home?lang=fr')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 193 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?category=news&limit=40')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 196 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?…sort=name')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 197 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?…sort=latency')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 199 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?q=tele&limit=10')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 204 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?…page=1&limit=30')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 205 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?…page=2&limit=30')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 212 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req(`/api/catalog/channel/${someId}`)"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 215 },
+      "method": "GET",
+      "target": { "file": "server/src/epg.js", "line": 379, "route": "GET /api/epg/day" },
+      "notes": "req(`/api/epg/day?id=…`)"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 223 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?q=a&q=b&limit=3')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 227 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?…page=-5&limit=99999')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 230 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "req('/api/catalog/channel/__nope_does_not_exist__')"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 233 },
+      "method": "POST",
+      "target": { "file": "server/src/health.js", "line": 280, "route": "POST /api/catalog/check" },
+      "notes": "req('/api/catalog/check', POST)"
+    },
+    {
+      "callSite": { "file": "test/integration-test.mjs", "line": 240 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "direct fetch(BASE + '/api/auth/login', { method: 'POST' }) with a malformed body"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 195 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 106, "route": "GET /api/config" },
+      "notes": "req('/api/config'): fetch(BASE + path) (line 45), BASE = process.env.BASE || http://localhost:8787 = server PORT || 8787"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 197 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "req(link(…)): link() builds `/api/proxy?url=…&exp=…&sig=…` (line 66)"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 206 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "req(link(…)), /api/proxy"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 209 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "req(base), base = link(…), /api/proxy"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 210 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "req(base.replace(…)): only the query's ua changes, path /api/proxy"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 211 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "req(base.replace('&exp=', …)): query only, path /api/proxy"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 212 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "req(link(…).replace('&exp=', …)): query only"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 214 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "req(withR.replace('&r=…', '')): query only"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 215 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "req(base.replace(enc(url), enc(other))): the encoded url query value swapped, path /api/proxy"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 217 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "req(`/api/proxy?url=…&exp=…&sig=…`)"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 220 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "req(`/api/proxy?url=…`)"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 225 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "req(link(up('/evil'), …))"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 236 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "ctOf(p) helper: req(link(up(p), …)) fixes /api/proxy; its callers pass only the upstream path"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 243 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "req(link(up('/len'), …))"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 246 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "req(link(up('/range'), …)) with Range"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 248 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "req(link(up('/gz'), …))"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 253 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "req(link(up('/plain.php'), …))"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 257 },
+      "method": "GET",
+      "target": null,
+      "notes": "req(child): child is the first URI of the rewritten playlist the server returned, runtime"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 258 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "req(link(up('/bom'), …))"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 260 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "req(link(up('/notfound.m3u8'), …))"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 262 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "req(link(up('/fake.m3u8'), …))"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 264 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "req(link(up('/keys.m3u8'), …))"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 272 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "req(link(up('/huge.m3u8'), …))"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 274 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "req(link(up('/uris.m3u8'), …))"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 278, "column": 11 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "first of two req(l2) on this line, l2 = link(…)"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 278, "column": 26 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "second req(l2) on this line"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 280 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 131, "route": "GET /api/health" },
+      "notes": "req('/api/health')"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 283 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "req(link(up('/reset'), …))"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 289 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "req('/api/auth/login', POST)"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 299 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 325,
+        "route": "POST /api/admin/sources"
+      },
+      "notes": "req('/api/admin/sources', POST)"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 305 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "req('/api/catalog/channels?category=custom&limit=50')"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 312 },
+      "method": "GET",
+      "target": null,
+      "notes": "req(ch.proxyUrl): signed proxy link from the catalog JSON, runtime"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 316 },
+      "method": "GET",
+      "target": null,
+      "notes": "req(c1): first URI of the rewritten master playlist, runtime"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 318 },
+      "method": "GET",
+      "target": null,
+      "notes": "req(segLink): first URI of the child playlist, runtime"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 322 },
+      "method": "POST",
+      "target": { "file": "server/src/health.js", "line": 280, "route": "POST /api/catalog/check" },
+      "notes": "req('/api/catalog/check', POST)"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 329 },
+      "method": "POST",
+      "target": { "file": "server/src/health.js", "line": 280, "route": "POST /api/catalog/check" },
+      "notes": "req('/api/catalog/check', POST)"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 331 },
+      "method": "POST",
+      "target": { "file": "server/src/health.js", "line": 280, "route": "POST /api/catalog/check" },
+      "notes": "req('/api/catalog/check', POST) as admin"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 335 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 403,
+        "route": "POST /api/admin/blocklist"
+      },
+      "notes": "req('/api/admin/blocklist', POST)"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 339 },
+      "method": "GET",
+      "target": null,
+      "notes": "req(ch.proxyUrl): runtime proxy link"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 340 },
+      "method": "GET",
+      "target": null,
+      "notes": "req(c1): runtime child link"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 341 },
+      "method": "GET",
+      "target": null,
+      "notes": "req(segLink): runtime segment link"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 343 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 413,
+        "route": "DELETE /api/admin/blocklist"
+      },
+      "notes": "req(`/api/admin/blocklist?url=…`, DELETE)"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 347 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 360,
+        "route": "DELETE /api/admin/sources/:id"
+      },
+      "notes": "req(`/api/admin/sources/${srcId}`, DELETE)"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 353 },
+      "method": "GET",
+      "target": { "file": "server/src/radio.js", "line": 96, "route": "GET /api/radios" },
+      "notes": "req('/api/radios?limit=5')"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 358 },
+      "method": "GET",
+      "target": { "file": "server/src/radio.js", "line": 96, "route": "GET /api/radios" },
+      "notes": "req('/api/radios?limit=5')"
+    },
+    {
+      "callSite": { "file": "test/proxy-test.mjs", "line": 363 },
+      "method": "GET",
+      "target": null,
+      "notes": "req(r2.data.items[0].proxyUrl): a radio's signed proxy link from the server's JSON, runtime"
+    },
+    {
+      "callSite": { "file": "test/run.mjs", "line": 104 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "getJson(`${base}/api/catalog/channels?category=${cat}&limit=40`) -> fetch(url) (line 69); base = http://127.0.0.1:<port> of the server/src/index.js this runner spawns with PORT=port"
+    },
+    {
+      "callSite": { "file": "test/run.mjs", "line": 108 },
+      "method": "POST",
+      "target": { "file": "server/src/health.js", "line": 280, "route": "POST /api/catalog/check" },
+      "notes": "fetch(`${base}/api/catalog/check`, { method: 'POST' }) on the spawned server"
+    },
+    {
+      "callSite": { "file": "test/run.mjs", "line": 147 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 131, "route": "GET /api/health" },
+      "notes": "getJson(base + '/api/health') on the spawned server"
+    },
+    {
+      "callSite": { "file": "test/run.mjs", "line": 189 },
+      "method": "GET",
+      "target": null,
+      "notes": "getJson(`${IPTV_API_BASE}/categories.json`), IPTV_API_BASE || https://iptv-org.github.io/api: external"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 75 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 384, "route": "POST /api/auth/register" },
+      "notes": "mkUser(): req('/api/auth/register') fixes the path; req = fetch(BASE + path) (line 35), BASE = process.env.BASE || http://localhost:8787 = server PORT || 8787"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 83 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "adminLogin(): req('/api/auth/login') fixes the path"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 92 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 434, "route": "GET /api/auth/me" },
+      "notes": "req('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 98 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 434, "route": "GET /api/auth/me" },
+      "notes": "req('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 115 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 187, "route": "GET /api/catalog/meta" },
+      "notes": "req('/api/catalog/meta') in a loop"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 120 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 434, "route": "GET /api/auth/me" },
+      "notes": "req('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 121 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 434, "route": "GET /api/auth/me" },
+      "notes": "req('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 151 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 434, "route": "GET /api/auth/me" },
+      "notes": "req('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 156 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 434, "route": "GET /api/auth/me" },
+      "notes": "req('/api/auth/me') with a garbage token"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 162 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 702,
+        "route": "PATCH /api/admin/users/:id"
+      },
+      "notes": "req(`/api/admin/users/${d.id}`, PATCH)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 165 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 434, "route": "GET /api/auth/me" },
+      "notes": "req('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 168 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 702,
+        "route": "PATCH /api/admin/users/:id"
+      },
+      "notes": "req(`/api/admin/users/${d.id}`, PATCH)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 169 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "req('/api/auth/login', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 176 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 745,
+        "route": "DELETE /api/admin/users/:id"
+      },
+      "notes": "req(`/api/admin/users/${g.id}`, DELETE)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 179 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 434, "route": "GET /api/auth/me" },
+      "notes": "req('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 184 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 673, "route": "POST /api/admin/users" },
+      "notes": "req('/api/admin/users', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 186 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "req('/api/auth/login', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 189 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 702,
+        "route": "PATCH /api/admin/users/:id"
+      },
+      "notes": "req(`/api/admin/users/${id}`, PATCH)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 192 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 434, "route": "GET /api/auth/me" },
+      "notes": "req('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 197 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 669, "route": "GET /api/admin/users" },
+      "notes": "req('/api/admin/users')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 202 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "req('/api/auth/login', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 208 },
+      "method": "PUT",
+      "target": { "file": "server/src/auth.js", "line": 615, "route": "PUT /api/auth/password" },
+      "notes": "req('/api/auth/password', PUT)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 213 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 434, "route": "GET /api/auth/me" },
+      "notes": "req('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 214 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 434, "route": "GET /api/auth/me" },
+      "notes": "req('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 215 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 434, "route": "GET /api/auth/me" },
+      "notes": "req('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 217 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 702,
+        "route": "PATCH /api/admin/users/:id"
+      },
+      "notes": "req(`/api/admin/users/${pw.id}`, PATCH)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 219 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 434, "route": "GET /api/auth/me" },
+      "notes": "req('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 220 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "req('/api/auth/login', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 226 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 673, "route": "POST /api/admin/users" },
+      "notes": "req('/api/admin/users', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 228 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "req('/api/auth/login', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 231 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 702,
+        "route": "PATCH /api/admin/users/:id"
+      },
+      "notes": "req(`/api/admin/users/${selfId}`, PATCH)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 236 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 669, "route": "GET /api/admin/users" },
+      "notes": "req('/api/admin/users')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 238 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 669, "route": "GET /api/admin/users" },
+      "notes": "req('/api/admin/users')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 239 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 702,
+        "route": "PATCH /api/admin/users/:id"
+      },
+      "notes": "req(`/api/admin/users/${selfId}`, PATCH)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 263 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 495,
+        "route": "POST /api/auth/device/start"
+      },
+      "notes": "req('/api/auth/device/start', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 265 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 514,
+        "route": "POST /api/auth/device/poll"
+      },
+      "notes": "req('/api/auth/device/poll', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 267 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 543,
+        "route": "POST /api/auth/device/approve"
+      },
+      "notes": "req('/api/auth/device/approve', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 269 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 514,
+        "route": "POST /api/auth/device/poll"
+      },
+      "notes": "req('/api/auth/device/poll', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 272 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 434, "route": "GET /api/auth/me" },
+      "notes": "req('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 274 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 434, "route": "GET /api/auth/me" },
+      "notes": "req('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 284 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "req('/api/auth/login', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 286 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 495,
+        "route": "POST /api/auth/device/start"
+      },
+      "notes": "req('/api/auth/device/start', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 287 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 543,
+        "route": "POST /api/auth/device/approve"
+      },
+      "notes": "req('/api/auth/device/approve', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 288 },
+      "method": "PUT",
+      "target": { "file": "server/src/auth.js", "line": 615, "route": "PUT /api/auth/password" },
+      "notes": "req('/api/auth/password', PUT)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 291 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 434, "route": "GET /api/auth/me" },
+      "notes": "req('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 292 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 514,
+        "route": "POST /api/auth/device/poll"
+      },
+      "notes": "req('/api/auth/device/poll', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 295 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 495,
+        "route": "POST /api/auth/device/start"
+      },
+      "notes": "req('/api/auth/device/start', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 296 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 543,
+        "route": "POST /api/auth/device/approve"
+      },
+      "notes": "req('/api/auth/device/approve', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 297 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 514,
+        "route": "POST /api/auth/device/poll"
+      },
+      "notes": "req('/api/auth/device/poll', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 298 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 434, "route": "GET /api/auth/me" },
+      "notes": "req('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 303 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 495,
+        "route": "POST /api/auth/device/start"
+      },
+      "notes": "req('/api/auth/device/start', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 304 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 543,
+        "route": "POST /api/auth/device/approve"
+      },
+      "notes": "req('/api/auth/device/approve', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 305 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 702,
+        "route": "PATCH /api/admin/users/:id"
+      },
+      "notes": "req(`/api/admin/users/${victim2.id}`, PATCH)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 306 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 514,
+        "route": "POST /api/auth/device/poll"
+      },
+      "notes": "req('/api/auth/device/poll', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 312 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 495,
+        "route": "POST /api/auth/device/start"
+      },
+      "notes": "req('/api/auth/device/start', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 313 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 543,
+        "route": "POST /api/auth/device/approve"
+      },
+      "notes": "req('/api/auth/device/approve', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 315 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 702,
+        "route": "PATCH /api/admin/users/:id"
+      },
+      "notes": "req(`/api/admin/users/${victim3.id}`, PATCH)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 316 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 702,
+        "route": "PATCH /api/admin/users/:id"
+      },
+      "notes": "req(`/api/admin/users/${victim3.id}`, PATCH)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 317 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 514,
+        "route": "POST /api/auth/device/poll"
+      },
+      "notes": "req('/api/auth/device/poll', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 326 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "req('/api/auth/login', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 327 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "req('/api/auth/login', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 330 },
+      "method": "PUT",
+      "target": { "file": "server/src/auth.js", "line": 615, "route": "PUT /api/auth/password" },
+      "notes": "req('/api/auth/password', PUT)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 331 },
+      "method": "PUT",
+      "target": { "file": "server/src/auth.js", "line": 615, "route": "PUT /api/auth/password" },
+      "notes": "req('/api/auth/password', PUT)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 337 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 434, "route": "GET /api/auth/me" },
+      "notes": "req('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 338 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 434, "route": "GET /api/auth/me" },
+      "notes": "req('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 339 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "req('/api/auth/login', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 340 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "req('/api/auth/login', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 354 },
+      "method": "PUT",
+      "target": { "file": "server/src/auth.js", "line": 615, "route": "PUT /api/auth/password" },
+      "notes": "req('/api/auth/password', PUT)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 355 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 702,
+        "route": "PATCH /api/admin/users/:id"
+      },
+      "notes": "after a setTimeout: req(`/api/admin/users/${rv.id}`, PATCH)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 362 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "req('/api/auth/login', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 363 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "req('/api/auth/login', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 372 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 495,
+        "route": "POST /api/auth/device/start"
+      },
+      "notes": "req('/api/auth/device/start', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 373 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 543,
+        "route": "POST /api/auth/device/approve"
+      },
+      "notes": "req('/api/auth/device/approve', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 374 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 514,
+        "route": "POST /api/auth/device/poll"
+      },
+      "notes": "req('/api/auth/device/poll', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 376 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 514,
+        "route": "POST /api/auth/device/poll"
+      },
+      "notes": "req('/api/auth/device/poll', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 378 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 514,
+        "route": "POST /api/auth/device/poll"
+      },
+      "notes": "req('/api/auth/device/poll', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 379 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 514,
+        "route": "POST /api/auth/device/poll"
+      },
+      "notes": "req('/api/auth/device/poll', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 387 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 434, "route": "GET /api/auth/me" },
+      "notes": "req('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 389 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "req('/api/auth/login', POST)"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 392 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 371, "route": "GET /api/me/prefs" },
+      "notes": "req('/api/me/prefs')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 394 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 106, "route": "GET /api/config" },
+      "notes": "req('/api/config')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 406 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 434, "route": "GET /api/auth/me" },
+      "notes": "req('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 409 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 434, "route": "GET /api/auth/me" },
+      "notes": "req('/api/auth/me')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 428 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 106, "route": "GET /api/config" },
+      "notes": "req('/api/config')"
+    },
+    {
+      "callSite": { "file": "test/session-test.mjs", "line": 431 },
+      "method": "GET",
+      "target": { "file": "server/src/proxy.js", "line": 141, "route": "GET /api/proxy" },
+      "notes": "req(`/api/proxy?url=…&lan=1&exp=…&sig=…`)"
+    },
+    {
+      "callSite": { "file": "test/verify-design.mjs", "line": 516 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch('/api/catalog/home') inside page.evaluate on the page under test at BASE = --base or http://127.0.0.1:<port>, both from the command line with no value anywhere in the repo; refusing 8787 doesn't show the port is this server (only header comments say so, and prose isn't a source), so null per EVALUATION.md's env-base rule"
+    },
+    {
+      "callSite": { "file": "test/verify-design.mjs", "line": 582 },
+      "method": "GET",
+      "target": null,
+      "notes": "firstChannelId(): fetch(`${BASE}/api/catalog/channels?limit=1`), BASE as above (command line only, no value in the repo): null"
+    },
+    {
+      "callSite": { "file": "web/public/sw.js", "line": 34 },
+      "method": "GET",
+      "target": null,
+      "notes": "service worker install: fetch(u) for each ASSETS entry (the build's /assets/*.js|css chunks, stamped at build; [] in source): static files"
+    },
+    {
+      "callSite": { "file": "web/public/sw.js", "line": 77 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(request) for a hashed /assets/ file (never /api/): runtime URL, static file"
+    },
+    {
+      "callSite": { "file": "web/public/sw.js", "line": 89 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(request) for another static file (icons, fonts…): runtime URL, static"
+    },
+    {
+      "callSite": { "file": "web/public/sw.js", "line": 104 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(request) for a navigation (the browser's page URL), runtime; /api/ is excluded at line 67"
+    },
+    {
+      "callSite": { "file": "web/src/components/Account.tsx", "line": 66 },
+      "method": "PUT",
+      "target": { "file": "server/src/auth.js", "line": 615, "route": "PUT /api/auth/password" },
+      "notes": "api.put('/auth/password'): lib/api.ts request() = fetch(`/api${path}`), same origin (Vite proxy /api -> API_TARGET || http://localhost:8787 in dev = server PORT || 8787; Express serves web/dist in prod). authRouter at /api/auth"
+    },
+    {
+      "callSite": { "file": "web/src/components/Account.tsx", "line": 82 },
+      "method": "DELETE",
+      "target": { "file": "server/src/auth.js", "line": 646, "route": "DELETE /api/auth/me" },
+      "notes": "api.del('/auth/me', { password })"
+    },
+    {
+      "callSite": { "file": "web/src/components/Account.tsx", "line": 98 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/billing.js",
+        "line": 289,
+        "route": "POST /api/billing/cancel"
+      },
+      "notes": "api.post(`/billing/cancel?lang=${lang}`); query dropped"
+    },
+    {
+      "callSite": { "file": "web/src/components/Account.tsx", "line": 117 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/billing.js",
+        "line": 228,
+        "route": "POST /api/billing/checkout"
+      },
+      "notes": "api.post(`/billing/checkout?lang=${lang}`)"
+    },
+    {
+      "callSite": { "file": "web/src/components/Account.tsx", "line": 132 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 441, "route": "GET /api/auth/me/export" },
+      "notes": "direct fetch('/api/auth/me/export'), same origin"
+    },
+    {
+      "callSite": { "file": "web/src/components/AdminDashboard.tsx", "line": 68 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 669, "route": "GET /api/admin/users" },
+      "notes": "api.get('/admin/users'); adminRouter at /api/admin"
+    },
+    {
+      "callSite": { "file": "web/src/components/AdminDashboard.tsx", "line": 99 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 673, "route": "POST /api/admin/users" },
+      "notes": "api.post('/admin/users', form)"
+    },
+    {
+      "callSite": { "file": "web/src/components/AdminDashboard.tsx", "line": 105 },
+      "method": "PATCH",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 702,
+        "route": "PATCH /api/admin/users/:id"
+      },
+      "notes": "api.patch(`/admin/users/${id}`)"
+    },
+    {
+      "callSite": { "file": "web/src/components/AdminDashboard.tsx", "line": 108 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 745,
+        "route": "DELETE /api/admin/users/:id"
+      },
+      "notes": "api.del(`/admin/users/${u.id}`)"
+    },
+    {
+      "callSite": { "file": "web/src/components/AdminDashboard.tsx", "line": 110 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/billing.js",
+        "line": 319,
+        "route": "POST /api/admin/users/:id/plan"
+      },
+      "notes": "api.post(`/admin/users/${id}/plan`); billingAdminRouter at /api/admin"
+    },
+    {
+      "callSite": { "file": "web/src/components/AdminDashboard.tsx", "line": 115 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 434,
+        "route": "POST /api/catalog/refresh"
+      },
+      "notes": "api.post('/catalog/refresh')"
+    },
+    {
+      "callSite": { "file": "web/src/components/AdminDashboard.tsx", "line": 127 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/health.js",
+        "line": 307,
+        "route": "POST /api/admin/health/sweep"
+      },
+      "notes": "api.post('/admin/health/sweep'); healthAdminRouter at /api/admin"
+    },
+    {
+      "callSite": { "file": "web/src/components/AdminDashboard.tsx", "line": 236 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 424, "route": "GET /api/admin/config" },
+      "notes": "api.get('/admin/config')"
+    },
+    {
+      "callSite": { "file": "web/src/components/AdminDashboard.tsx", "line": 237 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 425,
+        "route": "GET /api/admin/channels/audit"
+      },
+      "notes": "api.get('/admin/channels/audit')"
+    },
+    {
+      "callSite": { "file": "web/src/components/AdminDashboard.tsx", "line": 321 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 401, "route": "GET /api/admin/blocklist" },
+      "notes": "api.get('/admin/blocklist')"
+    },
+    {
+      "callSite": { "file": "web/src/components/AdminDashboard.tsx", "line": 337 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 403,
+        "route": "POST /api/admin/blocklist"
+      },
+      "notes": "api.post('/admin/blocklist', { urls })"
+    },
+    {
+      "callSite": { "file": "web/src/components/AdminDashboard.tsx", "line": 352 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 413,
+        "route": "DELETE /api/admin/blocklist"
+      },
+      "notes": "api.del('/admin/blocklist', { url })"
+    },
+    {
+      "callSite": { "file": "web/src/components/AdminDashboard.tsx", "line": 353 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 403,
+        "route": "POST /api/admin/blocklist"
+      },
+      "notes": "toast undo: api.post('/admin/blocklist', { urls: [url] })"
+    },
+    {
+      "callSite": { "file": "web/src/components/AdminDashboard.tsx", "line": 425 },
+      "method": "GET",
+      "target": { "file": "server/src/sources.js", "line": 323, "route": "GET /api/admin/sources" },
+      "notes": "api.get('/admin/sources')"
+    },
+    {
+      "callSite": { "file": "web/src/components/AdminDashboard.tsx", "line": 444 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 325,
+        "route": "POST /api/admin/sources"
+      },
+      "notes": "api.post('/admin/sources', body)"
+    },
+    {
+      "callSite": { "file": "web/src/components/AdminDashboard.tsx", "line": 457 },
+      "method": "DELETE",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 360,
+        "route": "DELETE /api/admin/sources/:id"
+      },
+      "notes": "api.del(`/admin/sources/${id}`)"
+    },
+    {
+      "callSite": { "file": "web/src/components/AdminDashboard.tsx", "line": 464 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/sources.js",
+        "line": 370,
+        "route": "POST /api/admin/sources/refresh"
+      },
+      "notes": "api.post('/admin/sources/refresh')"
+    },
+    {
+      "callSite": { "file": "web/src/components/AdminDashboard.tsx", "line": 540 },
+      "method": "GET",
+      "target": { "file": "server/src/epg.js", "line": 443, "route": "GET /api/admin/epg" },
+      "notes": "api.get('/admin/epg'); epgAdminRouter at /api/admin"
+    },
+    {
+      "callSite": { "file": "web/src/components/AdminDashboard.tsx", "line": 553 },
+      "method": "POST",
+      "target": { "file": "server/src/epg.js", "line": 445, "route": "POST /api/admin/epg" },
+      "notes": "api.post('/admin/epg', form)"
+    },
+    {
+      "callSite": { "file": "web/src/components/AdminDashboard.tsx", "line": 565 },
+      "method": "DELETE",
+      "target": { "file": "server/src/epg.js", "line": 476, "route": "DELETE /api/admin/epg/:id" },
+      "notes": "api.del(`/admin/epg/${id}`)"
+    },
+    {
+      "callSite": { "file": "web/src/components/ChannelDetail.tsx", "line": 79 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "api.get(`/catalog/channel/${id}`)"
+    },
+    {
+      "callSite": { "file": "web/src/components/ChannelDetail.tsx", "line": 100 },
+      "method": "GET",
+      "target": { "file": "server/src/epg.js", "line": 379, "route": "GET /api/epg/day" },
+      "notes": "api.get(`/epg/day?id=…`); epgPublicRouter at /api"
+    },
+    {
+      "callSite": { "file": "web/src/components/ChannelDetail.tsx", "line": 105 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "api.get(`/catalog/channels?${q}&limit=18`)"
+    },
+    {
+      "callSite": { "file": "web/src/components/Films.tsx", "line": 30 },
+      "method": "GET",
+      "target": { "file": "server/src/films.js", "line": 111, "route": "GET /api/films" },
+      "notes": "api.get('/films'); filmsRouter at /api"
+    },
+    {
+      "callSite": { "file": "web/src/components/Films.tsx", "line": 46 },
+      "method": "GET",
+      "target": { "file": "server/src/films.js", "line": 119, "route": "GET /api/films/:id/play" },
+      "notes": "api.get(`/films/${id}/play`)"
+    },
+    {
+      "callSite": { "file": "web/src/components/HlsVideo.tsx", "line": 474 },
+      "method": "GET",
+      "target": null,
+      "notes": "probeStatus(src) -> fetch(src) (line 61): src is the channel's proxyUrl handed by the catalog JSON (a signed /api/proxy link at runtime), not known statically"
+    },
+    {
+      "callSite": { "file": "web/src/components/Home.tsx", "line": 142 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 318, "route": "GET /api/catalog/home" },
+      "notes": "api\\n.get(`/catalog/home?lang=${lang}`): the call expression starts at `api` (line 142), .get on line 143"
+    },
+    {
+      "callSite": { "file": "web/src/components/Home.tsx", "line": 270 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 361, "route": "GET /api/catalog/random" },
+      "notes": "api.get('/catalog/random')"
+    },
+    {
+      "callSite": { "file": "web/src/components/LinkDevice.tsx", "line": 37 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 535, "route": "GET /api/auth/device/info" },
+      "notes": "api.get(`/auth/device/info?code=…`)"
+    },
+    {
+      "callSite": { "file": "web/src/components/LinkDevice.tsx", "line": 52 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 543,
+        "route": "POST /api/auth/device/approve"
+      },
+      "notes": "api.post('/auth/device/approve', { code })"
+    },
+    {
+      "callSite": { "file": "web/src/components/Login.tsx", "line": 206 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 495,
+        "route": "POST /api/auth/device/start"
+      },
+      "notes": "api.post('/auth/device/start', {})"
+    },
+    {
+      "callSite": { "file": "web/src/components/Login.tsx", "line": 227 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/auth.js",
+        "line": 514,
+        "route": "POST /api/auth/device/poll"
+      },
+      "notes": "api.post('/auth/device/poll', { deviceCode })"
+    },
+    {
+      "callSite": { "file": "web/src/components/Pricing.tsx", "line": 61 },
+      "method": "GET",
+      "target": { "file": "server/src/billing.js", "line": 169, "route": "GET /api/billing/plans" },
+      "notes": "api.get(`/billing/plans?lang=${lang}`); billingPublicRouter at /api"
+    },
+    {
+      "callSite": { "file": "web/src/components/Pricing.tsx", "line": 96 },
+      "method": "POST",
+      "target": {
+        "file": "server/src/billing.js",
+        "line": 228,
+        "route": "POST /api/billing/checkout"
+      },
+      "notes": "api.post(`/billing/checkout?lang=${lang}`)"
+    },
+    {
+      "callSite": { "file": "web/src/components/ProgramSearch.tsx", "line": 41 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "api.get(`/catalog/channel/${id}?channelId=…`)"
+    },
+    {
+      "callSite": { "file": "web/src/components/ProgrammeTv.tsx", "line": 92 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 381, "route": "GET /api/epg/grid" },
+      "notes": "api.get(`/epg/grid?${qs}`)"
+    },
+    {
+      "callSite": { "file": "web/src/components/ProgrammeTv.tsx", "line": 120 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "api.get(`/catalog/channel/${g.id}?channelId=…`)"
+    },
+    {
+      "callSite": { "file": "web/src/components/Radios.tsx", "line": 65 },
+      "method": "GET",
+      "target": { "file": "server/src/radio.js", "line": 96, "route": "GET /api/radios" },
+      "notes": "api.get(LIST_URL), LIST_URL = '/radios?limit=200' (line 37); radioRouter at /api"
+    },
+    {
+      "callSite": { "file": "web/src/components/Radios.tsx", "line": 105 },
+      "method": "GET",
+      "target": { "file": "server/src/radio.js", "line": 96, "route": "GET /api/radios" },
+      "notes": "api\\n.get(LIST_URL): starts at `api` (line 105), .get on line 106"
+    },
+    {
+      "callSite": { "file": "web/src/lib/epg.ts", "line": 41 },
+      "method": "GET",
+      "target": { "file": "server/src/epg.js", "line": 341, "route": "GET /api/epg/now" },
+      "notes": "fetchChunk(): api\\n.get(`/epg/now?ids=…`), starting at `api` (line 41)"
+    },
+    {
+      "callSite": { "file": "web/src/lib/epg.ts", "line": 81 },
+      "method": "GET",
+      "target": { "file": "server/src/epg.js", "line": 389, "route": "GET /api/epg/search" },
+      "notes": "searchProgrammes(): api.get(`/epg/search?q=…`)"
+    },
+    {
+      "callSite": { "file": "web/src/lib/films.ts", "line": 44 },
+      "method": "GET",
+      "target": { "file": "server/src/films.js", "line": 111, "route": "GET /api/films" },
+      "notes": "loadFilmList(): api\\n.get('/films'), starting at `api` (line 44)"
+    },
+    {
+      "callSite": { "file": "web/src/lib/fresh.ts", "line": 68 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "freshChannel(): api.get(`/catalog/channel/${id}${q}`), q = '' or ?channelId=…"
+    },
+    {
+      "callSite": { "file": "web/src/store/authStore.ts", "line": 75 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 415, "route": "POST /api/auth/login" },
+      "notes": "api.post('/auth/login')"
+    },
+    {
+      "callSite": { "file": "web/src/store/authStore.ts", "line": 89 },
+      "method": "POST",
+      "target": { "file": "server/src/auth.js", "line": 384, "route": "POST /api/auth/register" },
+      "notes": "api.post('/auth/register')"
+    },
+    {
+      "callSite": { "file": "web/src/store/authStore.ts", "line": 125 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 434, "route": "GET /api/auth/me" },
+      "notes": "api.get('/auth/me')"
+    },
+    {
+      "callSite": { "file": "web/src/store/authStore.ts", "line": 192 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 106, "route": "GET /api/config" },
+      "notes": "api.get('/config')"
+    },
+    {
+      "callSite": { "file": "web/src/store/catalogStore.ts", "line": 58 },
+      "method": "PUT",
+      "target": { "file": "server/src/auth.js", "line": 596, "route": "PUT /api/auth/favorites" },
+      "notes": "api.put('/auth/favorites')"
+    },
+    {
+      "callSite": { "file": "web/src/store/catalogStore.ts", "line": 181 },
+      "method": "GET",
+      "target": { "file": "server/src/index.js", "line": 187, "route": "GET /api/catalog/meta" },
+      "notes": "api.get('/catalog/meta')"
+    },
+    {
+      "callSite": { "file": "web/src/store/catalogStore.ts", "line": 223 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "api.get(`/catalog/channels?${buildQuery(filters, 1)}`)"
+    },
+    {
+      "callSite": { "file": "web/src/store/catalogStore.ts", "line": 246 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 207,
+        "route": "GET /api/catalog/channels"
+      },
+      "notes": "api.get(`/catalog/channels?${buildQuery(filters, page + 1)}`)"
+    },
+    {
+      "callSite": { "file": "web/src/store/catalogStore.ts", "line": 311 },
+      "method": "POST",
+      "target": { "file": "server/src/health.js", "line": 280, "route": "POST /api/catalog/check" },
+      "notes": "api.post( with '/catalog/check' on the next line; healthRouter at /api"
+    },
+    {
+      "callSite": { "file": "web/src/store/playerStore.ts", "line": 50 },
+      "method": "PUT",
+      "target": { "file": "server/src/auth.js", "line": 606, "route": "PUT /api/auth/multi" },
+      "notes": "api.put('/auth/multi')"
+    },
+    {
+      "callSite": { "file": "web/src/store/playerStore.ts", "line": 80 },
+      "method": "GET",
+      "target": {
+        "file": "server/src/index.js",
+        "line": 346,
+        "route": "GET /api/catalog/channel/:id"
+      },
+      "notes": "api.get(`/catalog/channel/${c.id}${q}`)"
+    },
+    {
+      "callSite": { "file": "web/src/store/prefsStore.ts", "line": 46 },
+      "method": "PUT",
+      "target": { "file": "server/src/auth.js", "line": 373, "route": "PUT /api/me/prefs" },
+      "notes": "flush(): api\\n.put('/me/prefs'), starting at `api` (line 46); prefsRouter at /api"
+    },
+    {
+      "callSite": { "file": "web/src/store/prefsStore.ts", "line": 64 },
+      "method": "GET",
+      "target": { "file": "server/src/auth.js", "line": 371, "route": "GET /api/me/prefs" },
+      "notes": "load(): api.get('/me/prefs')"
+    }
+  ]
+}

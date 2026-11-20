@@ -1,0 +1,59 @@
+{
+  "repo": "shoaibsayyed03/pdf-chat-app",
+  "sha": "627fa909b6e4b642bc9bd42dc97ba63c926e80da",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "packages/client/src/App.tsx", "line": 32 },
+      "method": "POST",
+      "target": {
+        "file": "packages/server/routes/index.ts",
+        "line": 10,
+        "route": "POST /api/session/verify"
+      },
+      "notes": "handleVerifySession(): shared axios instance api (src/api.ts, baseURL import.meta.env.VITE_API_URL = http://localhost:3000 from the committed packages/client/.env.example; server listens on PORT || 3000, server .env.example sets no PORT) .post('/api/session/verify') on line 33; packages/server/index.ts mounts the router at /api; router.post('/session/verify')"
+    },
+    {
+      "callSite": { "file": "packages/client/src/components/app/upload-section.tsx", "line": 47 },
+      "method": "GET",
+      "target": {
+        "file": "packages/server/routes/index.ts",
+        "line": 11,
+        "route": "GET /api/session/status"
+      },
+      "notes": "handleStatusUpdate(): api (line 47) .get('/api/session/status') on line 48, same base http://localhost:3000; /api mount; router.get('/session/status')"
+    },
+    {
+      "callSite": { "file": "packages/client/src/components/app/upload-section.tsx", "line": 72 },
+      "method": "POST",
+      "target": {
+        "file": "packages/server/routes/index.ts",
+        "line": 14,
+        "route": "POST /api/upload"
+      },
+      "notes": "handleUploadPdf(): api (line 72) .post('/api/upload', formData) on line 73, same base; /api mount; router.post('/upload', multer middleware, handler)"
+    },
+    {
+      "callSite": { "file": "packages/client/src/hooks/use-delete-session.tsx", "line": 18 },
+      "method": "DELETE",
+      "target": {
+        "file": "packages/server/routes/index.ts",
+        "line": 12,
+        "route": "DELETE /api/session/delete"
+      },
+      "notes": "useDeleteSession(): api.delete('/api/session/delete'), same base; /api mount; router.delete('/session/delete')"
+    },
+    {
+      "callSite": { "file": "packages/client/src/hooks/use-send-message.tsx", "line": 30 },
+      "method": "POST",
+      "target": {
+        "file": "packages/server/routes/index.ts",
+        "line": 16,
+        "route": "POST /api/chat"
+      },
+      "notes": "useSendMessage(): api.post('/api/chat', { prompt }), same base; /api mount; router.post('/chat')"
+    }
+  ]
+}

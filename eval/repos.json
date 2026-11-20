@@ -41,6 +41,16 @@
       "heldOut": 7
     },
     {
+      "owner": "AuthSphere",
+      "name": "AuthSphere",
+      "url": "https://github.com/AuthSphere/AuthSphere",
+      "sha": "1187496de4e9d7b36e5ddaa35d9850d82467496e",
+      "license": "MIT",
+      "shape": "axios-baseurl",
+      "why": "Held out, batch 7 (M12.2b2, drawn in stratum react-express). A Vite React SPA in frontend/ beside an Express 5 server in backend/ and a TypeScript client SDK in packages/. The SPA sends 43 requests through one axios instance (frontend/src/api/axios.js, used by the src/api/*API.js service objects, the zustand stores, useAuthQuery and two auth pages) on `import.meta.env.VITE_API_URL || \"http://localhost:8000/api/v1\"` (same value in frontend/.env.example and the root .env.example; docker-compose's build arg `http://localhost:8000` is not the fallback), and the server listens on `PORT || 8000` (backend/src/configs/env.js, backend/.env.example). backend/src/routes/index.js mounts /api/v1/developers, /projects, /analytics, /sessions, /audit-logs and /notifications, but /auth and /sdk at the root, so the three SDKAPI.js calls (`/sdk/login-local`, `/sdk/verify-otp`, `/sdk/resend-verification` on the /api/v1 base) reach no route, while AuthCallback.jsx's `/auth/session/:token` passes its own `baseURL` (`VITE_BACKEND_URL || \"http://localhost:8000\"`) and reaches the auth router. developer.routes.js registers through multi-line `router.route(p).<method>` chains (statement line labeled). The SDK's 11 `fetch` calls use `options.baseUrl`, defaulted to `http://localhost:8000` by initAuth (packages/src/config/options.ts, plus `baseUrl || DEFAULT_BASE_URL` in callback.ts and refresh.ts): its seven /sdk/* calls reach the sdk router, but its three management calls send /projects/* without the /api/v1 prefix and logout sends /sdk/logout, which no route registers, so those four are `null`. The backend's 25 outbound calls are `null`: OAuth token and user-info requests to eight providers, ipapi.co geolocation, the Pwned Passwords API, webhook POSTs to database-held URLs, and two `fetch(conf.cliUrl + \"/cli-update\")` calls to `CLI_URL || \"http://localhost:5001\"`, a port no server in the repo listens on. Not labeled: the axios interceptor's replays (`api(prom.request)`, `api(originalRequest)`), the SDK's exported `fetchWithAuth(url)` helper (no caller in the repo supplies a URL), socket.io in LiveEventsStream.jsx, `window.location` navigations to /auth/<provider> in Login.jsx, Register.jsx and the SDK's redirect.ts, and `fetch` examples inside documentation code strings; 227 TS/JS source files.",
+      "heldOut": 7
+    },
+    {
       "owner": "Avinash905",
       "name": "Recipen",
       "url": "https://github.com/Avinash905/Recipen",
@@ -59,6 +69,16 @@
       "shape": "next-api-routes",
       "why": "Held out, batch 5 (M5C.8b4, drawn in stratum nextjs-prisma). A single Next.js App Router app (NextAuth, UploadThing, Prisma, Upstash Redis, Editor.js) whose route.ts handlers under src/app/api mostly export several methods through an export list (export { createPost as POST, editPost as PATCH, deletePost as DELETE }). The client sends 16 direct axios.get/post/patch/delete requests from react-query mutation functions and one useInfiniteQuery fetcher that fixes its own path, all on root-relative literals and templates (/api/forum, /api/forum/post, /api/forum/${id}/subscription, /api/forum/post/comment, /api/forum/post/vote, /api/user, /api/posts, /api/posts/search). Two have a trailing space inside the literal (stripped by URL parsing), and two deletes put a slash before the query (/api/forum/?forumId=), which Next's default trailing-slash redirect (308, method kept) sends to the route without it. No basePath or rewrites; the middleware is next-auth's guard. Server-side, two forum handlers GET `${siteConfig.url}/api/cron` on the literal host https://devcircle.live, which nothing in the repo deploys the app to (sst.config.ts names www.devcircle.live, a different host), so both are null, as is the link-preview handler's axios.get of a runtime ?url= value. Not labeled: NextAuth's signIn, UploadThing's uploadFiles, Editor.js LinkTool's own request to /api/link, OG image URLs, the Upstash client. 195 TS/JS source files.",
       "heldOut": 5
+    },
+    {
+      "owner": "ConvoBrains",
+      "name": "zero-cost-crm",
+      "url": "https://github.com/ConvoBrains/zero-cost-crm",
+      "sha": "99e9ca02fdc9cfef5632db4a78b376124c2eaf8b",
+      "license": "MIT",
+      "shape": "spa-plus-express",
+      "why": "Held out, batch 7 (M12.2b2, drawn in stratum react-express). One package: a Vite React SPA in src/ beside an Express 5 server in server/ (server/index.ts listens on server/config.ts `PORT ?? 4000`, .env.example PORT=4000; api/index.ts re-exports the same app for Vercel, whose vercel.json rewrites /api/(.*) to it). The SPA sends 35 requests through the `api(path, init)` fetch wrapper (src/lib/api.ts:28, `fetch(path, …)`, labeled at each call, method from `init.method` or GET) plus 2 direct `fetch` calls for the activity CSV/JSON export (SdrActivity.tsx), all on root-relative /api/... paths that vite.config.ts proxies to http://127.0.0.1:4000 and that the server serves same-origin in production; a third `fetch` PUTs the recording to the presigned S3 URL /api/conversations/presign returns (external, `null`). Every route is registered with its full /api/... path straight on `app` (no routers or mounts): server/app.ts, plus server/activityRoutes.ts and server/conversations.ts through `registerActivityRoutes(app)` / `registerConversationRoutes(app, pool)`; /api/docs is `app.use('/api/docs', …, swaggerUi.setup(doc))`, labeled `ALL`. The Vitest functional tests are labeled too: their own `api(path, opts)` helper (testing/functional/api/helpers.ts:45) is `fetch(getBaseUrl() + path)` against server/app.js `listen(0)` started by `startApi`, so each helper call is the call site (method `opts.method ?? (body ? POST : GET)`), and `loginAsCookie`'s fixed `/api/auth/login` fetch is labeled once inside the helper; 4 plain test `fetch` calls go to the same base, except docs.test.ts:27, which re-imports the app after setting `config.enableApiDocs = false`, so /api/docs is never registered (`null`). Traps: multi-line generic calls (`api<{ … }>(` with the path several lines down) put the call site on the `api` line; requests answered 401/403/404 still carry the route's path. Not labeled: Playwright e2e specs (page navigation only, no request expressions), playwright.config.ts's webServer health URL (config, not a request), and the server's own S3 SDK calls. 111 TS/JS source files (47 under testing/).",
+      "heldOut": 7
     },
     {
       "owner": "digitalocean",
@@ -484,6 +504,26 @@
       "shape": "spa-plus-express",
       "why": "Held out (M5A.2c). One package: a webpack React client (client/) server-rendered by an Express + Mongoose server (server/), Babel ES modules. Per-feature client/*/api-*.js modules call fetch with root-relative, concatenated paths ('/api/users/' + params.userId) on the same origin; the server mounts three routers at '/', each declaring full paths in router.route(path).get(…).put(…) chains, plus a catch-all app.get('*') for server-side rendering. Default branch second-edition. ~43 JS source files.",
       "heldOut": 1
+    },
+    {
+      "owner": "shoaibsayyed03",
+      "name": "pdf-chat-app",
+      "url": "https://github.com/shoaibsayyed03/pdf-chat-app",
+      "sha": "627fa909b6e4b642bc9bd42dc97ba63c926e80da",
+      "license": "MIT",
+      "shape": "spa-plus-express",
+      "why": "Held out, batch 7 (M12.2b2, drawn in stratum react-express). A bun workspace: a Vite React SPA in packages/client beside an Express server in packages/server (the root index.ts only starts both with concurrently). All 5 requests go through one axios instance (packages/client/src/api.ts, an interceptor adding x-session-id) whose baseURL is import.meta.env.VITE_API_URL with no in-code fallback; the committed packages/client/.env.example sets it to http://localhost:3000, the server's PORT || 3000 (the server's .env.example sets no PORT), so every label follows it. packages/server/index.ts mounts the single router at /api (POST /session/verify, GET /session/status, DELETE /session/delete, POST /upload, POST /chat), behind a session middleware that only checks /api/ paths. Traps: three calls are chained across lines (api on one line, .post on the next; labeled at the call's start), and src/test.tsx repeats two of them entirely inside comments. Not labeled: the commented-out calls in test.tsx, the PDF viewer's file URL and the details modal's href (VITE_API_URL + file.path, served by express.static at /view, a browser load and a link), and the server's Gemini and Pinecone SDK clients. 66 TS/JS source files.",
+      "heldOut": 7
+    },
+    {
+      "owner": "SoCloseSociety",
+      "name": "neowatch",
+      "url": "https://github.com/SoCloseSociety/neowatch",
+      "sha": "a71b1a243c22e33c9cecf6397daa01795aa38741",
+      "license": "MIT",
+      "shape": "spa-plus-express",
+      "why": "Held out, batch 7 (M12.2b2, drawn in stratum react-express). npm workspaces: a Vite React/TypeScript SPA in web/ beside an Express server in server/, plus a large test/ folder of plain-fetch suites run against throwaway servers. The SPA sends ~70 requests through lib/api.ts's `api.get/post/put/patch/del` wrapper (`fetch(\\`/api${path}\\`)`, same origin: web/vite.config.ts proxies `/api` to `API_TARGET || http://localhost:8787`, server/src/config.js `PORT || 8787`, and Express serves web/dist in production) and one direct `fetch('/api/auth/me/export')`; several calls are chained (`api\\n.get(...)`, labeled at `api`). server/src/index.js registers direct `/api/config`, `/api/health`, `/api/catalog/*`, `/api/epg/grid`, `/api/admin/blocklist|config|channels/audit` and `/api/billing/webhook` routes and mounts authRouter at /api/auth, five admin routers at /api/admin, and img/proxy/billing/prefs/sources/epg/films/radio/health routers at /api; a catch-all `app.get('*')` serves the SPA when web/dist exists (written `GET /*splat`). The test suites (contract, integration, catalog, account, hardening, img, proxy, session) each wrap `fetch(BASE + path)` with `BASE = process.env.BASE || 'http://localhost:8787'` and are labeled at each helper call (~420 labels); helpers that fix the path themselves (`register()`, `hook()`, `userById()`, `mkUser()`, `adminLogin()`, img-test's `img(u)` and `at()`, proxy-test's `ctOf(p)`) are labeled once inside. test/run.mjs and hardening-test.mjs fetch servers they spawn from server/src/index.js on a free port; e2e-smoke.mjs's one `fetch('/api/catalog/channels')` runs on the page at its `https://neowatch.soclose.co` fallback, followed under ADR-0209 because scripts/deploy.sh ships server/src there and verifies `$URL/api/health` and `/api/catalog/channels` on that host; verify-design.mjs's two requests are `null`: its base is a command-line port or URL with no value anywhere in the repo, and refusing port 8787 doesn't show it points at this server. Traps: proxy-test builds `/api/proxy?...` links with a local `link()` and `.replace()`s only their query; many tests (and HlsVideo's `probeStatus`) re-request signed proxy links or playlist URIs read from server JSON at runtime (`null`); `/api/nope-s2` and `/api/nothing-here` reach only the /api 404 middleware, and `/`, `/assets/*` are express.static files (`null`); `/api/catalog/channel/%E0%A4%A` is labeled to its route although Express answers 400 on the bad escape. The server's own outbound requests (iptv-org, Stripe, archive.org, radio-browser, XMLTV/M3U sources, stream health probes, logo relay, stream proxy, all through undici `safeFetch` or global `fetch`) are external or runtime, `null`, labeled at the outermost call supplying the URL. Not labeled: session-test's `rawReq` (node:http), Playwright `page.goto` navigations, `<img>`/`<audio>`/hls.js media loads, and the service worker's `cache.add`. 86 TS/JS source files.",
+      "heldOut": 7
     },
     {
       "owner": "solid-logic-studios",
