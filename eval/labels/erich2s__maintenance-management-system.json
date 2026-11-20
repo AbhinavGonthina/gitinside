@@ -1,0 +1,269 @@
+{
+  "repo": "erich2s/maintenance-management-system",
+  "sha": "8c0f55a77652cf1e080452a45ca37660a4f4a132",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "src/app/admin/locations/page.tsx", "line": 43 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/locations/[id]/route.ts",
+        "line": 6,
+        "route": "DELETE /api/locations/:id"
+      },
+      "notes": "fetch(`/api/locations/${row.original.id}`, { method: \"DELETE\" }) in the table's delete button; root-relative, same Next app; locations/[id]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/app/admin/locations/page.tsx", "line": 84 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/locations/route.ts",
+        "line": 5,
+        "route": "GET /api/locations"
+      },
+      "notes": "fetch(\"/api/locations\") loading the map's markers; no init, so GET"
+    },
+    {
+      "callSite": { "file": "src/app/admin/locations/page.tsx", "line": 148 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/locations/route.ts",
+        "line": 5,
+        "route": "GET /api/locations"
+      },
+      "notes": "<DataTable url=\"/api/locations\">: DataTable.tsx passes its url prop (with ?page&size appended) as the useSWR key to its own fetcher (fetch(url, { cache })), so the path is supplied at this element; DataTable.tsx:46 itself is not labeled"
+    },
+    {
+      "callSite": { "file": "src/app/admin/locations/page.tsx", "line": 182 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/locations/route.ts",
+        "line": 24,
+        "route": "POST /api/locations"
+      },
+      "notes": "fetch(\"/api/locations\", { method: \"POST\" }) saving the picked map points"
+    },
+    {
+      "callSite": { "file": "src/app/admin/types/page.tsx", "line": 54 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/types/[id]/route.ts",
+        "line": 6,
+        "route": "DELETE /api/types/:id"
+      },
+      "notes": "fetch(`/api/types/${row.original.id}`, { method: \"DELETE\" }); types/[id]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/app/admin/types/page.tsx", "line": 87 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/types/route.ts",
+        "line": 25,
+        "route": "POST /api/types"
+      },
+      "notes": "fetch(\"/api/types\", { method: \"POST\" }) in the form's onSubmit"
+    },
+    {
+      "callSite": { "file": "src/app/admin/types/page.tsx", "line": 103 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/types/route.ts",
+        "line": 5,
+        "route": "GET /api/types"
+      },
+      "notes": "<DataTable url=\"/api/types\">: the component's useSWR fetcher GETs its url prop (query dropped)"
+    },
+    {
+      "callSite": { "file": "src/app/admin/users/page.tsx", "line": 128 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/users/[id]/route.ts",
+        "line": 20,
+        "route": "DELETE /api/users/:id"
+      },
+      "notes": "fetch(`/api/users/${row.original.id}`, { method: \"DELETE\" }); users/[id]/route.ts exports GET and DELETE"
+    },
+    {
+      "callSite": { "file": "src/app/admin/users/page.tsx", "line": 160 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/users/route.ts",
+        "line": 24,
+        "route": "POST /api/users"
+      },
+      "notes": "fetch(\"/api/users\", { method: \"POST\" }) importing users from an xlsx file"
+    },
+    {
+      "callSite": { "file": "src/app/admin/users/page.tsx", "line": 188 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/users/route.ts",
+        "line": 7,
+        "route": "GET /api/users"
+      },
+      "notes": "<DataTable url=\"/api/users\">: the component's useSWR fetcher GETs its url prop (query dropped)"
+    },
+    {
+      "callSite": { "file": "src/app/admin/workers/page.tsx", "line": 52 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/workers/[id]/route.ts",
+        "line": 6,
+        "route": "DELETE /api/workers/:id"
+      },
+      "notes": "fetch(`/api/workers/${row.original.id}`, { method: \"DELETE\" }); workers/[id]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/app/admin/workers/page.tsx", "line": 86 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/workers/route.ts",
+        "line": 23,
+        "route": "POST /api/workers"
+      },
+      "notes": "fetch(\"/api/workers\", { method: \"POST\" }) in the form's onSubmit"
+    },
+    {
+      "callSite": { "file": "src/app/admin/workers/page.tsx", "line": 102 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/workers/route.ts",
+        "line": 6,
+        "route": "GET /api/workers"
+      },
+      "notes": "<DataTable url=\"/api/workers\">: the component's useSWR fetcher GETs its url prop (query dropped)"
+    },
+    {
+      "callSite": { "file": "src/app/client/profile/page.tsx", "line": 76 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/users/route.ts",
+        "line": 51,
+        "route": "PUT /api/users"
+      },
+      "notes": "fetch(\"/api/users\", { method: \"PUT\" }) changing the signed-in user's password; users/route.ts exports GET, POST, PUT"
+    },
+    {
+      "callSite": { "file": "src/components/admin/ReportsTable.tsx", "line": 142 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/reports/getAll/route.ts",
+        "line": 6,
+        "route": "GET /api/reports/getAll"
+      },
+      "notes": "useSWR(`/api/reports/getAll?page=${page}&size=${size}`, (...args) => fetch(...args, …)): the inline fetcher sends the key, so labeled at the useSWR call; static getAll beats reports/[id]; query dropped"
+    },
+    {
+      "callSite": { "file": "src/components/client/MyReports.tsx", "line": 13 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/reports/route.ts",
+        "line": 8,
+        "route": "GET /api/reports"
+      },
+      "notes": "useSWR(\"/api/reports\", (...args) => fetch(...args, …)): the inline fetcher sends the key, labeled at the useSWR call"
+    },
+    {
+      "callSite": { "file": "src/components/client/ReportForm.tsx", "line": 51 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/types/route.ts",
+        "line": 5,
+        "route": "GET /api/types"
+      },
+      "notes": "fetch(\"/api/types\") filling the form's type select; no init, so GET"
+    },
+    {
+      "callSite": { "file": "src/components/client/ReportForm.tsx", "line": 56 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/locations/route.ts",
+        "line": 5,
+        "route": "GET /api/locations"
+      },
+      "notes": "fetch(\"/api/locations\") filling the form's location select; no init, so GET"
+    },
+    {
+      "callSite": { "file": "src/components/client/ReportForm.tsx", "line": 81 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/reports/route.ts",
+        "line": 33,
+        "route": "POST /api/reports"
+      },
+      "notes": "fetch(\"/api/reports\", { method: \"POST\" }) submitting a repair report"
+    },
+    {
+      "callSite": { "file": "src/context/ReportDetailsProvider.tsx", "line": 57 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/workers/route.ts",
+        "line": 6,
+        "route": "GET /api/workers"
+      },
+      "notes": "fetch(\"/api/workers\") loading the worker menu; no init, so GET"
+    },
+    {
+      "callSite": { "file": "src/context/ReportDetailsProvider.tsx", "line": 70 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/reports/[id]/route.ts",
+        "line": 29,
+        "route": "PUT /api/reports/:id"
+      },
+      "notes": "handleAccept: fetch(`/api/reports/${data?.id}`, { method: \"PUT\" }); reports/[id]/route.ts exports GET and PUT"
+    },
+    {
+      "callSite": { "file": "src/context/ReportDetailsProvider.tsx", "line": 88 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/reports/[id]/route.ts",
+        "line": 29,
+        "route": "PUT /api/reports/:id"
+      },
+      "notes": "handleComplete: fetch(`/api/reports/${data?.id}`, { method: \"PUT\" })"
+    },
+    {
+      "callSite": { "file": "src/context/ReportDetailsProvider.tsx", "line": 105 },
+      "method": "PUT",
+      "target": {
+        "file": "src/app/api/reports/[id]/route.ts",
+        "line": 29,
+        "route": "PUT /api/reports/:id"
+      },
+      "notes": "handleReject: fetch(`/api/reports/${data?.id}`, { method: \"PUT\" })"
+    },
+    {
+      "callSite": { "file": "src/hooks/useUncompletedReports.ts", "line": 15 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/reports/getUnCompleted/route.ts",
+        "line": 8,
+        "route": "GET /api/reports/getUnCompleted"
+      },
+      "notes": "useSWR(\"/api/reports/getUnCompleted\", (...args) => fetch(...args, …)): the inline fetcher sends the key, labeled at the useSWR call; static segment beats reports/[id]"
+    },
+    {
+      "callSite": { "file": "src/stores/subscriptionStore.ts", "line": 35 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/subscribe/route.ts",
+        "line": 7,
+        "route": "POST /api/subscribe"
+      },
+      "notes": "zustand store's subscribe(): fetch(\"/api/subscribe\", { method: \"POST\" }) with the push subscription"
+    },
+    {
+      "callSite": { "file": "src/stores/subscriptionStore.ts", "line": 62 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/unsubscribe/route.ts",
+        "line": 7,
+        "route": "POST /api/unsubscribe"
+      },
+      "notes": "zustand store's unsubscribe(): fetch(\"/api/unsubscribe\", { method: \"POST\" })"
+    }
+  ]
+}

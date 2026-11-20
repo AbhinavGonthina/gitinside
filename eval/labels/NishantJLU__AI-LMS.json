@@ -1,0 +1,59 @@
+{
+  "repo": "NishantJLU/AI-LMS",
+  "sha": "2b47762e05931b05a8f65e314160449cf35dc2a2",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "src/components/ai/ai-studio-client.tsx", "line": 76 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/ai/summarize/route.ts",
+        "line": 13,
+        "route": "POST /api/ai/summarize"
+      },
+      "notes": "run(\"/api/ai/summarize\", …) in the Summarize button's onClick; run(path, body) is the component's path-taking wrapper around fetch(path, { method: \"POST\" }) (line 33), root-relative on the same Next app (no basePath or rewrites). App Router route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/ai/ai-studio-client.tsx", "line": 121 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/ai/quiz/route.ts",
+        "line": 15,
+        "route": "POST /api/ai/quiz"
+      },
+      "notes": "run(\"/api/ai/quiz\", { topic, difficulty, count }) in the quiz button's onClick; wrapper run() sends POST; route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/ai/ai-studio-client.tsx", "line": 153 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/ai/flashcards/route.ts",
+        "line": 14,
+        "route": "POST /api/ai/flashcards"
+      },
+      "notes": "run(\"/api/ai/flashcards\", …) in the flashcards button's onClick; wrapper run() sends POST; route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/ai/ai-studio-client.tsx", "line": 183 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/ai/feedback/route.ts",
+        "line": 14,
+        "route": "POST /api/ai/feedback"
+      },
+      "notes": "run(\"/api/ai/feedback\", …) in the feedback button's onClick; wrapper run() sends POST; route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/search/semantic-search-client.tsx", "line": 24 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/search/route.ts",
+        "line": 15,
+        "route": "POST /api/search"
+      },
+      "notes": "direct fetch(\"/api/search\", { method: \"POST\" }), root-relative on the same Next app; App Router route.ts exports POST"
+    }
+  ]
+}
