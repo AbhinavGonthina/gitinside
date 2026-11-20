@@ -127,6 +127,13 @@ version: 7,784 / 529 / 1,525 nodes, 12,630 (873) / 542 (29) / 2,323 (142) edges,
 digit), with no node or edge added, removed, or changed. No pin's SDK client is a property
 stored from outside its declarations. No edge needed rechecking by hand.
 
+At 0.3.21 (M13.1a, ADR-0314: a store through another type is apart from an SDK client's
+property only when the property's owner can't be that type) each pin was downloaded and
+analyzed the same way with both the new `sdk.ts` and 0.3.20's
+(`packages/analyzer/dist/m131a-compare.mjs`): every `external_call` and `http` edge is the
+same (588 / 12 / 140), with none added, removed, or changed. No pin's SDK client is a
+property stored through another type. No edge needed rechecking by hand.
+
 ### The API map (M11.2)
 
 `packages/api-map` was checked against each record on production's 0.3.10 graphs
