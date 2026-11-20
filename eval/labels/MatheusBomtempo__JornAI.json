@@ -1,0 +1,547 @@
+{
+  "repo": "MatheusBomtempo/JornAI",
+  "sha": "f6c4b308f3b5ba4ce57ab41d995869b63d296d74",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "scripts/test-instagram.mjs", "line": 22 },
+      "method": "GET",
+      "target": null,
+      "notes": "Manual script: fetch(base + /<IG_USER_ID>?fields=…), base https://graph.instagram.com/<version>; Instagram Graph API, external"
+    },
+    {
+      "callSite": { "file": "scripts/test-instagram.mjs", "line": 30 },
+      "method": "POST",
+      "target": null,
+      "notes": "Manual script: POST <graph.instagram.com>/<IG_USER_ID>/media; external"
+    },
+    {
+      "callSite": { "file": "scripts/test-instagram.mjs", "line": 46 },
+      "method": "POST",
+      "target": null,
+      "notes": "Manual script: POST <graph.instagram.com>/<IG_USER_ID>/media_publish; external"
+    },
+    {
+      "callSite": { "file": "src/app/api/photo-search/import/route.ts", "line": 26 },
+      "method": "GET",
+      "target": null,
+      "notes": "Server-side fetch(url) of the Pexels download URL from the request body (assertPexelsDownloadUrl locks it to *.pexels.com); runtime value, external"
+    },
+    {
+      "callSite": { "file": "src/app/login/page.tsx", "line": 33 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/auth/login/route.ts",
+        "line": 18,
+        "route": "POST /api/auth/login"
+      },
+      "notes": "apiPost wrapper (src/lib/api-client.ts, fetch(path) root-relative, same origin); route file exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/AdminPanel.tsx", "line": 98 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/style-examples/route.ts",
+        "line": 8,
+        "route": "GET /api/style-examples"
+      },
+      "notes": "apiGet(\"/api/style-examples\") wrapper, same origin; route file exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/AdminPanel.tsx", "line": 107 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/style-examples/route.ts",
+        "line": 18,
+        "route": "POST /api/style-examples"
+      },
+      "notes": "apiPost(\"/api/style-examples\", form) wrapper; route file exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/AdminPanel.tsx", "line": 115 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/style-examples/[id]/route.ts",
+        "line": 33,
+        "route": "DELETE /api/style-examples/:id"
+      },
+      "notes": "apiDelete(/api/style-examples/<id>) wrapper; [id] route file exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/components/AdminPanel.tsx", "line": 260 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/art-templates/route.ts",
+        "line": 10,
+        "route": "GET /api/art-templates"
+      },
+      "notes": "apiGet(\"/api/art-templates?all=1\") wrapper, query dropped; route file exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/AdminPanel.tsx", "line": 328 },
+      "method": "GET",
+      "target": { "file": "src/app/api/users/route.ts", "line": 10, "route": "GET /api/users" },
+      "notes": "apiGet(\"/api/users\") wrapper; route file exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/AdminPanel.tsx", "line": 357 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/users/[id]/route.ts",
+        "line": 13,
+        "route": "PATCH /api/users/:id"
+      },
+      "notes": "apiPatch(/api/users/<id>, patch) wrapper; [id] route file exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/AdminPanel.tsx", "line": 373 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/users/[id]/reset-password/route.ts",
+        "line": 15,
+        "route": "POST /api/users/:id/reset-password"
+      },
+      "notes": "apiPost(/api/users/<u.id>/reset-password) wrapper; route file exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/AdminPanel.tsx", "line": 475 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/api-keys/route.ts",
+        "line": 9,
+        "route": "GET /api/api-keys"
+      },
+      "notes": "apiGet(\"/api/api-keys\") wrapper; route file exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/AdminPanel.tsx", "line": 482 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/api-keys/route.ts",
+        "line": 28,
+        "route": "POST /api/api-keys"
+      },
+      "notes": "apiPost(\"/api/api-keys\", { name }) wrapper; route file exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/AdminPanel.tsx", "line": 490 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/api-keys/[id]/route.ts",
+        "line": 8,
+        "route": "DELETE /api/api-keys/:id"
+      },
+      "notes": "apiDelete(/api/api-keys/<id>) wrapper; [id] route file exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/components/AdminPanel.tsx", "line": 578 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/companies/route.ts",
+        "line": 10,
+        "route": "GET /api/companies"
+      },
+      "notes": "apiGet(\"/api/companies\") wrapper; route file exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/AdminPanel.tsx", "line": 606 },
+      "method": "POST",
+      "target": { "file": "src/app/api/upload/route.ts", "line": 30, "route": "POST /api/upload" },
+      "notes": "apiPost(\"/api/upload\", fd) wrapper (logo upload, FormData); route file exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/AdminPanel.tsx", "line": 620 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/companies/route.ts",
+        "line": 33,
+        "route": "PATCH /api/companies"
+      },
+      "notes": "apiPatch(\"/api/companies\", …) wrapper; route file exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/AdminPanel.tsx", "line": 783 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/settings/route.ts",
+        "line": 9,
+        "route": "GET /api/settings"
+      },
+      "notes": "apiGet(\"/api/settings\") wrapper; route file exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/AdminPanel.tsx", "line": 793 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/settings/route.ts",
+        "line": 16,
+        "route": "PATCH /api/settings"
+      },
+      "notes": "apiPatch(\"/api/settings\", …) wrapper; route file exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/AdminPanel.tsx", "line": 877 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/admin/reset-data/route.ts",
+        "line": 16,
+        "route": "POST /api/admin/reset-data"
+      },
+      "notes": "apiPost(\"/api/admin/reset-data\", { scope, confirm }) wrapper inside run({ fn }); route file exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/AdminPanel.tsx", "line": 997 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/ai-balance/route.ts",
+        "line": 9,
+        "route": "GET /api/ai-balance"
+      },
+      "notes": "apiGet(/api/ai-balance + (fresh ? \"?fresh=1\" : \"\")) wrapper; both alternatives are the same route with or without a query; route file exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/AppShell.tsx", "line": 36 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/auth/logout/route.ts",
+        "line": 4,
+        "route": "POST /api/auth/logout"
+      },
+      "notes": "apiPost(\"/api/auth/logout\") wrapper; route file exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/ArtEditor.tsx", "line": 64 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/fonts/poppins/[weight]/route.ts",
+        "line": 13,
+        "route": "GET /api/fonts/poppins/:weight"
+      },
+      "notes": "Direct fetch(/api/fonts/poppins/<weight>) inside Promise.all (the import() on line 63 is not a request); [weight] route file exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/ArtEditor.tsx", "line": 538 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/posts/[id]/art/route.ts",
+        "line": 8,
+        "route": "POST /api/posts/:id/art"
+      },
+      "notes": "apiPost(/api/posts/<postId>/art, …) wrapper; route file exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/CaptureForm.tsx", "line": 117 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/documents/route.ts",
+        "line": 17,
+        "route": "POST /api/documents"
+      },
+      "notes": "apiPost(\"/api/documents\", fd) wrapper; route file exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/CaptureForm.tsx", "line": 158 },
+      "method": "POST",
+      "target": { "file": "src/app/api/posts/route.ts", "line": 25, "route": "POST /api/posts" },
+      "notes": "apiPost(\"/api/posts\", …) wrapper inside run({ fn }); route file exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/CardQuickActions.tsx", "line": 48 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/posts/[id]/versions/[vid]/approve/route.ts",
+        "line": 13,
+        "route": "POST /api/posts/:id/versions/:vid/approve"
+      },
+      "notes": "apiPost(/api/posts/<postId>/versions/<versionId>/approve) wrapper; route file exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/CardQuickActions.tsx", "line": 75 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/posts/[id]/versions/[vid]/reject/route.ts",
+        "line": 8,
+        "route": "POST /api/posts/:id/versions/:vid/reject"
+      },
+      "notes": "apiPost(/api/posts/<postId>/versions/<versionId>/reject, …) wrapper; route file exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/ChangePasswordBanner.tsx", "line": 34 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/auth/change-password/route.ts",
+        "line": 14,
+        "route": "POST /api/auth/change-password"
+      },
+      "notes": "apiPost(\"/api/auth/change-password\", …) wrapper; route file exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/CompanyOnboardingForm.tsx", "line": 39 },
+      "method": "POST",
+      "target": { "file": "src/app/api/upload/route.ts", "line": 30, "route": "POST /api/upload" },
+      "notes": "apiPost(\"/api/upload\", fd) wrapper (logo, FormData); route file exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/CompanyOnboardingForm.tsx", "line": 54 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/companies/route.ts",
+        "line": 20,
+        "route": "POST /api/companies"
+      },
+      "notes": "apiPost(\"/api/companies\", …) wrapper; route file exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/DeletePostButton.tsx", "line": 39 },
+      "method": "DELETE",
+      "target": {
+        "file": "src/app/api/posts/[id]/route.ts",
+        "line": 18,
+        "route": "DELETE /api/posts/:id"
+      },
+      "notes": "apiDelete(/api/posts/<postId>) wrapper; [id] route file exports DELETE"
+    },
+    {
+      "callSite": { "file": "src/components/PostWorkspace.tsx", "line": 48 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/upload/presign/route.ts",
+        "line": 26,
+        "route": "POST /api/upload/presign"
+      },
+      "notes": "apiPost(\"/api/upload/presign\", …) wrapper in uploadVideoFile (path on line 49); route file exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/PostWorkspace.tsx", "line": 261 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/posts/[id]/photos/route.ts",
+        "line": 10,
+        "route": "POST /api/posts/:id/photos"
+      },
+      "notes": "apiPost(/api/posts/<post.id>/photos, { storageUrl }) wrapper (path on line 262); route file exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/PostWorkspace.tsx", "line": 489 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/photo-search/import/route.ts",
+        "line": 17,
+        "route": "POST /api/photo-search/import"
+      },
+      "notes": "apiPost(\"/api/photo-search/import\", { downloadUrl }) wrapper; route file exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/PostWorkspace.tsx", "line": 491 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/posts/[id]/photos/route.ts",
+        "line": 10,
+        "route": "POST /api/posts/:id/photos"
+      },
+      "notes": "apiPost(/api/posts/<post.id>/photos, { storageUrl }) wrapper after a Pexels import (path on line 492); route file exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/PostWorkspace.tsx", "line": 544 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/posts/[id]/videos/route.ts",
+        "line": 12,
+        "route": "POST /api/posts/:id/videos"
+      },
+      "notes": "apiPost(/api/posts/<post.id>/videos, { storageUrl }) wrapper (path on line 545); route file exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/PostWorkspace.tsx", "line": 577 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/posts/[id]/versions/[vid]/approve/route.ts",
+        "line": 13,
+        "route": "POST /api/posts/:id/versions/:vid/approve"
+      },
+      "notes": "apiPost(/api/posts/<post.id>/versions/<current.id>/approve, …) wrapper; route file exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/PostWorkspace.tsx", "line": 582 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/posts/[id]/versions/[vid]/reject/route.ts",
+        "line": 8,
+        "route": "POST /api/posts/:id/versions/:vid/reject"
+      },
+      "notes": "apiPost(/api/posts/<post.id>/versions/<current.id>/reject, …) wrapper; route file exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/PostWorkspace.tsx", "line": 587 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/posts/[id]/regenerate/route.ts",
+        "line": 11,
+        "route": "POST /api/posts/:id/regenerate"
+      },
+      "notes": "apiPost(/api/posts/<post.id>/regenerate, …) wrapper; route file exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/PostWorkspace.tsx", "line": 594 },
+      "method": "PATCH",
+      "target": {
+        "file": "src/app/api/posts/[id]/versions/[vid]/route.ts",
+        "line": 11,
+        "route": "PATCH /api/posts/:id/versions/:vid"
+      },
+      "notes": "apiPatch(/api/posts/<post.id>/versions/<current.id>, draft) wrapper; [vid] route file exports PATCH"
+    },
+    {
+      "callSite": { "file": "src/components/PostWorkspace.tsx", "line": 1466 },
+      "method": "GET",
+      "target": {
+        "file": "src/app/api/photo-search/route.ts",
+        "line": 10,
+        "route": "GET /api/photo-search"
+      },
+      "notes": "apiGet(/api/photo-search?q=…&page=…) wrapper (path on line 1467), query dropped; route file exports GET"
+    },
+    {
+      "callSite": { "file": "src/components/TemplateBuilder.tsx", "line": 144 },
+      "method": "POST",
+      "target": { "file": "src/app/api/upload/route.ts", "line": 30, "route": "POST /api/upload" },
+      "notes": "apiPost(\"/api/upload\", fd) wrapper (overlay upload); route file exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/TemplateBuilder.tsx", "line": 157 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/art-templates/route.ts",
+        "line": 23,
+        "route": "POST /api/art-templates"
+      },
+      "notes": "apiPost(\"/api/art-templates\", …) wrapper; route file exports POST"
+    },
+    {
+      "callSite": { "file": "src/components/VideoEditor.tsx", "line": 120 },
+      "method": "POST",
+      "target": {
+        "file": "src/app/api/posts/[id]/video/route.ts",
+        "line": 15,
+        "route": "POST /api/posts/:id/video"
+      },
+      "notes": "apiPost(/api/posts/<postId>/video, …) wrapper; route file exports POST"
+    },
+    {
+      "callSite": { "file": "src/lib/ai/openai-compatible.ts", "line": 49 },
+      "method": "POST",
+      "target": null,
+      "notes": "fetch(cfg.baseUrl + /chat/completions); bases from src/lib/env.ts fallbacks (openrouter.ai, api.groq.com, generativelanguage.googleapis.com, integrate.api.nvidia.com, api.openai.com); external AI providers"
+    },
+    {
+      "callSite": { "file": "src/lib/instagram.ts", "line": 42 },
+      "method": "POST",
+      "target": null,
+      "notes": "POST https://graph.instagram.com/<version>/<userId>/media (baseUrl()); external"
+    },
+    {
+      "callSite": { "file": "src/lib/instagram.ts", "line": 70 },
+      "method": "POST",
+      "target": null,
+      "notes": "POST graph.instagram.com/<version>/<userId>/media_publish; external"
+    },
+    {
+      "callSite": { "file": "src/lib/instagram.ts", "line": 94 },
+      "method": "GET",
+      "target": null,
+      "notes": "GET graph.instagram.com/<version>/<mediaId>?fields=permalink; external"
+    },
+    {
+      "callSite": { "file": "src/lib/instagram.ts", "line": 128 },
+      "method": "POST",
+      "target": null,
+      "notes": "POST graph.instagram.com/<version>/<userId>/media (carousel item); external"
+    },
+    {
+      "callSite": { "file": "src/lib/instagram.ts", "line": 156 },
+      "method": "POST",
+      "target": null,
+      "notes": "POST graph.instagram.com/<version>/<userId>/media (carousel container); external"
+    },
+    {
+      "callSite": { "file": "src/lib/instagram.ts", "line": 196 },
+      "method": "POST",
+      "target": null,
+      "notes": "POST graph.instagram.com/<version>/<userId>/media (Reels container); external"
+    },
+    {
+      "callSite": { "file": "src/lib/instagram.ts", "line": 223 },
+      "method": "GET",
+      "target": null,
+      "notes": "GET graph.instagram.com/<version>/<creationId>?fields=status_code; external"
+    },
+    {
+      "callSite": { "file": "src/lib/instagram.ts", "line": 265 },
+      "method": "POST",
+      "target": null,
+      "notes": "POST graph.instagram.com/<version>/<userId>/media (story container); external"
+    },
+    {
+      "callSite": { "file": "src/lib/services/ai-balance.ts", "line": 63 },
+      "method": "GET",
+      "target": null,
+      "notes": "openrouterGet(\"/credits\") helper: fetch(env.ai.openrouterBaseUrl + path), fallback https://openrouter.ai/api/v1; external"
+    },
+    {
+      "callSite": { "file": "src/lib/services/ai-balance.ts", "line": 64 },
+      "method": "GET",
+      "target": null,
+      "notes": "openrouterGet(\"/auth/key\") helper, OpenRouter base; external"
+    },
+    {
+      "callSite": { "file": "src/lib/services/photo-search.ts", "line": 67 },
+      "method": "GET",
+      "target": null,
+      "notes": "fetch(https://api.pexels.com/v1/search?…); external"
+    },
+    {
+      "callSite": { "file": "src/lib/services/posts.ts", "line": 104 },
+      "method": "GET",
+      "target": null,
+      "notes": "scrapeUrl(u) → safeFetch(url) (src/lib/scrape.ts, src/lib/safe-fetch.ts, which blocks private addresses) for each link the reporter pasted; runtime URL, external"
+    },
+    {
+      "callSite": { "file": "src/lib/services/posts.ts", "line": 248 },
+      "method": "GET",
+      "target": null,
+      "notes": "renderAndStore → renderArt → fetchBuffer (src/lib/render/index.ts:221) of photo.storageUrl and template.overlayAssetUrl read from the database: storage URLs (bucket, or public/uploads static files in local dev); runtime, no route"
+    },
+    {
+      "callSite": { "file": "src/lib/services/posts.ts", "line": 267 },
+      "method": "GET",
+      "target": null,
+      "notes": "renderSlideAndStore → fetchBuffer of a carousel photo's storageUrl from the database; storage URL, runtime, no route"
+    },
+    {
+      "callSite": { "file": "src/lib/services/posts.ts", "line": 319 },
+      "method": "GET",
+      "target": null,
+      "notes": "renderVideoAndStore → downloadToTemp(video.storageUrl) and loadLogo(company.logoUrl) (src/lib/render/video.ts:91, 344); database storage URLs, runtime, no route"
+    },
+    {
+      "callSite": { "file": "src/lib/services/posts.ts", "line": 428 },
+      "method": "GET",
+      "target": null,
+      "notes": "extractAndStoreMiddleFrame(input.storageUrl) → extractMiddleFrame → downloadToTemp (src/lib/render/video.ts:91); the uploaded video's storage URL from the request body, runtime, no route"
+    },
+    {
+      "callSite": { "file": "src/lib/services/posts.ts", "line": 594 },
+      "method": "GET",
+      "target": null,
+      "notes": "renderAndStore re-render in editVersionManually (title changed): fetchBuffer of photo.storageUrl and template.overlayAssetUrl from the database; runtime, no route"
+    },
+    {
+      "callSite": { "file": "src/lib/services/posts.ts", "line": 628 },
+      "method": "GET",
+      "target": null,
+      "notes": "renderVideoAndStore re-render in editVersionManually:downloadToTemp(video.storageUrl) and loadLogo(company.logoUrl) from the database; runtime, no route"
+    }
+  ]
+}

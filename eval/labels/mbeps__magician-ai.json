@@ -1,0 +1,79 @@
+{
+  "repo": "mbeps/magician-ai",
+  "sha": "57283c12cf3fc2cfa08f3d9d729be30b7fb8d30b",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "app/(dashboard)/(routes)/code/page.tsx", "line": 76 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/conversation/route.ts",
+        "line": 27,
+        "route": "POST /api/conversation"
+      },
+      "notes": "axios.post(\"/api/conversation\", { messages }) on the code page: it posts to the conversation route, not /api/code (which nothing calls). Relative, same origin; no basePath or rewrites, and Clerk's middleware only guards. app/api/conversation/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "app/(dashboard)/(routes)/conversation/page.tsx", "line": 79 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/conversation/route.ts",
+        "line": 27,
+        "route": "POST /api/conversation"
+      },
+      "notes": "axios.post(\"/api/conversation\", { messages }); relative, same origin; app/api/conversation/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "app/(dashboard)/(routes)/image/page.tsx", "line": 75 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/image/route.ts",
+        "line": 26,
+        "route": "POST /api/image"
+      },
+      "notes": "axios.post(\"/api/image\", values); relative, same origin; app/api/image/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "app/(dashboard)/(routes)/music/page.tsx", "line": 65 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/music/route.ts",
+        "line": 23,
+        "route": "POST /api/music"
+      },
+      "notes": "axios.post(\"/api/music\", values); relative, same origin; app/api/music/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "app/(dashboard)/(routes)/video/page.tsx", "line": 62 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/video/route.ts",
+        "line": 23,
+        "route": "POST /api/video"
+      },
+      "notes": "axios.post(\"/api/video\", values); relative, same origin; app/api/video/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "components/buttons/SubscriptionButton.tsx", "line": 28 },
+      "method": "GET",
+      "target": {
+        "file": "app/api/stripe/route.ts",
+        "line": 26,
+        "route": "GET /api/stripe"
+      },
+      "notes": "axios.get(\"/api/stripe\") for the billing portal or checkout URL; relative, same origin; app/api/stripe/route.ts exports GET"
+    },
+    {
+      "callSite": { "file": "components/modals/ProModal.tsx", "line": 38 },
+      "method": "GET",
+      "target": {
+        "file": "app/api/stripe/route.ts",
+        "line": 26,
+        "route": "GET /api/stripe"
+      },
+      "notes": "axios.get(\"/api/stripe\") for the checkout session URL; relative, same origin; app/api/stripe/route.ts exports GET"
+    }
+  ]
+}

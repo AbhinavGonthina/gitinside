@@ -1,0 +1,95 @@
+{
+  "repo": "redpangilinan/iotawise",
+  "sha": "563115d47923ec768210026b7000cb0c94c626cb",
+  "labeler": "claude-draft",
+  "reviewedBy": null,
+  "scope": ["."],
+  "edges": [
+    {
+      "callSite": { "file": "components/activity/activity-add-button.tsx", "line": 29 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/activities/route.ts",
+        "line": 41,
+        "route": "POST /api/activities"
+      },
+      "notes": "onClick: fetch(\"/api/activities\", { method: \"POST\" }), relative, same origin; no basePath or rewrites (next.config.js is empty), middleware only redirects auth pages. app/api/activities/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "components/activity/activity-edit-form.tsx", "line": 55 },
+      "method": "PATCH",
+      "target": {
+        "file": "app/api/activities/[activityId]/route.ts",
+        "line": 13,
+        "route": "PATCH /api/activities/:activityId"
+      },
+      "notes": "onSubmit: fetch(`/api/activities/${activity.id}`, { method: \"PATCH\" }), same origin. app/api/activities/[activityId]/route.ts exports PATCH"
+    },
+    {
+      "callSite": { "file": "components/activity/activity-operations.tsx", "line": 31 },
+      "method": "DELETE",
+      "target": {
+        "file": "app/api/activities/[activityId]/route.ts",
+        "line": 50,
+        "route": "DELETE /api/activities/:activityId"
+      },
+      "notes": "deleteActivity(activityId): fetch(`/api/activities/${activityId}`, { method: \"DELETE\" }), path fixed in the helper, same origin. app/api/activities/[activityId]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "components/activity/logs/logs-add-form.tsx", "line": 62 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/activities/[activityId]/logs/route.ts",
+        "line": 53,
+        "route": "POST /api/activities/:activityId/logs"
+      },
+      "notes": "onSubmit: fetch(`/api/activities/${activityId}/logs`, { method: \"POST\" }), same origin. app/api/activities/[activityId]/logs/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "components/activity/logs/logs-delete-button.tsx", "line": 33 },
+      "method": "DELETE",
+      "target": {
+        "file": "app/api/activities/[activityId]/logs/[logId]/route.ts",
+        "line": 13,
+        "route": "DELETE /api/activities/:activityId/logs/:logId"
+      },
+      "notes": "deleteActivity(activityId, logsId) (deletes a log despite its name): fetch(`/api/activities/${activityId}/logs/${logsId}`, { method: \"DELETE\" }), path fixed in the helper, same origin. app/api/activities/[activityId]/logs/[logId]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "components/activity/logs/quick-log-button.tsx", "line": 24 },
+      "method": "POST",
+      "target": {
+        "file": "app/api/activities/[activityId]/logs/route.ts",
+        "line": 53,
+        "route": "POST /api/activities/:activityId/logs"
+      },
+      "notes": "onClick: fetch(`/api/activities/${activityId}/logs`, { method: \"POST\" }), same origin. app/api/activities/[activityId]/logs/route.ts exports POST"
+    },
+    {
+      "callSite": { "file": "components/charts/heatmap.tsx", "line": 44 },
+      "method": "DELETE",
+      "target": {
+        "file": "app/api/activities/[activityId]/logs/[logId]/route.ts",
+        "line": 13,
+        "route": "DELETE /api/activities/:activityId/logs/:logId"
+      },
+      "notes": "deleteActivity(activityId, logsId) (deletes a log despite its name): fetch(`/api/activities/${activityId}/logs/${logsId}`, { method: \"DELETE\" }), same origin. app/api/activities/[activityId]/logs/[logId]/route.ts exports DELETE"
+    },
+    {
+      "callSite": { "file": "components/pages/opensource.tsx", "line": 10 },
+      "method": "GET",
+      "target": null,
+      "notes": "server component: fetch(\"https://api.github.com/repos/redpangilinan/iotawise\", { next: { revalidate } }) with no method (GET); GitHub's API is an external host"
+    },
+    {
+      "callSite": { "file": "components/user/user-name-form.tsx", "line": 45 },
+      "method": "PATCH",
+      "target": {
+        "file": "app/api/users/[userId]/route.ts",
+        "line": 14,
+        "route": "PATCH /api/users/:userId"
+      },
+      "notes": "onSubmit: fetch(`/api/users/${user.id}`, { method: \"PATCH\" }), same origin. app/api/users/[userId]/route.ts exports PATCH"
+    }
+  ]
+}
