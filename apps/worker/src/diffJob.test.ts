@@ -1345,6 +1345,39 @@ describe("processDiffJob checks the architecture rules (M15.1c)", () => {
     expect(records.get(7)?.checkRunId).toEqual(expect.any(Number));
   });
 
+  it("posts the demo PR's broken calls, rule violations, and image (fixtures/pr-demo)", async () => {
+    const PR_DEMO = join(FIXTURES, "pr-demo");
+    tarballs = {
+      [MERGE]: await tarballOf(join(PR_DEMO, "base")),
+      [HEAD]: await tarballOf(join(PR_DEMO, "head")),
+    };
+    const { overrides } = naming([7]);
+    const diagram = async () => ({
+      owner: "acme",
+      name: "shop",
+      providerRepoId: 1,
+      private: false,
+    });
+    const { diffs } = recorder({ ...overrides, diagram });
+    const real = deps({ diffs, runOptions: { scriptsDir: DIST } });
+    delete real.run;
+    await processDiffJob(context(), real);
+    const body = [...comments.values()][0]?.body ?? "";
+    expect(body).toContain(`${SITE}/api/pr-diagram/acme/shop/${MERGE}/${HEAD}.svg?theme=dark`);
+    expect(body).toContain("**2 broken connections.**");
+    // The web's callers still ask for /api/orders, now mounted at /api/v2/orders.
+    expect(body).toContain("`GET /api/orders is now GET /api/v2/orders`");
+    expect(body).toContain("`POST /api/orders is now POST /api/v2/orders`");
+    expect(body).toContain("**3 new rule violations:** 2 errors, 1 warning.");
+    // The refund route calls and imports billing; the Slack hook is a new host.
+    expect(body).toContain("`POST /api/v2/orders/:id/refund (routes) depends on refundOrder");
+    expect(body).toContain("`orders.ts (routes) depends on stripe.ts (billing) through imports`");
+    expect(body).toContain("hooks.slack.com, a host not on the rule's allow list");
+    // Only the api touches Postgres on both sides: nothing about that rule.
+    expect(body).not.toContain("only-api-touches-postgres");
+    expect(checkRun()).toMatchObject({ head_sha: HEAD, conclusion: "failure" });
+  });
+
   it("reports a bad config in a neutral Check Run, never failing the job", async () => {
     tarballs[HEAD] = await headWith("version: 1\nrules:\n  - type: no-such-rule\n");
     const { overrides, published } = naming([7]);
