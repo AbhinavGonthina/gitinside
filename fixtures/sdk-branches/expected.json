@@ -1,5 +1,5 @@
 {
-  "analyzerVersion": "0.3.21",
+  "analyzerVersion": "0.3.22",
   "edges": [
     {
       "confidence": "exact",
@@ -115,6 +115,20 @@
           "column": 25,
           "file": "src/lazy.ts",
           "line": 9
+        }
+      ],
+      "to": "external:ext/api.openai.com"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:sdk-branches/src/overrides.ts#Scribe.write",
+      "id": "external_call:symbol:sdk-branches/src/overrides.ts#Scribe.write->external:ext/api.openai.com",
+      "kind": "external_call",
+      "sites": [
+        {
+          "column": 28,
+          "file": "src/overrides.ts",
+          "line": 41
         }
       ],
       "to": "external:ext/api.openai.com"
@@ -279,6 +293,36 @@
         }
       ],
       "to": "unresolved:sdk-branches/src/lazy.ts:17:25"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:sdk-branches/src/overrides.ts#Narrator.speak",
+      "id": "http:symbol:sdk-branches/src/overrides.ts#Narrator.speak->unresolved:sdk-branches/src/overrides.ts:11:30",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 30,
+          "file": "src/overrides.ts",
+          "line": 11
+        }
+      ],
+      "to": "unresolved:sdk-branches/src/overrides.ts:11:30"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:sdk-branches/src/overrides.ts#Turbine.spin",
+      "id": "http:symbol:sdk-branches/src/overrides.ts#Turbine.spin->unresolved:sdk-branches/src/overrides.ts:28:31",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 31,
+          "file": "src/overrides.ts",
+          "line": 28
+        }
+      ],
+      "to": "unresolved:sdk-branches/src/overrides.ts:28:31"
     },
     {
       "confidence": "unresolved",
@@ -546,6 +590,14 @@
       "label": "lazy.ts",
       "parentId": "module:sdk-branches/src",
       "path": "src/lazy.ts"
+    },
+    {
+      "hash": "43b0927e65d97923d7b618bd7ca52c70704362cd39dafb83dbaaf94adac77b46",
+      "id": "file:sdk-branches/src/overrides.ts",
+      "kind": "file",
+      "label": "overrides.ts",
+      "parentId": "module:sdk-branches/src",
+      "path": "src/overrides.ts"
     },
     {
       "hash": "7d644069b95acabbe95db4c38b93d15e6121fd3e24241c46905cab1bf8efa383",
@@ -836,6 +888,140 @@
         "endLine": 25,
         "file": "src/lazy.ts",
         "line": 23
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/overrides.ts#GuestNarrator",
+      "kind": "symbol",
+      "label": "GuestNarrator",
+      "parentId": "file:sdk-branches/src/overrides.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 19,
+        "file": "src/overrides.ts",
+        "line": 15
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/overrides.ts#Narrator",
+      "kind": "symbol",
+      "label": "Narrator",
+      "parentId": "file:sdk-branches/src/overrides.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 13,
+        "file": "src/overrides.ts",
+        "line": 7
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/overrides.ts#Narrator.speak",
+      "kind": "symbol",
+      "label": "speak",
+      "parentId": "symbol:sdk-branches/src/overrides.ts#Narrator",
+      "requiredParams": 0,
+      "source": {
+        "column": 3,
+        "endLine": 12,
+        "file": "src/overrides.ts",
+        "line": 10
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/overrides.ts#QuietScribe",
+      "kind": "symbol",
+      "label": "QuietScribe",
+      "parentId": "file:sdk-branches/src/overrides.ts",
+      "source": {
+        "column": 1,
+        "endLine": 47,
+        "file": "src/overrides.ts",
+        "line": 45
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/overrides.ts#Scribe",
+      "kind": "symbol",
+      "label": "Scribe",
+      "parentId": "file:sdk-branches/src/overrides.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 43,
+        "file": "src/overrides.ts",
+        "line": 37
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/overrides.ts#Scribe.write",
+      "kind": "symbol",
+      "label": "write",
+      "parentId": "symbol:sdk-branches/src/overrides.ts#Scribe",
+      "requiredParams": 0,
+      "source": {
+        "column": 3,
+        "endLine": 42,
+        "file": "src/overrides.ts",
+        "line": 40
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/overrides.ts#Turbine",
+      "kind": "symbol",
+      "label": "Turbine",
+      "parentId": "file:sdk-branches/src/overrides.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 30,
+        "file": "src/overrides.ts",
+        "line": 24
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/overrides.ts#Turbine.spin",
+      "kind": "symbol",
+      "label": "spin",
+      "parentId": "symbol:sdk-branches/src/overrides.ts#Turbine",
+      "requiredParams": 0,
+      "source": {
+        "column": 3,
+        "endLine": 29,
+        "file": "src/overrides.ts",
+        "line": 27
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/overrides.ts#swapEngine",
+      "kind": "symbol",
+      "label": "swapEngine",
+      "parentId": "file:sdk-branches/src/overrides.ts",
+      "requiredParams": 2,
+      "source": {
+        "column": 1,
+        "endLine": 34,
+        "file": "src/overrides.ts",
+        "line": 32
       },
       "symbolKind": "function"
     },
@@ -1551,6 +1737,34 @@
         "column": 29,
         "file": "src/lazy.ts",
         "line": 30
+      }
+    },
+    {
+      "detail": "the SDK client is built with different base URLs on different branches",
+      "expression": "this.voice.models.list",
+      "id": "unresolved:sdk-branches/src/overrides.ts:11:30",
+      "kind": "unresolved",
+      "label": "GET this.voice /models",
+      "parentId": "service:sdk-branches/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 30,
+        "file": "src/overrides.ts",
+        "line": 11
+      }
+    },
+    {
+      "detail": "the SDK client is built with different base URLs on different branches",
+      "expression": "this.engine.models.list",
+      "id": "unresolved:sdk-branches/src/overrides.ts:28:31",
+      "kind": "unresolved",
+      "label": "GET this.engine /models",
+      "parentId": "service:sdk-branches/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 31,
+        "file": "src/overrides.ts",
+        "line": 28
       }
     },
     {
