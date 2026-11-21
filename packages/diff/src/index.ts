@@ -3,11 +3,18 @@ export { detectBroken, parseHttpLabel, relativeImportTargets } from "./broken.js
 export { checkComparable, describeRepo, IncompatibleGraphsError } from "./compare.js";
 export { diffGraphs, type DiffOptions } from "./diff.js";
 export {
+  changedRegion,
   escapeMermaidLabel,
   mermaidShape,
   renameLimitText,
   renderMermaidSummary,
+  type ChangedRegion,
+  type ChangedRegionOptions,
   type MermaidSummaryOptions,
+  type RegionConnection,
+  type RegionEdgeStatus,
+  type RegionNode,
+  type RegionNodeStatus,
 } from "./mermaid.js";
 export {
   CHECK_RUN_NAME,

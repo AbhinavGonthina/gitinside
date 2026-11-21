@@ -12,7 +12,7 @@ import {
   type GraphNode,
 } from "@gitinside/schema";
 import { describe, expect, it } from "vitest";
-import { diffGraphs, escapeMermaidLabel, renderMermaidSummary } from "./index.js";
+import { changedRegion, diffGraphs, escapeMermaidLabel, renderMermaidSummary } from "./index.js";
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), "../../../fixtures");
 const fixture = (name: string): ArchitectureGraph =>
@@ -70,6 +70,24 @@ describe("renderMermaidSummary on the diff-broken fixture pair", () => {
         "",
       ].join("\n"),
     );
+  });
+
+  it("gives the region it draws to other renderers (M15.2a)", () => {
+    const region = changedRegion(diffGraphs(base, head), base, head, { maxNodes: 4 });
+    expect(
+      region.nodes.map(({ node, status, change, title }) => [node.id, status, change, title]),
+    ).toEqual([
+      [expect.stringContaining("#quote"), undefined, undefined, "function quote"],
+      [expect.stringContaining("#withTax"), "changed", "Changed", "function withTax"],
+      [expect.stringContaining("#cancelOrder"), undefined, undefined, "function cancelOrder"],
+      ["route:diff-broken/DELETE /api/orders/:id", "removed", "Removed", "DELETE /api/orders/:id"],
+    ]);
+    expect(region.connections.map((c) => [c.status, c.label])).toEqual([
+      ["broken", "Broken: needs more arguments"],
+      ["broken", "Broken: target removed"],
+    ]);
+    expect([region.moreNodes, region.moreConnections]).toEqual([12, 7]);
+    expect(changedRegion(diffGraphs(base, head), base, head).nodes).toHaveLength(16);
   });
 
   it("is deterministic and doesn't depend on the input order", () => {

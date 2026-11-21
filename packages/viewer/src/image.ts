@@ -12,6 +12,8 @@ export {
   topLevelCounts,
 } from "./image/diagram.js";
 export type { CropSize, DiagramImageOptions } from "./image/diagram.js";
+export { MAX_DIFF_BOXES, renderDiffDiagram } from "./image/diffDiagram.js";
+export type { DiffDiagramOptions } from "./image/diffDiagram.js";
 export type { ImageTheme } from "./image/palette.js";
 export { MARK_NODE, MARK_PATH, markMarkup, markStroke } from "./mark.js";
 export type { MarkPaint } from "./mark.js";

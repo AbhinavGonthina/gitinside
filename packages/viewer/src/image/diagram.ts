@@ -27,12 +27,13 @@ import {
 } from "../nodes/describe.js";
 import { frameCounts, WINDOW_BAND } from "../layout/size.js";
 import { buildHierarchy, layerOf, type HierarchyIndex } from "../model/hierarchy.js";
-import { buildView, drawnEdge, type ViewEdge } from "../model/view.js";
+import { buildView, drawnEdge } from "../model/view.js";
 import { scaleTokens } from "../tokens.js";
 import {
   imageNodeSize,
   LABEL_HEIGHT,
   pointAlong,
+  type Ends,
   routeEdges,
   spreadLabels,
   type PlacedEdge,
@@ -87,7 +88,8 @@ export const MAX_ROWS = 5;
 export function rowsFor(n: number): number {
   return Math.max(MAX_ROWS, Math.ceil(Math.sqrt((n * 5) / 3)));
 }
-const PAD = 32;
+/** Room around the drawing. */
+export const PAD = 32;
 /** Room between layers for a label such as `POST /api/orders · HTTP`. */
 const LAYER_GAP = 160;
 const WRAP_GAP = 72;
@@ -204,7 +206,8 @@ interface Column {
   last: boolean;
 }
 
-interface Placement {
+/** Where {@link place} put the boxes, and the drawing's size. */
+export interface Placement {
   boxes: Map<string, Rect>;
   slots: Map<string, Slot>;
   columns: Column[];
@@ -212,11 +215,21 @@ interface Placement {
   height: number;
 }
 
-/** Places the top-level nodes in layer columns, wrapping tall ones. */
-function place(index: HierarchyIndex, top: readonly GraphNode[]): Placement {
-  const layers: GraphNode[][] = [[], [], []];
+/** What {@link place} needs of a box: its ID, kind (for the order in a column), and layer. */
+export interface Placeable {
+  id: string;
+  kind: GraphNode["kind"];
+  layer?: Layer | undefined;
+}
+
+/** Places boxes (`sizeOf` each) in layer columns, wrapping tall ones; no layer reads as backend. */
+export function place(
+  top: readonly Placeable[],
+  sizeOf: (id: string) => { width: number; height: number },
+): Placement {
+  const layers: Placeable[][] = [[], [], []];
   for (const n of top) layers[COLUMN[n.layer ?? "backend"]]?.push(n);
-  const rank = (n: GraphNode) => KIND_ORDER[n.kind] ?? 0;
+  const rank = (n: Placeable) => KIND_ORDER[n.kind] ?? 0;
   // Array.prototype.sort is stable, so graph order holds within a kind.
   const groups = layers
     .filter((l) => l.length > 0)
@@ -229,7 +242,7 @@ function place(index: HierarchyIndex, top: readonly GraphNode[]): Placement {
     const rows = Math.ceil(ids.length / count);
     for (let i = 0; i < count; i++) {
       const chunk = ids.slice(i * rows, (i + 1) * rows);
-      const sizes = chunk.map((id) => imageNodeSize(index, id));
+      const sizes = chunk.map(sizeOf);
       subs.push({
         ids: chunk,
         group,
@@ -252,7 +265,7 @@ function place(index: HierarchyIndex, top: readonly GraphNode[]): Placement {
     // A layer column is centered; its sub-columns share its top, so their rows line up.
     let y = PAD + (tallest - (groupHeight[sub.group] ?? 0)) / 2;
     sub.ids.forEach((id, row) => {
-      const size = imageNodeSize(index, id);
+      const size = sizeOf(id);
       boxes.set(id, { x: x + (sub.width - size.width) / 2, y, ...size });
       slots.set(id, { group: sub.group, column, row });
       y += size.height + ROW_GAP;
@@ -302,11 +315,14 @@ function gapRoute(from: Rect, to: Rect, a: Column, b: Column, before: number): P
  * sub-column (one per edge, outwards), {@link gapRoute} into and out of
  * wrapped sub-columns, and `routeEdges` for the rest.
  */
-function routeAll(edges: readonly ViewEdge[], placement: Placement): RoutedEdge[] {
+export function routeAll<E extends Ends>(
+  edges: readonly E[],
+  placement: Placement,
+): RoutedEdge<E>[] {
   const { boxes, slots, columns } = placement;
   const lanes = new Map<number, number>();
-  const direct: ViewEdge[] = [];
-  const placed = new Map<ViewEdge, RoutedEdge>();
+  const direct: E[] = [];
+  const placed = new Map<E, RoutedEdge<E>>();
   const firstLeft = (group: number) => columns.find((c) => c.group === group)?.left ?? 0;
   for (const e of edges) {
     const a = slots.get(e.from);
@@ -407,7 +423,7 @@ export function textLine(
   at: Point,
   max: number,
   size: number,
-  style: { weight?: number; muted?: boolean; anchor?: "start" | "middle" },
+  style: { weight?: number; muted?: boolean; anchor?: "start" | "middle"; strike?: boolean },
 ): string {
   const pieces: { text: string; mono: boolean }[] = [];
   if (line.method) pieces.push({ text: line.method, mono: true });
@@ -431,6 +447,7 @@ export function textLine(
     "font-size": size,
     "font-weight": style.weight,
     "text-anchor": style.anchor === "middle" ? "middle" : undefined,
+    "text-decoration": style.strike ? "line-through" : undefined,
   })} style="fill:${v(style.muted ? "muted" : "text")}" xml:space="preserve">${out.join("")}</text>`;
 }
 
@@ -675,7 +692,7 @@ export function layoutTopLevel(graph: ArchitectureGraph): TopLevelLayout {
   // Nothing open: the top level, with edges lifted to it (imports hidden).
   const view = buildView(index, []);
   const { edges } = view;
-  const placement = place(index, top);
+  const placement = place(top, (id) => imageNodeSize(index, id));
   const lines = routeAll(edges, placement);
   const routed = spreadLabels(
     lines,
