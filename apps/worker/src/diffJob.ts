@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
-import type { DiffedPullRequest, DiffJobPost } from "@gitinside/db";
+import type { DiffedPullRequest, DiffJobPost, StoredRulesConfig } from "@gitinside/db";
 import { diffGraphs, renderCheckRun, renderPrComment } from "@gitinside/diff";
 import {
   parseGraph,
@@ -105,6 +105,8 @@ export interface DiffToStore {
   mergeBase: string;
   headSha: string;
   diff: GraphDiff;
+  /** The head's `.gitinside.yml` as the job read it, kept with the diff for a retry (M15.1b). */
+  rules: StoredRulesConfig;
 }
 
 /** A pull request record as read just before posting to it (db's `findPullRequest`). */
@@ -668,6 +670,8 @@ export async function processDiffJob(context: JobContext, deps: JobDeps): Promis
         mergeBase: base.sha,
         headSha: after.sha,
         diff,
+        // The rules aren't checked yet: M15.1c reads the head's `.gitinside.yml` here.
+        rules: { text: null, changed: false },
       });
     } catch (error) {
       if (error instanceof JobFailure) throw error;

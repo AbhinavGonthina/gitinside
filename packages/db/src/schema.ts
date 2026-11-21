@@ -49,6 +49,12 @@ const timestampTz = (name: string) => timestamp(name, { withTimezone: true, mode
 /** GitHub's numeric IDs fit in a double (< 2^53), so read them as numbers. */
 const githubId = (name: string) => bigint(name, { mode: "number" });
 
+/**
+ * The most bytes of a `.gitinside.yml` a pull request record keeps (M15.1b): `@gitinside/rules`'
+ * `MAX_CONFIG_BYTES` (64 KiB) plus one, so a file cut to it still reads as too large.
+ */
+export const MAX_STORED_RULES_CONFIG_BYTES = 64 * 1024 + 1;
+
 /** A full commit SHA: 40 lowercase hex characters. */
 const isSha = (column: AnyPgColumn) => sql`${column} ~ '^[0-9a-f]{40}$'`;
 
@@ -342,7 +348,8 @@ export const accessCache = pgTable(
  * base and head are the newest GitHub has described (`head_at`, GitHub's `updated_at` in that
  * event); the diff's key and broken count are that pair's, set together, and the Check Run is
  * that head's. The comment is the pull request's, edited in place across heads. The diff job
- * queued for the pair (ADR-0245) is named here too and cleared with it.
+ * queued for the pair (ADR-0245) is named here too and cleared with it. The head's rules config
+ * (M15.1b) is set and cleared with the diff.
  */
 export const pullRequests = pgTable(
   "pull_requests",
@@ -361,6 +368,13 @@ export const pullRequests = pgTable(
     diffJobId: text("diff_job_id"),
     /** When that job was queued: its task's name. Set with `diff_job_id`. */
     diffQueuedAt: timestampTz("diff_queued_at"),
+    /**
+     * The head's `.gitinside.yml` text as the diff job read it (M15.1b), kept so a retry that
+     * only posts can check the rules again: null when the head has none. Set with the diff.
+     */
+    rulesConfig: text("rules_config"),
+    /** Whether the PR adds, edits, or removes `.gitinside.yml`. Set with the diff, else false. */
+    rulesConfigChanged: boolean("rules_config_changed").notNull().default(false),
     commentId: githubId("comment_id"),
     checkRunId: githubId("check_run_id"),
     createdAt: timestampTz("created_at").notNull().defaultNow(),
@@ -377,6 +391,12 @@ export const pullRequests = pgTable(
     check(
       "pull_requests_diff_job_check",
       sql`(${t.diffJobId} is null) = (${t.diffQueuedAt} is null)`,
+    ),
+    check(
+      "pull_requests_rules_config_check",
+      sql`(${t.rulesConfig} is null or ${t.diffKey} is not null)
+        and (${t.rulesConfigChanged} = false or ${t.diffKey} is not null)
+        and octet_length(${t.rulesConfig}) <= ${sql.raw(String(MAX_STORED_RULES_CONFIG_BYTES))}`,
     ),
   ],
 );

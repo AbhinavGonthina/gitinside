@@ -672,6 +672,19 @@
           "primaryKey": false,
           "notNull": false
         },
+        "rules_config": {
+          "name": "rules_config",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rules_config_changed": {
+          "name": "rules_config_changed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
         "comment_id": {
           "name": "comment_id",
           "type": "bigint",
@@ -755,6 +768,10 @@
         "pull_requests_diff_job_check": {
           "name": "pull_requests_diff_job_check",
           "value": "(\"pull_requests\".\"diff_job_id\" is null) = (\"pull_requests\".\"diff_queued_at\" is null)"
+        },
+        "pull_requests_rules_config_check": {
+          "name": "pull_requests_rules_config_check",
+          "value": "(\"pull_requests\".\"rules_config\" is null or \"pull_requests\".\"diff_key\" is not null)\n        and (\"pull_requests\".\"rules_config_changed\" = false or \"pull_requests\".\"diff_key\" is not null)\n        and octet_length(\"pull_requests\".\"rules_config\") <= 65537"
         }
       },
       "isRLSEnabled": false

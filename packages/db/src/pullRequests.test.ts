@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
+  MAX_STORED_RULES_CONFIG_BYTES,
   findDiffJob,
   findDiffJobPosts,
   findPullRequest,
@@ -25,6 +26,8 @@ const AT = new Date("2026-11-08T10:00:00Z");
 const LATER = new Date("2026-11-08T10:00:05Z");
 const EARLIER = new Date("2026-11-08T09:59:55Z");
 const CHECK = "23514";
+/** A diff made with no `.gitinside.yml` at its head or base. */
+const NO_RULES = { text: null, changed: false };
 
 let t: TestDb;
 beforeAll(async () => {
@@ -66,6 +69,7 @@ async function posted(repoId: string, number = 7) {
     headSha: HEAD,
     diffKey: "diffs/x.json.gz",
     brokenCount: 2,
+    rules: { text: "version: 1\n", changed: true },
   });
   await recordPullRequestComment(t.db, { repoId, number, commentId: 9_000_000_001 });
   await recordPullRequestCheckRun(t.db, {
@@ -95,6 +99,8 @@ describe("recordPullRequestHead", () => {
       headAt: AT,
       diffKey: null,
       brokenCount: null,
+      rulesConfig: null,
+      rulesConfigChanged: false,
       commentId: null,
       checkRunId: null,
     });
@@ -117,6 +123,8 @@ describe("recordPullRequestHead", () => {
       headAt: LATER,
       diffKey: null,
       brokenCount: null,
+      rulesConfig: null,
+      rulesConfigChanged: false,
       commentId: 9_000_000_001,
       checkRunId: null,
     });
@@ -138,6 +146,8 @@ describe("recordPullRequestHead", () => {
       headSha: HEAD,
       diffKey: null,
       brokenCount: null,
+      rulesConfig: null,
+      rulesConfigChanged: false,
       commentId: 9_000_000_001,
       checkRunId: null,
     });
@@ -157,6 +167,8 @@ describe("recordPullRequestHead", () => {
       headAt: LATER,
       diffKey: "diffs/x.json.gz",
       brokenCount: 2,
+      rulesConfig: "version: 1\n",
+      rulesConfigChanged: true,
       commentId: 9_000_000_001,
       checkRunId: 9_000_000_002,
     });
@@ -270,7 +282,7 @@ describe("queuePullRequestDiff", () => {
     expect(await queuePullRequestDiff(t.db, { ...job, number: 8 })).toBeUndefined();
     expect(await findPullRequest(t.db, repoId, 7)).toMatchObject({ diffJobId: null });
 
-    await recordPullRequestDiff(t.db, { ...job, diffKey: "k", brokenCount: 0 });
+    await recordPullRequestDiff(t.db, { ...job, diffKey: "k", brokenCount: 0, rules: NO_RULES });
     expect(await queuePullRequestDiff(t.db, job)).toBeUndefined();
     expect(await findPullRequest(t.db, repoId, 7)).toMatchObject({ diffJobId: null });
   });
@@ -326,7 +338,7 @@ describe("diff jobs by ID", () => {
     await queued(repoId, 9);
     await queued(repoId, 7);
     await queued(repoId, 8, OTHER_JOB);
-    const result = { jobId: JOB, diffKey: "private/k.json.gz", brokenCount: 2 };
+    const result = { jobId: JOB, diffKey: "private/k.json.gz", brokenCount: 2, rules: NO_RULES };
     const pair = { repoId, baseSha: BASE, headSha: HEAD };
     expect(await recordDiffJobResult(t.db, result)).toEqual([
       { ...pair, number: 7 },
@@ -358,7 +370,7 @@ describe("diff jobs by ID", () => {
     const { repoId } = await setup();
     await queued(repoId, 7);
     await queued(repoId, 9);
-    await recordDiffJobResult(t.db, { jobId: JOB, diffKey: "k", brokenCount: 0 });
+    await recordDiffJobResult(t.db, { jobId: JOB, diffKey: "k", brokenCount: 0, rules: NO_RULES });
     // A comment alone isn't posted: the Check Run is the last write.
     await recordPullRequestComment(t.db, { repoId, number: 7, commentId: 1 });
     expect(await findDiffJob(t.db, JOB)).toMatchObject({ status: "diffed" });
@@ -380,10 +392,16 @@ describe("diff jobs by ID", () => {
     await queued(repoId, 8);
     await queued(otherRepoId, 3, OTHER_JOB);
     expect(await findDiffJobPosts(t.db, JOB)).toEqual([]);
-    await recordDiffJobResult(t.db, { jobId: JOB, diffKey: "k", brokenCount: 1 });
-    await recordDiffJobResult(t.db, { jobId: OTHER_JOB, diffKey: "other", brokenCount: 0 });
+    const rules = { text: "version: 1\nrules: []\n", changed: true };
+    await recordDiffJobResult(t.db, { jobId: JOB, diffKey: "k", brokenCount: 1, rules });
+    await recordDiffJobResult(t.db, {
+      jobId: OTHER_JOB,
+      diffKey: "other",
+      brokenCount: 0,
+      rules: NO_RULES,
+    });
     await checkRun(repoId, 8);
-    const pair = { repoId, baseSha: BASE, headSha: HEAD, diffKey: "k" };
+    const pair = { repoId, baseSha: BASE, headSha: HEAD, diffKey: "k", rules };
     expect(await findDiffJobPosts(t.db, JOB)).toEqual([
       { ...pair, number: 7 },
       { ...pair, number: 9 },
@@ -405,15 +423,23 @@ describe("diff jobs by ID", () => {
     const { repoId } = await setup();
     await queued(repoId, 7);
     await queued(repoId, 8);
-    await recordDiffJobResult(t.db, { jobId: JOB, diffKey: "k", brokenCount: 2 });
+    const rules = { text: "version: 1\n", changed: true };
+    await recordDiffJobResult(t.db, { jobId: JOB, diffKey: "k", brokenCount: 2, rules });
     await checkRun(repoId, 8);
     expect(await reopenDiffJob(t.db, JOB)).toBe(1);
     expect(await findPullRequest(t.db, repoId, 7)).toMatchObject({
       diffJobId: JOB,
       diffKey: null,
       brokenCount: null,
+      rulesConfig: null,
+      rulesConfigChanged: false,
     });
-    expect(await findPullRequest(t.db, repoId, 8)).toMatchObject({ diffKey: "k", brokenCount: 2 });
+    expect(await findPullRequest(t.db, repoId, 8)).toMatchObject({
+      diffKey: "k",
+      brokenCount: 2,
+      rulesConfig: "version: 1\n",
+      rulesConfigChanged: true,
+    });
     expect(await findDiffJob(t.db, JOB)).toMatchObject({ status: "queued" });
     expect(await findDiffJobPosts(t.db, JOB)).toEqual([]);
     // Nothing left to reopen.
@@ -432,7 +458,7 @@ describe("diff jobs by ID", () => {
       headAt: LATER,
     });
     expect(await findDiffJob(t.db, JOB)).toBeUndefined();
-    const late = { jobId: JOB, diffKey: "old", brokenCount: 3 };
+    const late = { jobId: JOB, diffKey: "old", brokenCount: 3, rules: NO_RULES };
     expect(await recordDiffJobResult(t.db, late)).toEqual([]);
     expect(await findPullRequest(t.db, repoId, 7)).toMatchObject({
       headSha: HEAD2,
@@ -452,6 +478,7 @@ describe("diff jobs by ID", () => {
       headSha: HEAD,
       diffKey: "k",
       brokenCount: 0,
+      rules: NO_RULES,
     });
     expect(await findDiffJob(t.db, JOB)).toMatchObject({ status: "queued" });
   });
@@ -467,9 +494,22 @@ describe("recordPullRequestDiff", () => {
       headSha: HEAD,
       headAt: AT,
     });
-    const diff = { repoId, number: 7, baseSha: BASE, headSha: HEAD, diffKey: "k", brokenCount: 0 };
+    const diff = {
+      repoId,
+      number: 7,
+      baseSha: BASE,
+      headSha: HEAD,
+      diffKey: "k",
+      brokenCount: 0,
+      rules: { text: "version: 1\n", changed: true },
+    };
     expect(await recordPullRequestDiff(t.db, diff)).toBe(true);
-    expect(await findPullRequest(t.db, repoId, 7)).toMatchObject({ diffKey: "k", brokenCount: 0 });
+    expect(await findPullRequest(t.db, repoId, 7)).toMatchObject({
+      diffKey: "k",
+      brokenCount: 0,
+      rulesConfig: "version: 1\n",
+      rulesConfigChanged: true,
+    });
   });
 
   it("never lets an older head's result overwrite a newer head", async () => {
@@ -495,6 +535,7 @@ describe("recordPullRequestDiff", () => {
       headSha: HEAD,
       diffKey: "old",
       brokenCount: 3,
+      rules: NO_RULES,
     };
     expect(await recordPullRequestDiff(t.db, late)).toBe(false);
     expect(await findPullRequest(t.db, repoId, 7)).toMatchObject({
@@ -513,7 +554,15 @@ describe("recordPullRequestDiff", () => {
       headSha: HEAD,
       headAt: AT,
     });
-    const diff = { repoId, number: 7, baseSha: BASE, headSha: HEAD, diffKey: "k", brokenCount: 1 };
+    const diff = {
+      repoId,
+      number: 7,
+      baseSha: BASE,
+      headSha: HEAD,
+      diffKey: "k",
+      brokenCount: 1,
+      rules: NO_RULES,
+    };
     expect(await recordPullRequestDiff(t.db, diff)).toBe(false);
     expect(await recordPullRequestDiff(t.db, { ...diff, number: 8, baseSha: BASE2 })).toBe(false);
     expect(await t.db.select().from(pullRequests)).toHaveLength(1);
@@ -529,7 +578,15 @@ describe("recordPullRequestDiff", () => {
       headSha: HEAD,
       headAt: AT,
     });
-    const diff = { repoId, number: 7, baseSha: BASE, headSha: HEAD, diffKey: "k", brokenCount: -1 };
+    const diff = {
+      repoId,
+      number: 7,
+      baseSha: BASE,
+      headSha: HEAD,
+      diffKey: "k",
+      brokenCount: -1,
+      rules: NO_RULES,
+    };
     expect(await pgErrorCode(recordPullRequestDiff(t.db, diff))).toBe(CHECK);
   });
 });
@@ -612,6 +669,7 @@ describe("findPullRequestDiffKey (M8.6f1)", () => {
       headSha,
       diffKey,
       brokenCount: 0,
+      rules: NO_RULES,
     });
   };
   const query = (repoId: string) => ({
@@ -690,5 +748,61 @@ describe("findPullRequestDiffKey (M8.6f1)", () => {
       headAt: LATER,
     });
     expect(await findPullRequestDiffKey(t.db, query(repoId))).toBeUndefined();
+  });
+});
+
+describe("the rules config stored with the diff (M15.1b)", () => {
+  const JOB = `diff-${"e".repeat(32)}`;
+
+  async function queued(repoId: string, number = 7) {
+    await recordPullRequestHead(t.db, { repoId, number, baseSha: BASE, headSha: HEAD, headAt: AT });
+    await queuePullRequestDiff(t.db, { repoId, number, baseSha: BASE, headSha: HEAD, jobId: JOB });
+  }
+
+  it("keeps a config of exactly the cap in UTF-8 bytes and refuses one byte more", async () => {
+    const { repoId } = await setup();
+    await queued(repoId);
+    // Two bytes per "é": the cap counts bytes, not characters.
+    const atCap = `${"é".repeat((MAX_STORED_RULES_CONFIG_BYTES - 1) / 2)}x`;
+    expect(Buffer.byteLength(atCap)).toBe(MAX_STORED_RULES_CONFIG_BYTES);
+    const result = { jobId: JOB, diffKey: "k", brokenCount: 0 };
+    await recordDiffJobResult(t.db, { ...result, rules: { text: atCap, changed: true } });
+    // Compared as booleans: a failure would otherwise print 64 KiB.
+    const [post] = await findDiffJobPosts(t.db, JOB);
+    expect(post?.rules.text === atCap && post.rules.changed).toBe(true);
+
+    const over = "é".repeat((MAX_STORED_RULES_CONFIG_BYTES + 1) / 2);
+    expect(over.length).toBeLessThan(MAX_STORED_RULES_CONFIG_BYTES);
+    const refused = recordDiffJobResult(t.db, { ...result, rules: { text: over, changed: true } });
+    expect(await pgErrorCode(refused)).toBe(CHECK);
+    expect((await findPullRequest(t.db, repoId, 7))?.rulesConfig === atCap).toBe(true);
+  });
+
+  it("lists a PR that removes its config: no text, changed", async () => {
+    const { repoId } = await setup();
+    await queued(repoId);
+    const rules = { text: null, changed: true };
+    await recordDiffJobResult(t.db, { jobId: JOB, diffKey: "k", brokenCount: 1, rules });
+    expect(await findDiffJobPosts(t.db, JOB)).toEqual([
+      { repoId, number: 7, baseSha: BASE, headSha: HEAD, diffKey: "k", rules },
+    ]);
+  });
+
+  it("is refused by the database apart from the diff", async () => {
+    const { repoId } = await setup();
+    await queued(repoId);
+    const refused = [
+      ["a config with no diff", { rulesConfig: "version: 1\n" }],
+      ["a changed config with no diff", { rulesConfigChanged: true }],
+      ["both with no diff", { rulesConfig: "version: 1\n", rulesConfigChanged: true }],
+    ] as const;
+    for (const [name, set] of refused) {
+      expect(await pgErrorCode(t.db.update(pullRequests).set(set)), name).toBe(CHECK);
+    }
+    // A diff written with no rules (an older worker, a raw insert) reads as no config, unchanged.
+    await t.db.update(pullRequests).set({ diffKey: "k", brokenCount: 0 });
+    expect(await findDiffJobPosts(t.db, JOB)).toEqual([
+      { repoId, number: 7, baseSha: BASE, headSha: HEAD, diffKey: "k", rules: NO_RULES },
+    ]);
   });
 });

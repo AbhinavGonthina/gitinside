@@ -588,7 +588,12 @@ describe("createAnalysisRecorder", () => {
     await recordPullRequestHead(t.db, { ...pair, headAt: new Date("2026-11-08T10:00:00Z") });
     await queuePullRequestDiff(t.db, { ...pair, jobId });
     expect(await r.done?.(jobId)).toBe(false);
-    await recordDiffJobResult(t.db, { jobId, diffKey: "private/k.json.gz", brokenCount: 0 });
+    await recordDiffJobResult(t.db, {
+      jobId,
+      diffKey: "private/k.json.gz",
+      brokenCount: 0,
+      rules: { text: null, changed: false },
+    });
     // Diffed, but a retry still has to post (M8.6e2b).
     expect(await r.done?.(jobId)).toBe(false);
     await recordPullRequestCheckRun(t.db, { ...pair, checkRunId: 9_000_000_002 });
@@ -693,6 +698,7 @@ describe("createDiffRecorder (ADR-0245)", () => {
       mergeBase: MERGE,
       headSha: SHA,
       diff,
+      rules: { text: null, changed: false },
     });
 
     const key = `private/42/${repoId}/diffs/${MERGE}-${SHA}/${VERSION}.json.gz`;
@@ -717,6 +723,8 @@ describe("createDiffRecorder (ADR-0245)", () => {
     const d = diffRecorder();
     const done = () => recorder().done?.(JOB);
     expect(await d.posts(JOB)).toEqual([]);
+    // The head's rules config goes with the diff, for a retry that only posts (M15.1b).
+    const rules = { text: "version: 1\nrules: []\n", changed: true };
     await d.publish({
       jobId: JOB,
       installationId: 42,
@@ -724,12 +732,13 @@ describe("createDiffRecorder (ADR-0245)", () => {
       mergeBase: MERGE,
       headSha: SHA,
       diff,
+      rules,
     });
     const key = `private/42/${repoId}/diffs/${MERGE}-${SHA}/${VERSION}.json.gz`;
     const pair = { repoId, baseSha: BASE, headSha: SHA };
     expect(await d.posts(JOB)).toEqual([
-      { ...pair, number: 7, diffKey: key },
-      { ...pair, number: 8, diffKey: key },
+      { ...pair, number: 7, diffKey: key, rules },
+      { ...pair, number: 8, diffKey: key, rules },
     ]);
     expect(await d.storedDiff(key)).toBe(stringifyDiff(diff));
     expect(await d.storedDiff(`${key}.gone`)).toBeUndefined();
@@ -748,7 +757,7 @@ describe("createDiffRecorder (ADR-0245)", () => {
       commentId: 9_000_000_001,
       checkRunId: 9_000_000_002,
     });
-    expect(await d.posts(JOB)).toEqual([{ ...pair, number: 8, diffKey: key }]);
+    expect(await d.posts(JOB)).toEqual([{ ...pair, number: 8, diffKey: key, rules }]);
     expect(await done()).toBe(false);
     // A Check Run for another pair isn't stored.
     const other = { ...pair, number: 8, headSha: "d".repeat(40), checkRunId: 1 };
@@ -768,6 +777,7 @@ describe("createDiffRecorder (ADR-0245)", () => {
       mergeBase: MERGE,
       headSha: SHA,
       diff,
+      rules: { text: null, changed: false },
     });
     const pair = { repoId, baseSha: BASE, headSha: SHA };
     await d.recordCheckRun({ ...pair, number: 8, checkRunId: 2 });
@@ -793,6 +803,7 @@ describe("createDiffRecorder (ADR-0245)", () => {
       mergeBase: MERGE,
       headSha: SHA,
       diff,
+      rules: { text: null, changed: false },
     });
     expect(records).toEqual([]);
     expect(s3.objects.size).toBe(1);
@@ -821,6 +832,7 @@ describe("createDiffRecorder (ADR-0245)", () => {
       mergeBase: MERGE,
       headSha: SHA,
       diff,
+      rules: { text: null, changed: false },
     });
 
     it.each([
