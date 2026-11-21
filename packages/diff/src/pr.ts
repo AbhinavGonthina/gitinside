@@ -89,6 +89,20 @@ export interface PrTextOptions {
   siteOrigin: string;
   /** The repo's architecture rules on this PR; leave it out when the repo has no `.gitinside.yml`. */
   rules?: PrRules;
+  /**
+   * The website's image of what the PR changes (M15.2c), drawn above the comment's text; leave it
+   * out when the website can't draw it. Only {@link renderPrComment} reads it.
+   */
+  diagram?: PrDiagram;
+}
+
+/** Where the comment's image is (the website's `/api/pr-diagram/<owner>/<repo>/<base>/<head>.svg`). */
+export interface PrDiagram {
+  /** The repo as the website stores it now (its URL redirects any other spelling). */
+  owner: string;
+  name: string;
+  /** A private repo's signed token (`<expiry>.<64 hex>`, the worker's `signPrDiagram`). */
+  token?: string;
 }
 
 /** What {@link renderCheckRun} gives the poster to complete the Check Run with. */
@@ -134,6 +148,8 @@ function segment(text: string): string {
 const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 interface PrContext {
+  /** The website's origin, without a trailing slash. */
+  origin: string;
   owner: string;
   name: string;
   baseSha: string;
@@ -264,6 +280,7 @@ function context(
     ].join("\n");
   };
   return {
+    origin,
     owner,
     name,
     baseSha,
@@ -348,6 +365,38 @@ function fit(
   return join(counts);
 }
 
+/** A PR image token's shape, as the website's route accepts it. */
+const DIAGRAM_TOKEN = /^[1-9][0-9]{0,11}\.[0-9a-f]{64}$/;
+
+/** What the image's alt text says (and a screen reader). */
+export const PR_DIAGRAM_ALT =
+  "What this pull request changes in the architecture, drawn by GitInside";
+
+/**
+ * The image above the comment's text (M15.2c): HTML, since Markdown has no `<picture>`, as the
+ * README image's snippet is. Each GitHub theme asks for its own `?theme=` (GitHub's proxy shows it
+ * as an `<img>`, where the SVG's own media query would follow the system, not GitHub's theme), and
+ * the image links to the interactive diff. Every part is our own text, percent-encoded repo names,
+ * hex SHAs, or a token of the checked shape, and `&` is escaped for the attribute.
+ */
+function diagramLines(ctx: PrContext, diagram: PrDiagram): string {
+  const { token } = diagram;
+  if (token !== undefined && !DIAGRAM_TOKEN.test(token)) {
+    throw new Error("the diagram's token must be <expiry>.<64 hex>");
+  }
+  const path = `${ctx.origin}/api/pr-diagram/${segment(diagram.owner)}/${segment(diagram.name)}/${ctx.baseSha}/${ctx.headSha}.svg`;
+  const url = (theme: "dark" | "light") =>
+    `${path}?theme=${theme}${token === undefined ? "" : `&amp;token=${token}`}`;
+  return [
+    `<a href="${ctx.diffUrl}">`,
+    "  <picture>",
+    `    <source media="(prefers-color-scheme: dark)" srcset="${url("dark")}">`,
+    `    <img alt="${PR_DIAGRAM_ALT}" src="${url("light")}">`,
+    "  </picture>",
+    "</a>",
+  ].join("\n");
+}
+
 /** Which commits were compared, by short SHA. */
 function compared(ctx: PrContext): string {
   return `Compared base ${markdownCode(ctx.baseSha.slice(0, 7))} with head ${markdownCode(ctx.headSha.slice(0, 7))}.`;
@@ -374,7 +423,9 @@ function verdict(broken: number): string {
  * link to the interactive diff (`/<owner>/<repo>/<head>?base=<base>`). With `options.rules`,
  * an "Architecture rules" section follows the broken list: each violation the PR introduces
  * (level, rule ID, message, up to 5 head call sites), or each problem in a config that couldn't
- * be checked.
+ * be checked. With `options.diagram`, the website's image of the change (M15.2c) comes first,
+ * under the heading, linked to the interactive diff; the Mermaid summary stays, since it shows
+ * even when the image can't (a private repo's token expires after 30 days).
  *
  * When too long, it lists the first rule violations, then broken connections, that fit and
  * counts the rest; if
@@ -391,6 +442,7 @@ export function renderPrComment(
   const ctx = context(diff, base, head, options);
   const top = [
     `${PR_COMMENT_MARKER}\n### GitInside architecture check`,
+    ...(options.diagram === undefined ? [] : [diagramLines(ctx, options.diagram)]),
     verdict(diff.broken.length),
     compared(ctx),
   ];

@@ -27,7 +27,7 @@ The diagram comes from **static analysis, never an LLM's guess**:
 It has four parts:
 1. **The website**, [gitinside.abhinavgonthina.dev](https://gitinside.abhinavgonthina.dev): public repos with no sign-in, private ones through the GitHub App.
 2. **A live README diagram:** a badge (like the one above) or the full diagram image, kept current with the default branch.
-3. **A PR bot:** the GitHub App comments each pull request's architecture diff and flags the connections it breaks, such as a request whose route the PR removed.
+3. **A PR bot:** the GitHub App comments each pull request's architecture diff, topped with an image of the changed region, and flags the connections it breaks, such as a request whose route the PR removed.
 4. **The explorer:** the dark-first, keyboard-driven canvas in the GIF.
 
 v1 reads TypeScript and JavaScript: React and Next.js, Express and Next.js API routes, Prisma, docker-compose and `.env`, and workspace monorepos, up to 20,000 source files. What each detector does and doesn't handle is in [docs/COVERAGE.md](docs/COVERAGE.md).

@@ -13,6 +13,7 @@ import { createUsageMeter, type UsageMeter } from "./compute.js";
 import { ConfigError, workerConfigFromEnv, type WorkerConfig } from "./config.js";
 import { SAMPLE_LIMIT } from "./estimate.js";
 import type { DownloadOptions } from "./github.js";
+import { derivedSecret, PR_DIAGRAM_PURPOSE } from "./hmac.js";
 import { sweepJobsRoot, type JobDeps } from "./job.js";
 import { createJsonLog } from "./log.js";
 import {
@@ -209,6 +210,7 @@ export async function startWorkerProcess(
     // Registered last, so shutdown cancels the job first and only then waits for a
     // maintenance run (a long bucket listing must not keep the job past the deadline).
     const shutdown = new AbortController();
+    const [current] = config.secrets;
     const server = createRunServer({
       deps: {
         ...options.jobDeps,
@@ -221,6 +223,10 @@ export async function startWorkerProcess(
         download: github,
         ...(installationToken === undefined ? {} : { installationToken }),
         ...(config.websiteOrigin === undefined ? {} : { siteOrigin: config.websiteOrigin }),
+        // Signed with the current secret; the website also accepts the previous one (M15.2c).
+        ...(current === undefined
+          ? {}
+          : { diagramKey: derivedSecret(current, PR_DIAGRAM_PURPOSE) }),
       },
       secrets: config.secrets,
       analyzerVersion,
