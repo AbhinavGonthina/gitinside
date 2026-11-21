@@ -151,7 +151,18 @@
  *   isn't read further, so its calls draw nothing. A literal's method run on another object
  *   (`helper.list.call(other)`, `Object.create(helper)`, a spread of an `any` value that may
  *   be it), and a class's member read from a value of another shape built outside the
- *   service's files, aren't seen (M13.1c).
+ *   service's files, aren't seen (M13.1c). Nor, per M13.1d's re-check, are: a store at a
+ *   `string` key through an index signature or a type parameter (`r[k] = v` with `r:
+ *   Record<string, unknown>`, or `o[k] = v` with `k: keyof T`); a literal copied through a
+ *   parameter typed as an interface, `Partial<…>`, or a type parameter (`{ ...base, ai: c }`);
+ *   a method borrowed onto another object (`{ ai: c, list: Svc.prototype.list }`,
+ *   `Svc.prototype.list.call({ ai: c })`, `{ __proto__: helper, ai: c }`); a JS class that sets
+ *   the member only in its constructor, as a shape; a literal asserted to the class (`{ ai: c }
+ *   as Svc`); a subclass field with a quoted or computed name, or a mixin's (`class extends B`
+ *   with `B: T`); an aliased `Object.assign`; and stores made inside library or unknown
+ *   functions (`_.set(o, "ai", c)`, `_.merge(s, { ai: c })`). And since `node_modules` is
+ *   never installed, an SDK type is `any`, so any literal with the member's name (`{ ai:
+ *   "Assistant" }`) is assignable to a fields-only class and unreads its typed reads.
  * - SDKs whose host depends on the account or project (Supabase, Firebase, Algolia,
  *   Salesforce), SMTP clients (nodemailer), and telemetry (Sentry, PostHog). They're not on
  *   the allowlist, so like any third-party package they get no edge (ADR-0024).
