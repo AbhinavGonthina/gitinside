@@ -4,7 +4,7 @@ GitInside analyzes **untrusted code** submitted by anyone, and holds **private r
 
 ## 1. Assets
 
-- **Private repo contents and their graphs** (installation-scoped).
+- **Private repo contents and their graphs** (installation-scoped). Graphs and diffs live in the bucket; the only repo file kept in Postgres is a pull request record's head `.gitinside.yml` (at most 64 KiB + 1 byte, enforced by the database), deleted with the record on an uninstall or removed repo and cleared at each new head (M15.1b, ADR-0318).
 - **Secrets:**
   - GitHub App private key and webhook secret.
   - OAuth client secret.

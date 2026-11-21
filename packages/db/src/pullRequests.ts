@@ -29,6 +29,20 @@ interface PullRequestRef {
   number: number;
 }
 
+/**
+ * The head's `.gitinside.yml` as a diff job read it (M15.1b), stored with the diff so a retry that
+ * only posts (no tree, and a token that can't read contents) checks the same rules.
+ */
+export interface StoredRulesConfig {
+  /**
+   * The file's text, at most `MAX_STORED_RULES_CONFIG_BYTES` UTF-8 bytes (the database refuses
+   * more; the reader cuts it there), or `null` when the head has none.
+   */
+  text: string | null;
+  /** Whether the PR adds, edits, or removes it: the head's differs from the base's. */
+  changed: boolean;
+}
+
 /** A finished diff of one base and head. */
 export interface PullRequestDiff extends PullRequestRef {
   baseSha: string;
@@ -36,6 +50,8 @@ export interface PullRequestDiff extends PullRequestRef {
   /** Where the diff is stored. */
   diffKey: string;
   brokenCount: number;
+  /** The head's rules config; left out, the diff was made with none read (no text, unchanged). */
+  rules?: StoredRulesConfig;
 }
 
 /** True while the stored row holds the same base and head as the one being written. */
@@ -46,8 +62,9 @@ const samePair = sql`${pullRequests.baseSha} = excluded.base_sha and ${pullReque
  * event older than the recorded one (`headAt` earlier) changes nothing and answers `undefined`:
  * the caller then queues no diff. Otherwise the row is returned as now stored. A different pair
  * clears the old diff, its job (which then stops being live), and its Check Run, which reported
- * that pair's diff (M8.6e1: a base that moves under the same head gets a new one); the comment is
- * kept (it is edited in place). The same pair described again
+ * that pair's diff (M8.6e1: a base that moves under the same head gets a new one), and the rules
+ * config stored with the diff (M15.1b); the comment is kept (it is edited in place). The same
+ * pair described again
  * keeps everything, so a caller seeing a `diffKey` has nothing to recompute. Events as new as the recorded one are taken: GitHub's
  * times are whole seconds, and two pushes in one second are then recorded in delivery order.
  */
@@ -66,6 +83,8 @@ export async function recordPullRequestHead(
         headAt: sql`excluded.head_at`,
         diffKey: sql`case when ${samePair} then ${pullRequests.diffKey} end`,
         brokenCount: sql`case when ${samePair} then ${pullRequests.brokenCount} end`,
+        rulesConfig: sql`case when ${samePair} then ${pullRequests.rulesConfig} end`,
+        rulesConfigChanged: sql`${samePair} and ${pullRequests.rulesConfigChanged}`,
         diffJobId: sql`case when ${samePair} then ${pullRequests.diffJobId} end`,
         diffQueuedAt: sql`case when ${samePair} then ${pullRequests.diffQueuedAt} end`,
         checkRunId: sql`case when ${samePair} then ${pullRequests.checkRunId} end`,
@@ -185,13 +204,16 @@ export interface DiffJobPost {
   headSha: string;
   /** Where the job's diff is stored. */
   diffKey: string;
+  /** The head's rules config stored with the diff (M15.1b). */
+  rules: StoredRulesConfig;
 }
 
 /**
  * The records naming diff job `jobId` that hold its diff and have no Check Run yet (M8.6e2b):
- * the pull requests it still has to post to, sorted by repo and number. Empty when every one is
- * posted, has moved on, or has no diff yet. The poster still re-reads each record just before
- * posting (`findPullRequest`): a newer event can arrive meanwhile (ADR-0244).
+ * the pull requests it still has to post to, sorted by repo and number, each with the rules
+ * config stored with its diff (M15.1b). Empty when every one is posted, has moved on, or has no
+ * diff yet. The poster still re-reads each record just before posting (`findPullRequest`): a
+ * newer event can arrive meanwhile (ADR-0244).
  */
 export async function findDiffJobPosts(db: AnyDatabase, jobId: string): Promise<DiffJobPost[]> {
   const rows = await db
@@ -201,6 +223,8 @@ export async function findDiffJobPosts(db: AnyDatabase, jobId: string): Promise<
       baseSha: pullRequests.baseSha,
       headSha: pullRequests.headSha,
       diffKey: pullRequests.diffKey,
+      rulesConfig: pullRequests.rulesConfig,
+      rulesConfigChanged: pullRequests.rulesConfigChanged,
     })
     .from(pullRequests)
     .where(
@@ -211,7 +235,11 @@ export async function findDiffJobPosts(db: AnyDatabase, jobId: string): Promise<
       ),
     );
   return rows
-    .flatMap(({ diffKey, ...row }) => (diffKey === null ? [] : [{ ...row, diffKey }]))
+    .flatMap(({ diffKey, rulesConfig, rulesConfigChanged, ...row }) =>
+      diffKey === null
+        ? []
+        : [{ ...row, diffKey, rules: { text: rulesConfig, changed: rulesConfigChanged } }],
+    )
     .sort((a, b) => (a.repoId === b.repoId ? a.number - b.number : a.repoId < b.repoId ? -1 : 1));
 }
 
@@ -220,13 +248,20 @@ export async function findDiffJobPosts(db: AnyDatabase, jobId: string): Promise<
  * (M8.6e2b), so the job is `queued` again and runs from the start: for a retry that has to post
  * but can no longer read what the diff was made from (the diff's object or a side's stored
  * graph). The read token's window (`findJobInstallation`) opens again with it. Posted records
- * keep theirs. Answers how many records were cleared; the old diff object is then retention's
- * orphan, unless the run stores it again under the same key.
+ * keep theirs. The rules config goes with the diff: the run reads the head's again (M15.1b).
+ * Answers how many records were cleared; the old diff object is then retention's orphan, unless
+ * the run stores it again under the same key.
  */
 export async function reopenDiffJob(db: AnyDatabase, jobId: string): Promise<number> {
   const rows = await db
     .update(pullRequests)
-    .set({ diffKey: null, brokenCount: null, updatedAt: sql`now()` })
+    .set({
+      diffKey: null,
+      brokenCount: null,
+      rulesConfig: null,
+      rulesConfigChanged: false,
+      updatedAt: sql`now()`,
+    })
     .where(
       and(
         eq(pullRequests.diffJobId, jobId),
@@ -244,6 +279,18 @@ export interface DiffJobResult {
   /** Where the diff is stored. */
   diffKey: string;
   brokenCount: number;
+  /** The head's rules config as the job read it (M15.1b). */
+  rules: StoredRulesConfig;
+}
+
+/** The columns a recorded diff sets together: its key, broken count, and rules config. */
+function resultColumns(result: { diffKey: string; brokenCount: number; rules: StoredRulesConfig }) {
+  return {
+    diffKey: result.diffKey,
+    brokenCount: result.brokenCount,
+    rulesConfig: result.rules.text,
+    rulesConfigChanged: result.rules.changed,
+  };
 }
 
 /** A pull request a diff job's result was recorded on. */
@@ -255,8 +302,8 @@ export interface DiffedPullRequest {
 }
 
 /**
- * Records a diff job's result on every pull request record naming the job (ADR-0245; two pull
- * requests with the same pair share it). A record names the job only while its pair is the
+ * Records a diff job's result, with the rules config it read (M15.1b), on every pull request
+ * record naming the job (ADR-0245; two pull requests with the same pair share it). A record names the job only while its pair is the
  * job's, so an older job's result never lands on a newer pair. Answers the records written,
  * sorted by repo and number: empty means every one moved on and nothing is posted. A job
  * retried after recording writes the same result again and gets the same records, so it can
@@ -269,7 +316,7 @@ export async function recordDiffJobResult(
 ): Promise<DiffedPullRequest[]> {
   const rows = await db
     .update(pullRequests)
-    .set({ diffKey: result.diffKey, brokenCount: result.brokenCount, updatedAt: sql`now()` })
+    .set({ ...resultColumns(result), updatedAt: sql`now()` })
     .where(eq(pullRequests.diffJobId, result.jobId))
     .returning({
       repoId: pullRequests.repoId,
@@ -294,7 +341,10 @@ export async function recordPullRequestDiff(
 ): Promise<boolean> {
   const rows = await db
     .update(pullRequests)
-    .set({ diffKey: diff.diffKey, brokenCount: diff.brokenCount, updatedAt: sql`now()` })
+    .set({
+      ...resultColumns({ ...diff, rules: diff.rules ?? { text: null, changed: false } }),
+      updatedAt: sql`now()`,
+    })
     .where(
       and(
         eq(pullRequests.repoId, diff.repoId),

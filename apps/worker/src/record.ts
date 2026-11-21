@@ -251,8 +251,9 @@ export function readableBy(key: string, side: { installationId: number; repoId: 
 /**
  * Where a diff job's results go (ADR-0245): its records are found by job ID (`findDiffJob`),
  * and `publish` uploads the diff (`stringifyDiff`, gzipped, `private, no-store`) under
- * `privateDiffKey` (merge base and head) before recording it on every record naming the job
- * (`recordDiffJobResult`), so a recorded key always has its object. An upload no record names
+ * `privateDiffKey` (merge base and head) before recording it, with the head's rules config
+ * (M15.1b), on every record naming the job (`recordDiffJobResult`), so a recorded key always has
+ * its object. An upload no record names
  * afterwards (each moved on meanwhile) is left to retention's orphan sweep: another job whose
  * pair has the same merge base and head can name the same key, and only the sweep checks. But
  * when the repo was unlinked from the installation meanwhile (an uninstall or a removed repo),
@@ -362,6 +363,7 @@ export function createDiffRecorder(
         jobId: stored.jobId,
         diffKey: key,
         brokenCount: stored.diff.broken.length,
+        rules: stored.rules,
       });
       if (records.length === 0) await deleteIfUnlinked(stored, key, "the diff");
       return records;

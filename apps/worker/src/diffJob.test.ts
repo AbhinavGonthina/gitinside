@@ -257,6 +257,7 @@ function naming(numbers: number[], options: { diffed?: boolean } = {}) {
               baseSha: r.baseSha,
               headSha: r.headSha,
               diffKey: KEY,
+              rules: { text: null, changed: false },
             }))
         : [],
     current: async ({ number }) => {
