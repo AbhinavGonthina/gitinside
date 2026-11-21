@@ -179,44 +179,79 @@ export function describeNode(
   return word === "" ? label : `${word} ${label}`;
 }
 
-interface Connection {
+/** How a drawn node changed. */
+export type RegionNodeStatus = NodeStatus;
+/** How a drawn connection changed. */
+export type RegionEdgeStatus = EdgeStatus;
+
+/** A node of a {@link ChangedRegion}. */
+export interface RegionNode {
+  /** Head's node, or base's when it was removed. */
+  node: GraphNode;
+  /** Unset for a node drawn only as an end of a connection. */
+  status?: RegionNodeStatus;
+  /** The change in words: "Added", "Removed", "Changed", "Moved", or "Renamed from …". */
+  change?: string;
+  /** {@link describeNode}'s words for it. */
+  title: string;
+  /** Its service (else the file declaring it), when another drawn node has the same title. */
+  where?: string;
+}
+
+/** A connection of a {@link ChangedRegion}, between two of its nodes' IDs. */
+export interface RegionConnection {
   from: string;
   to: string;
-  status: EdgeStatus;
+  status: RegionEdgeStatus;
+  /** "Broken: target removed", "Added http, reads". */
   label: string;
 }
 
+/** What a diff changes at the architecture level, as {@link changedRegion} picks it. */
+export interface ChangedRegion {
+  /** At most `maxNodes`, in priority order: broken ends, changed nodes, then context. */
+  nodes: RegionNode[];
+  /** Connections whose ends are both drawn: broken first, then by ends and status. */
+  connections: RegionConnection[];
+  /** Nodes left out past `maxNodes`. */
+  moreNodes: number;
+  /** Connections left out because an end was. */
+  moreConnections: number;
+}
+
+/** Options for {@link changedRegion}. */
+export interface ChangedRegionOptions {
+  /** Keep at most this many nodes; the rest are counted. Default 40. */
+  maxNodes?: number;
+}
+
 /**
- * A Mermaid `flowchart` of what a diff changes at the architecture level, for the CLI
- * (`gitinside diff --format mermaid`) and the PR comment (M8.6). Deterministic: the same
- * diff and graphs give the same text.
+ * The part of the graph a diff changes, as the PR comment's summary draws it (Mermaid here,
+ * an image in `@gitinside/viewer/image`). Deterministic: the same diff and graphs give the same
+ * region.
  *
- * Draws:
+ * Picks:
  * - Broken connections, source to target (as head names it when renamed), whatever the
  *   endpoints' kinds, first.
  * - Added, removed, and changed services, routes, pages, models, datastores, queues, and
  *   external hosts, with the change in words ("Added", "Removed", "Changed", "Renamed
- *   from …") and in a colored, for removed dashed, border.
+ *   from …").
  * - Added, removed, and changed `http`, `reads`, `writes`, `stores`, `publishes`,
  *   `consumes`, and `external_call` edges, each endpoint lifted to the nearest node of a
  *   drawn kind (a function calling a route is drawn from its service), merged when
  *   several edges lift to the same pair.
  *
- * A method is named with its class (`method DocumentInterpreter.parse`), so a reader can
- * tell which `parse` broke.
- *
- * Doesn't draw: files, folders, and symbols that changed without breaking a connection,
+ * Leaves out: files, folders, and symbols that changed without breaking a connection,
  * `imports`/`calls`/`handles`/`renders` edges, `updated` records (nothing a reader would
- * call a change), and warnings. Past `maxNodes`, the remaining nodes and connections are
- * counted in a closing note rather than drawn. A diff with `renameLimit` gets a note that
- * moves weren't checked for that many files (they show as removed and added).
+ * call a change), and warnings. Past `maxNodes`, the remaining nodes, and the connections
+ * reaching them, are only counted.
  */
-export function renderMermaidSummary(
+export function changedRegion(
   diff: GraphDiff,
   base: ArchitectureGraph,
   head: ArchitectureGraph,
-  options: MermaidSummaryOptions = {},
-): string {
+  options: ChangedRegionOptions = {},
+): ChangedRegion {
   const maxNodes = options.maxNodes ?? 40;
   const baseNodes = new Map(base.nodes.map((n) => [n.id, n]));
   const headNodes = new Map(head.nodes.map((n) => [n.id, n]));
@@ -241,14 +276,14 @@ export function renderMermaidSummary(
   };
 
   // A broken entry's `to` is its base ID; a target head also renamed is drawn as its head node.
-  const connections: Connection[] = diff.broken.map((b) => ({
+  const connections: RegionConnection[] = diff.broken.map((b) => ({
     from: b.from,
     to: renamedTo.get(b.to) ?? b.to,
     status: "broken",
     label: `Broken: ${BROKEN_WORDS[b.reason]}`,
   }));
   const brokenEdges = new Set(diff.broken.map((b) => b.edge));
-  const lifted = new Map<string, Omit<Connection, "label"> & { kinds: Set<EdgeKind> }>();
+  const lifted = new Map<string, Omit<RegionConnection, "label"> & { kinds: Set<EdgeKind> }>();
   const lift = (
     edge: { id: string; kind: EdgeKind; from: string; to: string },
     edgeStatus: NodeStatus,
@@ -284,7 +319,7 @@ export function renderMermaidSummary(
       ),
   );
 
-  // Draw order is priority order: broken endpoints, changed nodes, then context.
+  // Priority order: broken endpoints, changed nodes, then context.
   const wanted: string[] = [];
   for (const c of connections.filter((c) => c.status === "broken")) wanted.push(c.from, c.to);
   wanted.push(
@@ -298,18 +333,9 @@ export function renderMermaidSummary(
   for (const c of connections.filter((c) => c.status !== "broken")) wanted.push(c.from, c.to);
   const unique = [...new Set(wanted)].filter((id) => lookup(id) !== undefined);
   const drawn = unique.slice(0, maxNodes);
-  const names = new Map(drawn.map((id, i) => [id, `n${i + 1}`]));
-
-  const lines = ["flowchart LR"];
-  const limitNote = renameLimitNote(diff);
-  if (drawn.length === 0) {
-    lines.push(`  none["${escapeMermaidLabel("No architecture-level changes")}"]`);
-    if (limitNote !== undefined) lines.push(limitNote);
-    return `${lines.join("\n")}\n`;
-  }
+  const kept = new Set(drawn);
 
   const qualified = (node: GraphNode): string => qualifiedLabel(node, lookup);
-  const title = (node: GraphNode): string => describeNode(node, lookup);
   /** Label of the service `node` belongs to, if any. */
   const serviceOf = (node: GraphNode): string | undefined => {
     let current = node.parentId === null ? undefined : lookup(node.parentId);
@@ -320,52 +346,93 @@ export function renderMermaidSummary(
   };
   const titles = new Map<string, number>();
   for (const id of drawn) {
-    const t = title(lookup(id) as GraphNode);
+    const t = describeNode(lookup(id) as GraphNode, lookup);
     titles.set(t, (titles.get(t) ?? 0) + 1);
   }
 
-  const classes = new Map<NodeStatus, string[]>();
-  for (const id of drawn) {
+  const nodes = drawn.map((id): RegionNode => {
     const node = lookup(id) as GraphNode;
-    const change = status.get(id);
-    let text = title(node);
+    const title = describeNode(node, lookup);
+    const out: RegionNode = { node, title };
     // Two drawn nodes reading the same ("datastore postgres" in two services) get their
     // service, else the file declaring them (a compose file's datastores sit under the system).
-    const where = (titles.get(text) ?? 0) > 1 ? (serviceOf(node) ?? node.source?.file) : undefined;
-    if (where !== undefined) text += ` in ${where}`;
-    if (change?.from !== undefined) {
+    const where = (titles.get(title) ?? 0) > 1 ? (serviceOf(node) ?? node.source?.file) : undefined;
+    if (where !== undefined) out.where = where;
+    const change = status.get(id);
+    if (change === undefined) return out;
+    out.status = change.status;
+    if (change.from !== undefined) {
       // A method renamed within its class names only the old method; moved, the old class too.
       const from = qualified(change.from);
       const to = qualified(node);
       const sameOwner =
         from.slice(0, -change.from.label.length) === to.slice(0, -node.label.length);
-      text += from === to ? " - Moved" : ` - Renamed from ${sameOwner ? change.from.label : from}`;
-    } else if (change !== undefined) {
-      text += ` - ${STATUS_WORDS[change.status]}`;
+      out.change = from === to ? "Moved" : `Renamed from ${sameOwner ? change.from.label : from}`;
+    } else {
+      out.change = STATUS_WORDS[change.status];
     }
+    return out;
+  });
+  const shown = connections.filter((c) => kept.has(c.from) && kept.has(c.to));
+  return {
+    nodes,
+    connections: shown,
+    moreNodes: unique.length - drawn.length,
+    moreConnections: connections.length - shown.length,
+  };
+}
+
+/**
+ * A Mermaid `flowchart` of what a diff changes at the architecture level, for the CLI
+ * (`gitinside diff --format mermaid`) and the PR comment (M8.6). Deterministic: the same
+ * diff and graphs give the same text.
+ *
+ * Draws {@link changedRegion}'s nodes and connections (see there for what it picks and
+ * leaves out), each change in words ("Added", "Renamed from …") and in a colored, for
+ * removed dashed, border or line. A method is named with its class (`method
+ * DocumentInterpreter.parse`), so a reader can tell which `parse` broke.
+ *
+ * Past `maxNodes`, the remaining nodes and connections are counted in a closing note
+ * rather than drawn. A diff with `renameLimit` gets a note that
+ * moves weren't checked for that many files (they show as removed and added).
+ */
+export function renderMermaidSummary(
+  diff: GraphDiff,
+  base: ArchitectureGraph,
+  head: ArchitectureGraph,
+  options: MermaidSummaryOptions = {},
+): string {
+  const region = changedRegion(diff, base, head, { maxNodes: options.maxNodes ?? 40 });
+  const lines = ["flowchart LR"];
+  const limitNote = renameLimitNote(diff);
+  if (region.nodes.length === 0) {
+    lines.push(`  none["${escapeMermaidLabel("No architecture-level changes")}"]`);
+    if (limitNote !== undefined) lines.push(limitNote);
+    return `${lines.join("\n")}\n`;
+  }
+
+  const names = new Map(region.nodes.map(({ node }, i) => [node.id, `n${i + 1}`]));
+  const classes = new Map<NodeStatus, string[]>();
+  for (const { node, status, change, title, where } of region.nodes) {
+    let text = title;
+    if (where !== undefined) text += ` in ${where}`;
+    if (change !== undefined) text += ` - ${change}`;
     const [open, close] = mermaidShape(node.kind);
-    const name = names.get(id) as string;
+    const name = names.get(node.id) as string;
     lines.push(`  ${name}${open}"${escapeMermaidLabel(text)}"${close}`);
-    if (change !== undefined)
-      classes.set(change.status, [...(classes.get(change.status) ?? []), name]);
+    if (status !== undefined) classes.set(status, [...(classes.get(status) ?? []), name]);
   }
 
   const styles = new Map<EdgeStatus, number[]>();
-  let index = 0;
-  let hidden = 0;
-  for (const c of connections) {
-    const from = names.get(c.from);
-    const to = names.get(c.to);
-    if (from === undefined || to === undefined) {
-      hidden++;
-      continue;
-    }
+  region.connections.forEach((c, index) => {
     const arrow = c.status === "added" || c.status === "changed" ? "-->" : "-.->";
-    lines.push(`  ${from} ${arrow}|"${escapeMermaidLabel(c.label)}"| ${to}`);
-    styles.set(c.status, [...(styles.get(c.status) ?? []), index++]);
-  }
+    lines.push(
+      `  ${names.get(c.from) as string} ${arrow}|"${escapeMermaidLabel(c.label)}"| ${names.get(c.to) as string}`,
+    );
+    styles.set(c.status, [...(styles.get(c.status) ?? []), index]);
+  });
 
-  const more = unique.length - drawn.length;
+  const { moreNodes: more, moreConnections: hidden } = region;
   if (more > 0 || hidden > 0) {
     const parts = [
       ...(more > 0 ? [`${more} more ${more === 1 ? "node" : "nodes"}`] : []),

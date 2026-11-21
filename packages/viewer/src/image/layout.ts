@@ -47,9 +47,15 @@ export function imageNodeSize(
   }
 }
 
+/** What routing needs of a line: the IDs of the boxes it joins. */
+export interface Ends {
+  from: string;
+  to: string;
+}
+
 /** A routed line: the view edge, its route points (source first), and where its label sits. */
-export interface PlacedEdge {
-  view: ViewEdge;
+export interface PlacedEdge<E extends Ends = ViewEdge> {
+  view: E;
   points: Point[];
   label: Point;
   /** No spot on the line kept its label clear of the others, so it's left off ({@link spreadLabels}). */
@@ -57,7 +63,7 @@ export interface PlacedEdge {
 }
 
 /** A line the image routed itself, so it knows where along it the label is. */
-export interface RoutedEdge extends PlacedEdge {
+export interface RoutedEdge<E extends Ends = ViewEdge> extends PlacedEdge<E> {
   /**
    * How far along the line (0–1, by length) `label` is, so a line that
    * passes the label's spot twice slides it from the right pass (M9.7h).
@@ -112,11 +118,11 @@ function polylineLength(points: readonly Point[]): number {
  * can sit on a neighbor's line (the canvas's ELK layout keeps lines apart;
  * the image's arithmetic routing doesn't).
  */
-export function spreadLabels(
-  edges: readonly RoutedEdge[],
+export function spreadLabels<E extends Ends>(
+  edges: readonly RoutedEdge<E>[],
   widths: readonly number[],
   boxes: readonly Rect[],
-): RoutedEdge[] {
+): RoutedEdge<E>[] {
   const taken: Rect[] = [];
   const clear = (r: Rect) =>
     !taken.some((t) => near(r, t, LABEL_GAP)) && !boxes.some((b) => near(r, b, LABEL_GAP));
@@ -173,18 +179,18 @@ export function pointAlong(points: readonly Point[], t: number): Point {
  * Routes every edge between its boxes. Parallel lines between the same pair
  * run {@link PARALLEL_GAP} apart, with labels spread along their length.
  */
-export function routeEdges(
-  edges: readonly ViewEdge[],
+export function routeEdges<E extends Ends>(
+  edges: readonly E[],
   boxes: ReadonlyMap<string, Rect>,
-): RoutedEdge[] {
-  const pairs = new Map<string, ViewEdge[]>();
+): RoutedEdge<E>[] {
+  const pairs = new Map<string, E[]>();
   for (const e of edges) {
     const key = e.from < e.to ? `${e.from}|${e.to}` : `${e.to}|${e.from}`;
     const list = pairs.get(key);
     if (list) list.push(e);
     else pairs.set(key, [e]);
   }
-  const out: RoutedEdge[] = [];
+  const out: RoutedEdge<E>[] = [];
   for (const e of edges) {
     const a = boxes.get(e.from);
     const b = boxes.get(e.to);
