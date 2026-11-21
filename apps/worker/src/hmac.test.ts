@@ -2,13 +2,18 @@ import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
   MAX_CLOCK_SKEW_SECONDS,
+  PR_DIAGRAM_PURPOSE,
+  PR_DIAGRAM_TOKEN_SECONDS,
   SIGNATURE_HEADER,
   TIMESTAMP_HEADER,
   TOKEN_REQUEST_PURPOSE,
   derivedSecret,
   secretsFromEnv,
+  signPrDiagram,
   signRequest,
+  verifyPrDiagram,
   verifyRequest,
+  type PrDiagramClaims,
   type SignedParts,
 } from "./hmac.js";
 
@@ -194,5 +199,84 @@ describe("secretsFromEnv", () => {
     expect(() =>
       secretsFromEnv({ ENQUEUE_HMAC_SECRET: SECRET, ENQUEUE_HMAC_SECRET_PREVIOUS: short }),
     ).toThrow(/^ENQUEUE_HMAC_SECRET_PREVIOUS must be at least 32 characters$/);
+  });
+});
+
+describe("signPrDiagram and verifyPrDiagram (M15.2b)", () => {
+  const KEY = derivedSecret(SECRET, PR_DIAGRAM_PURPOSE);
+  const CLAIMS: PrDiagramClaims = {
+    providerRepoId: 41,
+    baseSha: "a".repeat(40),
+    headSha: "b".repeat(40),
+  };
+  const nowS = Math.floor(NOW / 1000);
+
+  it("signs the documented text with HMAC-SHA256, expiring a lifetime from now", () => {
+    const token = signPrDiagram(KEY, CLAIMS, NOW + 999);
+    const expires = nowS + PR_DIAGRAM_TOKEN_SECONDS;
+    const mac = createHmac("sha256", KEY)
+      .update(`v1\npr-diagram\n41\n${"a".repeat(40)}\n${"b".repeat(40)}\n${expires}`)
+      .digest("hex");
+    expect(token).toBe(`${expires}.${mac}`);
+    expect(signPrDiagram(KEY, CLAIMS, NOW, 60)).toMatch(
+      new RegExp(`^${nowS + 60}\\.[0-9a-f]{64}$`),
+    );
+  });
+
+  it("accepts its own token under any accepted key, and binds the repo and both commits", () => {
+    const token = signPrDiagram(KEY, CLAIMS, NOW);
+    const other = derivedSecret(OTHER, PR_DIAGRAM_PURPOSE);
+    expect(verifyPrDiagram([KEY], CLAIMS, token, NOW)).toBe(true);
+    expect(verifyPrDiagram([other, KEY], CLAIMS, token, NOW)).toBe(true);
+    expect(verifyPrDiagram([other], CLAIMS, token, NOW)).toBe(false);
+    // The shared secret itself, or another purpose's key, never verifies.
+    expect(verifyPrDiagram([SECRET], CLAIMS, token, NOW)).toBe(false);
+    expect(
+      verifyPrDiagram([derivedSecret(SECRET, TOKEN_REQUEST_PURPOSE)], CLAIMS, token, NOW),
+    ).toBe(false);
+    for (const changed of [
+      { ...CLAIMS, providerRepoId: 42 },
+      { ...CLAIMS, baseSha: "c".repeat(40) },
+      { ...CLAIMS, headSha: "c".repeat(40) },
+      { ...CLAIMS, baseSha: CLAIMS.headSha, headSha: CLAIMS.baseSha },
+    ]) {
+      expect(verifyPrDiagram([KEY], changed, token, NOW), JSON.stringify(changed)).toBe(false);
+    }
+    // The expiry is signed: moving it breaks the token.
+    const [expires, mac] = token.split(".");
+    expect(verifyPrDiagram([KEY], CLAIMS, `${Number(expires) + 1}.${mac}`, NOW)).toBe(false);
+  });
+
+  it("expires, and refuses an expiry further off than a token's lifetime", () => {
+    const token = signPrDiagram(KEY, CLAIMS, NOW, 60);
+    expect(verifyPrDiagram([KEY], CLAIMS, token, (nowS + 59) * 1000)).toBe(true);
+    expect(verifyPrDiagram([KEY], CLAIMS, token, (nowS + 60) * 1000)).toBe(false);
+    // Signed with a lifetime past the cap (or by a clock running ahead): refused.
+    const far = nowS + PR_DIAGRAM_TOKEN_SECONDS + MAX_CLOCK_SKEW_SECONDS;
+    const signedAt = (s: number) => signPrDiagram(KEY, CLAIMS, NOW, s - nowS);
+    expect(verifyPrDiagram([KEY], CLAIMS, signedAt(far), NOW)).toBe(true);
+    expect(verifyPrDiagram([KEY], CLAIMS, signedAt(far + 1), NOW)).toBe(false);
+  });
+
+  it("refuses anything not shaped like a token", () => {
+    const token = signPrDiagram(KEY, CLAIMS, NOW);
+    const [expires, mac = ""] = token.split(".");
+    for (const bad of [
+      undefined,
+      null,
+      42,
+      ["x"],
+      "",
+      mac,
+      `${expires}.`,
+      `${expires}.${mac.toUpperCase()}`,
+      `${expires}.${mac}0`,
+      `${expires}.${mac.slice(1)}`,
+      `+${expires}.${mac}`,
+      `${expires}.${mac}\n`,
+      ` ${token}`,
+    ]) {
+      expect(verifyPrDiagram([KEY], CLAIMS, bad, NOW), JSON.stringify(bad)).toBe(false);
+    }
   });
 });

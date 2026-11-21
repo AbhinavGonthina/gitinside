@@ -1,6 +1,11 @@
 import { ANALYZER_VERSION } from "@gitinside/analyzer/version";
 import { countStoreRequests, createDb, type AnyDatabase, type DbHandle } from "@gitinside/db";
-import { derivedSecret, MIN_SECRET_LENGTH, TOKEN_REQUEST_PURPOSE } from "@gitinside/worker/hmac";
+import {
+  derivedSecret,
+  MIN_SECRET_LENGTH,
+  PR_DIAGRAM_PURPOSE,
+  TOKEN_REQUEST_PURPOSE,
+} from "@gitinside/worker/hmac";
 import {
   countingFetch,
   createObjectStore,
@@ -21,6 +26,7 @@ import { createCodeSizeCache } from "./codeSize";
 import type { GraphRouteDeps } from "./graphRoute";
 import { cdnGraphReader, type ImageRouteDeps } from "./imageRoute";
 import { jobRouteDeps, type JobRouteDeps } from "./jobRoute";
+import type { PrDiagramDeps } from "./prDiagramRoute";
 import { createHeadCache, type RepoViewDeps } from "./repoView";
 import { createTimelineCache, type TimelineDeps } from "./timeline";
 import { createTaskQueue, type TaskQueue } from "./cloudTasks";
@@ -292,6 +298,32 @@ export function imageDepsFromEnv(
 ): ImageRouteDeps | undefined {
   const view = repoViewDepsFromEnv(env, oidcToken);
   return view && { view, graph: cdnGraphReader(origin) };
+}
+
+/**
+ * The PR image route's deps (M15.2b, ADR-0321): the database and the `SNAPSHOTS_*` bucket,
+ * else `undefined`; public graphs read through `origin`'s day-cached `/api/graph`, as the
+ * README images read them; and the keys a private repo's image token may be signed with,
+ * derived from `ENQUEUE_HMAC_SECRET` (+ `ENQUEUE_HMAC_SECRET_PREVIOUS` during a rotation), the
+ * secret the worker signs with. A missing or short secret leaves no keys: every private image
+ * is then a 404, the public ones unaffected.
+ */
+export function prDiagramDepsFromEnv(
+  origin: string,
+  env: Env = process.env,
+): PrDiagramDeps | undefined {
+  const stored = snapshotStore(env);
+  if (!stored) return undefined;
+  const secrets = [env.ENQUEUE_HMAC_SECRET, env.ENQUEUE_HMAC_SECRET_PREVIOUS].filter(
+    (s): s is string => s !== undefined && s !== "",
+  );
+  const usable =
+    env.ENQUEUE_HMAC_SECRET && secrets.every((s) => s.length >= MIN_SECRET_LENGTH) ? secrets : [];
+  return {
+    ...stored,
+    graph: cdnGraphReader(origin),
+    tokenKeys: usable.map((s) => derivedSecret(s, PR_DIAGRAM_PURPOSE)),
+  };
 }
 
 /** Keys derived per `SESSION_SECRET`, kept so each request doesn't run HKDF again. */
