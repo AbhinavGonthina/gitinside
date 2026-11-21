@@ -125,6 +125,76 @@ export function derivedSecret(secret: string, purpose: string): string {
 }
 
 /**
+ * What a private repo's PR comment image URL is signed for (M15.2b, ADR-0321): the worker
+ * signs it, the website's `/api/pr-diagram` checks it. Its own key ({@link derivedSecret}).
+ */
+export const PR_DIAGRAM_PURPOSE = "gitinside/v1/pr-diagram";
+/**
+ * How long a PR image's token lasts: 30 days, after which a private pull request's comment
+ * shows a broken image until a new push re-posts it. Also the furthest expiry accepted.
+ */
+export const PR_DIAGRAM_TOKEN_SECONDS = 30 * 24 * 60 * 60;
+
+/** What a PR image's token is for: one repo (by GitHub's ID, so a rename keeps it) and diff. */
+export interface PrDiagramClaims {
+  providerRepoId: number;
+  /** The diff's merge base, as the comment's link names it. */
+  baseSha: string;
+  headSha: string;
+}
+
+const PR_DIAGRAM_TOKEN = /^([1-9][0-9]{0,11})\.([0-9a-f]{64})$/;
+
+function prDiagramMac(key: string, claims: PrDiagramClaims, expires: string): Buffer {
+  return createHmac("sha256", key)
+    .update(
+      `v1\npr-diagram\n${claims.providerRepoId}\n${claims.baseSha}\n${claims.headSha}\n${expires}`,
+    )
+    .digest();
+}
+
+/**
+ * A token for a private repo's PR image URL (`?token=`): `<expiry in Unix seconds>.<hex>`, the
+ * HMAC-SHA256 under `key` (the {@link PR_DIAGRAM_PURPOSE} key) of
+ * `v1\npr-diagram\n<providerRepoId>\n<base>\n<head>\n<expiry>`.
+ */
+export function signPrDiagram(
+  key: string,
+  claims: PrDiagramClaims,
+  nowMs: number = Date.now(),
+  lifetimeSeconds: number = PR_DIAGRAM_TOKEN_SECONDS,
+): string {
+  const expires = String(Math.floor(nowMs / 1000) + lifetimeSeconds);
+  return `${expires}.${prDiagramMac(key, claims, expires).toString("hex")}`;
+}
+
+/**
+ * Whether `token` (the URL's `?token=`, anything) was made by {@link signPrDiagram} under one
+ * of `keys` for exactly `claims`, and hasn't expired. An expiry further off than
+ * {@link PR_DIAGRAM_TOKEN_SECONDS} (plus {@link MAX_CLOCK_SKEW_SECONDS}) is refused, so no
+ * token lasts longer than that. Every key is checked in constant time.
+ */
+export function verifyPrDiagram(
+  keys: readonly string[],
+  claims: PrDiagramClaims,
+  token: unknown,
+  nowMs: number = Date.now(),
+): boolean {
+  const match = typeof token === "string" ? PR_DIAGRAM_TOKEN.exec(token) : null;
+  if (match === null) return false;
+  const [, expires = "", hex = ""] = match;
+  const left = Number(expires) - nowMs / 1000;
+  if (left <= 0 || left > PR_DIAGRAM_TOKEN_SECONDS + MAX_CLOCK_SKEW_SECONDS) return false;
+  const given = Buffer.from(hex, "hex");
+  let matched = false;
+  for (const key of keys) {
+    // No early exit, as in verifyRequest.
+    if (timingSafeEqual(prDiagramMac(key, claims, expires), given)) matched = true;
+  }
+  return matched;
+}
+
+/**
  * Read the accepted secrets from the environment: `ENQUEUE_HMAC_SECRET` (required, the one
  * the web app signs with) and `ENQUEUE_HMAC_SECRET_PREVIOUS` (optional, set only during a
  * rollover). Throws, naming the variable but never its value, if one is missing or short.

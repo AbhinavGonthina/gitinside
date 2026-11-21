@@ -54,3 +54,18 @@ export function diagramSearch(requestUrl: string): string {
   const theme = new URL(requestUrl).searchParams.get("theme");
   return theme === "dark" || theme === "light" ? `?theme=${theme}` : "";
 }
+
+/** A PR image token's shape (`signPrDiagram`'s `<expiry>.<hex>`); its signature is checked later. */
+const PR_DIAGRAM_TOKEN = /^[1-9][0-9]{0,11}\.[0-9a-f]{64}$/;
+
+/**
+ * The PR image route's canonical query (M15.2b): {@link diagramSearch}'s theme, then a
+ * well-formed `token`, in that order. The route itself sends a public repo's tokened URL on to
+ * the URL without it, so tokens of the right shape can't each cost a render either.
+ */
+export function prDiagramSearch(requestUrl: string): string {
+  const theme = diagramSearch(requestUrl);
+  const token = new URL(requestUrl).searchParams.get("token");
+  if (token === null || !PR_DIAGRAM_TOKEN.test(token)) return theme;
+  return `${theme === "" ? "?" : `${theme}&`}token=${token}`;
+}

@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { ANALYZER_VERSION } from "@gitinside/analyzer/version";
+import { derivedSecret, PR_DIAGRAM_PURPOSE, TOKEN_REQUEST_PURPOSE } from "@gitinside/worker/hmac";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { FAKE_APP_ID, FAKE_KEYS } from "./githubApp.testkit";
 import { FAKE_GCP, fakeGoogle } from "./google.testkit";
@@ -13,6 +14,7 @@ import {
   graphDepsFromEnv,
   imageDepsFromEnv,
   jobDepsFromEnv,
+  prDiagramDepsFromEnv,
   repoViewDepsFromEnv,
   webhookDepsFromEnv,
 } from "./serverDeps";
@@ -357,6 +359,52 @@ describe("imageDepsFromEnv", () => {
 
   it("is undefined without the database", () => {
     expect(imageDepsFromEnv(ORIGIN, { ...ENV, ...BUCKET, DATABASE_URL: "" })).toBeUndefined();
+  });
+});
+
+describe("prDiagramDepsFromEnv (M15.2b)", () => {
+  const ORIGIN = "https://gitinside.test";
+  const OTHER = "p".repeat(43);
+  const key = (secret: string) => derivedSecret(secret, PR_DIAGRAM_PURPOSE);
+
+  it("needs the database and the bucket, and reads public graphs from the origin", async () => {
+    const requests: string[] = [];
+    vi.stubGlobal("fetch", async (input: URL) => {
+      requests.push(input.href);
+      return new Response("{}");
+    });
+    try {
+      const deps = prDiagramDepsFromEnv(ORIGIN, { ...ENV, ...BUCKET });
+      expect(typeof deps?.store.get).toBe("function");
+      await deps?.graph("/api/graph/Acme/Shop/abc");
+      expect(requests).toEqual([`${ORIGIN}/api/graph/Acme/Shop/abc`]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(prDiagramDepsFromEnv(ORIGIN, { ...ENV, DATABASE_URL: "", ...BUCKET })).toBeUndefined();
+    expect(prDiagramDepsFromEnv(ORIGIN, ENV)).toBeUndefined();
+  });
+
+  it("derives the token keys from the current and previous secrets, never the secrets", () => {
+    const env = { ...ENV, ...BUCKET };
+    expect(prDiagramDepsFromEnv(ORIGIN, env)?.tokenKeys).toEqual([key(ENV.ENQUEUE_HMAC_SECRET)]);
+    expect(
+      prDiagramDepsFromEnv(ORIGIN, { ...env, ENQUEUE_HMAC_SECRET_PREVIOUS: OTHER })?.tokenKeys,
+    ).toEqual([key(ENV.ENQUEUE_HMAC_SECRET), key(OTHER)]);
+    expect(key(OTHER)).not.toBe(derivedSecret(OTHER, TOKEN_REQUEST_PURPOSE));
+  });
+
+  it("has no token keys, but still serves public images, when a secret is missing or short", () => {
+    const env = { ...ENV, ...BUCKET };
+    for (const bad of [
+      { ENQUEUE_HMAC_SECRET: "" },
+      { ENQUEUE_HMAC_SECRET: undefined, ENQUEUE_HMAC_SECRET_PREVIOUS: OTHER },
+      { ENQUEUE_HMAC_SECRET: "short" },
+      { ENQUEUE_HMAC_SECRET_PREVIOUS: "short" },
+    ]) {
+      const deps = prDiagramDepsFromEnv(ORIGIN, { ...env, ...bad });
+      expect(deps?.tokenKeys, JSON.stringify(bad)).toEqual([]);
+    }
   });
 });
 

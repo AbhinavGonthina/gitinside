@@ -735,6 +735,10 @@ const ROUTES: Readonly<Record<string, { guard: string; tests: string }>> = {
   },
   "graph/[owner]/[repo]/[sha]/route.ts": { guard: "access check", tests: "security.test.ts" },
   "jobs/[id]/route.ts": { guard: "access check", tests: "security.test.ts" },
+  "pr-diagram/[owner]/[repo]/[base]/[head]/route.ts": {
+    guard: "public repos; private ones by a signed, expiring token",
+    tests: "prDiagramRoute.test.ts",
+  },
   "jobs/[id]/events/route.ts": { guard: "access check", tests: "security.test.ts" },
   "prototype/diagram/[owner]/[repo]/route.ts": {
     guard: "five fixed public repos, one fixed host",
