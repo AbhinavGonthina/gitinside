@@ -427,10 +427,11 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     ]);
   });
 
-  it("sdk-branches: every write and branch of a client counts; a placeholder example host is no API (M9.7g, M9.7l, M9.7m, M9.7n, M9.7o, M9.7p, M13.1a)", async () => {
+  it("sdk-branches: every write and branch of a client counts; a placeholder example host is no API (M9.7g, M9.7l, M9.7m, M9.7n, M9.7o, M9.7p, M13.1a, M13.1b)", async () => {
     const g = await run("sdk-branches");
     const fields = "symbol:sdk-branches/src/fields.ts";
     const lazy = "symbol:sdk-branches/src/lazy.ts";
+    const over = "symbol:sdk-branches/src/overrides.ts";
     const props = "symbol:sdk-branches/src/properties.ts";
     const sw = "symbol:sdk-branches/src/switch.js";
     const traced = "symbol:sdk-branches/src/traced.js";
@@ -452,7 +453,9 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     // replaced (`settingsModels`) are unread; another class's same-named field doesn't count,
     // and an object literal's method reads its own member through `this` (M9.7p). A store
     // through another class's type may reach a class assignable to it (`Planner.models`), but
-    // not one that isn't (`Archivist.history`, M13.1a).
+    // not one that isn't (`Archivist.history`, M13.1a). A subclass's parameter property of the
+    // field's name (`Narrator.speak`) and a store at a constant key (`Turbine.spin`) are stores;
+    // a subclass's `declare` field isn't (`Scribe.write`, M13.1b).
     expect(links(g, "http")).toEqual([
       `${fields}#Switchable.models -> ${at}/fields.ts:15:27 unresolved DYNAMIC_URL`,
       `${fields}#azureChat -> ${at}/fields.ts:42:33 unresolved NO_MATCHING_ROUTE`,
@@ -461,6 +464,8 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       `${fields}#repoFor -> ${at}/fields.ts:51:23 unresolved DYNAMIC_URL`,
       `${lazy}#clientModels -> ${at}/lazy.ts:30:29 unresolved DYNAMIC_URL`,
       `${lazy}#proxiedModels -> ${at}/lazy.ts:17:25 unresolved DYNAMIC_URL`,
+      `${over}#Narrator.speak -> ${at}/overrides.ts:11:30 unresolved DYNAMIC_URL`,
+      `${over}#Turbine.spin -> ${at}/overrides.ts:28:31 unresolved DYNAMIC_URL`,
       `${props}#Assistant.models -> ${at}/properties.ts:8:27 unresolved DYNAMIC_URL`,
       `${props}#Planner.models -> ${at}/properties.ts:34:27 unresolved DYNAMIC_URL`,
       `${props}#settingsModels -> ${at}/properties.ts:64:30 unresolved DYNAMIC_URL`,
@@ -480,6 +485,7 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     expect(links(g, "external_call")).toEqual([
       `${fields}#route -> external:ext/openrouter.ai exact`,
       `${lazy}#lazyModels -> external:ext/api.openai.com exact`,
+      `${over}#Scribe.write -> external:ext/api.openai.com exact`,
       `${props}#Archivist.history -> external:ext/api.openai.com exact`,
       `${props}#helper.models -> external:ext/api.openai.com exact`,
       `${sw}#Lazy.chat -> external:ext/api.groq.com exact`,

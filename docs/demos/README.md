@@ -134,6 +134,13 @@ analyzed the same way with both the new `sdk.ts` and 0.3.20's
 same (588 / 12 / 140), with none added, removed, or changed. No pin's SDK client is a
 property stored through another type. No edge needed rechecking by hand.
 
+At 0.3.22 (M13.1b, ADR-0315: a subclass's own field or parameter property of an SDK client
+property's name, and a store at a key of string literal type, are stores to it) each pin was
+downloaded and analyzed the same way with both the new `sdk.ts` and 0.3.21's
+(`packages/analyzer/dist/m131b-compare.mjs`): every `external_call` and `http` edge is the
+same (588 / 12 / 140), with none added, removed, or changed. No edge needed rechecking by
+hand.
+
 ### The API map (M11.2)
 
 `packages/api-map` was checked against each record on production's 0.3.10 graphs

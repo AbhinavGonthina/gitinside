@@ -2304,6 +2304,164 @@ describe("analyze: SDK clients with a base URL (M9.1a3e2a)", () => {
           },
           want: OPENAI,
         },
+        // Q2 (M13.1b): a subclass's own field of the property's name replaces it on the
+        // subclass's instances, which the base class's methods read through `this`.
+        q2field: {
+          files: {
+            "ai.ts": [
+              ...svc("ai: OpenAI = new OpenAI();"),
+              "export class Sub extends Svc {",
+              "  constructor(private c: OpenAI) { super(); }",
+              "  override ai: OpenAI = this.c;",
+              "}",
+            ],
+          },
+          want: "unresolved",
+        },
+        q2param: {
+          files: {
+            "ai.ts": [
+              ...svc("ai: OpenAI = new OpenAI();"),
+              "export class Sub extends Svc {",
+              "  constructor(public override ai: OpenAI) { super(); }",
+              "}",
+            ],
+          },
+          want: "unresolved",
+        },
+        // A field with no initializer is reset to `undefined` (class fields' define semantics).
+        q2bare: {
+          files: {
+            "ai.ts": [
+              ...svc("ai: OpenAI = new OpenAI();"),
+              "export class Sub extends Svc {",
+              "  override ai!: OpenAI;",
+              "}",
+            ],
+          },
+          want: "unresolved",
+        },
+        // Controls: a subclass building the same client, a `declare` field (no code), an
+        // unrelated class's field, the other side of static and instance, and a base class's
+        // parameter property under a subclass whose own initializer runs last.
+        q2fieldctl: {
+          files: {
+            "ai.ts": [
+              ...svc("ai: OpenAI = new OpenAI();"),
+              "export class Sub extends Svc {",
+              "  override ai: OpenAI = new OpenAI();",
+              "}",
+            ],
+          },
+          want: OPENAI,
+        },
+        q2declarectl: {
+          files: {
+            "ai.ts": [
+              ...svc("ai: OpenAI = new OpenAI();"),
+              "export class Sub extends Svc {",
+              "  declare ai: OpenAI;",
+              "}",
+            ],
+          },
+          want: OPENAI,
+        },
+        q2unrelatedctl: {
+          files: {
+            "ai.ts": [
+              ...svc("ai: OpenAI = new OpenAI();"),
+              "export class Other {",
+              "  constructor(public ai: OpenAI) {}",
+              "}",
+            ],
+          },
+          want: OPENAI,
+        },
+        q2staticctl: {
+          files: {
+            "ai.ts": [
+              ...svc("ai: OpenAI = new OpenAI();"),
+              "export class Sub extends Svc {",
+              "  static ai?: OpenAI;",
+              "}",
+            ],
+          },
+          want: OPENAI,
+        },
+        q2basectl: {
+          files: {
+            "ai.ts": [
+              H,
+              "class Base {",
+              "  constructor(public ai?: OpenAI) {}",
+              "}",
+              "export class Svc extends Base {",
+              "  override ai = new OpenAI();",
+              "  list() { return this.ai.models.list(); }",
+              "}",
+            ],
+          },
+          want: OPENAI,
+        },
+        // Q7 (M13.1b): a computed key whose type is one string literal, or a union of them, names
+        // the member stored to, even on `any`.
+        q7const: {
+          files: {
+            "ai.ts": [
+              ...svc("ai = new OpenAI();"),
+              'const K = "ai";',
+              "export function inject(s: Svc, c: OpenAI) { (s as any)[K] = c; }",
+            ],
+          },
+          want: "unresolved",
+        },
+        q7union: {
+          files: {
+            "ai.ts": [
+              ...svc("ai = new OpenAI();"),
+              'export function set(s: Svc, k: "ai" | "name", c: OpenAI) { (s as any)[k] = c; }',
+            ],
+          },
+          want: "unresolved",
+        },
+        q7asconst: {
+          files: {
+            "ai.ts": [
+              ...svc("ai = new OpenAI();"),
+              'const K = "ai" as const;',
+              "export function inject(s: Svc, c: OpenAI) { s[K] = c; }",
+            ],
+          },
+          want: "unresolved",
+        },
+        // A key of type `string` may be any member, so a store through it on a `Svc` is unread.
+        q7widethis: {
+          files: {
+            "ai.ts": svc("ai = new OpenAI();", "set(key: string, c: OpenAI) { this[key] = c; }"),
+          },
+          want: "unresolved",
+        },
+        // Controls: a constant key naming another member, and a key of type `string` on `any`
+        // (not counted, see `sdk.ts`'s "Not handled").
+        q7otherctl: {
+          files: {
+            "ai.ts": [
+              ...svc("ai = new OpenAI();"),
+              'const K = "name";',
+              "export function inject(s: Svc, c: OpenAI) { (s as any)[K] = c; }",
+            ],
+          },
+          want: OPENAI,
+        },
+        q7widectl: {
+          files: {
+            "ai.ts": [
+              ...svc("ai = new OpenAI();"),
+              "export function set(s: Svc, k: string, c: OpenAI) { (s as any)[k] = c; }",
+            ],
+          },
+          want: OPENAI,
+        },
         p2assign: {
           files: {
             "ai.ts": svc(

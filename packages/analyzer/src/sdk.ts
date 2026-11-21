@@ -71,9 +71,12 @@
  *   through a `const` bound to that literal or a receiver whose type the property's owner
  *   isn't assignable to (M13.1a, ADR-0314: types are structural, so `h.ai = c` with `h:
  *   Holder` may write a `Svc`, a literal, or the class itself passed as a `Holder`). Another
- *   file's `s.ai = c`, a subclass's `this.ai = c`, `this["ai"] = c`, `config.ai = c`,
+ *   file's `s.ai = c`, a subclass's `this.ai = c`, `this["ai"] = c`, `(s as any)[K] = c` with
+ *   a key of string literal type (or a union of them; M13.1b), `config.ai = c`,
  *   `require("./a").ai = c`, a store through a type's member (`t.ai = c` with `t: { ai?:
- *   OpenAI }`) or on an untyped value. A store the matcher can't read (a destructuring target,
+ *   OpenAI }`) or on an untyped value, and a subclass's own field or parameter property of the
+ *   name (`override ai = this.c`, `constructor(public override ai: OpenAI)`; M13.1b, ADR-0315:
+ *   it replaces the base class's on the subclass's instances). A store the matcher can't read (a destructuring target,
  *   `&&=`, `Object.defineProperty`) is unread, and so is the property when an object whose type
  *   has it is written at a member the matcher can't name (`Object.assign(this, deps)`,
  *   `this[key] = c`). An object literal's member read from something that may be a copy (a
@@ -135,7 +138,7 @@
  *   field is its own), so with only an injected client there it draws nothing either. Stores
  *   made in another workspace package's program aren't read, nor is a store at a member the
  *   matcher can't name on an `any` value (`Object.assign(anything, opts)`, `o[key] = c` with
- *   `o: any`, a function constructor's `Object.assign(this, opts)`): counting those would make
+ *   `o: any` and `key: string`, a function constructor's `Object.assign(this, opts)`): counting those would make
  *   every property in the service unread. A property that holds no client by its
  *   declarations (`ai: undefined as OpenAI | undefined`, later `config.ai = new OpenAI()`)
  *   isn't read further, so its calls draw nothing.
@@ -508,10 +511,15 @@ interface MemberStore {
   value: ts.Expression | undefined;
 }
 
-/** A service's {@link MemberStore}s by member name, and objects written at unnamed members. */
+/**
+ * A service's {@link MemberStore}s by member name, objects written at unnamed members, and
+ * class fields and parameter properties by name (`declared`, M13.1b), which store into a base
+ * class's property of the same name.
+ */
 interface MemberStores {
   named: ReadonlyMap<string, readonly MemberStore[]>;
   unnamed: readonly ts.Expression[];
+  declared: ReadonlyMap<string, readonly (ts.PropertyDeclaration | ts.ParameterDeclaration)[]>;
 }
 
 /**
@@ -1807,28 +1815,64 @@ export function collectSdkFacts(
   const memberStoresBySp = new Map<ServiceProgram, MemberStores>();
 
   /**
+   * The member names a computed key may be (M13.1b, Q7): its type's string literals (`const K =
+   * "ai"`, `k: "ai" | "name"`), or `undefined` when it may be any other string.
+   */
+  const literalKeys = (sp: ServiceProgram, key: ts.Expression): string[] | undefined => {
+    const type = resolver.checkerOf(sp).getTypeAtLocation(key);
+    const parts = type.isUnion() ? type.types : [type];
+    const names: string[] = [];
+    for (const part of parts) {
+      if (!part.isStringLiteral()) return undefined;
+      names.push(part.value);
+    }
+    return names;
+  };
+
+  /**
    * Every store into an object's member in a service's files (M9.7p): by member name, a member
-   * access stored to (`s.ai = c`, `this["ai"] ??= c`, `require("./a").ai = c`), an
-   * `Object.assign`-like call's named member, or a store the matcher can't read (`&&=`, a
-   * destructuring or `for … of` target, `Object.defineProperty`), whose value is `undefined`;
-   * and the objects written at a member it can't name (`o[key] = c`, `Object.assign(o, opts)`).
+   * access stored to (`s.ai = c`, `this["ai"] ??= c`, `(s as any)[K] = c` with a key of
+   * literal type, `require("./a").ai = c`), an `Object.assign`-like call's named member, or a
+   * store the matcher can't read (`&&=`, a destructuring or `for … of` target,
+   * `Object.defineProperty`), whose value is `undefined`; the objects written at a member it
+   * can't name (`o[key] = c`, `Object.assign(o, opts)`); and every class field and parameter
+   * property declared, by name (M13.1b).
    */
   const memberStores = (sp: ServiceProgram): MemberStores => {
     const known = memberStoresBySp.get(sp);
     if (known) return known;
     const named = new Map<string, MemberStore[]>();
     const unnamed: ts.Expression[] = [];
+    const declared = new Map<string, (ts.PropertyDeclaration | ts.ParameterDeclaration)[]>();
     const add = (store: MemberStore): void => {
       const list = named.get(store.name);
       if (list) list.push(store);
       else named.set(store.name, [store]);
     };
+    const declare = (
+      name: ts.Node,
+      declaration: ts.PropertyDeclaration | ts.ParameterDeclaration,
+    ): void => {
+      if (!ts.isIdentifier(name)) return;
+      const list = declared.get(name.text);
+      if (list) list.push(declaration);
+      else declared.set(name.text, [declaration]);
+    };
     const target = (access: ts.Expression, value: ts.Expression | undefined): void => {
       const member = memberOf(access);
       if (member) add({ name: member.name, object: member.object, access, value });
-      else if (ts.isElementAccessExpression(access)) unnamed.push(access.expression);
+      else if (ts.isElementAccessExpression(access)) {
+        const names = literalKeys(sp, access.argumentExpression);
+        if (!names) unnamed.push(access.expression);
+        for (const name of names ?? []) add({ name, object: access.expression, access, value });
+      }
     };
     const walk = (node: ts.Node): void => {
+      if (ts.isPropertyDeclaration(node) && ts.isClassLike(node.parent)) {
+        declare(node.name, node);
+      } else if (ts.isParameter(node) && ts.isParameterPropertyDeclaration(node, node.parent)) {
+        declare(node.name, node);
+      }
       if (ts.isBinaryExpression(node)) {
         const op = node.operatorToken.kind;
         const left = unwrap(node.left);
@@ -1855,7 +1899,7 @@ export function collectSdkFacts(
       const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
       if (sourceFile) walk(sourceFile);
     }
-    const stores = { named, unnamed };
+    const stores = { named, unnamed, declared };
     memberStoresBySp.set(sp, stores);
     return stores;
   };
@@ -1989,7 +2033,8 @@ export function collectSdkFacts(
    * The values the service's files store at property `property` named `name`, joined (M9.7p,
    * P2–P4, P7): a class field's, a static's, an object literal member's, or a CommonJS
    * export's, wherever the store is (another file's `s.ai = c`, a subclass's `this.ai = c`,
-   * `config.ai = c`, `require("./a").ai = c`), each store that {@link mayWrite} it, and
+   * `config.ai = c`, `require("./a").ai = c`), each store that {@link mayWrite} it, each
+   * subclass field or parameter property that {@link overrides} it (M13.1b), and
    * {@link UNREAD} for one the matcher can't read or an object written at a member it can't
    * name whose type has the property (`Object.assign(this, deps)`, `this[key] = c`). Stores
    * into `any` at an unnamed member aren't counted (see the file comment).
@@ -2000,7 +2045,7 @@ export function collectSdkFacts(
     name: string,
     hops: number,
   ): Branch => {
-    const { named, unnamed } = memberStores(sp);
+    const { named, unnamed, declared } = memberStores(sp);
     for (const object of unnamed) {
       const stored = propertyOfType(sp, object, name);
       if (stored && mayWrite(sp, stored, property, object)) return UNREAD;
@@ -2011,7 +2056,35 @@ export function collectSdkFacts(
       if (stored && !mayWrite(sp, stored, property, store.object)) continue;
       found = joined(found, store.value ? branchOf(sp, store.value, hops + 1) : UNREAD);
     }
+    for (const declaration of declared.get(name) ?? []) {
+      if (!overrides(sp, declaration, property)) continue;
+      const init = ts.isPropertyDeclaration(declaration) ? declaration.initializer : undefined;
+      found = joined(found, init ? branchOf(sp, init, hops + 1) : UNREAD);
+    }
     return found;
+  };
+
+  /**
+   * True when a class field or parameter property is declared in a class that derives from
+   * the property's, on the same side of static and instance (M13.1b, Q2: `override ai =
+   * this.c`, `constructor(public override ai: OpenAI)`): the subclass's runs after the base
+   * class's, so the subclass's instances hold what it stores, and the base class's methods
+   * read it through `this`. A `declare` field emits no code; one with no initializer resets
+   * the member to `undefined`. A base class's field under the property's class is overwritten
+   * by it, so it doesn't count.
+   */
+  const overrides = (
+    sp: ServiceProgram,
+    declaration: ts.PropertyDeclaration | ts.ParameterDeclaration,
+    property: ts.Symbol,
+  ): boolean => {
+    if (ambient(declaration)) return false;
+    const sub = memberOwner(declaration);
+    if (sub?.kind !== "class") return false;
+    return (property.declarations ?? []).some((d) => {
+      const own = memberOwner(d);
+      return own?.kind === "class" && own.static === sub.static && derives(sp, sub.node, own.node);
+    });
   };
 
   /** The client a type annotation names: `Stripe`, `S3Client`, or `aws.S3Client`. */
