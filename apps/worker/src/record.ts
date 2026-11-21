@@ -9,6 +9,7 @@ import {
   findJob,
   findLinkedRepo,
   findPullRequest,
+  findStoredAnalysis,
   isPrivateSnapshot,
   JobGoneError,
   recordDiffJobResult,
@@ -17,6 +18,7 @@ import {
   recordPullRequestComment,
   reopenDiffJob,
   requeueAnalysis,
+  servedPrivately,
   startAnalysis,
   startInstallationAnalysis,
   storeDiffSideAnalysis,
@@ -271,7 +273,9 @@ export function readableBy(key: string, side: { installationId: number; repoId: 
  * job can name it. Posting (M8.6e2b) reads the records left to post to (`findDiffJobPosts`), each record
  * again just before its post (`findPullRequest`), a `diffed` retry's stored diff by the key
  * the records name, and stores the comment and Check Run IDs; `reopen` clears the unposted
- * records' diff (`reopenDiffJob`) when a retry can't read what it was made from.
+ * records' diff (`reopenDiffJob`) when a retry can't read what it was made from. `diagram`
+ * (M15.2c) looks the pair up as the website's image route does (`findStoredAnalysis` for both
+ * commits, `servedPrivately`), so the comment names an image only when the route can draw it.
  */
 export function createDiffRecorder(
   options: Pick<RecorderOptions, "db" | "store" | "analyzerVersion">,
@@ -380,6 +384,28 @@ export function createDiffRecorder(
       return object === undefined ? undefined : new Response(object.body).text();
     },
     reopen: (jobId) => reopenDiffJob(db, jobId),
+    async diagram({ installationId, repoId, baseSha, headSha }) {
+      const repo = await findLinkedRepo(db, { githubInstallationId: installationId, repoId });
+      if (repo === undefined) return undefined;
+      // As the website's `/api/pr-diagram` finds them: the head by name, the base by GitHub's ID.
+      const head = await findStoredAnalysis(db, {
+        owner: repo.owner,
+        name: repo.name,
+        sha: headSha,
+      });
+      // The route draws only a diff by the head's version, and this job's diff is by this one.
+      if (head?.analysis.analyzerVersion !== analyzerVersion) return undefined;
+      const { providerRepoId } = head.repo;
+      const base = await findStoredAnalysis(db, { providerRepoId, sha: baseSha });
+      if (base === undefined) return undefined;
+      const { owner, name } = head.repo;
+      return {
+        owner,
+        name,
+        providerRepoId,
+        private: servedPrivately(head) || servedPrivately(base),
+      };
+    },
     recordComment: (ref) => recordPullRequestComment(db, ref),
     recordCheckRun: (ref) => recordPullRequestCheckRun(db, ref),
   };

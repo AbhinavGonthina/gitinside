@@ -2,7 +2,13 @@ import { readFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
 import type { DiffedPullRequest, DiffJobPost, StoredRulesConfig } from "@gitinside/db";
-import { diffGraphs, renderCheckRun, renderPrComment, type PrRules } from "@gitinside/diff";
+import {
+  diffGraphs,
+  renderCheckRun,
+  renderPrComment,
+  type PrDiagram,
+  type PrRules,
+} from "@gitinside/diff";
 import { RULES_TIME_BUDGET_MS } from "@gitinside/rules";
 import {
   parseGraph,
@@ -12,6 +18,7 @@ import {
 } from "@gitinside/schema";
 import { graphCounts } from "./counts.js";
 import { ExtractError, extractTarball } from "./extract.js";
+import { signPrDiagram } from "./hmac.js";
 import { JobFailure } from "./failure.js";
 import { fetchMergeBase, openTarball } from "./github.js";
 import type { InstallationTokenSource } from "./installationToken.js";
@@ -70,7 +77,9 @@ import { DEFAULT_RUNNER_LIMITS, runAnalysis } from "./runner.js";
  *    (`DiffRecorder.current`) and skipped (`post_skipped`) unless it still names the job, with
  *    the same pair and no Check Run: a newer push since must not get this head's comment. The
  *    texts carry the architecture rules ({@link rulesOf}), checked from the config stored on the
- *    records, never from the tree, so a retry checks exactly what the first run did. Then
+ *    records, never from the tree, so a retry checks exactly what the first run did. The
+ *    comment starts with the website's image of the diff when it can draw it ({@link diagramOf},
+ *    M15.2c), a private repo's URL signed at each post. Then
  *    `postComment` (post.ts) ⇒ `recordComment` ⇒ `createCheckRun` on the head ⇒
  *    `recordCheckRun` (only for the current pair). A comment GitHub refuses (`POST_REFUSED`, a
  *    locked conversation) still gets its Check Run, then the record fails with the refusal
@@ -123,6 +132,17 @@ export interface PostingRecord {
   checkRunId: number | null;
 }
 
+/** The repo of a comment's image, as {@link DiffRecorder.diagram} finds it. */
+export interface DiagramTarget {
+  /** The repo as stored now: the image's URL redirects any other spelling. */
+  owner: string;
+  name: string;
+  /** GitHub's ID of the repo, which a private image's token is signed for. */
+  providerRepoId: number;
+  /** Whether the website serves the image only with a token. */
+  private: boolean;
+}
+
 /** Which pull request record a write is about. */
 interface RecordRef {
   repoId: string;
@@ -171,6 +191,19 @@ export interface DiffRecorder {
   storedDiff(key: string): Promise<string | undefined>;
   /** Clear the diff of the job's unposted records, so it runs again (db's `reopenDiffJob`). */
   reopen(jobId: string): Promise<number>;
+  /**
+   * Whether the website can draw the comment's image of the diff of `baseSha` and `headSha`
+   * (M15.2c), asked as its `/api/pr-diagram` route asks: the repo as stored now, both commits'
+   * stored analyses, the head's by this analyzer version. `private` is the route's test
+   * (`servedPrivately` of either side), so a private image's URL gets a token. `undefined` when
+   * it can't (a side not stored, the repo unlinked): the comment then has no image.
+   */
+  diagram(pair: {
+    installationId: number;
+    repoId: string;
+    baseSha: string;
+    headSha: string;
+  }): Promise<DiagramTarget | undefined>;
   /** Store the pull request's comment ID (db's `recordPullRequestComment`). */
   recordComment(ref: RecordRef & { commentId: number }): Promise<boolean>;
   /** Store the pair's Check Run ID, only for the current pair (db's `recordPullRequestCheckRun`). */
@@ -489,6 +522,37 @@ function rulesOf(
 }
 
 /**
+ * The comment's image (M15.2c, ADR-0322): where the website draws it, with a token signed now
+ * under `JobDeps.diagramKey` when it's private, so each post re-signs it (a token lasts 30 days).
+ * `undefined`, and the comment has no image, when the website can't draw it
+ * ({@link DiffRecorder.diagram}), when it's private and the worker has no key, or when the lookup
+ * fails (logged as `diagram_lookup_failed`, by name only): the image never fails a post.
+ */
+async function diagramOf(
+  context: JobContext,
+  deps: Deps,
+  made: MadeDiff,
+  pair: { installationId: number; repoId: string },
+): Promise<PrDiagram | undefined> {
+  const baseSha = made.diff.base.repo.sha;
+  const headSha = made.diff.head.repo.sha;
+  if (baseSha === undefined || headSha === undefined) return undefined;
+  let target: DiagramTarget | undefined;
+  try {
+    target = await deps.diffs.diagram({ ...pair, baseSha, headSha });
+  } catch (error) {
+    deps.log?.({ event: "diagram_lookup_failed", id: context.id, ...errorFields(error) });
+    return undefined;
+  }
+  if (target === undefined) return undefined;
+  const { owner, name, providerRepoId } = target;
+  if (!target.private) return { owner, name };
+  if (deps.diagramKey === undefined) return undefined;
+  const claims = { providerRepoId, baseSha, headSha };
+  return { owner, name, token: signPrDiagram(deps.diagramKey, claims) };
+}
+
+/**
  * Post `made` to every record the job still has to post to (see the module comment's step 7).
  * Answers how many were posted; throws the first retriable failure, else the first failure,
  * after trying every record.
@@ -507,8 +571,13 @@ async function postAll(
   // One publish wrote the diff and its config to every record naming the job.
   const rules = rulesOf(context, deps, first.rules, made);
   const options = { siteOrigin: poster.siteOrigin, ...(rules === undefined ? {} : { rules }) };
+  const owner = { installationId: poster.installationId, repoId: first.repoId };
+  const diagram = await diagramOf(context, deps, made, owner);
   const texts = {
-    comment: renderPrComment(made.diff, made.base, made.head, options),
+    comment: renderPrComment(made.diff, made.base, made.head, {
+      ...options,
+      ...(diagram === undefined ? {} : { diagram }),
+    }),
     checkRun: renderCheckRun(made.diff, made.base, made.head, options),
   };
   const own = deps.postTimeoutMs ?? DEFAULT_POST_TIMEOUT_MS;

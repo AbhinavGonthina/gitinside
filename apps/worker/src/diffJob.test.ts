@@ -10,11 +10,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runAttempt } from "./attempt.js";
 import {
   processDiffJob,
+  type DiagramTarget,
   type DiffRecorder,
   type DiffToStore,
   type PostingRecord,
 } from "./diffJob.js";
 import { JobFailure } from "./failure.js";
+import {
+  derivedSecret,
+  PR_DIAGRAM_PURPOSE,
+  PR_DIAGRAM_TOKEN_SECONDS,
+  verifyPrDiagram,
+} from "./hmac.js";
 import {
   entriesOf,
   startFakeGitHub,
@@ -223,6 +230,8 @@ function recorder(overrides: Partial<DiffRecorder> = {}) {
     current: async () => undefined,
     storedDiff: async () => undefined,
     reopen: async () => 0,
+    // No image unless a test says so.
+    diagram: async () => undefined,
     recordComment: async () => true,
     recordCheckRun: async () => true,
     ...overrides,
@@ -364,8 +373,15 @@ const asked = () => github.requests.map((r) => `${r.server} ${r.url.split("?")[0
 describe("processDiffJob with the real analyzer", () => {
   it("diffs the merge base against the head with both trees' text, stores the diff, and posts it", async () => {
     const { overrides, published, records } = naming([7]);
-    const { diffs } = recorder(overrides);
-    const real = deps({ diffs, runOptions: { scriptsDir: DIST } });
+    const diagram = async () => ({
+      owner: "acme",
+      name: "shop",
+      providerRepoId: 77,
+      private: true,
+    });
+    const { diffs } = recorder({ ...overrides, diagram });
+    const diagramKey = derivedSecret("k".repeat(43), PR_DIAGRAM_PURPOSE);
+    const real = deps({ diffs, diagramKey, runOptions: { scriptsDir: DIST } });
     delete real.run;
     const stages: JobStage[] = [];
     const outcome = await processDiffJob(
@@ -403,6 +419,16 @@ describe("processDiffJob with the real analyzer", () => {
     const [comment] = [...comments.values()];
     expect(comment?.body.startsWith(PR_COMMENT_MARKER)).toBe(true);
     expect(comment?.body).toContain(`(${SITE}/acme/shop/${HEAD}?base=${MERGE})`);
+    // Above the text, the image of this pair, signed for the private repo (M15.2c).
+    const image = `${SITE}/api/pr-diagram/acme/shop/${MERGE}/${HEAD}.svg?theme=light&amp;token=`;
+    const token = new RegExp(`src="${image.replace(/[.?]/g, "\\$&")}([^"]+)"`).exec(
+      comment?.body ?? "",
+    )?.[1];
+    const claims = { providerRepoId: 77, baseSha: MERGE, headSha: HEAD };
+    expect(verifyPrDiagram([diagramKey], claims, token)).toBe(true);
+    expect(comment?.body.indexOf("<picture>")).toBeLessThan(
+      comment?.body.indexOf("No broken connections") ?? 0,
+    );
     expect(writes.find((w) => w.path.endsWith("/check-runs"))?.body).toMatchObject({
       head_sha: HEAD,
       conclusion: "success",
@@ -1040,6 +1066,116 @@ describe("processDiffJob posts (M8.6e2b)", () => {
     const error = await failure(processDiffJob(context({ timeLeft: () => left }), deps({ diffs })));
     expect([error.code, error.retriable]).toEqual(["POST_FAILED", true]);
     expect(writes).toEqual([]);
+  });
+});
+
+describe("processDiffJob's comment image (M15.2c)", () => {
+  const storedGraph = async ({ sha }: { sha: string }) => storedText(sha);
+  const DIAGRAM_KEY = derivedSecret("s".repeat(43), PR_DIAGRAM_PURPOSE);
+  const IMAGE = `${SITE}/api/pr-diagram/Acme/Shop/${MERGE}/${HEAD}.svg`;
+  const TARGET: DiagramTarget = {
+    owner: "Acme",
+    name: "Shop",
+    providerRepoId: 9001,
+    private: false,
+  };
+  const body = () => [...comments.values()][0]?.body ?? "";
+  /** The token in the comment's dark URL; the light one must carry the same. */
+  const tokenIn = (text: string): string | undefined => {
+    const dark = /srcset="[^"]*\?theme=dark(?:&amp;token=([^"]+))?"/.exec(text);
+    const light = /src="[^"]*\?theme=light(?:&amp;token=([^"]+))?"/.exec(text);
+    expect(dark?.[1]).toBe(light?.[1]);
+    return dark?.[1];
+  };
+
+  it("puts a public repo's image above the text, asking for this pair as stored now", async () => {
+    const { overrides } = naming([7]);
+    const diagram = vi.fn(async () => TARGET);
+    const { diffs } = recorder({ ...overrides, storedGraph, diagram });
+    await processDiffJob(context(), deps({ diffs, diagramKey: DIAGRAM_KEY }));
+    expect(diagram.mock.calls).toEqual([
+      [{ installationId: INSTALLATION, repoId: REPO_ID, baseSha: MERGE, headSha: HEAD }],
+    ]);
+    expect(body()).toContain(
+      `### GitInside architecture check\n\n<a href="${SITE}/acme/shop/${HEAD}?base=${MERGE}">\n  <picture>\n` +
+        `    <source media="(prefers-color-scheme: dark)" srcset="${IMAGE}?theme=dark">\n`,
+    );
+    expect(body()).toContain(`src="${IMAGE}?theme=light"`);
+    expect(tokenIn(body())).toBeUndefined();
+    // The Check Run has no image.
+    const check = writes.find((w) => w.path.endsWith("/check-runs"));
+    expect(JSON.stringify(check?.body)).not.toContain("pr-diagram");
+  });
+
+  it("signs a private repo's image for its GitHub ID and both commits, valid for 30 days", async () => {
+    const { overrides } = naming([7]);
+    const { diffs } = recorder({
+      ...overrides,
+      storedGraph,
+      diagram: async () => ({ ...TARGET, private: true }),
+    });
+    const before = Date.now();
+    await processDiffJob(context(), deps({ diffs, diagramKey: DIAGRAM_KEY }));
+    const token = tokenIn(body());
+    const claims = { providerRepoId: 9001, baseSha: MERGE, headSha: HEAD };
+    expect(verifyPrDiagram([DIAGRAM_KEY], claims, token, Date.now())).toBe(true);
+    for (const other of [
+      { ...claims, providerRepoId: 9002 },
+      { ...claims, baseSha: BASE },
+      { ...claims, headSha: MERGE },
+    ]) {
+      expect(verifyPrDiagram([DIAGRAM_KEY], other, token)).toBe(false);
+    }
+    const expires = Number(token?.split(".")[0]) * 1000;
+    expect(expires).toBeGreaterThanOrEqual(before + (PR_DIAGRAM_TOKEN_SECONDS - 1) * 1000);
+    expect(expires).toBeLessThanOrEqual(Date.now() + PR_DIAGRAM_TOKEN_SECONDS * 1000);
+  });
+
+  it("re-signs on a retry that posts from the stored diff", async () => {
+    const { overrides } = naming([7], { diffed: true });
+    const { diffs } = recorder({
+      ...overrides,
+      storedGraph,
+      storedDiff: async () => storedDiffText(),
+      diagram: async () => ({ ...TARGET, private: true }),
+    });
+    await processDiffJob(context(), deps({ diffs, diagramKey: DIAGRAM_KEY }));
+    const claims = { providerRepoId: 9001, baseSha: MERGE, headSha: HEAD };
+    expect(verifyPrDiagram([DIAGRAM_KEY], claims, tokenIn(body()))).toBe(true);
+  });
+
+  it.each<[string, Partial<DiffRecorder>, Partial<JobDeps>]>([
+    ["the website can't draw it", { diagram: async () => undefined }, {}],
+    [
+      "it's private and the worker has no key",
+      { diagram: async () => ({ ...TARGET, private: true }) },
+      {},
+    ],
+  ])("posts with no image when %s", async (_, more, extra) => {
+    const { overrides, records } = naming([7]);
+    const { diffs } = recorder({ ...overrides, storedGraph, ...more });
+    await processDiffJob(context(), deps({ diffs, ...extra }));
+    expect(body()).not.toContain("<picture>");
+    expect(body()).toContain(`(${SITE}/acme/shop/${HEAD}?base=${MERGE})`);
+    expect(records.get(7)?.checkRunId).toBe(1002);
+  });
+
+  it("posts with no image when the lookup fails, logged by name only", async () => {
+    const { overrides, records } = naming([7]);
+    const logs: Record<string, unknown>[] = [];
+    const diagram = async (): Promise<undefined> => {
+      throw dbDown();
+    };
+    const { diffs } = recorder({ ...overrides, storedGraph, diagram });
+    await processDiffJob(
+      context(),
+      deps({ diffs, diagramKey: DIAGRAM_KEY, log: (event) => void logs.push(event) }),
+    );
+    expect(body()).not.toContain("<picture>");
+    expect(records.get(7)?.checkRunId).toBe(1002);
+    const logged = logs.filter((e) => e.event === "diagram_lookup_failed");
+    expect(logged).toEqual([expect.objectContaining({ id: ID })]);
+    expect(JSON.stringify(logs)).not.toContain(DB_HOST);
   });
 });
 

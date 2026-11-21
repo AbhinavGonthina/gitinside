@@ -15,6 +15,7 @@ import {
   MAX_COMMENT_LENGTH,
   MAX_MERMAID_LENGTH,
   PR_COMMENT_MARKER,
+  PR_DIAGRAM_ALT,
   renderCheckRun,
   renderMermaidSummary,
   renderPrComment,
@@ -274,6 +275,20 @@ describe("GitHub's size limits", () => {
     );
   });
 
+  it("keeps a comment with the diagram's image within the limit, the image first (M15.2c)", () => {
+    const token = `1893456000.${"f".repeat(64)}`;
+    const options = { ...SITE, diagram: { owner: "fixtures", name: "diff-broken-head", token } };
+    for (const big of [many(false), many(true)]) {
+      const text = renderPrComment(big, base, head, options);
+      expect(text.length).toBeLessThanOrEqual(MAX_COMMENT_LENGTH);
+      expect(text.length).toBeGreaterThan(MAX_COMMENT_LENGTH - 2000);
+      expect(text).toContain(`### GitInside architecture check\n\n<a href=`);
+      expect(text).toContain(`&amp;token=${token}`);
+      // The image's room comes out of the listed items, never past the limit.
+      expect(listedIn(text)).toBeLessThan(listedIn(renderPrComment(big, base, head, SITE)));
+    }
+  });
+
   function expectNoSummary(big: GraphDiff): void {
     const text = renderPrComment(big, base, head, SITE);
     expect(text.length).toBeLessThanOrEqual(MAX_COMMENT_LENGTH);
@@ -284,6 +299,69 @@ describe("GitHub's size limits", () => {
         `_The change summary is too large for a comment; open the interactive diff._\n\n${DIFF_LINK}\n`,
     );
   }
+});
+
+describe("the diagram's image in the comment (M15.2c)", () => {
+  const IMAGE = "https://gitinside.example/api/pr-diagram/fixtures/diff-broken-head";
+  const picture = (search: (theme: string) => string) =>
+    [
+      `<a href="${DIFF_LINK.slice(DIFF_LINK.indexOf("(") + 1, -1)}">`,
+      "  <picture>",
+      `    <source media="(prefers-color-scheme: dark)" srcset="${IMAGE}/${BASE_SHA}/${HEAD_SHA}.svg${search("dark")}">`,
+      `    <img alt="${PR_DIAGRAM_ALT}" src="${IMAGE}/${BASE_SHA}/${HEAD_SHA}.svg${search("light")}">`,
+      "  </picture>",
+      "</a>",
+    ].join("\n");
+  const plain = renderPrComment(diff, base, head, SITE);
+  const heading = `${PR_COMMENT_MARKER}\n### GitInside architecture check\n\n`;
+
+  it("draws a public repo's image under the heading, one URL per theme, linked to the diff", () => {
+    const text = renderPrComment(diff, base, head, {
+      ...SITE,
+      diagram: { owner: "fixtures", name: "diff-broken-head" },
+    });
+    expect(text).toBe(plain.replace(heading, `${heading}${picture((t) => `?theme=${t}`)}\n\n`));
+  });
+
+  it("signs a private repo's URLs with its token, the ampersand escaped for HTML", () => {
+    const token = `1893456000.${"0123456789abcdef".repeat(4)}`;
+    const text = renderPrComment(diff, base, head, {
+      ...SITE,
+      diagram: { owner: "fixtures", name: "diff-broken-head", token },
+    });
+    expect(text).toBe(
+      plain.replace(heading, `${heading}${picture((t) => `?theme=${t}&amp;token=${token}`)}\n\n`),
+    );
+  });
+
+  it("names the repo as stored, percent-encoded, and refuses a token of another shape", () => {
+    const text = renderPrComment(diff, base, head, {
+      ...SITE,
+      diagram: { owner: "Acme", name: "shop.js" },
+    });
+    expect(text).toContain(
+      `srcset="https://gitinside.example/api/pr-diagram/Acme/shop.js/${BASE_SHA}/${HEAD_SHA}.svg?theme=dark"`,
+    );
+    const odd = renderPrComment(diff, base, head, {
+      ...SITE,
+      diagram: { owner: 'a"b', name: "<x>(y)" },
+    });
+    expect(odd).toContain("/api/pr-diagram/a%22b/%3Cx%3E%28y%29/");
+    for (const token of ['1.x"><script>', `0.${"a".repeat(64)}`, `1.${"A".repeat(64)}`, "1"]) {
+      expect(
+        () =>
+          renderPrComment(diff, base, head, { ...SITE, diagram: { owner: "a", name: "b", token } }),
+        token,
+      ).toThrow(/token/);
+    }
+  });
+
+  it("leaves the Check Run as it was", () => {
+    const diagram = { owner: "fixtures", name: "diff-broken-head", token: `1.${"a".repeat(64)}` };
+    expect(renderCheckRun(diff, base, head, { ...SITE, diagram })).toEqual(
+      renderCheckRun(diff, base, head, SITE),
+    );
+  });
 });
 
 describe("renderCheckRun", () => {

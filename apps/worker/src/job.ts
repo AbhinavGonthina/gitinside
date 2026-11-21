@@ -204,6 +204,12 @@ export interface JobDeps {
    * does without `installationToken` (both come from `WEBSITE_ORIGIN`).
    */
   siteOrigin?: string;
+  /**
+   * The key a private repo's PR image token is signed with (hmac.ts's `derivedSecret` of the
+   * current `ENQUEUE_HMAC_SECRET` for `PR_DIAGRAM_PURPOSE`, M15.2c). Without it a private pull
+   * request's comment has no image.
+   */
+  diagramKey?: string;
   /** A diff job's budget for its write token and posts. Default `DEFAULT_POST_TIMEOUT_MS`. */
   postTimeoutMs?: number;
   /** The architecture rules' clock in ms (default `Date.now`); tests pass one that runs out. */

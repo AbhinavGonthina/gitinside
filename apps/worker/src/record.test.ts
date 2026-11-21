@@ -1041,6 +1041,100 @@ describe("createDiffRecorder (ADR-0245)", () => {
       expect([...s3.objects.keys()]).toEqual([`public/acme/shop/${MERGE}/${VERSION}.json.gz`]);
     });
   });
+
+  describe("diagram (M15.2c)", () => {
+    /** Repo 3_000_000_001 (`Acme/Shop`) linked to installation 42 with `visibility`. */
+    async function linkedAs(visibility: "public" | "private"): Promise<string> {
+      await upsertInstallation(t.db, INSTALLATION);
+      const { id } = await upsertRepo(t.db, {
+        providerRepoId: 3_000_000_001,
+        owner: "Acme",
+        name: "Shop",
+        visibility,
+        defaultBranch: "main",
+        githubInstallationId: 42,
+      });
+      return id;
+    }
+
+    /** Store commit `sha` of `repoId` as a `done` analysis by `version`, as a diff job would. */
+    async function storedSide(repoId: string, sha: string, version = VERSION): Promise<void> {
+      const graphPath = join(root, `${sha}.json`);
+      await writeFile(graphPath, '{"nodes":[]}\n');
+      const d = version === VERSION ? diffRecorder() : otherVersion(version);
+      expect(await d.storeSide({ installationId: 42, repoId, sha, graphPath, stats: STATS })).toBe(
+        true,
+      );
+    }
+
+    function otherVersion(analyzerVersion: string) {
+      return createDiffRecorder({
+        db: t.db,
+        store: createObjectStore({
+          endpoint: s3.endpoint,
+          bucket: s3.bucket,
+          credentials: s3.credentials,
+        }),
+        analyzerVersion,
+      });
+    }
+
+    const pair = (repoId: string) => ({ installationId: 42, repoId, baseSha: MERGE, headSha: SHA });
+
+    it("names a public repo as stored, by GitHub's ID, once both commits are stored", async () => {
+      const repoId = await linkedAs("public");
+      const d = diffRecorder();
+      await storedSide(repoId, MERGE);
+      // The head isn't stored yet (another job holds it, say): the website couldn't draw it.
+      expect(await d.diagram(pair(repoId))).toBeUndefined();
+      await storedSide(repoId, SHA);
+      expect(await d.diagram(pair(repoId))).toEqual({
+        owner: "Acme",
+        name: "Shop",
+        providerRepoId: 3_000_000_001,
+        private: false,
+      });
+    });
+
+    it("needs the merge base stored too", async () => {
+      const repoId = await linkedAs("public");
+      await storedSide(repoId, SHA);
+      expect(await diffRecorder().diagram(pair(repoId))).toBeUndefined();
+    });
+
+    it("is private for a private repo", async () => {
+      const repoId = await linkedAs("private");
+      await storedSide(repoId, MERGE);
+      await storedSide(repoId, SHA);
+      expect(await diffRecorder().diagram(pair(repoId))).toMatchObject({ private: true });
+    });
+
+    it.each([MERGE, SHA])(
+      "is private for a public repo when commit %s was analyzed while it was private (servedPrivately)",
+      async (sha) => {
+        const repoId = await linkedAs("private");
+        await storedSide(repoId, sha);
+        await linkedAs("public");
+        await storedSide(repoId, sha === MERGE ? SHA : MERGE);
+        expect(await diffRecorder().diagram(pair(repoId))).toMatchObject({ private: true });
+      },
+    );
+
+    it("has none when the head's stored analysis is by another analyzer version", async () => {
+      const repoId = await linkedAs("public");
+      await storedSide(repoId, MERGE);
+      await storedSide(repoId, SHA, "9.9.9");
+      expect(await diffRecorder().diagram(pair(repoId))).toBeUndefined();
+    });
+
+    it("has none once the repo is unlinked from the installation", async () => {
+      const repoId = await linkedAs("public");
+      await storedSide(repoId, MERGE);
+      await storedSide(repoId, SHA);
+      await deleteInstallationData(t.db, 42, [3_000_000_001]);
+      expect(await diffRecorder().diagram(pair(repoId))).toBeUndefined();
+    });
+  });
 });
 
 describe("readableBy (M8.6d3c2)", () => {
