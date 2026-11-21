@@ -172,15 +172,24 @@ describe("parseRulesConfig", () => {
   it("refuses a file over 64 KiB before parsing it", () => {
     const text = `version: 1\nrules: []\n# ${"x".repeat(MAX_CONFIG_BYTES)}\n`;
     expect(issues(text)).toEqual([
-      { path: "", message: `the file is ${text.length} bytes; the limit is ${MAX_CONFIG_BYTES}` },
+      { path: "", message: `the file is larger than the limit of ${MAX_CONFIG_BYTES} bytes` },
     ]);
+  });
+
+  it("refuses a file one byte over the limit, and reads one at the limit", () => {
+    const padded = (bytes: number): string => {
+      const head = "version: 1\nrules: []\n# ";
+      return `${head}${"x".repeat(bytes - head.length - 1)}\n`;
+    };
+    expect(issues(padded(MAX_CONFIG_BYTES + 1))[0]?.message).toMatch(/^the file is larger/);
+    expect(ok(padded(MAX_CONFIG_BYTES)).rules).toEqual([]);
   });
 
   it("counts the size in UTF-8 bytes, not characters", () => {
     // 22,000 three-byte characters: 66,000 bytes, though only 22,000 characters.
     const text = `version: 1\nrules: []\n# ${"€".repeat(22_000)}\n`;
     expect(text.length).toBeLessThan(MAX_CONFIG_BYTES);
-    expect(issues(text)[0]?.message).toMatch(/^the file is 66\d{3} bytes/);
+    expect(issues(text)[0]?.message).toMatch(/^the file is larger than the limit/);
     // 16,000 four-byte characters (two UTF-16 units each): 64,000 bytes, under the limit.
     expect(ok(`version: 1\nrules: []\n# ${"😀".repeat(16_000)}\n`).rules).toEqual([]);
   });

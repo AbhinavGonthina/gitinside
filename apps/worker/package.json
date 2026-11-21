@@ -55,6 +55,7 @@
     "@gitinside/api-map": "workspace:*",
     "@gitinside/db": "workspace:*",
     "@gitinside/diff": "workspace:*",
+    "@gitinside/rules": "workspace:*",
     "@gitinside/schema": "workspace:*"
   },
   "devDependencies": {

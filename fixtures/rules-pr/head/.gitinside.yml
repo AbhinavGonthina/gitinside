@@ -1,0 +1,15 @@
+# The rules for fixtures/rules-pr (M15.1c). Format: docs/RULES.md.
+version: 1
+
+layers:
+  ui:
+    paths: ["src/ui/**"]
+  db:
+    paths: ["src/db/**"]
+
+rules:
+  - id: ui-not-db
+    type: forbid-dependency
+    from: ui
+    to: db
+    edges: [imports, calls]

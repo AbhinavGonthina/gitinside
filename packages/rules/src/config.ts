@@ -150,10 +150,11 @@ function utf8Length(text: string): number {
  * of layers that don't exist, duplicate rule IDs), so the caller can show them all at once.
  */
 export function parseRulesConfig(text: string): ConfigResult {
-  const bytes = utf8Length(text);
-  if (bytes > MAX_CONFIG_BYTES)
+  // No byte count in the message: a PR's diff job stores an oversized file cut to the limit plus
+  // one byte (M15.1c), so the count would be that, not the file's.
+  if (utf8Length(text) > MAX_CONFIG_BYTES)
     return fail([
-      { path: "", message: `the file is ${bytes} bytes; the limit is ${MAX_CONFIG_BYTES}` },
+      { path: "", message: `the file is larger than the limit of ${MAX_CONFIG_BYTES} bytes` },
     ]);
 
   const lineCounter = new LineCounter();

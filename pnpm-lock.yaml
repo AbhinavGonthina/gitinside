@@ -126,6 +126,9 @@ importers:
       '@gitinside/diff':
         specifier: workspace:*
         version: link:../../packages/diff
+      '@gitinside/rules':
+        specifier: workspace:*
+        version: link:../../packages/rules
       '@gitinside/schema':
         specifier: workspace:*
         version: link:../../packages/schema

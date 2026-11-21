@@ -206,6 +206,8 @@ export interface JobDeps {
   siteOrigin?: string;
   /** A diff job's budget for its write token and posts. Default `DEFAULT_POST_TIMEOUT_MS`. */
   postTimeoutMs?: number;
+  /** The architecture rules' clock in ms (default `Date.now`); tests pass one that runs out. */
+  rulesNow?: () => number;
   /** Where a failure to record a failure is reported (the job's own failure still wins). */
   log?: (event: Record<string, unknown>) => void;
 }

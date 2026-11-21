@@ -115,4 +115,12 @@ Every problem in the file is reported, each with its place (`rules.2.from`) and 
 
 ## On a pull request
 
+When the GitInside GitHub App is installed, every pull request's diff job checks the rules in the head commit's `.gitinside.yml` (a regular file at the repo's root: a symlink, or a file in a subfolder, doesn't count). The bot's comment gets an "Architecture rules" section listing each violation the PR introduces with its call sites, and its Check Run (`GitInside`) concludes:
+
+- `failure` when the PR breaks an `error`-level rule;
+- `neutral` when it breaks only `warning` rules, or the file can't be checked (each problem listed with its place and line, as above), or connections break;
+- `success` otherwise.
+
+A problem in the file never fails the job: the diff and the comment are still posted. When the PR adds or edits `.gitinside.yml`, its own rules are used and the comment says so; a PR that removes it gets no rules section. New connections GitInside couldn't resolve that leave a `forbid-dependency` rule's `from` layer are counted, not judged. The file is read once, when the diff is made, and kept with it (Postgres refuses U+0000, so a file holding one is checked with U+FFFD in its place; a file over 64 KiB is reported as too large), so a retried post checks exactly what the first one did. The check gets at most 20 s, less when the job is nearly out of time (then the section says no time was left; push again to retry).
+
 The rules are checked on both the PR's base and head, and only head's violations that base doesn't have are reported. A violation is the same on both sides when it's about the same thing: the same edge (kind and both ends) for `forbid-dependency` and `datastore-access`, the same services for a cycle, the same host. A file the PR renames or moves keeps its violations (they're not new), and a new call on an edge that already broke a rule isn't new either.
