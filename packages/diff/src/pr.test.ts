@@ -18,6 +18,8 @@ import {
   renderCheckRun,
   renderMermaidSummary,
   renderPrComment,
+  type PrRules,
+  type PrRuleViolation,
 } from "./index.js";
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), "../../../fixtures");
@@ -315,6 +317,325 @@ describe("renderCheckRun", () => {
     );
     expect(limited.summary).toContain(
       "\n\n_Moves checked only between files of the same name, so a moved file may show as removed and added._\n\n",
+    );
+  });
+});
+
+describe("architecture rules in the PR texts (M15.1a)", () => {
+  const site = (file: string, line: number, column = 1) => ({ file, line, column });
+  const violation = (
+    over: Partial<PrRuleViolation> & Pick<PrRuleViolation, "rule" | "level">,
+  ): PrRuleViolation => ({
+    message: `broke ${over.rule}`,
+    edges: [{ sites: [site("src/client.ts", 8)] }],
+    ...over,
+  });
+  const checked = (
+    violations: PrRuleViolation[],
+    uncertain: PrRuleViolation[] = [],
+    configChanged = false,
+  ): PrRules => ({ result: { ok: true, report: { violations, uncertain } }, configChanged });
+  const withRules = (rules: PrRules) => ({ ...SITE, rules });
+  const routesSkipBilling = violation({
+    rule: "routes-skip-billing",
+    level: "error",
+    message: "function placeOrder (routes) depends on function charge (billing) through calls",
+    edges: [
+      // Two edges: their sites merge, sorted by file, line, column, a repeat listed once.
+      { sites: [site("src/routes/orders.ts", 12), site("src/routes/orders.ts", 4, 9)] },
+      { sites: [site("src/routes/cart.ts", 30), site("src/routes/orders.ts", 4, 9)] },
+    ],
+  });
+  const knownHosts = violation({
+    rule: "known-hosts",
+    level: "warning",
+    message: "the code calls api.example.com, a host not on the rule's allow list",
+  });
+  const RULES_SECTION = [
+    "#### Architecture rules",
+    "**2 new rule violations:** 1 error, 1 warning. An error-level rule broken fails this check.",
+    [
+      "- **Error**, rule `routes-skip-billing`: `function placeOrder (routes) depends on function charge (billing) through calls`",
+      `  - [\`src/routes/cart.ts:30\`](${blob("src/routes/cart.ts", 30)})`,
+      `  - [\`src/routes/orders.ts:4\`](${blob("src/routes/orders.ts", 4)})`,
+      `  - [\`src/routes/orders.ts:12\`](${blob("src/routes/orders.ts", 12)})`,
+      "- **Warning**, rule `known-hosts`: `the code calls api.example.com, a host not on the rule's allow list`",
+      `  - [\`src/client.ts:8\`](${blob("src/client.ts", 8)})`,
+    ].join("\n"),
+  ].join("\n\n");
+
+  it("lists each new violation with its rule, level, message, and sites, and fails on an error", () => {
+    const rules = checked([routesSkipBilling, knownHosts]);
+    expect(renderCheckRun(diff, base, head, withRules(rules))).toEqual({
+      name: "GitInside",
+      conclusion: "failure",
+      title: "2 rule violations, 6 broken connections",
+      summary:
+        [
+          "**6 broken connections.** Each worked at the base commit and no longer does at the head commit.",
+          "Compared base `1111111` with head `2222222`.",
+          BROKEN_LIST,
+          RULES_SECTION,
+          DIFF_LINK,
+        ].join("\n\n") + "\n",
+    });
+    // The comment has the same section, after its broken list and before the diagram.
+    expect(renderPrComment(diff, base, head, withRules(rules))).toContain(
+      `\n\n${BROKEN_LIST}\n\n${RULES_SECTION}\n\n#### What changed\n\n`,
+    );
+  });
+
+  it("only warns (neutral) when every new violation is a warning", () => {
+    const none = { ...diff, broken: [] };
+    const run = renderCheckRun(none, base, head, withRules(checked([knownHosts])));
+    expect([run.conclusion, run.title]).toEqual([
+      "neutral",
+      "1 rule violation, no broken connections",
+    ]);
+    expect(run.summary).toContain(
+      "**1 new rule violation:** 0 errors, 1 warning. Warnings don't fail this check.",
+    );
+    // A broken connection beside a warning is still neutral, never failure.
+    expect(renderCheckRun(diff, base, head, withRules(checked([knownHosts]))).conclusion).toBe(
+      "neutral",
+    );
+  });
+
+  it("says so when the rules pass, and succeeds when nothing broke", () => {
+    const none = { ...diff, broken: [] };
+    const run = renderCheckRun(none, base, head, withRules(checked([])));
+    expect([run.conclusion, run.title]).toEqual([
+      "success",
+      "No broken connections or rule violations",
+    ]);
+    expect(run.summary).toContain(
+      "\n\n#### Architecture rules\n\n**No new rule violations.** The head commit breaks no rule in `.gitinside.yml` that the base commit didn't.\n\n",
+    );
+    const broken = renderCheckRun(diff, base, head, withRules(checked([])));
+    expect([broken.conclusion, broken.title]).toEqual([
+      "neutral",
+      "6 broken connections, no rule violations",
+    ]);
+  });
+
+  it("counts new unresolved connections and notes a changed config, without failing", () => {
+    const none = { ...diff, broken: [] };
+    const one = renderCheckRun(
+      none,
+      base,
+      head,
+      withRules(checked([], [violation({ rule: "a", level: "error" })], true)),
+    );
+    expect(one.conclusion).toBe("success");
+    expect(one.summary).toContain(
+      "that the base commit didn't.\n\n" +
+        "_1 new unresolved connection may also break a rule. GitInside couldn't tell where it goes, so it isn't judged._\n\n" +
+        "_This PR changes `.gitinside.yml`, so the head commit's rules were used._\n\n" +
+        DIFF_LINK,
+    );
+    const two = renderCheckRun(
+      none,
+      base,
+      head,
+      withRules(
+        checked(
+          [],
+          [violation({ rule: "a", level: "error" }), violation({ rule: "b", level: "warning" })],
+        ),
+      ),
+    );
+    expect(two.summary).toContain(
+      "_2 new unresolved connections may also break a rule. GitInside couldn't tell where they go, so they aren't judged._",
+    );
+    expect(two.summary).not.toContain("This PR changes");
+  });
+
+  it("reports a config it couldn't check, each problem with its place and line, as neutral", () => {
+    const rules: PrRules = {
+      result: {
+        ok: false,
+        issues: [
+          { path: "", message: "the file is 70000 bytes; the limit is 65536" },
+          { path: "rules.2.from", line: 7, message: 'no layer named "routs"' },
+        ],
+      },
+      configChanged: false,
+    };
+    const run = renderCheckRun({ ...diff, broken: [] }, base, head, withRules(rules));
+    expect([run.conclusion, run.title]).toEqual([
+      "neutral",
+      "No broken connections, rules not checked",
+    ]);
+    expect(run.summary).toContain(
+      [
+        "#### Architecture rules",
+        "**`.gitinside.yml` couldn't be checked:** 2 problems. Fix them to have its rules checked.",
+        [
+          "- The file: `the file is 70000 bytes; the limit is 65536`",
+          '- `rules.2.from`, line 7: `no layer named "routs"`',
+        ].join("\n"),
+        DIFF_LINK,
+      ].join("\n\n"),
+    );
+  });
+
+  it("never passes the limit by the paragraph break a list's first item adds", () => {
+    // n small rule violations listed, then 100 big ones that don't fit, so the rules' count
+    // line stays as long and leaves no slack; n leaves 100–360 characters. The broken list's
+    // first item is then swept through every length up to that room, so one needs it exactly,
+    // paragraph break included.
+    const first = diff.broken[0] as BrokenEdge;
+    // A site whose link alone is longer than the limit: an item holding it never fits.
+    const huge = [site(`src/${"p".repeat(MAX_CHECK_SUMMARY_LENGTH)}.ts`, 1)];
+    const brokenOf = (k: number): GraphDiff => ({
+      ...diff,
+      broken: Array.from({ length: 3 }, (_, i) => ({
+        ...first,
+        edge: `${first.edge}#${i}`,
+        from: `${"f".repeat(Math.max(0, Math.min(k, 150)))}${i}`,
+        detail: "d".repeat(Math.max(0, k - 150)),
+        sites: k < 0 ? huge : [],
+      })),
+    });
+    const ruleList = (n: number) =>
+      withRules(
+        checked([
+          ...Array.from({ length: n }, (_, i) =>
+            violation({
+              rule: `r-${String(i).padStart(3, "0")}`,
+              level: "error",
+              message: "m".repeat(50),
+            }),
+          ),
+          // 100 left out, so the count line keeps its length from "And 3xx more" to "And 100 more".
+          ...Array.from({ length: 100 }, (_, i) =>
+            violation({ rule: `big-${i}`, level: "error", message: "b".repeat(300) }),
+          ),
+        ]),
+      );
+    // With broken items too long to list (k = -1): the room left once exactly the n small
+    // rules are listed and every big one is cut, else undefined.
+    const room = (n: number): number | undefined => {
+      const text = renderCheckRun(brokenOf(-1), base, head, ruleList(n)).summary;
+      const small = text.split("\n").filter((l) => l.startsWith("- **Error**, rule `r-")).length;
+      const cut = text.includes("\n\nAnd 100 more rule violations, not listed here.\n\n");
+      return small === n && cut ? MAX_CHECK_SUMMARY_LENGTH - text.length : undefined;
+    };
+    let n = 1;
+    for (; n < 1000; n += 1) {
+      const left = room(n);
+      if (left !== undefined && left > 100 && left <= 360) break;
+    }
+    expect(n).toBeLessThan(1000);
+    const rules = ruleList(n);
+    let listedBroken = 0;
+    for (let k = 0; k <= 310; k += 1) {
+      const summary = renderCheckRun(brokenOf(k), base, head, rules).summary;
+      expect(summary.length, `k = ${k}`).toBeLessThanOrEqual(MAX_CHECK_SUMMARY_LENGTH);
+      // Cut (the big rule left out) and a broken item listed in what was left.
+      const cut = summary.includes("\n\nAnd 100 more rule violations, not listed here.\n\n");
+      if (cut && summary.includes("\n\n- `f")) listedBroken += 1;
+    }
+    expect(listedBroken).toBeGreaterThan(0);
+  });
+
+  it("lists 5 call sites per violation and counts the rest", () => {
+    const sites = Array.from({ length: 7 }, (_, i) => site(`src/s${i}.ts`, 1));
+    const run = renderCheckRun(
+      diff,
+      base,
+      head,
+      withRules(checked([violation({ rule: "r", level: "error", edges: [{ sites }] })])),
+    );
+    expect(run.summary).toContain("src/s4.ts:1");
+    expect(run.summary).not.toContain("src/s5.ts");
+    expect(run.summary).toContain(`(${blob("src/s4.ts", 1)})\n  - and 2 more call sites\n`);
+  });
+
+  it("is unchanged without rules", () => {
+    expect(renderCheckRun(diff, base, head, { ...SITE })).toEqual(
+      renderCheckRun(diff, base, head, SITE),
+    );
+    expect(renderCheckRun(diff, base, head, SITE).summary).not.toContain("Architecture rules");
+  });
+
+  it("keeps rule IDs, messages, and config problems inside code spans (SECURITY.md T10)", () => {
+    const hostile = "x` <img src=//e.example/p.png> @octocat #1 [a](javascript:alert(1)) --> **b**";
+    const evil = checked([
+      violation({
+        rule: hostile,
+        level: "error",
+        message: `${hostile}\n\n# Heading${RLO}`,
+        edges: [{ sites: [site(`src/${hostile}.ts`, 3)] }],
+      }),
+    ]);
+    const bad: PrRules = {
+      result: { ok: false, issues: [{ path: hostile, line: 2, message: `${hostile}\n# Heading` }] },
+      configChanged: true,
+    };
+    for (const rules of [evil, bad]) {
+      for (const text of [
+        renderPrComment(diff, base, head, withRules(rules)),
+        renderCheckRun(diff, base, head, withRules(rules)).summary,
+      ]) {
+        const outside = outsideCode(text).replace(PR_COMMENT_MARKER, "");
+        for (const word of ["<img", "@octocat", "#1", "javascript:", "-->", "# Heading", RLO]) {
+          expect(outside, word).not.toContain(word);
+        }
+        expect(text).not.toContain(RLO);
+      }
+    }
+  });
+
+  it("fits GitHub's limits, listing rule violations before broken connections", () => {
+    const first = diff.broken[0] as BrokenEdge;
+    const manyBroken: GraphDiff = {
+      ...diff,
+      broken: Array.from({ length: 3000 }, (_, i) => ({
+        ...first,
+        edge: `${first.edge}#${String(i).padStart(4, "0")}`,
+        from: `${first.from}#${i}`,
+        detail: `${"d".repeat(200)} ${i}`,
+      })),
+    };
+    const manyRules = checked(
+      Array.from({ length: 3000 }, (_, i) =>
+        violation({
+          rule: `rule-${String(i).padStart(4, "0")}`,
+          level: "error",
+          message: "m".repeat(150),
+        }),
+      ),
+    );
+    const fewRules = checked([routesSkipBilling, knownHosts]);
+    const cases = [
+      [manyRules, "rule-0000"],
+      [fewRules, "routes-skip-billing"],
+    ] as const;
+    for (const [rules, firstRule] of cases) {
+      const run = renderCheckRun(manyBroken, base, head, withRules(rules));
+      expect(run.summary.length).toBeLessThanOrEqual(MAX_CHECK_SUMMARY_LENGTH);
+      const comment = renderPrComment(manyBroken, base, head, withRules(rules));
+      expect(comment.length).toBeLessThanOrEqual(MAX_COMMENT_LENGTH);
+      for (const text of [run.summary, comment]) {
+        expect(text).toContain(`\n\n- **Error**, rule \`${firstRule}\`: `);
+        expect(text.endsWith(`${DIFF_LINK}\n`)).toBe(true);
+      }
+    }
+    // A handful of violations are all listed; the broken list gives way to them.
+    const few = renderCheckRun(manyBroken, base, head, withRules(fewRules)).summary;
+    expect(few).toContain(`\n\n${RULES_SECTION}\n\n${DIFF_LINK}\n`);
+    expect(few).toMatch(
+      /\n\nAnd \d+ more broken connections, listed in the interactive diff\.\n\n/,
+    );
+    expect(few).not.toContain("more rule violation");
+    // Thousands are cut too, counted in words that don't send the reader to the diff.
+    const many = renderCheckRun(manyBroken, base, head, withRules(manyRules)).summary;
+    const listed = many.split("\n").filter((l) => l.startsWith("- **Error**")).length;
+    expect(listed).toBeGreaterThan(10);
+    expect(many).toContain(`\n\nAnd ${3000 - listed} more rule violations, not listed here.\n\n`);
+    expect(many).toContain(
+      "\n\nAnd 3000 more broken connections, listed in the interactive diff.\n\n",
     );
   });
 });
