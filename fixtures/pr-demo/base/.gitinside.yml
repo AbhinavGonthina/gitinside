@@ -1,0 +1,30 @@
+# Architecture rules for this repo, checked by GitInside on every pull request.
+# Format: https://github.com/AbhinavGonthina/gitinside/blob/main/docs/RULES.md
+version: 1
+
+layers:
+  web:
+    services: ["@acme/web"]
+  api:
+    services: ["@acme/api"]
+  routes:
+    paths: ["apps/api/src/routes/**"]
+  billing:
+    paths: ["apps/api/src/billing/**"]
+
+rules:
+  # Routes hand off to handlers; only handlers charge cards.
+  - id: routes-skip-billing
+    type: forbid-dependency
+    from: routes
+    to: billing
+
+  - id: only-api-touches-postgres
+    type: datastore-access
+    datastore: postgres
+    only: [api]
+
+  - id: known-hosts
+    type: no-new-hosts
+    level: warning
+    allow: ["api.stripe.com"]
