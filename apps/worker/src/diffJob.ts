@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
 import type { DiffedPullRequest, DiffJobPost, StoredRulesConfig } from "@gitinside/db";
-import { diffGraphs, renderCheckRun, renderPrComment } from "@gitinside/diff";
+import { diffGraphs, renderCheckRun, renderPrComment, type PrRules } from "@gitinside/diff";
+import { RULES_TIME_BUDGET_MS } from "@gitinside/rules";
 import {
   parseGraph,
   parseGraphDiff,
@@ -30,6 +31,7 @@ import type { JobCache } from "./factcache.js";
 import { errorFields, type ErrorFields } from "./log.js";
 import { createCheckRun, postComment, type PostOptions } from "./post.js";
 import type { AnalysisStats } from "./protocol.js";
+import { checkRules, rulesConfigOf } from "./rulesConfig.js";
 import { DEFAULT_RUNNER_LIMITS, runAnalysis } from "./runner.js";
 
 /**
@@ -56,16 +58,19 @@ import { DEFAULT_RUNNER_LIMITS, runAnalysis } from "./runner.js";
  *    head side, once the merge base took its time) is the retriable `ANALYSIS_TIME_CUT`.
  *    Both trees are still downloaded: the diff needs their text.
  * 4. **diff:** `diffGraphs(mergeBase, head)` with both trees' file text (rename detection of
- *    edited files, ADR-0086), read while the job folder exists.
- * 5. **publish:** `DiffRecorder.publish` stores the diff and records it on every pull request
- *    record naming the job (record.ts).
+ *    edited files, ADR-0086), read while the job folder exists, and the head's `.gitinside.yml`
+ *    in its stored form, with whether the merge base's differs (rulesConfig.ts, M15.1c).
+ * 5. **publish:** `DiffRecorder.publish` stores the diff and records it, with that config, on
+ *    every pull request record naming the job (record.ts).
  * 6. **clean up:** the job folder is deleted whatever happened.
  * 7. **post** (M8.6e2b, {@link postAll}): to each record naming the job that has its diff and
  *    no Check Run (`DiffRecorder.posts`), with the job's write token (`access: "post"`, which
  *    the website mints only in that window) and the texts `renderPrComment`/`renderCheckRun`
  *    make with the website's origin. Each record is read again just before its post
  *    (`DiffRecorder.current`) and skipped (`post_skipped`) unless it still names the job, with
- *    the same pair and no Check Run: a newer push since must not get this head's comment. Then
+ *    the same pair and no Check Run: a newer push since must not get this head's comment. The
+ *    texts carry the architecture rules ({@link rulesOf}), checked from the config stored on the
+ *    records, never from the tree, so a retry checks exactly what the first run did. Then
  *    `postComment` (post.ts) ⇒ `recordComment` ⇒ `createCheckRun` on the head ⇒
  *    `recordCheckRun` (only for the current pair). A comment GitHub refuses (`POST_REFUSED`, a
  *    locked conversation) still gets its Check Run, then the record fails with the refusal
@@ -451,6 +456,39 @@ async function postOne(
 }
 
 /**
+ * The architecture rules' outcome on the PR (rulesConfig.ts's `checkRules`), from the config
+ * stored with the diff, `undefined` when the head has none. The check gets at most
+ * `RULES_TIME_BUDGET_MS`, and never the posts' share of the attempt's time. A check that throws
+ * is logged (`rules_check_failed`, by name only) and reported as a config issue: the rules never
+ * fail the job.
+ */
+function rulesOf(
+  context: JobContext,
+  deps: Deps,
+  stored: DiffJobPost["rules"],
+  made: MadeDiff,
+): PrRules | undefined {
+  const forPosts = deps.postTimeoutMs ?? DEFAULT_POST_TIMEOUT_MS;
+  const budgetMs =
+    context.timeLeft === undefined
+      ? RULES_TIME_BUDGET_MS
+      : Math.min(RULES_TIME_BUDGET_MS, context.timeLeft() - forPosts);
+  try {
+    return checkRules(stored, made, {
+      budgetMs,
+      ...(deps.rulesNow === undefined ? {} : { now: deps.rulesNow }),
+    });
+  } catch (error) {
+    deps.log?.({ event: "rules_check_failed", id: context.id, ...errorFields(error) });
+    const message = "GitInside couldn't check the rules (an error on our side, not in the file)";
+    return {
+      result: { ok: false, issues: [{ path: "", message }] },
+      configChanged: stored.changed,
+    };
+  }
+}
+
+/**
  * Post `made` to every record the job still has to post to (see the module comment's step 7).
  * Answers how many were posted; throws the first retriable failure, else the first failure,
  * after trying every record.
@@ -464,11 +502,14 @@ async function postAll(
   const records = await fromRecords("reading the records to post to", () =>
     deps.diffs.posts(context.id),
   );
-  if (records.length === 0) return 0;
-  const link = { siteOrigin: poster.siteOrigin };
+  const [first] = records;
+  if (first === undefined) return 0;
+  // One publish wrote the diff and its config to every record naming the job.
+  const rules = rulesOf(context, deps, first.rules, made);
+  const options = { siteOrigin: poster.siteOrigin, ...(rules === undefined ? {} : { rules }) };
   const texts = {
-    comment: renderPrComment(made.diff, made.base, made.head, link),
-    checkRun: renderCheckRun(made.diff, made.base, made.head, link),
+    comment: renderPrComment(made.diff, made.base, made.head, options),
+    checkRun: renderCheckRun(made.diff, made.base, made.head, options),
   };
   const own = deps.postTimeoutMs ?? DEFAULT_POST_TIMEOUT_MS;
   const budget = context.timeLeft === undefined ? own : Math.min(own, context.timeLeft());
@@ -657,6 +698,7 @@ export async function processDiffJob(context: JobContext, deps: JobDeps): Promis
     const diff = diffGraphs(before.graph, analyzed.graph, {
       contents: { base: treeReader(base.src), head: treeReader(after.src) },
     });
+    const rules = await rulesConfigOf(base.src, after.src);
     const analyzeMs = elapsed(start);
 
     start = performance.now();
@@ -670,8 +712,7 @@ export async function processDiffJob(context: JobContext, deps: JobDeps): Promis
         mergeBase: base.sha,
         headSha: after.sha,
         diff,
-        // The rules aren't checked yet: M15.1c reads the head's `.gitinside.yml` here.
-        rules: { text: null, changed: false },
+        rules,
       });
     } catch (error) {
       if (error instanceof JobFailure) throw error;

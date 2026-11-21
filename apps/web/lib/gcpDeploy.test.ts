@@ -295,6 +295,7 @@ describe("when to deploy", () => {
       "packages/api-map/",
       "packages/db/",
       "packages/diff/",
+      "packages/rules/",
       "packages/schema/",
       "pnpm-lock.yaml",
       "pnpm-workspace.yaml",

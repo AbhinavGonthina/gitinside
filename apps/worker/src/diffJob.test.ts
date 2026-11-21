@@ -15,7 +15,13 @@ import {
   type PostingRecord,
 } from "./diffJob.js";
 import { JobFailure } from "./failure.js";
-import { startFakeGitHub, tarballOf, type FakeGitHub } from "./github.testkit.js";
+import {
+  entriesOf,
+  startFakeGitHub,
+  tarballFrom,
+  tarballOf,
+  type FakeGitHub,
+} from "./github.testkit.js";
 import type { IssuedToken, TokenAsk } from "./installationToken.js";
 import { JobAlreadyDone, type JobContext, type JobDeps, type JobStage } from "./job.js";
 import { DB_HOST, dbDown } from "./log.testkit.js";
@@ -226,10 +232,14 @@ function recorder(overrides: Partial<DiffRecorder> = {}) {
 
 /**
  * Pull request records `numbers` naming the job at (BASE, HEAD), kept in memory: `posts` lists
- * those with the diff (once published, or from the start when `diffed`) and no Check Run, and
+ * those with the diff (once published, or from the start when `diffed`, with `rules`) and no
+ * Check Run, each with the rules config published with the diff, and
  * the comment and Check Run writes land on them. `calls` records the writes in order.
  */
-function naming(numbers: number[], options: { diffed?: boolean } = {}) {
+function naming(
+  numbers: number[],
+  options: { diffed?: boolean; rules?: DiffToStore["rules"] } = {},
+) {
   const records = new Map<number, PostingRecord>(
     numbers.map((number) => [
       number,
@@ -257,7 +267,8 @@ function naming(numbers: number[], options: { diffed?: boolean } = {}) {
               baseSha: r.baseSha,
               headSha: r.headSha,
               diffKey: KEY,
-              rules: { text: null, changed: false },
+              // What the job published with the diff, or what a `diffed` record already holds.
+              rules: published.at(-1)?.rules ?? options.rules ?? { text: null, changed: false },
             }))
         : [],
     current: async ({ number }) => {
@@ -1146,5 +1157,151 @@ describe("processDiffJob retried after its diff was recorded (M8.6e2b)", () => {
     const error = await failure(processDiffJob(context(), deps({ diffs })));
     expect([error.code, error.retriable]).toEqual(["RECORD_FAILED", true]);
     expect(calls).toEqual([]);
+  });
+});
+
+describe("processDiffJob checks the architecture rules (M15.1c)", () => {
+  const RULES_PR = join(FIXTURES, "rules-pr");
+  const storedGraph = async ({ sha }: { sha: string }) => storedText(sha);
+  const checkRun = () => writes.find((w) => w.path.endsWith("/check-runs"))?.body;
+  const checkText = () => JSON.stringify(checkRun());
+  /** diff-rename's head tree with `.gitinside.yml` holding `config`. */
+  const headWith = async (config: string | Buffer) =>
+    tarballFrom([
+      ...(await entriesOf(TREES[HEAD] as string)),
+      { name: ".gitinside.yml", body: Buffer.from(config) },
+    ]);
+  /** Code under src/orders/ (only diff-rename's head has any) must not use src/util/. */
+  const ORDERS_NOT_UTIL = [
+    "version: 1",
+    "layers:",
+    '  orders: { paths: ["src/orders/**"] }',
+    '  util: { paths: ["src/util/**"] }',
+    "rules:",
+    "  - { id: orders-not-util, type: forbid-dependency, from: orders, to: util, edges: [imports] }",
+    "",
+  ].join("\n");
+
+  it("fails the Check Run on the rule the PR breaks, with the real analyzer (fixtures/rules-pr)", async () => {
+    tarballs = {
+      [MERGE]: await tarballOf(join(RULES_PR, "base")),
+      [HEAD]: await tarballOf(join(RULES_PR, "head")),
+    };
+    const { overrides, published, records } = naming([7]);
+    const { diffs } = recorder(overrides);
+    const real = deps({ diffs, runOptions: { scriptsDir: DIST } });
+    delete real.run;
+    await processDiffJob(context(), real);
+
+    // The head's file as read, the same on both sides.
+    expect(published[0]?.rules).toEqual({
+      text: readFileSync(join(RULES_PR, "head", ".gitinside.yml"), "utf8"),
+      changed: false,
+    });
+    expect(checkRun()).toMatchObject({ head_sha: HEAD, conclusion: "failure" });
+    expect(checkText()).toContain("ui-not-db");
+    expect(checkText()).toContain("src/ui/checkout.ts");
+    // The base already had page.ts's import of src/shared/: nothing about it.
+    expect(checkText()).not.toContain("src/ui/page.ts");
+    const [comment] = [...comments.values()];
+    expect(comment?.body).toContain("Architecture rules");
+    expect(comment?.body).toContain("ui-not-db");
+    expect(records.get(7)?.checkRunId).toEqual(expect.any(Number));
+  });
+
+  it("reports a bad config in a neutral Check Run, never failing the job", async () => {
+    tarballs[HEAD] = await headWith("version: 1\nrules:\n  - type: no-such-rule\n");
+    const { overrides, published } = naming([7]);
+    const { diffs } = recorder(overrides);
+    const outcome = await processDiffJob(context(), deps({ diffs }));
+    expect(published[0]?.rules.changed).toBe(true);
+    expect(checkRun()).toMatchObject({ conclusion: "neutral" });
+    expect(checkText()).toContain("rules.0.type");
+    expect([...comments.values()][0]?.body).toContain(".gitinside.yml");
+    expect(outcome.diff).toMatchObject({ posted: 1 });
+  });
+
+  it("stores no config and draws no rules when the head has none", async () => {
+    const { overrides, published } = naming([7]);
+    const { diffs } = recorder(overrides);
+    await processDiffJob(context(), deps({ diffs }));
+    expect(published[0]?.rules).toEqual({ text: null, changed: false });
+    expect(checkRun()).toMatchObject({ conclusion: "success" });
+    expect([...comments.values()][0]?.body).not.toContain("Architecture rules");
+  });
+
+  it("stores and checks a file holding U+0000 in the form Postgres takes", async () => {
+    const nul = String.fromCharCode(0);
+    tarballs[HEAD] = await headWith(`${ORDERS_NOT_UTIL}#${nul}\n`);
+    const { overrides, published } = naming([7]);
+    const { diffs } = recorder(overrides);
+    await processDiffJob(context(), deps({ diffs }));
+    expect(published[0]?.rules.text).toBe(`${ORDERS_NOT_UTIL}#${String.fromCharCode(0xfffd)}\n`);
+    expect(checkRun()).toMatchObject({ conclusion: "failure" });
+  });
+
+  it("checks the config stored on the records, not the tree", async () => {
+    tarballs[HEAD] = await headWith("version: 1\nrules: []\n");
+    const { overrides } = naming([7]);
+    // The database holds another text than the tree (as a retry would read it).
+    const posts: DiffRecorder["posts"] = async (jobId) =>
+      (await overrides.posts?.(jobId))?.map((p) => ({
+        ...p,
+        rules: { text: ORDERS_NOT_UTIL, changed: false },
+      })) ?? [];
+    const { diffs } = recorder({ ...overrides, posts });
+    await processDiffJob(context(), deps({ diffs }));
+    expect(checkRun()).toMatchObject({ conclusion: "failure" });
+    expect(checkText()).toContain("orders-not-util");
+  });
+
+  it("checks the stored config again on a retry that only posts, downloading nothing", async () => {
+    const rules = { text: ORDERS_NOT_UTIL, changed: true };
+    const { overrides } = naming([7], { diffed: true, rules });
+    const { diffs } = recorder({
+      ...overrides,
+      storedGraph,
+      storedDiff: async () => storedDiffText(),
+    });
+    const outcome = await processDiffJob(context(), deps({ diffs }));
+    expect(github.requests.filter((r) => !POST_PATH.test(r.url.split("?")[0] ?? ""))).toEqual([]);
+    expect(outcome.diff).toMatchObject({ resumed: true, posted: 1 });
+    expect(checkRun()).toMatchObject({ conclusion: "failure" });
+    expect(checkText()).toContain("orders-not-util");
+    // The PR changed the config, so its own rules were used: the texts say so.
+    expect([...comments.values()][0]?.body).toContain("changes `.gitinside.yml`");
+  });
+
+  it("leaves the posts their share of the attempt's time, reporting the rules unchecked", async () => {
+    const rules = { text: ORDERS_NOT_UTIL, changed: false };
+    const { overrides } = naming([7], { diffed: true, rules });
+    const { diffs } = recorder({
+      ...overrides,
+      storedGraph,
+      storedDiff: async () => storedDiffText(),
+    });
+    await processDiffJob(context({ timeLeft: () => 5_000 }), deps({ diffs, postTimeoutMs: 5_000 }));
+    expect(checkRun()).toMatchObject({ conclusion: "neutral" });
+    expect(checkText()).toContain("no time was left");
+  });
+
+  it("reports a check that throws as a config issue, logged by name, and still posts", async () => {
+    const rules = { text: ORDERS_NOT_UTIL, changed: false };
+    const { overrides, records } = naming([7], { diffed: true, rules });
+    const { diffs } = recorder({
+      ...overrides,
+      storedGraph,
+      storedDiff: async () => storedDiffText(),
+    });
+    const logs: Record<string, unknown>[] = [];
+    const rulesNow = () => {
+      throw new RangeError("secret-service-name");
+    };
+    await processDiffJob(context(), deps({ diffs, rulesNow, log: (e) => void logs.push(e) }));
+    expect(logs).toContainEqual({ event: "rules_check_failed", id: ID, error: "RangeError" });
+    expect(JSON.stringify(logs)).not.toContain("secret-service-name");
+    expect(checkRun()).toMatchObject({ conclusion: "neutral" });
+    expect(checkText()).toContain("couldn't check the rules");
+    expect(records.get(7)?.checkRunId).toEqual(expect.any(Number));
   });
 });
