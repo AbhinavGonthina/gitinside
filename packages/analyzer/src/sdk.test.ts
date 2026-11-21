@@ -2797,6 +2797,456 @@ describe("analyze: SDK clients with a base URL (M9.1a3e2a)", () => {
           },
           want: OPENAI,
         },
+        // Q3 (M13.1c): a reassigned `let` or `var`, a member that's stored to, a destructured
+        // member, and a `for … of` binding may each hold a copy of the literal.
+        q3let: {
+          files: {
+            "ai.ts": [
+              H,
+              "const defaults = { ai: new OpenAI() };",
+              "export function list(opts: Partial<typeof defaults>) {",
+              "  let cfg = defaults;",
+              "  cfg = { ...defaults, ...opts };",
+              "  return cfg.ai.models.list();",
+              "}",
+            ],
+          },
+          want: "unresolved",
+        },
+        q3var: {
+          files: {
+            "ai.js": [
+              J,
+              "var config = { ai: new OpenAI() };",
+              "function configure(c) { config = c; }",
+              "function list() { return config.ai.models.list(); }",
+              "module.exports = { configure, list };",
+            ],
+          },
+          want: "unresolved",
+        },
+        q3nest: {
+          files: {
+            "ai.ts": [
+              H,
+              "const defaults = { ai: new OpenAI() };",
+              "const holder = { cfg: defaults };",
+              "export function configure(opts: Partial<typeof defaults>) {",
+              "  holder.cfg = { ...defaults, ...opts };",
+              "}",
+              "export function list() { return holder.cfg.ai.models.list(); }",
+            ],
+          },
+          want: "unresolved",
+        },
+        q3destructure: {
+          files: {
+            "ai.ts": [
+              H,
+              "const defaults = { ai: new OpenAI() };",
+              "export function list(holder: { cfg: typeof defaults }) {",
+              "  const { cfg } = holder;",
+              "  return cfg.ai.models.list();",
+              "}",
+            ],
+          },
+          want: "unresolved",
+        },
+        q3forof: {
+          files: {
+            "ai.ts": [
+              H,
+              "const defaults = { ai: new OpenAI() };",
+              "export function list(all: (typeof defaults)[]) {",
+              "  for (const cfg of all) cfg.ai.models.list();",
+              "}",
+            ],
+          },
+          want: "unresolved",
+        },
+        q3element: {
+          files: {
+            "ai.ts": [
+              H,
+              "const defaults = { ai: new OpenAI() };",
+              "export function list(all: (typeof defaults)[]) { return all[0]?.ai.models.list(); }",
+            ],
+          },
+          want: "unresolved",
+        },
+        // An imported `let` the exporter assigns again, by name and through a namespace.
+        q3importlet: {
+          files: {
+            "config.ts": [
+              H,
+              "export let config = { ai: new OpenAI() };",
+              "export function configure(c: typeof config) { config = c; }",
+            ],
+            "ai.ts": [
+              'import * as settings from "./config";',
+              'import { config } from "./config";',
+              "export function list() {",
+              "  return [config.ai.models.list(), settings.config.ai.models.list()];",
+              "}",
+            ],
+          },
+          want: "unresolved",
+        },
+        // A member read from a holder that may itself be a copy.
+        q3nestparam: {
+          files: {
+            "ai.ts": [
+              H,
+              "const defaults = { ai: new OpenAI() };",
+              "const holder = { cfg: defaults };",
+              "export function list(h: typeof holder) { return h.cfg.ai.models.list(); }",
+            ],
+          },
+          want: "unresolved",
+        },
+        // Controls: a `let` and a `var` never reassigned, a nested literal, a member holding the
+        // `const` itself (shorthand too), a namespace import's `const`, and a binding destructured
+        // from `require()`.
+        q3letctl: {
+          files: {
+            "ai.ts": [
+              H,
+              "const defaults = { ai: new OpenAI() };",
+              "export function list() {",
+              "  let cfg = defaults;",
+              "  return cfg.ai.models.list();",
+              "}",
+            ],
+          },
+          want: OPENAI,
+        },
+        q3varctl: {
+          files: {
+            "ai.js": [
+              J,
+              "var config = { ai: new OpenAI() };",
+              "function list() { return config.ai.models.list(); }",
+              "module.exports = { list };",
+            ],
+          },
+          want: OPENAI,
+        },
+        q3nestctl: {
+          files: {
+            "ai.ts": [
+              H,
+              "const config = { llm: { ai: new OpenAI() } };",
+              "export function list() { return config.llm.ai.models.list(); }",
+            ],
+          },
+          want: OPENAI,
+        },
+        q3refctl: {
+          files: {
+            "ai.ts": [
+              H,
+              "const defaults = { ai: new OpenAI() };",
+              "const holder = { cfg: defaults, defaults };",
+              "export function list() {",
+              "  return [holder.cfg.ai.models.list(), holder.defaults.ai.models.list()];",
+              "}",
+            ],
+          },
+          want: OPENAI,
+        },
+        q3nsctl: {
+          files: {
+            "config.ts": [H, "export const config = { ai: new OpenAI() };"],
+            "ai.ts": [
+              'import * as settings from "./config";',
+              "export function list() { return settings.config.ai.models.list(); }",
+            ],
+          },
+          want: OPENAI,
+        },
+        q3requirectl: {
+          files: {
+            "config.js": [J, "exports.config = { ai: new OpenAI() };"],
+            "ai.js": [
+              'const { config } = require("./config");',
+              "function list() { return config.ai.models.list(); }",
+              "module.exports = { list };",
+            ],
+          },
+          want: OPENAI,
+        },
+        // Q4 (M13.1c): `this` in a literal's method may be a copy of it (`{ ...helper, ai: c }`,
+        // `Object.assign({}, helper, …)`) once it's copied anywhere in the service.
+        q4copy: {
+          files: {
+            "ai.ts": [
+              H,
+              "export const helper = {",
+              "  ai: new OpenAI(),",
+              "  list() { return this.ai.models.list(); },",
+              "};",
+              "export function custom(c: OpenAI) { return { ...helper, ai: c }; }",
+            ],
+          },
+          want: "unresolved",
+        },
+        q4copyjs: {
+          files: {
+            "ai.js": [
+              J,
+              "const helper = {",
+              "  ai: new OpenAI(),",
+              "  list() { return this.ai.models.list(); },",
+              "};",
+              "function custom(c) { return { ...helper, ai: c }; }",
+              "module.exports = { helper, custom };",
+            ],
+          },
+          want: "unresolved",
+        },
+        q4assign: {
+          files: {
+            "ai.js": [
+              J,
+              "const helper = {",
+              "  ai: new OpenAI(),",
+              "  list() { return this.ai.models.list(); },",
+              "};",
+              "function custom(overrides) { return Object.assign({}, helper, overrides); }",
+              "module.exports = { helper, custom };",
+            ],
+          },
+          want: "unresolved",
+        },
+        // A value of the literal's type spread, alone or as one side of a union.
+        q4copytype: {
+          files: {
+            "ai.ts": [
+              H,
+              "export const helper = {",
+              "  ai: new OpenAI(),",
+              "  list() { return this.ai.models.list(); },",
+              "};",
+              "export function custom(h: typeof helper, c: OpenAI) { return { ...h, ai: c }; }",
+            ],
+          },
+          want: "unresolved",
+        },
+        q4copyunion: {
+          files: {
+            "ai.ts": [
+              H,
+              "export const helper = {",
+              "  ai: new OpenAI(),",
+              "  list() { return this.ai.models.list(); },",
+              "};",
+              "export function custom(flag: boolean, c: OpenAI) {",
+              "  const other = { ai: c, tag: 1 };",
+              "  return { ...(flag ? helper : other), ai: c };",
+              "}",
+            ],
+          },
+          want: "unresolved",
+        },
+        // `this` typed by a parameter, not a literal's method.
+        q4thisparam: {
+          files: {
+            "ai.ts": [
+              H,
+              "const defaults = { ai: new OpenAI() };",
+              "export function list(this: typeof defaults) { return this.ai.models.list(); }",
+            ],
+          },
+          want: "unresolved",
+        },
+        q4ctl: {
+          files: {
+            "ai.ts": [
+              H,
+              "export const helper = {",
+              "  ai: new OpenAI(),",
+              "  list() { return this.ai.models.list(); },",
+              "};",
+              "const other = { name: 'x' };",
+              "export function custom() { return { ...other, size: 1 }; }",
+            ],
+          },
+          want: OPENAI,
+        },
+        // Q5 (M13.1c): a spread after the member in the literal itself may replace it.
+        q5spread: {
+          files: {
+            "ai.js": [
+              J,
+              "function list(overrides) {",
+              "  return {",
+              "    ai: new OpenAI(),",
+              "    ...overrides,",
+              "    run() { return this.ai.models.list(); },",
+              "  };",
+              "}",
+              "module.exports = { list };",
+            ],
+          },
+          want: "unresolved",
+        },
+        q5spreadts: {
+          files: {
+            "ai.ts": [
+              H,
+              "export function list(overrides: { ai?: OpenAI }) {",
+              "  return {",
+              "    ai: new OpenAI(),",
+              "    ...overrides,",
+              "    run() { return this.ai.models.list(); },",
+              "  };",
+              "}",
+            ],
+          },
+          want: "unresolved",
+        },
+        // Control: a spread before the member is replaced by it.
+        q5beforectl: {
+          files: {
+            "ai.js": [
+              J,
+              "function list(overrides) {",
+              "  return {",
+              "    ...overrides,",
+              "    ai: new OpenAI(),",
+              "    run() { return this.ai.models.list(); },",
+              "  };",
+              "}",
+              "module.exports = { list };",
+            ],
+          },
+          want: OPENAI,
+        },
+        // Q6 (M13.1c): a class's member read through a receiver typed as the class may be read
+        // from a literal or another class's instance assignable to it.
+        q6lit: {
+          files: {
+            "ai.ts": [
+              H,
+              "export class Svc {",
+              "  ai = new OpenAI();",
+              "}",
+              "export function list(s: Svc) { return s.ai.models.list(); }",
+              "export const viaFake = (c: OpenAI) => list({ ai: c });",
+            ],
+          },
+          want: "unresolved",
+        },
+        q6class: {
+          files: {
+            "ai.ts": [
+              H,
+              "export class Svc {",
+              "  ai = new OpenAI();",
+              "}",
+              "class Fake {",
+              "  ai: OpenAI;",
+              "  constructor(c: OpenAI) { this.ai = c; }",
+              "}",
+              "export function list(s: Svc) { return s.ai.models.list(); }",
+              "export const viaFake = (c: OpenAI) => list(new Fake(c));",
+            ],
+          },
+          want: "unresolved",
+        },
+        q6newfake: {
+          files: {
+            "ai.ts": [
+              H,
+              "export class Svc {",
+              "  ai = new OpenAI();",
+              "}",
+              "class Fake {",
+              "  constructor(public ai: OpenAI) {}",
+              "}",
+              "export function list(c: OpenAI) {",
+              "  const s: Svc = new Fake(c);",
+              "  return s.ai.models.list();",
+              "}",
+            ],
+          },
+          want: "unresolved",
+        },
+        // A class with a static of the name may itself be passed as a `typeof Svc`.
+        q6static: {
+          files: {
+            "ai.ts": [
+              H,
+              "export class Svc {",
+              "  static ai = new OpenAI();",
+              "}",
+              "class Other {",
+              "  static ai: OpenAI = new OpenAI({ baseURL: 'https://other.example.com' });",
+              "}",
+              "export function list(S: typeof Svc) { return S.ai.models.list(); }",
+              "export const viaOther = () => list(Other);",
+            ],
+          },
+          want: "unresolved",
+        },
+        // Controls: `this` and the class itself are the class's own, whatever else has the shape.
+        q6thisctl: {
+          files: {
+            "ai.ts": [
+              ...svc("ai = new OpenAI();"),
+              "export const other = (c: OpenAI) => ({ ai: c, list: Svc.prototype.list });",
+            ],
+          },
+          want: OPENAI,
+        },
+        q6staticctl: {
+          files: {
+            "ai.ts": [
+              H,
+              "export class Svc {",
+              "  static ai = new OpenAI();",
+              "  static list() { return Svc.ai.models.list(); }",
+              "}",
+              "export class Other {",
+              "  static ai = new OpenAI();",
+              "  static list() { return Other.ai.models.list(); }",
+              "}",
+            ],
+          },
+          want: OPENAI,
+        },
+        // Controls: a literal and a class that can't be a `Svc` (no `ping`), and an instance the
+        // reader built itself.
+        q6ctl: {
+          files: {
+            "ai.ts": [
+              H,
+              "export class Svc {",
+              "  ai = new OpenAI();",
+              "  ping() { return 1; }",
+              "}",
+              "class Fake {",
+              "  constructor(public ai: OpenAI) {}",
+              "}",
+              "export function list(s: Svc) { return s.ai.models.list(); }",
+              "export const other = (c: OpenAI) => [{ ai: c }, new Fake(c)];",
+            ],
+          },
+          want: OPENAI,
+        },
+        q6newctl: {
+          files: {
+            "ai.ts": [
+              H,
+              "export class Svc {",
+              "  ai = new OpenAI();",
+              "}",
+              "export function list() { const s = new Svc(); return s.ai.models.list(); }",
+              "export const other = (c: OpenAI) => ({ ai: c });",
+            ],
+          },
+          want: OPENAI,
+        },
       };
       await put(
         "package.json",

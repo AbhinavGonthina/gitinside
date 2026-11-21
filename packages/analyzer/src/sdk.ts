@@ -81,8 +81,15 @@
  *   has it is written at a member the matcher can't name (`Object.assign(this, deps)`,
  *   `this[key] = c`). An object literal's member read from something that may be a copy (a
  *   parameter, a call's result such as `Object.assign({}, defaults, opts)`, a literal with a
- *   spread the matcher can't read) is unread too, and `this.<name>` in an object literal's
- *   method reads its own member. `new` of a class the repo declares (a wrapper, a subclass of
+ *   spread the matcher can't read; M13.1c, ADR-0316: a `let` or `var` assigned again, a
+ *   destructured or `for … of` binding, an element, a member some store may replace) is unread
+ *   too, while a `const` and a member no store reaches are read through to their value.
+ *   `this.<name>` in an object literal's method reads its own member, unless a later spread,
+ *   computed key, or accessor may replace it or the literal is copied anywhere in the service
+ *   (`{ ...helper, ai: c }`, `Object.assign({}, helper, …)`). A class's member read through
+ *   anything but `this`, a `const` holding a `new` of it, or the class itself is unread when a
+ *   literal or another class in the service declares the member and is assignable to the
+ *   receiver's type (`list({ ai: c })` for `list(s: Svc)`). `new` of a class the repo declares (a wrapper, a subclass of
  *   an SDK's), or of a library's with an argument that may hold a client (`new Proxy(c, {})`),
  *   is unread; a constructor joined with an unread one (`opts.Ctor ?? OpenAI`) builds a client
  *   with an unread base; a parameter's default is joined with what a caller may pass.
@@ -141,7 +148,10 @@
  *   `o: any` and `key: string`, a function constructor's `Object.assign(this, opts)`): counting those would make
  *   every property in the service unread. A property that holds no client by its
  *   declarations (`ai: undefined as OpenAI | undefined`, later `config.ai = new OpenAI()`)
- *   isn't read further, so its calls draw nothing.
+ *   isn't read further, so its calls draw nothing. A literal's method run on another object
+ *   (`helper.list.call(other)`, `Object.create(helper)`, a spread of an `any` value that may
+ *   be it), and a class's member read from a value of another shape built outside the
+ *   service's files, aren't seen (M13.1c).
  * - SDKs whose host depends on the account or project (Supabase, Firebase, Algolia,
  *   Salesforce), SMTP clients (nodemailer), and telemetry (Sentry, PostHog). They're not on
  *   the allowlist, so like any third-party package they get no edge (ADR-0024).
@@ -520,6 +530,16 @@ interface MemberStores {
   named: ReadonlyMap<string, readonly MemberStore[]>;
   unnamed: readonly ts.Expression[];
   declared: ReadonlyMap<string, readonly (ts.PropertyDeclaration | ts.ParameterDeclaration)[]>;
+}
+
+/**
+ * The objects a service's files build and copy (M13.1c): each object literal and class side by
+ * the member names it declares, and every expression copied into another object (a spread,
+ * `Object.assign`'s sources).
+ */
+interface ObjectShapes {
+  members: ReadonlyMap<string, readonly MemberOwner[]>;
+  copied: readonly ts.Expression[];
 }
 
 /**
@@ -1904,6 +1924,60 @@ export function collectSdkFacts(
     return stores;
   };
 
+  /** Each service's {@link ObjectShapes}, walked once. */
+  const shapesBySp = new Map<ServiceProgram, ObjectShapes>();
+
+  /** The {@link ObjectShapes} of a service's files. */
+  const objectShapes = (sp: ServiceProgram): ObjectShapes => {
+    const known = shapesBySp.get(sp);
+    if (known) return known;
+    const members = new Map<string, MemberOwner[]>();
+    const copied: ts.Expression[] = [];
+    const add = (name: ts.Node | undefined, owner: MemberOwner): void => {
+      if (!name || !(ts.isIdentifier(name) || ts.isStringLiteralLike(name))) return;
+      const list = members.get(name.text);
+      if (list) list.push(owner);
+      else members.set(name.text, [owner]);
+    };
+    const walk = (node: ts.Node): void => {
+      if (ts.isObjectLiteralExpression(node)) {
+        for (const p of node.properties) add(p.name, { kind: "object", node });
+      } else if (ts.isClassLike(node)) {
+        for (const m of node.members) {
+          if (!ts.isConstructorDeclaration(m)) {
+            add(m.name, { kind: "class", node, static: isStatic(m) });
+            continue;
+          }
+          for (const p of m.parameters) {
+            if (ts.isParameterPropertyDeclaration(p, m)) {
+              add(p.name, { kind: "class", node, static: false });
+            }
+          }
+        }
+      }
+      if (ts.isSpreadAssignment(node)) copied.push(node.expression);
+      else if (ts.isCallExpression(node)) {
+        const callee = unwrap(node.expression);
+        if (
+          ts.isPropertyAccessExpression(callee) &&
+          ts.isIdentifier(callee.expression) &&
+          callee.expression.text === "Object" &&
+          callee.name.text === "assign"
+        ) {
+          copied.push(...node.arguments.slice(1));
+        }
+      }
+      ts.forEachChild(node, walk);
+    };
+    for (const file of sp.rootFiles) {
+      const sourceFile = sp.program.getSourceFile(sp.toAbsolute(file));
+      if (sourceFile) walk(sourceFile);
+    }
+    const shapes = { members, copied };
+    shapesBySp.set(sp, shapes);
+    return shapes;
+  };
+
   /** The property an object's type has by `name`, if any (`undefined` for `any`). */
   const propertyOfType = (
     sp: ServiceProgram,
@@ -2045,23 +2119,41 @@ export function collectSdkFacts(
     name: string,
     hops: number,
   ): Branch => {
+    const values = propertyStores(sp, property, name);
+    if (!values) return UNREAD;
+    let found: Branch;
+    for (const value of values) {
+      found = joined(found, value ? branchOf(sp, value, hops + 1) : UNREAD);
+    }
+    return found;
+  };
+
+  /**
+   * The values {@link propertyWrites} reads, in order: `undefined` for a store the matcher
+   * can't read, and no list at all when an object written at a member it can't name may be
+   * the property's.
+   */
+  const propertyStores = (
+    sp: ServiceProgram,
+    property: ts.Symbol,
+    name: string,
+  ): (ts.Expression | undefined)[] | undefined => {
     const { named, unnamed, declared } = memberStores(sp);
     for (const object of unnamed) {
       const stored = propertyOfType(sp, object, name);
-      if (stored && mayWrite(sp, stored, property, object)) return UNREAD;
+      if (stored && mayWrite(sp, stored, property, object)) return undefined;
     }
-    let found: Branch;
+    const values: (ts.Expression | undefined)[] = [];
     for (const store of named.get(name) ?? []) {
       const stored = storedSymbol(sp, store);
       if (stored && !mayWrite(sp, stored, property, store.object)) continue;
-      found = joined(found, store.value ? branchOf(sp, store.value, hops + 1) : UNREAD);
+      values.push(store.value);
     }
     for (const declaration of declared.get(name) ?? []) {
       if (!overrides(sp, declaration, property)) continue;
-      const init = ts.isPropertyDeclaration(declaration) ? declaration.initializer : undefined;
-      found = joined(found, init ? branchOf(sp, init, hops + 1) : UNREAD);
+      values.push(ts.isPropertyDeclaration(declaration) ? declaration.initializer : undefined);
     }
-    return found;
+    return values;
   };
 
   /**
@@ -2382,11 +2474,9 @@ export function collectSdkFacts(
   };
 
   /**
-   * True when a member of an object literal is read from a value that may not be that object
-   * (M9.7p, P3): a parameter, a call's result (`Object.assign({}, defaults, opts)`), or a
-   * literal whose spreads or computed keys the matcher can't read (`{ ...defaults, ...opts }`),
-   * since their type names the original's member whatever the value holds. A class's members
-   * are trusted by type; `require()` and imports are the module itself.
+   * True when a member is read from a value that may not hold the declaration's own (M9.7p,
+   * M13.1c): an object literal's member read through a copy ({@link copiedLiteral}), or a
+   * class's member read from a value of another shape ({@link copiedClassMember}).
    */
   const copiedMember = (
     sp: ServiceProgram,
@@ -2394,16 +2484,142 @@ export function collectSdkFacts(
     name: string,
     symbol: ts.Symbol,
   ): boolean => {
-    if (!(symbol.declarations ?? []).some((d) => memberOwner(d)?.kind === "object")) return false;
+    const owners = (symbol.declarations ?? []).map(memberOwner);
+    if (owners.some((o) => o?.kind === "object")) return copiedLiteral(sp, receiver, name, 0);
+    const cls = owners.find((o) => o?.kind === "class");
+    return cls?.kind === "class" && copiedClassMember(sp, receiver, name, cls);
+  };
+
+  /**
+   * True when a member of an object literal is read from a value that may not be that object
+   * (M9.7p, P3; M13.1c, Q3), since its type names the original's member whatever the value
+   * holds: a parameter, a destructured binding, a `let` or `var` assigned again, a variable
+   * with no initializer (a `for … of` binding), a member of an object a store may replace
+   * (`holder.cfg` with `holder.cfg = { ...defaults, ...opts }`), an element, a call's result
+   * (`Object.assign({}, defaults, opts)`), a literal whose spreads or computed keys the
+   * matcher can't read (`{ ...defaults, ...opts }`), or `this` that {@link thisCopied}. A
+   * `const` (imported too), and a member of a literal no store reaches, are read through to
+   * their value; `require()` (destructured too: TypeScript reads it as an import) and imports
+   * from other packages are the module itself.
+   */
+  const copiedLiteral = (
+    sp: ServiceProgram,
+    receiver: ts.Expression,
+    name: string,
+    hops: number,
+  ): boolean => {
+    const checker = resolver.checkerOf(sp);
     let r = unwrap(receiver);
-    for (let hops = 0; hops <= MAX_HOPS && ts.isIdentifier(r); hops++) {
-      const d = symbolAt(sp, r)?.declarations?.[0];
-      if (d && ts.isParameter(d)) return true;
-      if (!d || !ts.isVariableDeclaration(d) || !isConst(d) || !d.initializer) return false;
-      r = unwrap(d.initializer);
+    for (; hops <= MAX_HOPS; hops++) {
+      if (ts.isIdentifier(r)) {
+        let symbol = symbolAt(sp, r);
+        if (symbol && symbol.flags & ts.SymbolFlags.Alias)
+          symbol = checker.getAliasedSymbol(symbol);
+        const d = symbol?.declarations?.[0];
+        if (!d) return false;
+        if (ts.isParameter(d) || ts.isBindingElement(d)) return true;
+        if (!ts.isVariableDeclaration(d)) return false;
+        if (!d.initializer || (assignedValues(sp, d)?.length ?? 0) > 0) return true;
+        r = unwrap(d.initializer);
+      } else if (ts.isPropertyAccessExpression(r)) {
+        const value = memberValue(sp, r, hops);
+        if (!value) return true;
+        r = unwrap(value);
+      } else break;
     }
+    if (r.kind === ts.SyntaxKind.ThisKeyword) return thisCopied(sp, r, name);
     if (ts.isObjectLiteralExpression(r)) return opaqueMember(sp, r, name, 0);
-    return ts.isCallExpression(r) && requiredModule(r) === undefined;
+    if (ts.isCallExpression(r)) return requiredModule(r) === undefined;
+    return true;
+  };
+
+  /**
+   * What a member access provably reads (M13.1c, Q3): an object literal's member that no store
+   * reaches ({@link propertyStores}), read from a value that isn't {@link copiedLiteral} a
+   * copy, or a `const` a namespace import names. `undefined` otherwise.
+   */
+  const memberValue = (
+    sp: ServiceProgram,
+    access: ts.PropertyAccessExpression,
+    hops: number,
+  ): ts.Expression | undefined => {
+    const checker = resolver.checkerOf(sp);
+    let symbol = symbolAt(sp, access.name);
+    if (symbol && symbol.flags & ts.SymbolFlags.Alias) symbol = checker.getAliasedSymbol(symbol);
+    const d = symbol?.declarations?.[0];
+    if (!symbol || !d) return undefined;
+    if (ts.isVariableDeclaration(d)) return isConst(d) ? d.initializer : undefined;
+    if (memberOwner(d)?.kind !== "object") return undefined;
+    const name = access.name.text;
+    if (copiedLiteral(sp, access.expression, name, hops + 1)) return undefined;
+    if (propertyStores(sp, symbol, name)?.length !== 0) return undefined;
+    if (ts.isPropertyAssignment(d)) return d.initializer;
+    return ts.isShorthandPropertyAssignment(d) ? d.name : undefined;
+  };
+
+  /**
+   * True when `this.<name>` in an object literal's method may not read the literal's own member
+   * (M13.1c): `this` outside such a method, a member a spread, computed key, method, or accessor
+   * after the literal's own value may replace (Q5: `{ ai, ...overrides, list() { this.ai… } }`;
+   * an earlier one is replaced by it; with no own value, every spread is read like
+   * {@link opaqueMember}'s), or a literal copied anywhere in the service (Q4: `{ ...helper, ai: c }`
+   * makes an object whose methods' `this` holds `c`): a value of its type (a `const` naming it
+   * too) spread into another literal or passed as an `Object.assign` source.
+   */
+  const thisCopied = (sp: ServiceProgram, self: ts.Node, name: string): boolean => {
+    const object = thisObject(self);
+    if (!object) return true;
+    const properties = object.properties;
+    let own = -1;
+    for (const [i, p] of properties.entries()) {
+      const value = ts.isSpreadAssignment(p) ? undefined : ownProperty(sp, p, name);
+      if (value !== undefined && value !== null) own = i;
+    }
+    if (properties.slice(own + 1).some((p) => opaqueProperty(sp, p, name, 0))) return true;
+    const checker = resolver.checkerOf(sp);
+    return objectShapes(sp).copied.some((copied) => {
+      const type = checker.getNonNullableType(checker.getTypeAtLocation(copied));
+      const parts = type.isUnion() ? type.types : [type];
+      return parts.some((t) => t.getSymbol()?.declarations?.includes(object) ?? false);
+    });
+  };
+
+  /**
+   * True when a class's member is read from a value that may not be the class's (M13.1c, Q6):
+   * types are structural, so `s.ai` with `s: Svc` may read a literal (`list({ ai: c })`),
+   * another class's instance, or a class itself passed as a `Svc`, when one in the service
+   * declares the member and its type is assignable to the receiver's. A `const` holding a `new`
+   * of the class or a subclass, and the class or a subclass itself for a static, are the
+   * class's own; so is `this`, whose type nothing else is assignable to.
+   */
+  const copiedClassMember = (
+    sp: ServiceProgram,
+    receiver: ts.Expression,
+    name: string,
+    owner: Extract<MemberOwner, { kind: "class" }>,
+  ): boolean => {
+    const checker = resolver.checkerOf(sp);
+    const r = unwrap(receiver);
+    const ours = (node: ts.Node | undefined): boolean =>
+      node !== undefined &&
+      ts.isClassLike(node) &&
+      (node === owner.node || derives(sp, node, owner.node));
+    if (ts.isIdentifier(r)) {
+      const d = symbolAt(sp, r)?.declarations?.[0];
+      if (owner.static && ours(d)) return false;
+      const init = d && ts.isVariableDeclaration(d) && isConst(d) ? d.initializer : undefined;
+      if (!owner.static && init && ts.isNewExpression(unwrap(init))) {
+        if (ours(checker.getTypeAtLocation(init).getSymbol()?.declarations?.[0])) return false;
+      }
+    }
+    const target = checker.getNonNullableType(checker.getTypeAtLocation(r));
+    return (objectShapes(sp).members.get(name) ?? []).some((other) => {
+      if (other.kind === "class" && other.node === owner.node && other.static === owner.static) {
+        return false;
+      }
+      const type = ownerType(sp, other);
+      return type !== undefined && checker.isTypeAssignableTo(type, target);
+    });
   };
 
   /**
@@ -2418,13 +2634,21 @@ export function collectSdkFacts(
     hops: number,
   ): boolean => {
     if (hops > MAX_HOPS) return true;
-    return object.properties.some((p) => {
-      if (!ts.isSpreadAssignment(p)) return ownProperty(sp, p, name) === null;
-      const inner = constObject(sp, p.expression, hops + 1);
-      return inner
-        ? opaqueMember(inner.sp, inner.expression, name, hops + 1)
-        : !spreadLacks(sp, p.expression, name);
-    });
+    return object.properties.some((p) => opaqueProperty(sp, p, name, hops));
+  };
+
+  /** {@link opaqueMember} for one of a literal's members. */
+  const opaqueProperty = (
+    sp: ServiceProgram,
+    p: ts.ObjectLiteralElementLike,
+    name: string,
+    hops: number,
+  ): boolean => {
+    if (!ts.isSpreadAssignment(p)) return ownProperty(sp, p, name) === null;
+    const inner = constObject(sp, p.expression, hops + 1);
+    return inner
+      ? opaqueMember(inner.sp, inner.expression, name, hops + 1)
+      : !spreadLacks(sp, p.expression, name);
   };
 
   /**
