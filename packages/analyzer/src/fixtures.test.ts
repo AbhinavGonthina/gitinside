@@ -427,8 +427,9 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     ]);
   });
 
-  it("sdk-branches: every write and branch of a client counts; a placeholder example host is no API (M9.7g, M9.7l, M9.7m, M9.7n, M9.7o, M9.7p, M13.1a, M13.1b)", async () => {
+  it("sdk-branches: every write and branch of a client counts; a placeholder example host is no API (M9.7g, M9.7l, M9.7m, M9.7n, M9.7o, M9.7p, M13.1a, M13.1b, M13.1c)", async () => {
     const g = await run("sdk-branches");
+    const copies = "symbol:sdk-branches/src/copies.ts";
     const fields = "symbol:sdk-branches/src/fields.ts";
     const lazy = "symbol:sdk-branches/src/lazy.ts";
     const over = "symbol:sdk-branches/src/overrides.ts";
@@ -455,8 +456,14 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
     // through another class's type may reach a class assignable to it (`Planner.models`), but
     // not one that isn't (`Archivist.history`, M13.1a). A subclass's parameter property of the
     // field's name (`Narrator.speak`) and a store at a constant key (`Turbine.spin`) are stores;
-    // a subclass's `declare` field isn't (`Scribe.write`, M13.1b).
+    // a subclass's `declare` field isn't (`Scribe.write`, M13.1b). A holder's member replaced by
+    // a copy (`holderModels`), a literal copied with another client (`reviewer.review`), and a
+    // class's member read from a literal of its shape (`ledgerModels`) are unread; a nested
+    // `const` literal no store reaches isn't (`toolboxModels`, M13.1c).
     expect(links(g, "http")).toEqual([
+      `${copies}#holderModels -> ${at}/copies.ts:12:40 unresolved DYNAMIC_URL`,
+      `${copies}#ledgerModels -> ${at}/copies.ts:33:29 unresolved DYNAMIC_URL`,
+      `${copies}#reviewer.review -> ${at}/copies.ts:19:31 unresolved DYNAMIC_URL`,
       `${fields}#Switchable.models -> ${at}/fields.ts:15:27 unresolved DYNAMIC_URL`,
       `${fields}#azureChat -> ${at}/fields.ts:42:33 unresolved NO_MATCHING_ROUTE`,
       `${fields}#issuesFor -> ${at}/fields.ts:59:29 unresolved DYNAMIC_URL`,
@@ -483,6 +490,7 @@ describe("M2 pattern fixtures produce the expected edge and confidence", () => {
       `${warm}#warm -> ${at}/warm.ts:21:24 unresolved DYNAMIC_URL`,
     ]);
     expect(links(g, "external_call")).toEqual([
+      `${copies}#toolboxModels -> external:ext/api.openai.com exact`,
       `${fields}#route -> external:ext/openrouter.ai exact`,
       `${lazy}#lazyModels -> external:ext/api.openai.com exact`,
       `${over}#Scribe.write -> external:ext/api.openai.com exact`,

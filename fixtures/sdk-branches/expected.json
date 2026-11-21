@@ -1,6 +1,21 @@
 {
-  "analyzerVersion": "0.3.22",
+  "analyzerVersion": "0.3.23",
   "edges": [
+    {
+      "confidence": "exact",
+      "from": "symbol:sdk-branches/src/copies.ts#borrowedLedger",
+      "id": "calls:symbol:sdk-branches/src/copies.ts#borrowedLedger->symbol:sdk-branches/src/copies.ts#ledgerModels",
+      "kind": "calls",
+      "sites": [
+        {
+          "args": 1,
+          "column": 49,
+          "file": "src/copies.ts",
+          "line": 36
+        }
+      ],
+      "to": "symbol:sdk-branches/src/copies.ts#ledgerModels"
+    },
     {
       "confidence": "exact",
       "from": "symbol:sdk-branches/src/lazy.ts#clientModels",
@@ -90,6 +105,20 @@
         }
       ],
       "to": "symbol:sdk-branches/src/warm.ts#getCached"
+    },
+    {
+      "confidence": "exact",
+      "from": "symbol:sdk-branches/src/copies.ts#toolboxModels",
+      "id": "external_call:symbol:sdk-branches/src/copies.ts#toolboxModels->external:ext/api.openai.com",
+      "kind": "external_call",
+      "sites": [
+        {
+          "column": 41,
+          "file": "src/copies.ts",
+          "line": 42
+        }
+      ],
+      "to": "external:ext/api.openai.com"
     },
     {
       "confidence": "exact",
@@ -188,6 +217,51 @@
         }
       ],
       "to": "external:ext/api.openai.com"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:sdk-branches/src/copies.ts#holderModels",
+      "id": "http:symbol:sdk-branches/src/copies.ts#holderModels->unresolved:sdk-branches/src/copies.ts:12:40",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 40,
+          "file": "src/copies.ts",
+          "line": 12
+        }
+      ],
+      "to": "unresolved:sdk-branches/src/copies.ts:12:40"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:sdk-branches/src/copies.ts#ledgerModels",
+      "id": "http:symbol:sdk-branches/src/copies.ts#ledgerModels->unresolved:sdk-branches/src/copies.ts:33:29",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 29,
+          "file": "src/copies.ts",
+          "line": 33
+        }
+      ],
+      "to": "unresolved:sdk-branches/src/copies.ts:33:29"
+    },
+    {
+      "confidence": "unresolved",
+      "from": "symbol:sdk-branches/src/copies.ts#reviewer.review",
+      "id": "http:symbol:sdk-branches/src/copies.ts#reviewer.review->unresolved:sdk-branches/src/copies.ts:19:31",
+      "kind": "http",
+      "reason": "DYNAMIC_URL",
+      "sites": [
+        {
+          "column": 31,
+          "file": "src/copies.ts",
+          "line": 19
+        }
+      ],
+      "to": "unresolved:sdk-branches/src/copies.ts:19:31"
     },
     {
       "confidence": "unresolved",
@@ -576,6 +650,14 @@
       "parentId": "system:root"
     },
     {
+      "hash": "f10311d9ed2b47a53c8196531ab3b7e40e977a0a16793a9ff5fbad4e720dc701",
+      "id": "file:sdk-branches/src/copies.ts",
+      "kind": "file",
+      "label": "copies.ts",
+      "parentId": "module:sdk-branches/src",
+      "path": "src/copies.ts"
+    },
+    {
       "hash": "b364959ce25a749758fbb05bec75f2bda0bab4f9915eaaebc3d90de68cc93c87",
       "id": "file:sdk-branches/src/fields.ts",
       "kind": "file",
@@ -652,6 +734,140 @@
       "label": "sdk-branches",
       "parentId": "system:root",
       "root": ""
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/copies.ts#Ledger",
+      "kind": "symbol",
+      "label": "Ledger",
+      "parentId": "file:sdk-branches/src/copies.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 30,
+        "file": "src/copies.ts",
+        "line": 28
+      },
+      "symbolKind": "class"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/copies.ts#borrowedLedger",
+      "kind": "symbol",
+      "label": "borrowedLedger",
+      "parentId": "file:sdk-branches/src/copies.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 14,
+        "endLine": 36,
+        "file": "src/copies.ts",
+        "line": 36
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/copies.ts#customReviewer",
+      "kind": "symbol",
+      "label": "customReviewer",
+      "parentId": "file:sdk-branches/src/copies.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 25,
+        "file": "src/copies.ts",
+        "line": 23
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/copies.ts#holderModels",
+      "kind": "symbol",
+      "label": "holderModels",
+      "parentId": "file:sdk-branches/src/copies.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 13,
+        "file": "src/copies.ts",
+        "line": 11
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/copies.ts#ledgerModels",
+      "kind": "symbol",
+      "label": "ledgerModels",
+      "parentId": "file:sdk-branches/src/copies.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 34,
+        "file": "src/copies.ts",
+        "line": 32
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/copies.ts#reconfigure",
+      "kind": "symbol",
+      "label": "reconfigure",
+      "parentId": "file:sdk-branches/src/copies.ts",
+      "requiredParams": 1,
+      "source": {
+        "column": 1,
+        "endLine": 9,
+        "file": "src/copies.ts",
+        "line": 7
+      },
+      "symbolKind": "function"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/copies.ts#reviewer",
+      "kind": "symbol",
+      "label": "reviewer",
+      "parentId": "file:sdk-branches/src/copies.ts",
+      "source": {
+        "column": 14,
+        "endLine": 21,
+        "file": "src/copies.ts",
+        "line": 16
+      },
+      "symbolKind": "variable"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/copies.ts#reviewer.review",
+      "kind": "symbol",
+      "label": "review",
+      "parentId": "symbol:sdk-branches/src/copies.ts#reviewer",
+      "requiredParams": 0,
+      "source": {
+        "column": 3,
+        "endLine": 20,
+        "file": "src/copies.ts",
+        "line": 18
+      },
+      "symbolKind": "method"
+    },
+    {
+      "exported": true,
+      "id": "symbol:sdk-branches/src/copies.ts#toolboxModels",
+      "kind": "symbol",
+      "label": "toolboxModels",
+      "parentId": "file:sdk-branches/src/copies.ts",
+      "requiredParams": 0,
+      "source": {
+        "column": 1,
+        "endLine": 43,
+        "file": "src/copies.ts",
+        "line": 41
+      },
+      "symbolKind": "function"
     },
     {
       "exported": true,
@@ -1640,6 +1856,48 @@
       "kind": "system",
       "label": "sdk-branches",
       "parentId": null
+    },
+    {
+      "detail": "the SDK client is built with different base URLs on different branches",
+      "expression": "holder.settings.writer.models.list",
+      "id": "unresolved:sdk-branches/src/copies.ts:12:40",
+      "kind": "unresolved",
+      "label": "GET holder.settings.writer /models",
+      "parentId": "service:sdk-branches/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 40,
+        "file": "src/copies.ts",
+        "line": 12
+      }
+    },
+    {
+      "detail": "the SDK client is built with different base URLs on different branches",
+      "expression": "this.critic.models.list",
+      "id": "unresolved:sdk-branches/src/copies.ts:19:31",
+      "kind": "unresolved",
+      "label": "GET this.critic /models",
+      "parentId": "service:sdk-branches/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 31,
+        "file": "src/copies.ts",
+        "line": 19
+      }
+    },
+    {
+      "detail": "the SDK client is built with different base URLs on different branches",
+      "expression": "ledger.book.models.list",
+      "id": "unresolved:sdk-branches/src/copies.ts:33:29",
+      "kind": "unresolved",
+      "label": "GET ledger.book /models",
+      "parentId": "service:sdk-branches/",
+      "reason": "DYNAMIC_URL",
+      "source": {
+        "column": 29,
+        "file": "src/copies.ts",
+        "line": 33
+      }
     },
     {
       "detail": "the SDK client is built with different base URLs on different branches",
