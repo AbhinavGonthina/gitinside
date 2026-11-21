@@ -19,6 +19,9 @@ export {
   renderCheckRun,
   renderPrComment,
   type CheckRunText,
+  type PrConfigIssue,
+  type PrRules,
+  type PrRuleViolation,
   type PrTextOptions,
 } from "./pr.js";
 export {
